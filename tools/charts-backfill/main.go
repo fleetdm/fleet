@@ -1,6 +1,5 @@
 // charts-backfill generates realistic chart data for development and testing.
-// For blob-storage datasets (uptime), it writes to host_hourly_data_blobs.
-// For bitmap-storage datasets, it writes to host_daily_data_bitmaps.
+// It writes blob-storage rows to host_hourly_data_blobs.
 // Safe to re-run — uses ON DUPLICATE KEY UPDATE to merge new data.
 //
 // Usage:
@@ -22,14 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart"
 	_ "github.com/go-sql-driver/mysql"
 )
-
-const batchSize = 500
-
-// blobDatasets lists datasets that use blob storage.
-var blobDatasets = map[string]struct{}{
-	"uptime": {},
-	"cve":    {},
-}
 
 // dailyBlobDatasets use blob storage with hour=-1 (whole-day granularity).
 var dailyBlobDatasets = map[string]struct{}{
@@ -84,20 +75,12 @@ func main() {
 		entityIDs = []string{""}
 	}
 
-	_, isBlob := blobDatasets[*dataset]
-
-	log.Printf("backfilling dataset=%q (blob=%v), days=%d, start=%s, hosts=%d, entities=%d",
-		*dataset, isBlob, *days, start.Format("2006-01-02"), len(hostIDs), len(entityIDs))
+	log.Printf("backfilling dataset=%q, days=%d, start=%s, hosts=%d, entities=%d",
+		*dataset, *days, start.Format("2006-01-02"), len(hostIDs), len(entityIDs))
 
 	startTime := time.Now()
-
-	if isBlob {
-		totalRows := backfillBlob(db, *dataset, *days, start, hostIDs, entityIDs)
-		log.Printf("done: %d blob rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
-	} else {
-		totalRows := backfillBitmap(db, *dataset, *days, start, hostIDs, entityIDs)
-		log.Printf("done: %d bitmap rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
-	}
+	totalRows := backfillBlob(db, *dataset, *days, start, hostIDs, entityIDs)
+	log.Printf("done: %d blob rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
 }
 
 func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
@@ -187,54 +170,6 @@ func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, ho
 	return totalRows
 }
 
-func backfillBitmap(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
-	totalRows := 0
-
-	for day := range days {
-		date := start.AddDate(0, 0, day)
-		dateStr := date.Format("2006-01-02")
-
-		var batch []string
-		var args []any
-
-		for _, entityID := range entityIDs {
-			bitmaps := generateDayBitmaps(dataset, hostIDs)
-
-			for i, hostID := range hostIDs {
-				if bitmaps[i] == 0 {
-					continue
-				}
-
-				batch = append(batch, "(?, ?, ?, ?, ?)")
-				args = append(args, hostID, dataset, entityID, dateStr, bitmaps[i])
-
-				if len(batch) >= batchSize {
-					if err := insertBitmapBatch(db, batch, args); err != nil {
-						log.Fatalf("insert failed on day %s: %v", dateStr, err)
-					}
-					totalRows += len(batch)
-					batch = batch[:0]
-					args = args[:0]
-				}
-			}
-		}
-
-		if len(batch) > 0 {
-			if err := insertBitmapBatch(db, batch, args); err != nil {
-				log.Fatalf("insert failed on day %s: %v", dateStr, err)
-			}
-			totalRows += len(batch)
-		}
-
-		if (day+1)%5 == 0 || day == days-1 {
-			log.Printf("  day %d/%d (%s) — %d rows so far",
-				day+1, days, dateStr, totalRows)
-		}
-	}
-
-	return totalRows
-}
-
 // generateHourlyHosts returns a map of hour -> active host IDs for a single day.
 func generateHourlyHosts(dataset string, hostIDs []uint) map[int][]uint {
 	minDensity, maxDensity := densityRange(dataset)
@@ -257,23 +192,6 @@ func generateHourlyHosts(dataset string, hostIDs []uint) map[int][]uint {
 	return result
 }
 
-// generateDayBitmaps generates per-host bitmaps for a single day.
-func generateDayBitmaps(dataset string, hostIDs []uint) []uint32 {
-	bitmaps := make([]uint32, len(hostIDs))
-	minDensity, maxDensity := densityRange(dataset)
-	n := len(hostIDs)
-
-	for hour := range 24 {
-		density := minDensity + rand.Float64()*(maxDensity-minDensity)
-		count := int(float64(n) * density)
-		for _, idx := range rand.Perm(n)[:count] {
-			bitmaps[idx] |= 1 << hour
-		}
-	}
-
-	return bitmaps
-}
-
 func densityRange(dataset string) (float64, float64) {
 	switch dataset {
 	case "uptime":
@@ -285,17 +203,6 @@ func densityRange(dataset string) (float64, float64) {
 	default:
 		return 0.40, 0.80
 	}
-}
-
-func insertBitmapBatch(db *sql.DB, valueClauses []string, args []any) error {
-	query := fmt.Sprintf(
-		`INSERT INTO host_daily_data_bitmaps (host_id, dataset, entity_id, chart_date, hours_bitmap)
-		 VALUES %s
-		 ON DUPLICATE KEY UPDATE hours_bitmap = hours_bitmap | VALUES(hours_bitmap)`,
-		strings.Join(valueClauses, ","),
-	)
-	_, err := db.Exec(query, args...)
-	return err
 }
 
 func queryHostIDs(db *sql.DB) ([]uint, error) {
