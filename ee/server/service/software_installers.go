@@ -2669,69 +2669,77 @@ func (svc *Service) softwareBatchUpload(
 					}
 
 					// Handle 304 Not Modified (conditional download with matching ETag).
-					// TRUST ASSUMPTION: conditional download is the default behavior that trusts
-					// the origin server's ETag as a content fingerprint. The 304 fast-path
-					// skips all post-download processing (metadata extraction, script field
-					// clearing, etc.). The cached installer's metadata is reused as-is.
+					// TRUST ASSUMPTION: conditional download trusts the origin server's
+					// ETag as a content fingerprint, so we reuse the cached installer
+					// bytes and metadata (filename, version, extension, etc.) without
+					// re-extraction. Flow continues past the download-specific code so
+					// that script fields from the user's GitOps config still pass
+					// through the shared normalization/validation below.
+					var cacheHit bool
 					if resp != nil && resp.StatusCode == http.StatusNotModified && existingForCache != nil {
 						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
 						if existErr == nil && bytesExist {
 							fillSoftwareInstallerPayloadFromExisting(installer, existingForCache, existingForCache.StorageID)
 							installer.HTTPETag = existingForCache.HTTPETag
-							installers[i] = &installerPayloadWithExtras{
-								UploadSoftwareInstallerPayload: installer,
-								ExtraInstallers:                extraInstallers,
+							// Propagate the existing hash so FMA hydration below
+							// doesn't try to recompute it from the (nil) file
+							// reader when the manifest uses noCheckHash.
+							if p.MaintainedApp != nil {
+								p.MaintainedApp.SHA256 = existingForCache.StorageID
 							}
-							return nil
-						}
-						svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
-						resp, tfr, err = retryDownload(ctx, p.URL, "")
-						if err != nil {
-							return err
-						}
-						if resp != nil && resp.StatusCode == http.StatusNotModified {
-							return fmt.Errorf("server returned 304 on unconditional re-download of %q", p.URL)
+							cacheHit = true
+						} else {
+							svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
+							resp, tfr, err = retryDownload(ctx, p.URL, "")
+							if err != nil {
+								return err
+							}
+							if resp != nil && resp.StatusCode == http.StatusNotModified {
+								return fmt.Errorf("server returned 304 on unconditional re-download of %q", p.URL)
+							}
 						}
 					}
 
-					// Protocol violation guards: downloadURLFn never returns nil resp
-					// on success, but guard defensively for server misbehavior.
-					if resp == nil || tfr == nil {
-						statusCode := 0
-						if resp != nil {
-							statusCode = resp.StatusCode
+					if !cacheHit {
+						// Protocol violation guards: downloadURLFn never returns nil resp
+						// on success, but guard defensively for server misbehavior.
+						if resp == nil || tfr == nil {
+							statusCode := 0
+							if resp != nil {
+								statusCode = resp.StatusCode
+							}
+							return fmt.Errorf("download of %q returned no body (status %d); the server may be incorrectly returning 304", p.URL, statusCode)
 						}
-						return fmt.Errorf("download of %q returned no body (status %d); the server may be incorrectly returning 304", p.URL, statusCode)
-					}
 
-					installer.InstallerFile = tfr
-					toBeClosedTFRs[i] = tfr
+						installer.InstallerFile = tfr
+						toBeClosedTFRs[i] = tfr
 
-					filename := maintained_apps.FilenameFromResponse(resp)
-					installer.Filename = filename
+						filename := maintained_apps.FilenameFromResponse(resp)
+						installer.Filename = filename
 
-					// Always capture ETag from download response so it's available
-					// immediately if always_download is later disabled.
-					if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
-						installer.HTTPETag = &etag
-					} else {
-						svc.logger.DebugContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
-					}
+						// Always capture ETag from download response so it's available
+						// immediately if always_download is later disabled.
+						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
+							installer.HTTPETag = &etag
+						} else {
+							svc.logger.DebugContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
+						}
 
-					// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
-					// unsupported fields early. Determine extension from filename to
-					// validate before metadata extraction.
-					ext := strings.ToLower(filepath.Ext(filename))
-					ext = strings.TrimPrefix(ext, ".")
-					if fleet.IsScriptPackage(ext) {
-						installer.PostInstallScript = ""
-						installer.UninstallScript = ""
-						installer.PreInstallQuery = ""
-					} else if ext == "ipa" {
-						installer.InstallScript = ""
-						installer.PostInstallScript = ""
-						installer.UninstallScript = ""
-						installer.PreInstallQuery = ""
+						// For script packages (.sh and .ps1) and in-house apps (.ipa),
+						// clear unsupported fields early. Determine extension from
+						// filename to validate before metadata extraction.
+						ext := strings.ToLower(filepath.Ext(filename))
+						ext = strings.TrimPrefix(ext, ".")
+						if fleet.IsScriptPackage(ext) {
+							installer.PostInstallScript = ""
+							installer.UninstallScript = ""
+							installer.PreInstallQuery = ""
+						} else if ext == "ipa" {
+							installer.InstallScript = ""
+							installer.PostInstallScript = ""
+							installer.UninstallScript = ""
+							installer.PreInstallQuery = ""
+						}
 					}
 				}
 			}
