@@ -200,34 +200,35 @@ func (ds *Datastore) CleanupBlobData(ctx context.Context, days int) error {
 	return nil
 }
 
-// buildHostFilterSubquery builds SQL clauses to filter host_daily_data_bitmaps rows by host attributes.
-// Uses "hd" as the table alias. Returns the clause (prefixed with AND) and args.
-// Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostFilterSubquery(filter *chart.HostFilter) (string, []any) {
+// buildHostFilterSubqueryForAlias builds SQL clauses to filter chart rows by host
+// attributes, using the given table alias for the host_id column. Returns the clause
+// (prefixed with AND) and args. Args may contain slices — caller must use sqlx.In to expand them.
+func buildHostFilterSubqueryForAlias(filter *chart.HostFilter, alias string) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}
 
 	var clauses []string
 	var args []any
+	col := alias + ".host_id"
 
 	if len(filter.LabelIDs) > 0 {
-		clauses = append(clauses, "hd.host_id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))")
+		clauses = append(clauses, col+" IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))")
 		args = append(args, filter.LabelIDs)
 	}
 
 	if len(filter.Platforms) > 0 {
-		clauses = append(clauses, "hd.host_id IN (SELECT id FROM hosts WHERE platform IN (?))")
+		clauses = append(clauses, col+" IN (SELECT id FROM hosts WHERE platform IN (?))")
 		args = append(args, filter.Platforms)
 	}
 
 	if len(filter.IncludeHostIDs) > 0 {
-		clauses = append(clauses, "hd.host_id IN (?)")
+		clauses = append(clauses, col+" IN (?)")
 		args = append(args, filter.IncludeHostIDs)
 	}
 
 	if len(filter.ExcludeHostIDs) > 0 {
-		clauses = append(clauses, "hd.host_id NOT IN (?)")
+		clauses = append(clauses, col+" NOT IN (?)")
 		args = append(args, filter.ExcludeHostIDs)
 	}
 
