@@ -20,12 +20,10 @@
 
 
   [purpose='page-container'] {
-    padding: 48px;
+    padding: @page-padding-sm;
   }
   [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1104px;
+    .page-content-docs();
   }
 
   [purpose='breadcrumbs'] {
@@ -447,7 +445,7 @@
   }
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='query-details'] {
       padding-right: 0px;
@@ -477,7 +475,7 @@
 
   @media (max-width: 575px) {
     [purpose='page-container'] {
-      padding: 32px 24px;
+      padding: @page-padding-tablet-mobile;
     }
     [purpose='query-check'] {
       [purpose='codeblock'] {
