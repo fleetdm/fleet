@@ -79,7 +79,6 @@ type StatisticsPayload struct {
 
 type CertificateExpiration struct {
 	Type      string    `json:"type"`
-	Name      string    `json:"name"`
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 

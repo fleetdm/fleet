@@ -842,22 +842,18 @@ func testCertificateExpirations(t *testing.T, ds *Datastore) {
 	expected := []fleet.CertificateExpiration{
 		{
 			Type:      "abm",
-			Name:      "OrgA/apple1@example.com",
 			ExpiresAt: abmRenewAt1,
 		},
 		{
 			Type:      "abm",
-			Name:      "OrgC/apple2@example.com",
 			ExpiresAt: abmRenewAt2,
 		},
 		{
 			Type:      "vpp",
-			Name:      "OrgB/US",
 			ExpiresAt: vppRenewAt,
 		},
 		{
 			Type:      "mdm_config_asset",
-			Name:      "ca_cert",
 			ExpiresAt: certRenewAt,
 		},
 	}
