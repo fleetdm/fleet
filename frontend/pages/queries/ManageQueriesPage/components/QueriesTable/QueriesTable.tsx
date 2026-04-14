@@ -253,7 +253,7 @@ const QueriesTable = ({
         variant="table-filter"
       />
     );
-  }, [curTargetedPlatformFilter, queryParams, router]);
+  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
 
   const columnConfigs = useMemo(
     () =>

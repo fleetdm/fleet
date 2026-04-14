@@ -7,7 +7,6 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
-import { set } from "lodash";
 
 interface IFilterPillProps {
   label: string;

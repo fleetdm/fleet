@@ -396,7 +396,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           />
         )}
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
