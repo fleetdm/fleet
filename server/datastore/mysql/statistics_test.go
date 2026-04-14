@@ -834,27 +834,27 @@ func testCertificateExpirations(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 
-	// Truncate ExpiresAt to seconds for comparison.
+	// Truncate ExpiresAt to seconds and normalize to UTC for comparison.
 	for i := range results {
-		results[i].ExpiresAt = results[i].ExpiresAt.Truncate(time.Second)
+		results[i].ExpiresAt = results[i].ExpiresAt.Truncate(time.Second).UTC()
 	}
 
 	expected := []fleet.CertificateExpiration{
 		{
 			Type:      "abm",
-			ExpiresAt: abmRenewAt1,
+			ExpiresAt: abmRenewAt1.UTC(),
 		},
 		{
 			Type:      "abm",
-			ExpiresAt: abmRenewAt2,
+			ExpiresAt: abmRenewAt2.UTC(),
 		},
 		{
 			Type:      "vpp",
-			ExpiresAt: vppRenewAt,
+			ExpiresAt: vppRenewAt.UTC(),
 		},
 		{
-			Type:      "mdm_config_asset",
-			ExpiresAt: certRenewAt,
+			Type:      "ca_cert",
+			ExpiresAt: certRenewAt.UTC(),
 		},
 	}
 

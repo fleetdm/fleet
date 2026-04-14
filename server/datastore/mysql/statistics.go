@@ -335,7 +335,7 @@ func certificateExpirationsDB(ctx context.Context, db sqlx.QueryerContext) ([]fl
 	}
 
 	var configAssets []fleet.MDMConfigAsset
-	if err := sqlx.SelectContext(ctx, db, &configAssets, `SELECT renew_at FROM mdm_config_assets WHERE renew_at IS NOT NULL AND deletion_uuid = ''`); err != nil {
+	if err := sqlx.SelectContext(ctx, db, &configAssets, `SELECT name, renew_at FROM mdm_config_assets WHERE renew_at IS NOT NULL AND deletion_uuid = ''`); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting mdm config asset certificate expirations")
 	}
 
@@ -355,7 +355,7 @@ func certificateExpirationsDB(ctx context.Context, db sqlx.QueryerContext) ([]fl
 	for _, a := range configAssets {
 		if a.RenewAt != nil {
 			result = append(result, fleet.CertificateExpiration{
-				Type:      "mdm_config_asset",
+				Type:      string(a.Name),
 				ExpiresAt: *a.RenewAt,
 			})
 		}
