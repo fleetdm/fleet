@@ -22,11 +22,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// encrypt_20260414172920 is a test-local copy of the AES-GCM encryption
+// encrypt_AddRenewalToMDMConfigAssets is a test-local copy of the AES-GCM encryption
 // routine used by the datastore to store mdm_config_assets. Duplicated here
 // because the mysql package's encrypt function is not accessible from the
 // migrations test package.
-func encrypt_20260414172920(plainText []byte, privateKey string) ([]byte, error) {
+func encrypt_AddRenewalToMDMConfigAssets(plainText []byte, privateKey string) ([]byte, error) {
 	block, err := aes.NewCipher([]byte(privateKey))
 	if err != nil {
 		return nil, fmt.Errorf("create new cipher: %w", err)
@@ -90,7 +90,7 @@ func setPrivateKeyEnv(t *testing.T, key string) {
 // testPrivateKey is a 32-byte key for AES-256 used in tests.
 const testPrivateKey = "test-key-exactly-32-bytes-long!!"
 
-func TestUp_20260414172920_BackfillAPNsCert(t *testing.T) {
+func TestUp_20260414185606_BackfillAPNsCert(t *testing.T) {
 	// Set the private key so the migration can decrypt existing assets.
 	setPrivateKeyEnv(t, testPrivateKey)
 
@@ -101,7 +101,7 @@ func TestUp_20260414172920_BackfillAPNsCert(t *testing.T) {
 	certPEM := generateTestCertPEM(t, certExpiry)
 
 	// Insert an encrypted APNs certificate asset (simulates a pre-migration state).
-	encrypted, err := encrypt_20260414172920(certPEM, testPrivateKey)
+	encrypted, err := encrypt_AddRenewalToMDMConfigAssets(certPEM, testPrivateKey)
 	require.NoError(t, err)
 	hexChecksum := md5HexChecksum(encrypted)
 	apnsID := execNoErrLastID(t, db,
@@ -112,7 +112,7 @@ func TestUp_20260414172920_BackfillAPNsCert(t *testing.T) {
 
 	// Also insert a non-certificate asset (a key) to verify it is NOT backfilled.
 	keyData := []byte("this-is-a-private-key")
-	encryptedKey, err := encrypt_20260414172920(keyData, testPrivateKey)
+	encryptedKey, err := encrypt_AddRenewalToMDMConfigAssets(keyData, testPrivateKey)
 	require.NoError(t, err)
 	keyChecksum := md5HexChecksum(encryptedKey)
 	keyID := execNoErrLastID(t, db,
@@ -123,7 +123,7 @@ func TestUp_20260414172920_BackfillAPNsCert(t *testing.T) {
 
 	// Insert a soft-deleted certificate asset to verify it is NOT backfilled.
 	deletedCertPEM := generateTestCertPEM(t, time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC))
-	encryptedDeleted, err := encrypt_20260414172920(deletedCertPEM, testPrivateKey)
+	encryptedDeleted, err := encrypt_AddRenewalToMDMConfigAssets(deletedCertPEM, testPrivateKey)
 	require.NoError(t, err)
 	deletedChecksum := md5HexChecksum(encryptedDeleted)
 	deletedID := execNoErrLastID(t, db,
@@ -156,7 +156,7 @@ func TestUp_20260414172920_BackfillAPNsCert(t *testing.T) {
 	require.Nil(t, deletedRenewAt, "renew_at should remain NULL for soft-deleted certificate assets")
 }
 
-func TestUp_20260414172920_BackfillMultipleCerts(t *testing.T) {
+func TestUp_20260414185606_BackfillMultipleCerts(t *testing.T) {
 	setPrivateKeyEnv(t, testPrivateKey)
 
 	db := applyUpToPrev(t)
@@ -181,7 +181,7 @@ func TestUp_20260414172920_BackfillMultipleCerts(t *testing.T) {
 
 	for _, a := range assets {
 		certPEM := generateTestCertPEM(t, a.expiry)
-		encrypted, err := encrypt_20260414172920(certPEM, testPrivateKey)
+		encrypted, err := encrypt_AddRenewalToMDMConfigAssets(certPEM, testPrivateKey)
 		require.NoError(t, err)
 		checksum := md5HexChecksum(encrypted)
 
@@ -208,7 +208,7 @@ func TestUp_20260414172920_BackfillMultipleCerts(t *testing.T) {
 	}
 }
 
-func TestUp_20260414172920_NoAssets(t *testing.T) {
+func TestUp_20260414185606_NoAssets(t *testing.T) {
 	setPrivateKeyEnv(t, testPrivateKey)
 
 	db := applyUpToPrev(t)
@@ -222,7 +222,7 @@ func TestUp_20260414172920_NoAssets(t *testing.T) {
 	require.Equal(t, 0, count)
 }
 
-func TestUp_20260414172920_NoPrivateKey(t *testing.T) {
+func TestUp_20260414185606_NoPrivateKey(t *testing.T) {
 	// Ensure the env var is unset so the migration skips the backfill.
 	setPrivateKeyEnv(t, "")
 
@@ -231,7 +231,7 @@ func TestUp_20260414172920_NoPrivateKey(t *testing.T) {
 	// Insert a certificate asset. Without the private key the migration should
 	// still succeed but skip the backfill (renew_at stays NULL).
 	certPEM := generateTestCertPEM(t, time.Date(2032, 1, 1, 0, 0, 0, 0, time.UTC))
-	encrypted, err := encrypt_20260414172920(certPEM, testPrivateKey)
+	encrypted, err := encrypt_AddRenewalToMDMConfigAssets(certPEM, testPrivateKey)
 	require.NoError(t, err)
 	checksum := md5HexChecksum(encrypted)
 	assetID := execNoErrLastID(t, db,
@@ -250,7 +250,7 @@ func TestUp_20260414172920_NoPrivateKey(t *testing.T) {
 	require.Nil(t, renewAt, "renew_at should remain NULL when private key is not available")
 }
 
-func TestUp_20260414172920_WrongPrivateKey(t *testing.T) {
+func TestUp_20260414185606_WrongPrivateKey(t *testing.T) {
 	// Set a different key than the one used to encrypt. The migration should
 	// gracefully skip rows it cannot decrypt rather than failing.
 	setPrivateKeyEnv(t, "wrong-key-exactly-32-bytes-long!")
@@ -258,7 +258,7 @@ func TestUp_20260414172920_WrongPrivateKey(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	certPEM := generateTestCertPEM(t, time.Date(2032, 1, 1, 0, 0, 0, 0, time.UTC))
-	encrypted, err := encrypt_20260414172920(certPEM, testPrivateKey)
+	encrypted, err := encrypt_AddRenewalToMDMConfigAssets(certPEM, testPrivateKey)
 	require.NoError(t, err)
 	checksum := md5HexChecksum(encrypted)
 	assetID := execNoErrLastID(t, db,

@@ -15,14 +15,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260414172920, Down_20260414172920)
+	MigrationClient.AddMigration(Up_20260414185606, Down_20260414185606)
 }
 
 // certificateAssetNames is a snapshot of the asset names that hold certificates
 // at the time this migration was written. This list is intentionally duplicated
 // here (rather than referencing fleet.MDMAssetName constants) so the migration
 // remains stable even if those constants change in the future.
-var certificateAssetNames_20260414172920 = []string{
+var certificateAssetNames_AddRenewalToMDMConfigAssets = []string{
 	"ca_cert",
 	"apns_cert",
 	"abm_cert",
@@ -31,7 +31,7 @@ var certificateAssetNames_20260414172920 = []string{
 	"conditional_access_idp_cert",
 }
 
-func Up_20260414172920(tx *sql.Tx) error {
+func Up_20260414185606(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE mdm_config_assets ADD COLUMN renew_at TIMESTAMP NULL DEFAULT NULL`)
 	if err != nil {
 		return fmt.Errorf("adding renew_at to mdm_config_assets: %w", err)
@@ -55,7 +55,7 @@ func Up_20260414172920(tx *sql.Tx) error {
 
 	query, args, err := sqlx.In(
 		`SELECT id, value FROM mdm_config_assets WHERE name IN (?) AND deletion_uuid = ''`,
-		certificateAssetNames_20260414172920,
+		certificateAssetNames_AddRenewalToMDMConfigAssets,
 	)
 	if err != nil {
 		return fmt.Errorf("building IN query for mdm_config_assets backfill: %w", err)
@@ -67,14 +67,14 @@ func Up_20260414172920(tx *sql.Tx) error {
 	}
 
 	for _, r := range rows {
-		decrypted, err := decrypt_20260414172920(r.Value, privateKey)
+		decrypted, err := decrypt_AddRenewalToMDMConfigAssets(r.Value, privateKey)
 		if err != nil {
 			// If decryption fails (e.g. key mismatch), skip this row rather
 			// than failing the entire migration.
 			continue
 		}
 
-		renewAt := extractCertRenewAt_20260414172920(decrypted)
+		renewAt := extractCertRenewAt_AddRenewalToMDMConfigAssets(decrypted)
 		if renewAt == nil {
 			continue
 		}
@@ -87,14 +87,14 @@ func Up_20260414172920(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260414172920(tx *sql.Tx) error {
+func Down_20260414185606(tx *sql.Tx) error {
 	return nil
 }
 
-// decrypt_20260414172920 is a migration-local copy of the AES-GCM decryption
+// decrypt_AddRenewalToMDMConfigAssets is a migration-local copy of the AES-GCM decryption
 // routine used by the datastore. It is duplicated here so the migration is
 // self-contained and immune to future refactors of the main decrypt function.
-func decrypt_20260414172920(encrypted []byte, privateKey string) ([]byte, error) {
+func decrypt_AddRenewalToMDMConfigAssets(encrypted []byte, privateKey string) ([]byte, error) {
 	block, err := aes.NewCipher([]byte(privateKey))
 	if err != nil {
 		return nil, fmt.Errorf("create new cipher: %w", err)
@@ -120,10 +120,10 @@ func decrypt_20260414172920(encrypted []byte, privateKey string) ([]byte, error)
 	return decrypted, nil
 }
 
-// extractCertRenewAt_20260414172920 is a migration-local copy of
+// extractCertRenewAt_AddRenewalToMDMConfigAssets is a migration-local copy of
 // fleet.ExtractCertRenewAt. It parses PEM-encoded certificate bytes and
 // returns the expiration time (NotAfter) of the first certificate found.
-func extractCertRenewAt_20260414172920(pemBytes []byte) *time.Time {
+func extractCertRenewAt_AddRenewalToMDMConfigAssets(pemBytes []byte) *time.Time {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
 		return nil

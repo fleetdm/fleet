@@ -62,7 +62,14 @@ parasails.registerPage('dashboard', {
       this.formData = {};
       this.formRules = {
         oldPassword: {required: true},
-        newPassword: {required: true, minLength: 8},
+        newPassword: {
+          required: true,
+          minLength: 12,
+          maxLength: 48,
+          custom: (value)=>{
+            return value.match(/^(?=.*\d)(?=.*[^A-Za-z0-9]).{12,48}$/);
+          }
+        },
       };
       this.modal = 'update-password';
     },
