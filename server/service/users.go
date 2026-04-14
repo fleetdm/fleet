@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -85,23 +86,23 @@ func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef) 
 		)
 	}
 
+	allEndpoints := apiendpoints.GetAPIEndpoints()
 	entries := *refs
 
-	if len(entries) > 100 {
+	if len(entries) > len(allEndpoints) {
 		return ctxerr.Wrap(
 			ctx,
 			fleet.NewInvalidArgumentError("api_endpoints", "maximum number of API endpoints reached"),
 		)
 	}
 
-	allEndpoints := apiendpoints.GetAPIEndpoints()
 	fpMap := make(map[string]struct{}, len(allEndpoints))
 	for _, ep := range allEndpoints {
 		fpMap[ep.Fingerprint()] = struct{}{}
 	}
 	seen := make(map[string]struct{}, len(entries))
 	hasDuplicates := false
-	hasUnknown := false
+	var unknownFps []string
 	for _, ref := range entries {
 		fp := fleet.NewAPIEndpointFromTpl(ref.Method, ref.Path).Fingerprint()
 		if _, dup := seen[fp]; dup {
@@ -110,15 +111,15 @@ func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef) 
 		}
 		seen[fp] = struct{}{}
 		if _, ok := fpMap[fp]; !ok {
-			hasUnknown = true
+			unknownFps = append(unknownFps, fp)
 		}
 	}
 	invalid := &fleet.InvalidArgumentError{}
 	if hasDuplicates {
 		invalid.Append("api_endpoints", "one or more api_endpoints entries are duplicated")
 	}
-	if hasUnknown {
-		invalid.Append("api_endpoints", "one or more api_endpoints entries are invalid")
+	if len(unknownFps) > 0 {
+		invalid.Append("api_endpoints", fmt.Sprintf("one or more api_endpoints entries are invalid: %s", strings.Join(unknownFps, ", ")))
 	}
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid, "validate api_endpoints")
@@ -242,7 +243,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 type createAPIOnlyUserRequest struct {
 	Name         *string                 `json:"name,omitempty"`
 	GlobalRole   *string                 `json:"global_role,omitempty"`
-	Teams        *[]fleet.UserTeam       `json:"teams,omitempty" renameto:"fleets"`
+	Fleets       *[]fleet.UserTeam       `json:"fleets,omitempty"`
 	APIEndpoints *[]fleet.APIEndpointRef `json:"api_endpoints,omitempty"`
 }
 
@@ -279,7 +280,7 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 		APIOnly:                  new(true),
 		AdminForcedPasswordReset: new(false),
 		GlobalRole:               req.GlobalRole,
-		Teams:                    req.Teams,
+		Teams:                    req.Fleets,
 		APIEndpoints:             req.APIEndpoints,
 	})
 	if err != nil {
@@ -344,6 +345,10 @@ func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.
 	}
 	if err := svc.authz.Authorize(ctx, target, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if !target.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "target user is not an API-only user"))
 	}
 
 	vc, ok := viewer.FromContext(ctx)

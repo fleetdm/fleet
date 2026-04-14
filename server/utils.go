@@ -17,7 +17,7 @@ import (
 )
 
 // GenerateRandomEmail generates a random email using baseEmail as the base.
-// For example: GenerateRandomEmail('juan@fleetdm.com') -> 'juan+somerandomtext@fleetdm.com'
+// For example: GenerateRandomEmail('email@example.com') -> 'email+somerandomtext@example.com'
 func GenerateRandomEmail(baseEmail string) (string, error) {
 	emailSuffix, err := GenerateRandomURLSafeText(10)
 	if err != nil {

@@ -134,7 +134,12 @@ func createUserCommand() *cli.Command {
 				}
 
 				fmt.Fprintln(c.App.Writer, "Successfully created new user!")
-				if appCfg, cfgErr := client.GetAppConfig(); cfgErr == nil &&
+				appCfg, cfgErr := client.GetAppConfig()
+				if cfgErr != nil {
+					fmt.Fprintln(c.App.Writer, "Could not fetch app configuration")
+				}
+
+				if cfgErr == nil &&
 					appCfg.License != nil && appCfg.License.IsPremium() {
 					fmt.Fprintln(c.App.Writer, "To further customize endpoints this API-only user has access to, head to the Fleet UI.")
 				}

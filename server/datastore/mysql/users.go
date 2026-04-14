@@ -83,7 +83,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 			return err
 		}
 
-		if user.APIEndpoints != nil {
+		if user.APIOnly && user.APIEndpoints != nil {
 			if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
 				return err
 			}

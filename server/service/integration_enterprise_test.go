@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -28399,6 +28400,9 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 				},
 			},
 			wantStatus: http.StatusUnprocessableEntity,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.Contains(t, resp.Err, "|GET|api/v1/fleet/nonexistent/endpoint|")
+			},
 		},
 		{
 			name: "wildcard mixed with other entries",
@@ -28415,7 +28419,8 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 		{
 			name: "allow only a limited number of api_endpoints",
 			body: func() map[string]any {
-				eps := make([]map[string]any, 101)
+				// One more than the catalog size to trigger the limit.
+				eps := make([]map[string]any, len(apiendpoints.GetAPIEndpoints())+1)
 				for i := range eps {
 					eps[i] = map[string]any{"method": "GET", "path": fmt.Sprintf("/api/v1/fleet/path/%d", i)}
 				}

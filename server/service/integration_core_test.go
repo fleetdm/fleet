@@ -517,8 +517,21 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		"name": "New Name",
 	}, http.StatusNotFound)
 
+	// Targeting a non-API-only user must be rejected.
 	admin := s.users["admin1@example.com"]
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", admin.ID), map[string]any{
+		"name": "New Name",
+	}, http.StatusUnprocessableEntity)
+
+	var createRegularResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("regular-modify-api-only"),
+		Email:      ptr.String("regular-modify-api-only@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &createRegularResp)
+	require.NotZero(t, createRegularResp.User.ID)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", createRegularResp.User.ID), map[string]any{
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
