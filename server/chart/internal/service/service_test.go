@@ -57,11 +57,11 @@ func (m *mockDatastore) CleanupBlobData(_ context.Context, _ int) error {
 	return nil
 }
 
-func (m *mockDatastore) RecordSCDData(_ context.Context, _ string, _ uint, _ []string, _ time.Time) error {
+func (m *mockDatastore) RecordSCDData(_ context.Context, _ string, _ map[string][]byte, _ time.Time) error {
 	return nil
 }
 
-func (m *mockDatastore) GetSCDData(_ context.Context, _ string, _, _ time.Time, _ int, _ *chart.HostFilter, _ []string) ([]chart.DataPoint, error) {
+func (m *mockDatastore) GetSCDData(_ context.Context, _ string, _, _ time.Time, _ *chart.HostFilter, _ []string) ([]chart.DataPoint, error) {
 	return nil, nil
 }
 
@@ -149,11 +149,14 @@ func TestGetChartDataBlobDownsample(t *testing.T) {
 		{8, "8-hour"},
 	} {
 		t.Run(tc.resolution, func(t *testing.T) {
+			// Blobs land on a day guaranteed to fall inside the 30-day window the
+			// service computes from time.Now(), regardless of UTC hour.
+			blobDay := time.Now().UTC().AddDate(0, 0, -5).Truncate(24 * time.Hour)
 			// Return blobs for hours 0 and 1 with different hosts — downsampling should OR them.
 			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 				return []chart.BlobDataPoint{
-					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 0, HostBitmap: chart.HostIDsToBlob([]uint{1, 2})},
-					{ChartDate: time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC), Hour: 1, HostBitmap: chart.HostIDsToBlob([]uint{2, 3})},
+					{ChartDate: blobDay, Hour: 0, HostBitmap: chart.HostIDsToBlob([]uint{1, 2})},
+					{ChartDate: blobDay, Hour: 1, HostBitmap: chart.HostIDsToBlob([]uint{2, 3})},
 				}, nil
 			}
 			ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
@@ -164,15 +167,18 @@ func TestGetChartDataBlobDownsample(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.resolution, resp.Resolution)
 
-			// The hour-0 bucket should have 3 hosts (OR of {1,2} and {2,3} = {1,2,3}).
+			// The hour-0 bucket on blobDay should have 3 hosts (OR of {1,2} and {2,3} = {1,2,3}).
 			var found bool
 			for _, dp := range resp.Data {
-				if dp.Timestamp.Day() == 15 && dp.Timestamp.Hour() == 0 {
+				if dp.Timestamp.Year() == blobDay.Year() &&
+					dp.Timestamp.Month() == blobDay.Month() &&
+					dp.Timestamp.Day() == blobDay.Day() &&
+					dp.Timestamp.Hour() == 0 {
 					assert.Equal(t, 3, dp.Value)
 					found = true
 				}
 			}
-			assert.True(t, found, "expected data point for hour 0 on day 15")
+			assert.True(t, found, "expected data point for hour 0 on %s", blobDay.Format("2006-01-02"))
 		})
 	}
 }

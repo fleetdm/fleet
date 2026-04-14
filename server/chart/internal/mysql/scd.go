@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -11,57 +12,109 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// scdOpenSentinel is the end-of-time marker used for the valid_to column of
-// currently-active SCD rows. A fixed sentinel lets the unique key on
-// (dataset, host_id, entity_id, valid_to) enforce "at most one open row per tuple"
-// and makes upserts a single INSERT ... ON DUPLICATE KEY UPDATE.
-const scdOpenSentinel = "9999-12-31 23:59:59"
+// scdOpenSentinel is the end-of-time marker used for valid_to on currently-active
+// SCD rows. A fixed sentinel lets the unique key on (dataset, entity_id, valid_from)
+// enforce "at most one row per entity per day" and makes same-day bitmap updates
+// a natural INSERT ... ON DUPLICATE KEY UPDATE.
+const scdOpenSentinel = "9999-12-31"
 
-func (ds *Datastore) RecordSCDData(ctx context.Context, dataset string, hostID uint, entityIDs []string, now time.Time) error {
-	// Step 1: close any currently-open rows for this host/dataset whose entity
-	// is no longer in the active set. If the active set is empty, close them all.
-	nowStr := now.UTC().Format("2006-01-02 15:04:05")
+// scdDateFormat is the DATE format used in the SCD table.
+const scdDateFormat = "2006-01-02"
 
-	closeQuery := `UPDATE host_scd_data
-		SET valid_to = ?
-		WHERE dataset = ? AND host_id = ? AND valid_to = ?`
-	closeArgs := []any{nowStr, dataset, hostID, scdOpenSentinel}
+// scdUpsertBatch caps how many entity rows are written per INSERT statement.
+const scdUpsertBatch = 200
 
-	if len(entityIDs) > 0 {
-		closeQuery += ` AND entity_id NOT IN (?)`
-		closeArgs = append(closeArgs, entityIDs)
+func (ds *Datastore) RecordSCDData(ctx context.Context, dataset string, entityBitmaps map[string][]byte, now time.Time) error {
+	today := now.UTC().Format(scdDateFormat)
+
+	// Fetch all currently-open rows for this dataset so we can diff against the
+	// desired state in Go. Small table (# entities at most), fast.
+	type openRow struct {
+		EntityID   string `db:"entity_id"`
+		HostBitmap []byte `db:"host_bitmap"`
+		ValidFrom  string `db:"valid_from"`
+	}
+	var openRows []openRow
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &openRows,
+		`SELECT entity_id, host_bitmap, DATE_FORMAT(valid_from, '%Y-%m-%d') AS valid_from
+		 FROM host_scd_data
+		 WHERE dataset = ? AND valid_to = ?`,
+		dataset, scdOpenSentinel); err != nil {
+		return ctxerr.Wrap(ctx, err, "fetch open SCD rows")
 	}
 
-	q, args, err := sqlx.In(closeQuery, closeArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand close SCD query args")
-	}
-	q = ds.rebind(q)
-	if _, err := ds.writer(ctx).ExecContext(ctx, q, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "close stale SCD rows")
+	openByEntity := make(map[string]openRow, len(openRows))
+	for _, r := range openRows {
+		openByEntity[r.EntityID] = r
 	}
 
-	if len(entityIDs) == 0 {
-		return nil
+	// Partition the work into closes (entities whose open row is stale and must be
+	// sealed at today) and upserts (entities whose current bitmap needs to land in
+	// today's row). Closes only apply when the existing open row's valid_from
+	// predates today; same-day updates collapse onto today's row via ODKU.
+	var toClose []string
+	type upsertRow struct {
+		entityID string
+		bitmap   []byte
+	}
+	var toUpsert []upsertRow
+
+	for entityID, bitmap := range entityBitmaps {
+		existing, hasOpen := openByEntity[entityID]
+		if hasOpen && bytes.Equal(existing.HostBitmap, bitmap) {
+			continue // unchanged state — leave the row alone
+		}
+		if hasOpen && existing.ValidFrom < today {
+			toClose = append(toClose, entityID)
+		}
+		toUpsert = append(toUpsert, upsertRow{entityID: entityID, bitmap: bitmap})
 	}
 
-	// Step 2: upsert an open row for each currently-active entity. If the row
-	// already exists (unique key hit), the ON DUPLICATE KEY UPDATE is a no-op that
-	// preserves the original valid_from.
-	placeholders := make([]string, 0, len(entityIDs))
-	insertArgs := make([]any, 0, len(entityIDs)*4)
-	for _, entityID := range entityIDs {
-		placeholders = append(placeholders, "(?, ?, ?, ?)")
-		insertArgs = append(insertArgs, dataset, hostID, entityID, nowStr)
+	// Entities that disappeared entirely — close their open rows. If the row
+	// opened today the close leaves a zero-length historical record; that's fine
+	// and callers can filter `valid_from < valid_to` if they care.
+	for entityID := range openByEntity {
+		if _, ok := entityBitmaps[entityID]; !ok {
+			toClose = append(toClose, entityID)
+		}
 	}
-	insertQuery := fmt.Sprintf(`INSERT INTO host_scd_data (dataset, host_id, entity_id, valid_from)
-		VALUES %s
-		ON DUPLICATE KEY UPDATE valid_from = valid_from`,
-		strings.Join(placeholders, ", "))
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, insertQuery, insertArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert SCD rows")
+	if len(toClose) > 0 {
+		closeQuery, closeArgs, err := sqlx.In(
+			`UPDATE host_scd_data SET valid_to = ?
+			 WHERE dataset = ? AND valid_to = ? AND entity_id IN (?)`,
+			today, dataset, scdOpenSentinel, toClose)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "expand close SCD query args")
+		}
+		closeQuery = ds.rebind(closeQuery)
+		if _, err := ds.writer(ctx).ExecContext(ctx, closeQuery, closeArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "close stale SCD rows")
+		}
 	}
+
+	// Batched upserts: ODKU on uniq_entity_day means same-day overwrites collapse
+	// onto today's row; new-day writes create a fresh row whose predecessor (if
+	// any) was just closed above.
+	for i := 0; i < len(toUpsert); i += scdUpsertBatch {
+		end := min(i+scdUpsertBatch, len(toUpsert))
+		batch := toUpsert[i:end]
+
+		placeholders := make([]string, 0, len(batch))
+		args := make([]any, 0, len(batch)*4)
+		for _, r := range batch {
+			placeholders = append(placeholders, "(?, ?, ?, ?)")
+			args = append(args, dataset, r.entityID, r.bitmap, today)
+		}
+		// Concatenating hardcoded "(?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from) VALUES ` + //nolint:gosec // G202
+			strings.Join(placeholders, ", ") +
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert SCD rows")
+		}
+	}
+
 	return nil
 }
 
@@ -69,70 +122,77 @@ func (ds *Datastore) GetSCDData(
 	ctx context.Context,
 	dataset string,
 	startDate, endDate time.Time,
-	bucketIntervalHours int,
 	hostFilter *chart.HostFilter,
 	entityIDs []string,
 ) ([]chart.DataPoint, error) {
-	if bucketIntervalHours <= 0 {
-		bucketIntervalHours = 24
-	}
+	startDay := startDate.UTC().Truncate(24 * time.Hour)
+	endDay := endDate.UTC().Truncate(24 * time.Hour)
 
-	hostClause, hostArgs := buildHostFilterSubqueryForAlias(hostFilter, "s")
-
+	// Fetch every row whose validity interval overlaps the requested range.
+	// One query — we iterate buckets in Go.
 	var entityClause string
-	var entityArgs []any
+	args := []any{dataset, endDay.Format(scdDateFormat), startDay.Format(scdDateFormat)}
 	if len(entityIDs) > 0 {
-		entityClause = " AND s.entity_id IN (?)"
-		entityArgs = append(entityArgs, entityIDs)
+		entityClause = " AND entity_id IN (?)"
+		args = append(args, entityIDs)
 	}
 
-	// Align start to bucket boundary (truncate to the bucket-aligned hour).
-	startAligned := startDate.UTC().Truncate(time.Duration(bucketIntervalHours) * time.Hour)
-	endAligned := endDate.UTC()
-
+	// Rows that overlap [startDay, endDay]: valid_from <= endDay AND valid_to > startDay.
 	query := fmt.Sprintf(`
-		WITH RECURSIVE buckets AS (
-			SELECT ? AS ts
-			UNION ALL
-			SELECT ts + INTERVAL ? HOUR FROM buckets WHERE ts + INTERVAL ? HOUR <= ?
-		)
-		SELECT b.ts, COUNT(DISTINCT s.host_id) AS host_count
-		FROM buckets b
-		LEFT JOIN host_scd_data s
-			ON s.dataset = ?
-			AND s.valid_from <= b.ts
-			AND s.valid_to > b.ts
-			%s
-			%s
-		GROUP BY b.ts
-		ORDER BY b.ts`,
-		entityClause, hostClause)
+		SELECT entity_id, host_bitmap,
+			DATE_FORMAT(valid_from, '%%Y-%%m-%%d') AS valid_from,
+			DATE_FORMAT(valid_to,   '%%Y-%%m-%%d') AS valid_to
+		FROM host_scd_data
+		WHERE dataset = ?
+			AND valid_from <= ?
+			AND valid_to   >  ?%s`, entityClause)
 
-	args := []any{
-		startAligned, bucketIntervalHours, bucketIntervalHours, endAligned,
-		dataset,
-	}
-	args = append(args, entityArgs...)
-	args = append(args, hostArgs...)
-
-	query, args, err := sqlx.In(query, args...)
+	expanded, expandedArgs, err := sqlx.In(query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "expand SCD query args")
 	}
-	query = ds.rebind(query)
+	expanded = ds.rebind(expanded)
 
 	type scdRow struct {
-		Ts        time.Time `db:"ts"`
-		HostCount int       `db:"host_count"`
+		EntityID   string `db:"entity_id"`
+		HostBitmap []byte `db:"host_bitmap"`
+		ValidFrom  string `db:"valid_from"`
+		ValidTo    string `db:"valid_to"`
 	}
 	var rows []scdRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expanded, expandedArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
 	}
 
-	results := make([]chart.DataPoint, len(rows))
-	for i, r := range rows {
-		results[i] = chart.DataPoint{Timestamp: r.Ts, Value: r.HostCount}
+	// Build the optional host-filter mask once.
+	var filterMask []byte
+	if hostFilter != nil {
+		hostIDs, err := ds.GetHostIDsForFilter(ctx, hostFilter)
+		if err != nil {
+			return nil, err
+		}
+		filterMask = chart.HostIDsToBlob(hostIDs)
+	}
+
+	// Walk buckets from startDay..endDay inclusive. For each bucket, OR the
+	// bitmaps of rows whose interval covers that day, AND with filter, popcount.
+	var results []chart.DataPoint
+	for d := startDay; !d.After(endDay); d = d.AddDate(0, 0, 1) {
+		dayStr := d.Format(scdDateFormat)
+		var merged []byte
+		for _, r := range rows {
+			if r.ValidFrom > dayStr || r.ValidTo <= dayStr {
+				continue
+			}
+			merged = chart.BlobOR(merged, r.HostBitmap)
+		}
+		if filterMask != nil && merged != nil {
+			merged = chart.BlobAND(merged, filterMask)
+		}
+		results = append(results, chart.DataPoint{
+			Timestamp: d,
+			Value:     chart.BlobPopcount(merged),
+		})
 	}
 	return results, nil
 }
@@ -142,7 +202,7 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 	// Open rows (valid_to = sentinel) are always preserved.
 	_, err := ds.writer(ctx).ExecContext(ctx,
 		`DELETE FROM host_scd_data
-		 WHERE valid_to < NOW() - INTERVAL ? DAY
+		 WHERE valid_to < CURDATE() - INTERVAL ? DAY
 		   AND valid_to <> ?`,
 		days, scdOpenSentinel)
 	if err != nil {
