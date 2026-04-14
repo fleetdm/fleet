@@ -3552,17 +3552,17 @@ func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, ur
 	stmt := `
 SELECT
 	si.id AS installer_id,
-	si.team_id AS team_id,
-	si.storage_id AS storage_id,
-	si.http_etag AS http_etag,
-	si.filename AS filename,
-	si.extension AS extension,
-	si.version AS version,
-	si.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	si.team_id,
+	si.storage_id,
+	si.http_etag,
+	si.filename,
+	si.extension,
+	si.version,
+	si.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids AS package_ids
+	si.package_ids
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3573,15 +3573,15 @@ UNION ALL
 
 SELECT
 	iha.id AS installer_id,
-	iha.team_id AS team_id,
-	iha.storage_id AS storage_id,
+	iha.team_id,
+	iha.storage_id,
 	NULL AS http_etag,
-	iha.filename AS filename,
+	iha.filename,
 	'ipa' AS extension,
-	iha.version AS version,
-	iha.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	iha.version,
+	iha.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
 	'' AS package_ids
 FROM
