@@ -2978,8 +2978,11 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.PackageIDs = existing.PackageIDs
 }
 
-// validETag checks if an ETag value matches RFC 7232 section 2.3:
-// an optional weak validator prefix ("W/") followed by a quoted opaque-tag.
+// validETag checks if an ETag value is a strong ETag per RFC 7232
+// section 2.3: a quoted opaque-tag without the weak validator prefix.
+// Weak ETags (W/"...") are rejected because they indicate semantic
+// equivalence rather than byte-for-byte identity, which is insufficient
+// for validating cached binary installers.
 // The opaque-tag body must consist of RFC 7232 etagc characters
 // (%x21 / %x23-7E), which excludes control chars, spaces, inner DQUOTEs,
 // and DEL. We reject obs-text (>0x7F) for defense-in-depth. Values over
@@ -2988,7 +2991,11 @@ func validETag(etag string) bool {
 	if len(etag) > 512 {
 		return false
 	}
-	e := strings.TrimPrefix(etag, "W/")
+	// Reject weak ETags — they don't guarantee byte-identical content.
+	if strings.HasPrefix(etag, "W/") {
+		return false
+	}
+	e := etag
 	if len(e) < 2 || e[0] != '"' || e[len(e)-1] != '"' {
 		return false
 	}

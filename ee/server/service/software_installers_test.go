@@ -1087,16 +1087,6 @@ func TestConditionalGETBehavior(t *testing.T) {
 			expectErr:    true,
 		},
 		{
-			name:        "If-None-Match with weak ETag",
-			ifNoneMatch: `W/` + etag,
-			handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, `W/`+etag, r.Header.Get("If-None-Match"))
-				w.WriteHeader(http.StatusNotModified)
-			},
-			expectStatus:  304,
-			expectBodyNil: true,
-		},
-		{
 			name:        "If-None-Match with S3 multipart ETag",
 			ifNoneMatch: `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`,
 			handler: func(w http.ResponseWriter, r *http.Request) {
@@ -1161,7 +1151,7 @@ func TestValidETag(t *testing.T) {
 		valid bool
 	}{
 		{"strong ETag", `"abc123"`, true},
-		{"weak ETag", `W/"abc123"`, true},
+		{"weak ETag rejected", `W/"abc123"`, false},
 		{"empty quotes", `""`, true},
 		{"S3 multipart", `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, true},
 		{"unquoted", `abc123`, false},
