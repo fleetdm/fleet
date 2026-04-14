@@ -187,11 +187,11 @@ spec:
         update_new_hosts: null
       macos_settings:
         custom_settings: []
-      macos_setup:
+      setup_experience:
         bootstrap_package: ""
         enable_end_user_authentication: true
         enable_release_device_manually: false
-        macos_setup_assistant: ""
+        apple_setup_assistant: ""
         manual_agent_install: false
         require_all_software_macos: false
         script: ""
@@ -357,7 +357,7 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `mdm.macos_setup`, `mdm.volume_purchasing_program`, and `scripts`  only include the settings applied using `fleetctl apply`. To list settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
+`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts`  only include the settings applied using `fleetctl apply`. To list settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
 
 ### Mobile device management (MDM) settings for fleets
 

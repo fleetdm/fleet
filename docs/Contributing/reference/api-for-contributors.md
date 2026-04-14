@@ -2091,8 +2091,8 @@ If the `name` is not already associated with an existing team, this API route cr
           "minimum_version": "12.3.1",
           "deadline": "2023-12-01"
         },
-        "macos_settings": {
-          "custom_settings": [
+        "apple_settings": {
+          "configuration_profiles": [
             {
               "path": "path/to/profile1.mobileconfig"
               "labels_include_all": ["Label 1", "Label 2"]
@@ -2105,7 +2105,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": [
+          "configuration_profiles": [
             {
               "path": "path/to/profile3.xml"
               "labels_include_all": ["Label 1", "Label 2"]
