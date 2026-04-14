@@ -30,6 +30,7 @@ import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/Softwa
 import {
   generateSelectedLabels,
   getCustomTarget,
+  getInstallSourceText,
   getInstallType,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
@@ -302,7 +303,7 @@ const EditSoftwareModal = ({
         <>
           Successfully edited <b>{softwareInstaller.name}</b>.
           {formData.selfService
-            ? " The end user can install from Fleet Desktop."
+            ? ` The end user can install from ${getInstallSourceText(softwareInstaller)}.`
             : ""}
         </>
       );
