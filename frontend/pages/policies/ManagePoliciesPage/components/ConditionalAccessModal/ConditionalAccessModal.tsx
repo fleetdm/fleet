@@ -1,6 +1,7 @@
 import React, { useContext, useRef, useState } from "react";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PATHS from "router/paths";
 
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
@@ -139,8 +140,19 @@ const ConditionalAccessModal = ({
       connect Fleet to {providerText}.
       <br />
       <br />
-      This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-      <b>Conditional access</b>.
+      This can be configured in{" "}
+      {isGlobalAdmin ? (
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+          text="Settings > Integrations > Conditional access"
+        />
+      ) : (
+        <>
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Conditional access</b>
+        </>
+      )}
+      .
       <br />
       <br />
       {learnMoreLink}
