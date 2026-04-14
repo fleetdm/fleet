@@ -598,6 +598,24 @@ module.exports.routes = {
     }
   },
 
+  'GET /webinars/practical-ai-for-device-management': {
+    action: 'webinars/view-practical-ai-for-device-management',
+    locals: {
+      pageTitleForMeta: 'Beyond the Hype: Practical AI for Device Management',
+      pageDescriptionForMeta: 'Join practitioners from Fleet and Foursquare to learn how consolidating tooling, adopting GitOps, and integrating AI are reshaping device management engineering.',
+      currentSection: 'more',
+    }
+  },
+
+  'GET /webinars/practical-ai-for-device-management/thank-you': {
+    action: 'webinars/view-practical-ai-for-device-management-thank-you',
+    locals: {
+      pageTitleForMeta: 'Thank you for registering | Practical AI for Device Management',
+      pageDescriptionForMeta: 'Thank you for registering for the Practical AI for Device Management webinar.',
+      currentSection: 'more',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
@@ -1351,6 +1369,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
+  'POST /api/v1/deliver-webinar-registration-request': { action: 'deliver-webinar-registration-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

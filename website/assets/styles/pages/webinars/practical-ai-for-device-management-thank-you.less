@@ -1,0 +1,55 @@
+#practical-ai-for-device-management-thank-you {
+
+  [purpose='page-container'] {
+    max-width: 1200px;
+    padding: 64px;
+  }
+  [purpose='thank-you-content'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 32px;
+    gap: 16px;
+    h1 {
+      color: #192147;
+      font-family: Inter;
+      font-size: 48px;
+      font-style: normal;
+      font-weight: 800;
+      line-height: 120%;
+      margin-bottom: 0px;
+    }
+    p {
+      color: #515774;
+      font-size: 18px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 150%;
+      margin-bottom: 0px;
+      max-width: 600px;
+    }
+    [purpose='cta-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      margin-top: 32px;
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='page-container'] {
+      padding: 24px;
+    }
+    [purpose='thank-you-content'] {
+      padding: 64px 16px;
+      h1 {
+        font-size: 32px;
+      }
+      [purpose='cta-buttons'] {
+        flex-direction: column;
+      }
+    }
+  }
+}

@@ -1,0 +1,104 @@
+<div id="practical-ai-for-device-management" v-cloak>
+  <div purpose="page-container" class="container-fluid">
+    <div purpose="article-title-and-image">
+      <div purpose="article-title-and-introduction">
+        <div>
+          <h4>Webinar</h4>
+          <h1>Beyond the Hype: Practical AI for Device Management</h1>
+        </div>
+        <div purpose="article-subtitle">
+          <p>Moving from manual engineering workflows to AI</p>
+        </div>
+        <div purpose="speakers">
+          <p purpose="speakers-heading">Speakers</p>
+          <ul>
+            <li><strong>Allen Houchins</strong> &mdash; Fleet</li>
+            <li><strong>Harley Williams</strong> &mdash; Foursquare</li>
+            <li><strong>Mike Meyer</strong> &mdash; Foursquare</li>
+          </ul>
+        </div>
+      </div>
+      <div purpose="article-image">
+        <img alt="Practical AI for Device Management webinar" src="/images/webinars/practical-ai-for-device-management-hero-504x336@2x.png">
+      </div>
+    </div>
+    <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
+      <div purpose="sidebar-container">
+        <div purpose="right-sidebar" class="d-flex flex-column">
+          <div purpose="form-container">
+            <div id="registration-form" purpose="webinar-registration-form">
+              <h4>Register for the webinar</h4>
+              <ajax-form class="w-100" action="deliverWebinarRegistrationRequest" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedRegistrationForm()" v-if="!cloudSuccess">
+                <div class="form-group">
+                  <label for="first-name">First name *</label>
+                  <input tabindex="1" class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
+                  <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+                </div>
+                <div class="form-group">
+                  <label for="last-name">Last name *</label>
+                  <input tabindex="2" class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
+                  <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+                </div>
+                <div class="form-group">
+                  <label for="email-address">Work email *</label>
+                  <input tabindex="3" class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
+                  <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn't appear to be a valid email address</div>
+                </div>
+                <ajax-button tabindex="4" purpose="register-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Register now</ajax-button>
+                <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+                  <p>
+                    Please enter your work or school email address.
+                  </p>
+                </cloud-error>
+                <cloud-error v-else-if="cloudError">
+                </cloud-error>
+              </ajax-form>
+              <div v-else>
+                <p>Thank you for registering! Check your email for the webinar details.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="article-container">
+        <div purpose="article-content">
+          <div purpose="abstract">
+            <p>AI promises to transform IT&mdash;but what does that actually look like for teams managing devices at scale? This session brings together practitioners from Fleet and Foursquare to share hard-won lessons from modernizing their device management practices: consolidating tools for radical visibility across platforms, adopting GitOps to bring stability and accountability to fleet operations, and using AI to accelerate engineering output without adding headcount.</p>
+
+            <p>If you're leading an IT or corporate engineering team and wondering how to move from fragmented, manual device management toward a more programmable, resilient, efficient, and auditable approach&mdash;this is the session for you.</p>
+          </div>
+          <div purpose="what-you-will-learn">
+            <h3>What you'll learn</h3>
+            <ul>
+              <li>Why consolidating onto a single, cross-platform device management solution changes how your team sees and operates its entire environment.</li>
+              <li>How GitOps reduces risk and improves change management&mdash;and why it's a prerequisite for using AI safely.</li>
+              <li>How AI tools empower your team to do more&mdash;without replacing the judgment and expertise they bring.</li>
+              <li>How these practices give smaller teams the ability to scale and operate like larger ones.</li>
+            </ul>
+          </div>
+          <div purpose="session-details">
+            <p>As device management complexity grows, IT and platform teams are rethinking how they work, not just what tools they use. Join Allen Houchins (Fleet), Harley Williams (Senior Systems Engineer), and Mike Meyer (Senior Manager of Corporate Engineering) from Foursquare for a practical look at how consolidating tooling, adopting GitOps, and integrating AI have changed the way their teams operate. You'll walk away with real-world lessons on what worked, what didn't, and how these shifts are reshaping the future of device management engineering.</p>
+          </div>
+          <div purpose="register-cta" class="d-lg-none d-flex">
+            <a purpose="register-button" class="btn btn-primary" href="#registration-form">Register now</a>
+          </div>
+          <div purpose="about-fleet-section">
+            <h3>About Fleet</h3>
+
+            <p>Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.</p>
+
+            <p>By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.</p>
+
+            <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
+          </div>
+          <div purpose="social-share-buttons" class="d-flex flex-row">
+            <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/webinars/practical-ai-for-device-management&t=${encodeURIComponent('Beyond the Hype: Practical AI for Device Management')}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share on Hacker News"></a>
+            <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/webinars/practical-ai-for-device-management')}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share on LinkedIn"></a>
+            <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/webinars/practical-ai-for-device-management')}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share on Twitter"></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
