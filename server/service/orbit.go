@@ -855,7 +855,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			HostUUID:    host.UUID,
 			ExecutionID: result.ExecutionID,
 			ExitCode:    result.ExitCode,
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx, "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
@@ -1318,7 +1318,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,
 			InstallerStatus: result.Status(),
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx,
