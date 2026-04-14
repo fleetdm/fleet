@@ -1587,7 +1587,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 		Name:  ptr.String("global1"),
 		Query: ptr.String("select * from time;"),
 	}
-	var createQueryResp createQueryResponse
+	var createQueryResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Query.ID)
 
@@ -1597,12 +1597,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 		Query:  ptr.String("select * from time;"),
 		TeamID: ptr.Uint(team1.ID),
 	}
-	createQueryResp = createQueryResponse{}
+	createQueryResp = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
 	defer s.cleanupQuery(createQueryResp.Query.ID)
 
 	// list team queries
-	var listQueriesResp listQueriesResponse
+	var listQueriesResp fleet.ListQueriesResponse
 	s.DoJSON("GET", "/api/latest/fleet/queries", nil, http.StatusOK, &listQueriesResp, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, listQueriesResp.Queries, 1)
 	assert.Equal(t, "team1", listQueriesResp.Queries[0].Name)
@@ -6900,29 +6900,29 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &runLiveQueryResponse{})
 
 	// Attempt to create queries, should allow.
-	cqr := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	cqr := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo4"),
 			Query: ptr.String("SELECT * from osquery_info;"),
 		},
 	}, http.StatusOK, &cqr)
-	cqr2 := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	cqr2 := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo5"),
 			Query: ptr.String("SELECT * from os_version;"),
 		},
 	}, http.StatusOK, &cqr2)
-	cqr3 := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	cqr3 := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo6"),
 			Query: ptr.String("SELECT * from processes;"),
 		},
 	}, http.StatusOK, &cqr3)
-	cqr4 := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	cqr4 := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo7"),
 			Query: ptr.String("SELECT * from managed_policies;"),
@@ -6930,41 +6930,41 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &cqr4)
 
 	// Attempt to edit queries, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), modifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo4"),
 			Query: ptr.String("SELECT * FROM system_info;"),
 		},
-	}, http.StatusOK, &modifyQueryResponse{})
+	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), getQueryRequest{}, http.StatusOK, &getQueryResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.GetQueryRequest{}, http.StatusOK, &fleet.GetQueryResponse{})
 
 	// Attempt to list all queries, should work.
-	s.DoJSON("GET", "/api/latest/fleet/queries", listQueriesRequest{}, http.StatusOK, &listQueriesResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/queries", fleet.ListQueriesRequest{}, http.StatusOK, &fleet.ListQueriesResponse{})
 
 	// Attempt to delete queries, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), deleteQueryByIDRequest{}, http.StatusOK, &deleteQueryByIDResponse{})
-	s.DoJSON("POST", "/api/latest/fleet/queries/delete", deleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &deleteQueriesResponse{})
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), deleteQueryRequest{}, http.StatusOK, &deleteQueryResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
+	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/%s", cqr3.Query.Name), fleet.DeleteQueryRequest{}, http.StatusOK, &fleet.DeleteQueryResponse{})
 
 	// Attempt to add a query to a user pack, should allow.
-	sqr := scheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
+	sqr := fleet.ScheduleQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
 		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusOK, &sqr)
 
 	// Attempt to edit a scheduled query in the global schedule, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), modifyScheduledQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.ModifyScheduledQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
 			Interval: ptr.Uint(30),
 		},
-	}, http.StatusOK, &scheduleQueryResponse{})
+	}, http.StatusOK, &fleet.ScheduleQueryResponse{})
 
 	// Attempt to remove a query from the global schedule, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), deleteScheduledQueryRequest{}, http.StatusOK, &scheduleQueryResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.DeleteScheduledQueryRequest{}, http.StatusOK, &fleet.DeleteScheduledQueryResponse{})
 
 	// Attempt to read the global schedule, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
@@ -7167,8 +7167,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
 	// Attempt to create queries in global domain, should fail.
-	tcqr := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	tcqr := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo600"),
 			Query: ptr.String("SELECT * from orbit_info;"),
@@ -7176,8 +7176,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to create queries in its team, should allow.
-	tcqr = createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	tcqr = fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:   ptr.String("foo600"),
 			Query:  ptr.String("SELECT * from orbit_info;"),
@@ -7186,26 +7186,26 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &tcqr)
 
 	// Attempt to edit own query, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), modifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo4"),
 			Query: ptr.String("SELECT * FROM system_info;"),
 		},
-	}, http.StatusOK, &modifyQueryResponse{})
+	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete own query, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), deleteQueryByIDRequest{}, http.StatusOK, &deleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", tcqr.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to edit query created by somebody else, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), modifyQueryRequest{
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:  ptr.String("foo4"),
 			Query: ptr.String("SELECT * FROM system_info;"),
 		},
-	}, http.StatusForbidden, &modifyQueryResponse{})
+	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), deleteQueryByIDRequest{}, http.StatusForbidden, &deleteQueryByIDResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr4.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
@@ -7220,16 +7220,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
 	// Attempt to add a query to a user pack, should fail.
-	tsqr := scheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", scheduleQueryRequest{
+	tsqr := fleet.ScheduleQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
 		PackID:   userPackID,
 		QueryID:  cqr4.Query.ID,
 		Interval: 60,
 	}, http.StatusForbidden, &tsqr)
 
 	// Attempt to add a query to the team's schedule, should allow.
-	cqrt1 := createQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/queries", createQueryRequest{
+	cqrt1 := fleet.CreateQueryResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
 			Name:   ptr.String("foo8"),
 			Query:  ptr.String("SELECT * from managed_policies;"),
@@ -7968,7 +7968,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		"batch_execution_id": "%s",
 		"script_execution_id": "%s",
 		"script_name": "%s",
-		"host_display_name": "%s"
+		"host_display_name": "%s",
+		"from_setup_experience": false
 	}
 	`, host1.ID, batchRes.BatchExecutionID, orbitRespHost1.Notifications.PendingScriptExecutionIDs[0], script.Name, host1.DisplayName())
 	require.Len(t, hostPastActivitiesResp.Activities, 1)
@@ -8183,7 +8184,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.lastActivityMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": %q, "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null, "from_setup_experience": false}`,
 			host.ID, host.DisplayName(), savedNoTmScript.Name, scriptResultResp.ExecutionID,
 		),
 		0,
@@ -14458,6 +14459,212 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusNotFound, &installDetailsResp)
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersConditionalDownload() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	var (
+		mu             sync.Mutex
+		requestCount   int
+		ifNoneMatchSet = []string{}
+		etag           = `"ruby-deb-v1"`
+		trailer        = "" // appended to the body to force a different content hash
+	)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requestCount++
+		ifNoneMatchSet = append(ifNoneMatchSet, r.Header.Get("If-None-Match"))
+		currentETag := etag
+		currentTrailer := trailer
+		mu.Unlock()
+
+		// Honor the conditional request: if the client sends our current
+		// ETag, return 304 with no body.
+		if r.Header.Get("If-None-Match") == currentETag {
+			w.Header().Set("ETag", currentETag)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		if !assert.NoError(t, err) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		w.Header().Set("ETag", currentETag)
+		_, err = io.Copy(w, file)
+		assert.NoError(t, err)
+		_, err = w.Write([]byte(currentTrailer))
+		assert.NoError(t, err)
+	})
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// First run: full download, Fleet should capture the ETag and storage_id.
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{{URL: srv.URL}}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	firstHash := packages[0].HashSHA256
+	require.NotEmpty(t, firstHash)
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp,
+		"available_for_install", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	titleResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	firstUploadedAt := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+
+	mu.Lock()
+	require.Equal(t, 1, requestCount, "expected exactly one HTTP request on first run")
+	require.Empty(t, ifNoneMatchSet[0], "first run must not send If-None-Match")
+	mu.Unlock()
+
+	// Second run: same URL, no changes. The server will return 304 and Fleet
+	// should reuse the cached installer (uploaded_at must not change).
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.Equal(t, firstHash, packages[0].HashSHA256, "hash must match on cache hit")
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, firstUploadedAt, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+		"uploaded_at must not change on 304 cache hit")
+
+	mu.Lock()
+	require.Equal(t, 2, requestCount, "expected one additional HTTP request on second run")
+	require.Equal(t, etag, ifNoneMatchSet[1], "second run must send If-None-Match with stored ETag")
+	mu.Unlock()
+
+	// Third run: server will again respond 304, but the user has supplied an
+	// install_script that fails validation (exceeds SavedScriptMaxRuneLen).
+	// The 304 fast-path must still run script validation and reject the batch.
+	oversizeScript := strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)
+	withBadScript := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, InstallScript: oversizeScript}}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: withBadScript},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	msg := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Contains(t, msg, "install script")
+
+	// Fourth run: always_download bypasses conditional download, so the server
+	// should receive a request with no If-None-Match header and return the full
+	// body.
+	withAlwaysDownload := []*fleet.SoftwareInstallerPayload{{URL: srv.URL, AlwaysDownload: true}}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: withAlwaysDownload},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	_ = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+
+	mu.Lock()
+	require.GreaterOrEqual(t, requestCount, 4, "always_download must issue an HTTP request")
+	require.Empty(t, ifNoneMatchSet[len(ifNoneMatchSet)-1], "always_download must not send If-None-Match")
+	mu.Unlock()
+
+	// Fifth run: flip always_download back off. The ETag captured during the
+	// previous always_download run must still be usable, so this run should
+	// immediately go back to sending If-None-Match and receiving 304 — no
+	// "warm-up" download required.
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	uploadedAtBeforeConditional := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+
+	mu.Lock()
+	countBeforeConditional := requestCount
+	mu.Unlock()
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, uploadedAtBeforeConditional, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+		"uploaded_at must not change when ETag from prior always_download run is reused")
+
+	mu.Lock()
+	require.Equal(t, countBeforeConditional+1, requestCount, "expected one HTTP request after re-enabling conditional download")
+	require.Equal(t, `"ruby-deb-v1"`, ifNoneMatchSet[countBeforeConditional],
+		"must send the ETag captured during the previous always_download run")
+	mu.Unlock()
+
+	// Sixth run: upstream content has changed — new ETag and modified body.
+	// Fleet still sends the stored ETag (v1) as If-None-Match; the server
+	// returns 200 with the new bytes and new ETag. Fleet must re-upload, bump
+	// uploaded_at, and persist the new ETag.
+	const newETag = `"ruby-deb-v2"`
+	mu.Lock()
+	etag = newETag
+	trailer = " " // changes the body hash
+	countBeforeContentChange := requestCount
+	mu.Unlock()
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	uploadedAtBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.UploadedAt
+	hashBeforeContentChange := titleResp.SoftwareTitle.SoftwarePackage.StorageID
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotEqual(t, hashBeforeContentChange, packages[0].HashSHA256, "hash must change when upstream content changes")
+
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp,
+		"team_id", fmt.Sprint(tm.ID))
+	require.NotEqual(t, uploadedAtBeforeContentChange, titleResp.SoftwareTitle.SoftwarePackage.UploadedAt,
+		"uploaded_at must advance when bytes are re-downloaded")
+
+	mu.Lock()
+	require.Equal(t, countBeforeContentChange+1, requestCount, "expected one HTTP request on sixth run")
+	require.Equal(t, `"ruby-deb-v1"`, ifNoneMatchSet[countBeforeContentChange],
+		"sixth run must send the previously stored ETag (v1) so the server can detect the mismatch")
+	mu.Unlock()
+
+	// Seventh run: no further content change. Fleet should now be sending the
+	// new ETag (v2) it captured from run 6, and the server should reply 304.
+	mu.Lock()
+	countBeforeFinalRun := requestCount
+	mu.Unlock()
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+
+	mu.Lock()
+	require.Equal(t, countBeforeFinalRun+1, requestCount, "expected one HTTP request on seventh run")
+	require.Equal(t, newETag, ifNoneMatchSet[countBeforeFinalRun],
+		"seventh run must send the new ETag captured from the content-change run")
+	mu.Unlock()
+}
+
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {
 	ctx := context.Background()
 	t := s.T()
@@ -15701,7 +15908,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
 		fmt.Sprintf(
-			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null, "from_setup_experience": false}`,
 			host.ID, host.DisplayName(), scriptExecID), 0)
 
 	// create a saved script execution request
@@ -15723,7 +15930,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScript{}.ActivityName(),
-		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null}`,
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null, "batch_execution_id": null, "from_setup_experience": false}`,
 			host.ID, host.DisplayName(), savedScriptExecID), 0)
 
 	// get the anonymous script result details
@@ -15851,7 +16058,7 @@ func triggerAndWait(ctx context.Context, t *testing.T, ds fleet.Datastore, s *sc
 }
 
 func (s *integrationEnterpriseTestSuite) cleanupQuery(queryID uint) {
-	var delResp deleteQueryByIDResponse
+	var delResp fleet.DeleteQueryByIDResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", queryID), nil, http.StatusOK, &delResp)
 }
 
@@ -17979,7 +18186,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"status": "installed",
 		"source": "apps",
 		"policy_id": %d,
-		"policy_name": "%s"
+		"policy_name": "%s",
+		"from_setup_experience": false
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	var activityCount int
@@ -23331,18 +23539,13 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(), fmt.Sprintf(`{
 			"host_id": %d,
 			"host_display_name": %q,
 			"software_title": %q,
-			"software_package": %q,
-			"install_uuid": %q,
-			"status": "failed",
-			"self_service": false,
-			"source": "deb_packages",
-			"policy_name": null,
-			"policy_id": null
-		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
+			"software_title_id": %d,
+			"from_setup_experience": true
+		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", debVimTitleID), 0)
 
 		// Record a result for test.tar.gz.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(

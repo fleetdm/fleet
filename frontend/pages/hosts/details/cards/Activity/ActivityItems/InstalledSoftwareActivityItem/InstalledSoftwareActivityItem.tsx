@@ -20,7 +20,12 @@ const InstalledSoftwareActivityItem = ({
   isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, software_title: title, source } = details;
+  const {
+    self_service,
+    software_title: title,
+    source,
+    from_setup_experience,
+  } = details;
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
@@ -50,7 +55,9 @@ const InstalledSoftwareActivityItem = ({
       isSoloActivity={isSoloActivity}
     >
       <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
-      host{self_service && " (self-service)"}.{" "}
+      host
+      {from_setup_experience ? " during setup experience" : ""}
+      {self_service && " (self-service)"}.
     </ActivityItem>
   );
 };

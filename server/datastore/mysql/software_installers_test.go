@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
+		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 	}
 
 	for _, c := range cases {
@@ -3450,6 +3451,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
 		require.Equal(t, "darwin", i.Platform)
+		require.Equal(t, hash1, i.StorageID)
 	}
 
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
@@ -3473,6 +3475,8 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	var foundPlatforms []string
 	for _, inst := range installers[team1.ID] {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
+		require.Equal(t, "inhouse", inst.StorageID)
+		require.Nil(t, inst.HTTPETag) // in-house apps don't have ETags
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 
@@ -4605,4 +4609,128 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
 	})
+}
+
+func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	etag := `"abc123"`
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.app",
+			Extension:        "pkg",
+			StorageID:        "hash1",
+			Filename:         "app.pkg",
+			Title:            "App",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/app/latest",
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	// Correct team and URL returns the installer with ETag
+	existing, err := ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash1", existing.StorageID)
+	assert.Equal(t, "app.pkg", existing.Filename)
+	require.NotNil(t, existing.HTTPETag)
+	assert.Equal(t, etag, *existing.HTTPETag)
+
+	// Wrong team returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team2.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// Wrong URL returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/other")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// URL with query params (GlobalProtect pattern)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.gp",
+			Extension:        "msi",
+			StorageID:        "hash2",
+			Filename:         "gp.msi",
+			Title:            "GlobalProtect",
+			Version:          "1.0",
+			Source:           "programs",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "windows",
+			URL:              "https://example.com/gp?version=64&platform=windows",
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/gp?version=64&platform=windows")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash2", existing.StorageID)
+
+	// Simulate an FMA rollback: two rows for the same (team, URL), where the
+	// inactive row has a higher id than the active row. The lookup must return
+	// the active row even though ORDER BY id DESC would otherwise pick the
+	// inactive one.
+	rollbackURL := "https://example.com/rollback"
+	err = ds.BatchSetSoftwareInstallers(ctx, &team2.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.rb",
+			Extension:        "pkg",
+			StorageID:        "active_hash",
+			Filename:         "rb.pkg",
+			Title:            "Rollback",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team2.ID,
+			Platform:         "darwin",
+			URL:              rollbackURL,
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	inactiveETag := `"inactive-etag"`
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query, http_etag)
+			SELECT team_id, global_or_team_id, 'inactive_hash', filename, extension, 'old_version', platform, title_id,
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query, ?
+			FROM software_installers WHERE team_id = ? AND url = ?
+		`, inactiveETag, team2.ID, rollbackURL)
+		return err
+	})
+
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, team2.ID, rollbackURL)
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
+	require.NotNil(t, existing.HTTPETag)
+	assert.Equal(t, etag, *existing.HTTPETag)
 }

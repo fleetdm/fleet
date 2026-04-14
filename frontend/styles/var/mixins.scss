@@ -492,7 +492,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $inactive-color;
@@ -509,7 +509,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $active-color;
@@ -526,11 +526,6 @@ $max-width: 2560px;
   $inactive-color: $ui-fleet-black-25
 ) {
   position: relative;
-  margin-bottom: -1px;
-
-  &:hover {
-    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
-  }
 
   @include bottom-border($active-color, $inactive-color);
 
