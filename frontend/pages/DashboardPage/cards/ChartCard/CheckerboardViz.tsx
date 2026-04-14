@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 
 import { IFormattedDataPoint } from "./types";
@@ -35,10 +35,14 @@ interface ICheckerboardVizProps {
   isPercentage: boolean;
 }
 
+const CELL_W = 16;
+const CELL_H = 18;
 const CELL_GAP = 2;
 const AXIS_HEIGHT = 20; // space for x-axis labels at bottom
-const CHART_HEIGHT = 260; // target height for the grid area (non-30-day)
-const CHART_HEIGHT_30D = 130; // half height for 30-day view
+// When cards stack to full-width (below $break-md), the container gets wider
+// than this threshold and we scale cells up by WIDE_MULTIPLIER.
+const WIDE_THRESHOLD = 700;
+const WIDE_MULTIPLIER = 1.5;
 
 const CheckerboardViz = ({
   data,
@@ -46,23 +50,21 @@ const CheckerboardViz = ({
   isPercentage,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const measuredRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
-      // Store ref and measure
       (containerRef as React.MutableRefObject<HTMLDivElement>).current = node;
       const observer = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (entry) {
-          setContainerWidth(entry.contentRect.width);
+          setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
         }
       });
       observer.observe(node);
-      // Initial measurement
-      setContainerWidth(node.getBoundingClientRect().width);
+      setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
       return () => observer.disconnect();
     }
     return undefined;
@@ -146,20 +148,10 @@ const CheckerboardViz = ({
   const numCols = is24h ? hourRows : numDays;
   const numRows = is24h ? 1 : hourRows;
 
-  const cellW = containerWidth
-    ? (containerWidth - CELL_GAP * (numCols - 1)) / numCols
-    : 0;
-
-  let chartHeight: number;
-  if (selectedDays === 30) {
-    chartHeight = CHART_HEIGHT_30D;
-  } else if (is24h) {
-    chartHeight = 40; // single row
-  } else {
-    chartHeight = CHART_HEIGHT;
-  }
-
-  const cellH = (chartHeight - CELL_GAP * (numRows - 1)) / numRows;
+  const scale = isWide ? WIDE_MULTIPLIER : 1;
+  const cellW = CELL_W * scale;
+  const cellH = CELL_H * scale;
+  const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
   const svgHeight = gridHeight + AXIS_HEIGHT;
 
@@ -185,8 +177,8 @@ const CheckerboardViz = ({
       ref={measuredRef}
       style={{ position: "relative" }}
     >
-      {cellW > 0 && (
-        <svg width="100%" height={svgHeight}>
+      <div className={`${baseClass}__scroll-wrapper`}>
+        <svg width={gridWidth} height={svgHeight}>
           {grid.map((cell) => {
             const col = is24h ? cell.hourRow : cell.dayIndex;
             const row = is24h ? 0 : cell.hourRow;
@@ -208,7 +200,7 @@ const CheckerboardViz = ({
             );
           })}
         </svg>
-      )}
+      </div>
       {hoveredCell && (
         <div
           className="chart-card__tooltip"
