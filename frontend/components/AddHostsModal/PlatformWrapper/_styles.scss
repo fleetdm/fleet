@@ -70,7 +70,26 @@
     }
   }
 
+  &__command-line-tool.custom-link {
+    color: inherit;
+    font-weight: $bold;
+  }
+
+  &__advanced--osqueryd .custom-link {
+    font-weight: $bold;
+  }
+
   .download-certificate--tooltip {
     margin-bottom: 0;
+  }
+
+  &__advanced--fleet-certificate {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .button--inverse {
+    margin-left: -0.5rem;
   }
 }

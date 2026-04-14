@@ -55,7 +55,10 @@
 
     a {
       @include link;
-      @include animated-bottom-border;
+
+      &:hover {
+        color: $core-fleet-black;
+      }
     }
   }
 
