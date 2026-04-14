@@ -3210,20 +3210,22 @@ spec:
     Payload Method:
     Ask your administrator to deploy a profile which disables AutoOpenSafeDownloads in Safari
   query: |
-    SELECT 1 WHERE 
+    -- Safari profiles deliver at user scope (not system/username='')
+    -- so we accept any scope; the NOT EXISTS still guards against
+    -- a conflicting value anywhere.
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='AutoOpenSafeDownloads' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='AutoOpenSafeDownloads' AND
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='AutoOpenSafeDownloads' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='AutoOpenSafeDownloads' AND
             (value != 0 AND value != 'false')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
@@ -3254,11 +3256,12 @@ spec:
       2. The key to include is HistoryAgeInDaysLimit
       3. The key must be set to: <integer><1,7,14,31,365,36500></integer>
   query: |
-    SELECT 1 WHERE 
+    -- Safari profiles deliver at user scope; drop the username='' filter.
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='HistoryAgeInDaysLimit' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='HistoryAgeInDaysLimit' AND
               /*
               Please replace the checked value bellow to match the one decided by your organization.
               1 - After one day
@@ -3268,15 +3271,14 @@ spec:
               365 - After one year
               36500 - Set Manually
               */
-            value = 1 AND 
-            username = ''
+            value = 1
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='HistoryAgeInDaysLimit' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='HistoryAgeInDaysLimit' AND
             value != 1
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
@@ -3296,20 +3298,21 @@ spec:
     Payload Method:
     Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
   query: |
-    SELECT 1 WHERE 
+    -- Safari profiles deliver at user scope; drop the username='' filter.
+    -- Also fix the NOT EXISTS domain (was com.apple.loginwindow, a typo).
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='WarnAboutFraudulentWebsites' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WarnAboutFraudulentWebsites' AND
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.loginwindow' AND 
-            name='WarnAboutFraudulentWebsites' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WarnAboutFraudulentWebsites' AND
             (value != 1 AND value != 'true')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
@@ -3335,46 +3338,44 @@ spec:
       6. The key to also include is WebKitStorageBlockingPolicy
       7. The key must be set to: 1
   query: |
-    SELECT 1 WHERE 
+    -- Safari profiles deliver at user scope; drop the username='' filter.
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='BlockStoragePolicy' AND 
-            value = '2' AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='BlockStoragePolicy' AND
+            value = '2'
         )
       AND EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='WebKitPreferences.storageBlockingPolicy' AND 
-            value = '1' AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WebKitPreferences.storageBlockingPolicy' AND
+            value = '1'
         )
       AND EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='WebKitStorageBlockingPolicy' AND 
-            value = '1' AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WebKitStorageBlockingPolicy' AND
+            value = '1'
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='BlockStoragePolicy' AND 
-            value != '2' 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='BlockStoragePolicy' AND
+            value != '2'
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='WebKitPreferences.storageBlockingPolicy' AND 
-            value != '1' 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WebKitPreferences.storageBlockingPolicy' AND
+            value != '1'
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='WebKitStorageBlockingPolicy' AND 
-            value != '1' 
-        );  
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='WebKitStorageBlockingPolicy' AND
+            value != '1'
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
@@ -3504,20 +3505,20 @@ spec:
       2. The key to include is ShowFullURLInSmartSearchField 
       3. The key must be set to: <true/>
   query: |
-    SELECT 1 WHERE 
+    -- Safari profiles deliver at user scope; drop the username='' filter.
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='ShowFullURLInSmartSearchField' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='ShowFullURLInSmartSearchField' AND
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.Safari' AND 
-            name='ShowFullURLInSmartSearchField' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.Safari' AND
+            name='ShowFullURLInSmartSearchField' AND
             (value != 1 AND value != 'true')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
