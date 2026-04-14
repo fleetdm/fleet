@@ -45,6 +45,23 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "conditionalAccessBypassDisabled": false,
   "numHostsFleetDesktopEnabled": 999,
   "anyFleetRecoveryLockPasswordEnabled": true,
+  "certificateExpirations": [
+    {
+      "type": "abm",
+      "name": "Fleet Device Management/abm@example.com",
+      "expiresAt": "2026-04-15T12:00:00Z"
+    },
+    {
+      "type": "vpp",
+      "name": "Fleet Device Management/Workstations",
+      "expiresAt": "2026-05-20T12:00:00Z"
+    },
+    {
+      "type": "mdm_config_asset",
+      "name": "MDMAssetAPNSCert",
+      "expiresAt": "2026-06-30T12:00:00Z"
+    }
+  ],
   "fleetMaintainedAppsMacOS": [
     "1password/darwin",
     "slack/darwin",
