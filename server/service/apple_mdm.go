@@ -6273,6 +6273,17 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "getting linked configuration for activation declaration")
 	}
 
+	// Check if fleet variables in the declaration can be resolved for this
+	// host. If not, mark as failed and return 404 so the device does not try
+	// to apply this configuration.
+	if _, err := svc.replaceDeclarationFleetVariables(ctx, string(d.RawJSON), hostUUID); err != nil {
+		if markErr := svc.markDeclarationFailed(ctx, hostUUID, d, err.Error()); markErr != nil {
+			return nil, ctxerr.Wrap(ctx, markErr, "mark declaration with unresolvable variables as failed")
+		}
+		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound,
+			ctxerr.Wrap(ctx, err, "fleet variables not resolvable"))
+	}
+
 	response := fmt.Sprintf(`
 {
   "Identifier": "%s",

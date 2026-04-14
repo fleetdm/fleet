@@ -1772,11 +1772,12 @@ WHERE name = ?`
 	itemsResp = parseDeclarationItemsResp(t, r)
 	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
-	// Host1 fetches the IdP username declaration — variable resolution fails
-	// because no IdP user exists for the host. The server returns an empty 200
-	// and marks the declaration as failed.
-	_, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
-	require.NoError(t, err)
+	// Host1 fetches the activation for the IdP username declaration — the
+	// server checks that the referenced configuration's variables can be
+	// resolved and returns 404 because no IdP user exists for the host.
+	_, err = mdmDevice1.DeclarativeManagement("declaration/activation/com.fleet.var.idpusername.activation")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "404")
 
 	// Verify the declaration is marked as failed with the expected detail message
 	var hostDecl fleet.MDMAppleHostDeclaration
@@ -1789,6 +1790,11 @@ WHERE name = ?`
 	assert.Equal(t, fleet.MDMDeliveryFailed, *hostDecl.Status)
 	assert.Contains(t, hostDecl.Detail, "There is no IdP username for this host")
 	assert.Contains(t, hostDecl.Detail, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+
+	// Host1 fetches the IdP username configuration — variable resolution
+	// fails again (fallback path). The server returns an empty 200.
+	_, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
+	require.NoError(t, err)
 
 	// === Updating variable declaration to non-variable clears variables_updated_at ===
 
