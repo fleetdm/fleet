@@ -1,6 +1,6 @@
-## name: New FMA 
-about: Request a new Fleet-maintained app for macOS or Windows
-title: "New FMA: [APP NAME]"
+## name: New Fleet-maintained app (FMA)
+about: Request a new FMA for macOS or Windows
+title: "New Fleet-maintained app: [APP NAME]"
 labels: fma, :help-solutions-consulting
 assignees: ''
 
