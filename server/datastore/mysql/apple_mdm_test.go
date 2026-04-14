@@ -9709,8 +9709,8 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		&profA,
 		&profB,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profA.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsernameLocalPart}},
-		{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsernameLocalPart}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)
@@ -9727,9 +9727,9 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		&profB,
 		&profD,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profA.Identifier, FleetVariables: nil},
-		{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
-		{Identifier: profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: nil},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)
@@ -9754,9 +9754,9 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		},
 		nil,
 		[]fleet.MDMProfileIdentifierFleetVariables{
-			{Identifier: profA.Identifier, FleetVariables: nil},
-			{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
-			{Identifier: profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: nil},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 		})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true, AppleDeclaration: true, WindowsConfigProfile: true}, updates)
@@ -9769,7 +9769,7 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 	updates, err = ds.BatchSetMDMProfiles(ctx, &tm1.ID, []*fleet.MDMAppleConfigProfile{
 		&profE,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profE.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profE.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)

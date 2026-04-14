@@ -2648,7 +2648,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 
 	// Mock the profilesVariablesByIdentifier that would be passed from service layer
 	profilesVars := []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
+		{Identifier: fleet.MDMWindowsProfileUUIDPrefix + "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
 	}
 
 	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1WithVarsAgain, teamProf2NoChange}, nil, nil, profilesVars)

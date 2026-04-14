@@ -1242,8 +1242,10 @@ type MDMProfileUUIDFleetVariables struct {
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
 // profile identified by its identifier.
 type MDMProfileIdentifierFleetVariables struct {
-	// Identifier is the identifier of the profile (which is unique by team for
-	// Apple profiles).
+	// Identifier is the identifier of the profile. Because the profile identifier is not guaranteed
+	// to be unique across platforms and types of profiles (e.g. Apple profiles vs declarations vs Windows
+	// profiles), it must be prefixed with the same letter used for the UUID prefix of the profile type.
+	// E.g. fleet.MDMAppleDeclarationUUIDPrefix.
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
