@@ -76,7 +76,9 @@ In Fleet, go to **Settings** → **Integrations** → **Certificate authorities*
 Alternatively, configure via GitOps in your `org_settings`:
 
 ```yaml
-integrations:
+org_settings:
+  integrations:
+    ...
   certificate_authorities:
     ndes_scep_proxy:
       url: https://your-okta-org.okta.com/scep
