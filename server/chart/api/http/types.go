@@ -8,6 +8,7 @@ type GetChartDataRequest struct {
 	Metric         string `url:"metric"`
 	Days           int    `query:"days,optional"`
 	Downsample     int    `query:"downsample,optional"`
+	TZOffset       int    `query:"tz_offset,optional"`
 	LabelIDs       string `query:"label_ids,optional"`
 	Platforms      string `query:"platforms,optional"`
 	IncludeHostIDs string `query:"include_host_ids,optional"`

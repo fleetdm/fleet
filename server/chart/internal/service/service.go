@@ -104,9 +104,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 
 	switch dataset.StorageType() {
 	case chart.StorageTypeBlob:
-		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample)
+		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample, opts.TZOffsetMinutes)
 		if err == nil {
-			data = fillZeroValues(data, startDate, endDate, opts.Downsample)
+			data = fillZeroValues(data, startDate, endDate, opts.Downsample, opts.TZOffsetMinutes)
 		}
 	case chart.StorageTypeSCD:
 		// SCD datasets always bucket daily — the datastore fills zero-valued days itself.
@@ -139,7 +139,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 }
 
 // getChartDataBlob fetches raw blobs from the datastore and aggregates them in Go.
-// It handles host filtering (via bitwise AND) and downsampling (via bitwise OR of hour groups).
+// It handles host filtering (via bitwise AND), downsampling (via bitwise OR of hour
+// groups), and timezone alignment (buckets are aligned to local-time hour boundaries
+// so the frontend can display clean local hours).
 func (s *Service) getChartDataBlob(
 	ctx context.Context,
 	dataset string,
@@ -147,8 +149,14 @@ func (s *Service) getChartDataBlob(
 	hostFilter *chart.HostFilter,
 	entityIDs []string,
 	downsample int,
+	tzOffsetMinutes int,
 ) ([]chart.DataPoint, int, error) {
-	blobs, err := s.store.GetBlobData(ctx, dataset, startDate, endDate, entityIDs)
+	// Extend the UTC date range by one day on each side so that blobs that
+	// straddle the UTC midnight boundary are available for local-time buckets.
+	fetchStart := startDate.AddDate(0, 0, -1)
+	fetchEnd := endDate.AddDate(0, 0, 1)
+
+	blobs, err := s.store.GetBlobData(ctx, dataset, fetchStart, fetchEnd, entityIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -187,18 +195,24 @@ func (s *Service) getChartDataBlob(
 		blobIndex[key] = b.HostBitmap
 	}
 
-	// Build data points: for each step-aligned hour bucket, OR the blobs in the window,
-	// optionally AND with filter mask, then popcount.
+	// Build a fixed-offset location so we can iterate over local-time days and
+	// hours, then convert each local-time bucket to the correct UTC (date, hour)
+	// pair for the blob lookup. JavaScript's getTimezoneOffset() returns positive
+	// values for west of UTC; Go's FixedZone takes seconds east of UTC.
+	loc := time.FixedZone("client", -tzOffsetMinutes*60)
+
 	var results []chart.DataPoint
 	for h := 0; h+step <= 24; h += step {
-		// Collect all dates in the range.
-		for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-			dateStr := d.Format("2006-01-02")
-
-			// OR blobs within the downsample window.
+		localStart := startDate.In(loc)
+		localEnd := endDate.In(loc)
+		for d := localStart; !d.After(localEnd); d = d.AddDate(0, 0, 1) {
+			// OR blobs within the downsample window, converting each local
+			// hour to UTC for the blob key lookup.
 			var merged []byte
 			for offset := range step {
-				key := dateHourKey{date: dateStr, hour: h + offset}
+				localHour := time.Date(d.Year(), d.Month(), d.Day(), h+offset, 0, 0, 0, loc)
+				utcHour := localHour.UTC()
+				key := dateHourKey{date: utcHour.Format("2006-01-02"), hour: utcHour.Hour()}
 				if blob, ok := blobIndex[key]; ok {
 					merged = chart.BlobOR(merged, blob)
 				}
@@ -209,11 +223,13 @@ func (s *Service) getChartDataBlob(
 				merged = chart.BlobAND(merged, filterMask)
 			}
 
-			count := chart.BlobPopcount(merged)
-			ts := time.Date(d.Year(), d.Month(), d.Day(), h, 0, 0, 0, time.UTC)
+			// Emit the timestamp as UTC; the frontend will convert to local
+			// and land on clean local-hour boundaries because we bucketed in
+			// local time.
+			localBucket := time.Date(d.Year(), d.Month(), d.Day(), h, 0, 0, 0, loc)
 			results = append(results, chart.DataPoint{
-				Timestamp: ts,
-				Value:     count,
+				Timestamp: localBucket.UTC(),
+				Value:     chart.BlobPopcount(merged),
 			})
 		}
 	}
@@ -225,8 +241,10 @@ func (s *Service) CleanupData(ctx context.Context, days int) error {
 	return s.store.CleanupBlobData(ctx, days)
 }
 
-// fillZeroValues fills in missing time buckets with zero values.
-func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsample int) []chart.DataPoint {
+// fillZeroValues fills in missing time buckets with zero values. Bucket
+// boundaries are aligned to local time using the provided tz offset so the
+// generated timestamps match those produced by getChartDataBlob.
+func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsample, tzOffsetMinutes int) []chart.DataPoint {
 	existing := make(map[time.Time]int, len(data))
 	for _, dp := range data {
 		existing[dp.Timestamp] = dp.Value
@@ -237,13 +255,15 @@ func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsa
 		step = downsample
 	}
 
-	// Align end to the current step-aligned hour, then walk back from end to
-	// produce exactly the right number of data points ending at the current hour.
-	endHour := endDate.Hour()
+	// Align end to the current step-aligned local hour, then convert back
+	// to UTC for the timestamp key.
+	loc := time.FixedZone("client", -tzOffsetMinutes*60)
+	localEnd := endDate.In(loc)
+	localEndHour := localEnd.Hour()
 	if step > 1 {
-		endHour = (endHour / step) * step
+		localEndHour = (localEndHour / step) * step
 	}
-	end := time.Date(endDate.Year(), endDate.Month(), endDate.Day(), endHour, 0, 0, 0, time.UTC)
+	end := time.Date(localEnd.Year(), localEnd.Month(), localEnd.Day(), localEndHour, 0, 0, 0, loc).UTC()
 
 	// The inclusive loop produces numStepsBack+1 data points. For days=1 hourly
 	// we want 24 points, so step back 23 times from end.

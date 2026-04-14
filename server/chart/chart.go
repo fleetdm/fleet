@@ -98,11 +98,15 @@ type Response struct {
 type RequestOpts struct {
 	Days int
 	// Downsample groups hours into N-hour blocks (valid: 0, 2, 4, 8). 0 means hourly.
-	Downsample     int
-	LabelIDs       []uint
-	Platforms      []string
-	IncludeHostIDs []uint
-	ExcludeHostIDs []uint
+	Downsample int
+	// TZOffsetMinutes is the client's UTC offset as reported by JavaScript's
+	// Date.getTimezoneOffset() (positive = west of UTC, e.g. CDT = 300).
+	// Used to align hourly bucket boundaries to local time.
+	TZOffsetMinutes int
+	LabelIDs        []uint
+	Platforms       []string
+	IncludeHostIDs  []uint
+	ExcludeHostIDs  []uint
 	// DatasetFilters are dataset-specific filter params (e.g. policy_id, severity).
 	DatasetFilters map[string]string
 }

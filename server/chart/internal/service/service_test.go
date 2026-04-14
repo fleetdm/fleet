@@ -230,7 +230,7 @@ func TestFillZeroValues(t *testing.T) {
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
-		result := fillZeroValues(data, start, end, 0)
+		result := fillZeroValues(data, start, end, 0, 0)
 		// 5 hours → 5 data points: hours 1,2,3,4,5
 		assert.Len(t, result, 5)
 		assert.Equal(t, 42, result[1].Value)
@@ -242,7 +242,7 @@ func TestFillZeroValues(t *testing.T) {
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
-		result := fillZeroValues(data, start, end, 2)
+		result := fillZeroValues(data, start, end, 2, 0)
 		// 6 hours / 2 = 3 buckets ending at 6: hours 2, 4, 6
 		assert.Len(t, result, 3)
 		assert.Equal(t, 42, result[0].Value) // hour 2
@@ -256,7 +256,7 @@ func TestFillZeroValues(t *testing.T) {
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), Value: 10},
 		}
-		result := fillZeroValues(data, start, end, 4)
+		result := fillZeroValues(data, start, end, 4, 0)
 		// 8 hours / 4 = 2 buckets ending at 8: hours 4, 8
 		assert.Len(t, result, 2)
 		assert.Equal(t, 10, result[0].Value) // hour 4
@@ -271,7 +271,7 @@ func TestFillZeroValues(t *testing.T) {
 			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 50},
 			{Timestamp: time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC), Value: 75},
 		}
-		result := fillZeroValues(data, s, e, 0)
+		result := fillZeroValues(data, s, e, 0, 0)
 		require.Len(t, result, 24)
 		// First point: hour 17 yesterday (end - 23h)
 		assert.Equal(t, time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC), result[0].Timestamp)
@@ -289,7 +289,7 @@ func TestFillZeroValues(t *testing.T) {
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 14, 0, 0, 0, time.UTC), Value: 30},
 		}
-		result := fillZeroValues(data, s, e, 2)
+		result := fillZeroValues(data, s, e, 2, 0)
 		// 6 hours / 2 = 3 buckets ending at aligned hour 16: 12, 14, 16
 		require.Len(t, result, 3)
 		assert.Equal(t, time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC), result[0].Timestamp)
@@ -304,7 +304,7 @@ func TestFillZeroValues(t *testing.T) {
 		data := []chart.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC), Value: 55},
 		}
-		result := fillZeroValues(data, s, e, 4)
+		result := fillZeroValues(data, s, e, 4, 0)
 		// End aligns to 12, 14 hours / 4 = 3 buckets: 4, 8, 12
 		require.Len(t, result, 3)
 		assert.Equal(t, time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), result[0].Timestamp)
