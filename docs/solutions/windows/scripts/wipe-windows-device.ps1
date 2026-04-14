@@ -156,7 +156,9 @@ try {
 } catch [System.Management.Automation.CommandNotFoundException] {
     Write-Host "  BitLocker module not available - skipping"
 } catch {
-    Write-Host "  WARNING: BitLocker check failed: $($_.Exception.Message)"
+    Write-Host "  ERROR: BitLocker state could not be determined: $($_.Exception.Message). Terminating to prevent wipe with unknown BitLocker state."
+    Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+    exit 1
 }
 Write-Host ""
 
