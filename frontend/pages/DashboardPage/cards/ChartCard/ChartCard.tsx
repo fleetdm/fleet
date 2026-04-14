@@ -76,7 +76,7 @@ const ChartCard = (): JSX.Element => {
   const queryParams: IChartRequestParams = useMemo(() => {
     let downsample: number | undefined;
     if (selectedDays === 30) {
-      downsample = 4;
+      downsample = 3;
     } else if (selectedDays >= 7) {
       downsample = 2;
     }

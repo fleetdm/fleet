@@ -68,7 +68,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 	}
 
 	// Validate downsample.
-	validDownsample := map[int]struct{}{0: {}, 2: {}, 4: {}, 8: {}}
+	validDownsample := map[int]struct{}{0: {}, 2: {}, 3: {}, 4: {}, 8: {}, 12: {}}
 	if _, ok := validDownsample[opts.Downsample]; !ok {
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid downsample value: %d (must be 2, 4, or 8)", opts.Downsample)}
 	}
