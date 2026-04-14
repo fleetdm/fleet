@@ -263,7 +263,7 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
-### Slide decks
+## Slide decks
 
 The goal of a slide deck is not necessarily walk every customer through it. It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization. Even if you never show these decks on a screenshare use them to keep the conversation on track. 
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
