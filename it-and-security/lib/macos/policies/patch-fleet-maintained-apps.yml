@@ -22,14 +22,6 @@
   install_software: false
   labels_include_any:
     - Macs with Docker Desktop installed
-- name: macOS - Microsoft Edge up to date
-  description: The host may have an outdated version of Microsoft Edge, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Microsoft Edge's built-in update functionality. You can also delete Microsoft Edge if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: microsoft-edge/darwin
-  install_software: false
-  labels_include_any:
-    - Macs with Microsoft Edge installed
 - name: macOS - Firefox up to date
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
   resolution: Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details.
@@ -191,14 +183,6 @@
   install_software: false
   labels_include_any:
     - Macs with Logi Options+ installed
-- name: macOS - Suspicious Package up to date
-  description: The host may have an outdated version of Suspicious Package, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Suspicious Package's built-in update functionality. You can also delete Suspicious Package if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: suspicious-package/darwin
-  install_software: false
-  labels_include_any:
-    - Macs with Suspicious Package installed
 - name: macOS - Figma up to date
   description: The host may have an outdated version of Figma, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Figma's built-in update functionality. You can also delete Figma if you are no longer using it."
