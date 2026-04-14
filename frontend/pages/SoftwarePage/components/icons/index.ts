@@ -381,7 +381,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
-  "imazing profile editor": IMazingProfileEditor,
+  imazing: IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,
   "intellij idea": IntelliJIdea,
