@@ -1068,6 +1068,7 @@ func (a *agent) runMacosMDMLoop() {
 						break INNER_FOR_LOOP
 					}
 				}
+
 			case "DeclarativeManagement":
 				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
 				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
@@ -1077,8 +1078,10 @@ func (a *agent) runMacosMDMLoop() {
 					break INNER_FOR_LOOP
 				}
 				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
+				// (iff a real device does process DDM in parallel with traditional MDM commands).
 				a.doDeclarativeManagement(mdmCommandPayload)
 				mdmCommandPayload = nextMdmCommandPayload
+
 			case "InstalledApplicationList":
 				var installedVPPSoftware []fleet.Software
 				// Our mock VPP apps start off as "not installed".
@@ -1106,6 +1109,7 @@ func (a *agent) runMacosMDMLoop() {
 				}
 
 				mdmCommandPayload = nextMdmCommandPayload
+
 			case "InstallApplication":
 				var appRequest struct {
 					Command map[string]any `plist:"Command"`
@@ -1245,7 +1249,7 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 	}
 	a.stats.IncrementDDMActivationSuccess()
 
-	// sent status report
+	// send status report
 	for _, d := range items.Declarations.Configurations {
 		report := fleet.MDMAppleDDMStatusReport{}
 		report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
@@ -3393,8 +3397,12 @@ func main() {
 		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		logInterval   = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
+		queryInterval = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		// NOTE: at least for macOS (not sure for Windows), this is a significant difference vs a real
+		// device, as APNS push notifications will be used to wake-up the device for check-ins instead of
+		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
+		// without push notifications, but definitely not every minute.
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
