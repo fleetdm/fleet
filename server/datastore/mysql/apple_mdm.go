@@ -1032,7 +1032,8 @@ SELECT
 	ncr.result,
 	ncr.updated_at,
 	nc.request_type,
-	nc.command as payload
+	nc.command as payload,
+	nc.name
 FROM
 	nano_command_results ncr
 INNER JOIN
@@ -1085,7 +1086,8 @@ SELECT
 	COALESCE(ncr.status, 'Pending') AS status,
 	request_type,
 	nc.command AS payload,
-	COALESCE(ncr.result, '') AS result
+	COALESCE(ncr.result, '') AS result,
+	nc.name
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
@@ -1130,7 +1132,8 @@ SELECT
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
     nvq.request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    nvq.name
 FROM
     nano_view_queue nvq
 INNER JOIN

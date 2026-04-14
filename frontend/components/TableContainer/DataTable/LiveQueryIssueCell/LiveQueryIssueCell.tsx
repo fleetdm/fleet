@@ -3,19 +3,17 @@ import React from "react";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
-interface ILiveQueryIssueCellProps<T> {
+interface ILiveQueryIssueCellProps {
   displayName: string;
   distributedInterval: number;
   status: string;
-  rowId: number;
 }
 
 const LiveQueryIssueCell = ({
   displayName,
   distributedInterval,
   status,
-  rowId,
-}: ILiveQueryIssueCellProps<any>): JSX.Element => {
+}: ILiveQueryIssueCellProps): JSX.Element => {
   if (distributedInterval < 60 && status === "online") {
     return <>{displayName}</>;
   }

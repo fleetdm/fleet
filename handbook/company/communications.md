@@ -415,7 +415,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -424,6 +424,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `bug` A defect in the product.
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
+- `reliability` A scaling, performance, or reliability issue, including post-mortem action items.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
@@ -579,7 +580,19 @@ To request reimbursement for miles driven:
 4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
 5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
 
-Finance will review and process your request within 2 business days. 
+Finance will review and process your request within 5 business days. 
+
+
+### Other reimbursement
+
+To request reimbursement for expenses incurred during travel: 
+1. Navigate to [Brex](https://dashboard.brex.com/wallet)
+2. Click "Request reimbursement," then "Out of pocket."
+3. Upload receipt for the spend item.
+4. Follow the instructions on the screen. 
+5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
+
+Finance will review and process your request within 5 business days. 
 
 
 ### Lodging

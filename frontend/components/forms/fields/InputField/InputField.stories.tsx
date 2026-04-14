@@ -1,7 +1,6 @@
 import { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
 
-// @ts-ignore
 import InputField from ".";
 
 import "../../../../index.scss";
@@ -20,10 +19,6 @@ const meta: Meta<typeof InputField> = {
     blockAutoComplete: { control: "boolean" },
     enableCopy: { control: "boolean" },
     enableShowSecret: { control: "boolean" },
-    copyButtonPosition: {
-      control: "radio",
-      options: ["inside", "outside"],
-    },
     labelTooltipPosition: {
       control: "select",
       options: ["top", "right", "bottom", "left"],
@@ -44,6 +39,15 @@ export const Default: Story = {
     onChange: action("onChange"),
     onFocus: action("onFocus"),
     onBlur: action("onBlur"),
+  },
+};
+
+export const WithValue: Story = {
+  args: {
+    ...Default.args,
+    name: "with-value-input",
+    label: "Input with Value",
+    value: "Sample text",
   },
 };
 
@@ -113,6 +117,15 @@ export const WithCopyButton: Story = {
     label: "Input with Copy Button",
     value: "Click to copy this text",
     enableCopy: true,
+  },
+};
+
+export const AutoFocus: Story = {
+  args: {
+    ...Default.args,
+    name: "autofocus-input",
+    label: "Autofocus Input",
+    autofocus: true,
   },
 };
 

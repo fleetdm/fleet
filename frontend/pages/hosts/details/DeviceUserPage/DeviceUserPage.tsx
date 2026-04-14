@@ -223,9 +223,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const refetchExtensions = () => {
+  const refetchExtensions = useCallback(() => {
     deviceCertificates && refetchDeviceCertificates();
-  };
+  }, [deviceCertificates, refetchDeviceCertificates]);
 
   /**
    * Hides refetch spinner and resets refetch timer,
@@ -826,7 +826,6 @@ const DeviceUserPage = ({
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
-                    router={router}
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }

@@ -703,13 +703,13 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>FLEET DEVICE MANAGEMENT</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>

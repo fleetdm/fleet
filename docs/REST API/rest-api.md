@@ -768,9 +768,8 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
-
 }
 ```
 
@@ -783,7 +782,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "certificate_authority_id": 1,
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
   "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 }
 ```
@@ -987,7 +986,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "wifi-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "subject_alternative_name": "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
       "created_at": "2025-11-04T00:00:00Z",
     },
@@ -996,7 +995,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "vpn-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
     }
   ],
