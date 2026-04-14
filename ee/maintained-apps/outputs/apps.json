@@ -842,6 +842,13 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Granola",
+      "slug": "granola/windows",
+      "platform": "windows",
+      "unique_identifier": "Granola",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
