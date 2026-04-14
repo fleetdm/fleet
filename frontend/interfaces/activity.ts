@@ -138,6 +138,7 @@ export enum ActivityType {
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
+  CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
@@ -180,6 +181,7 @@ export type IHostPastActivityType =
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
+  | ActivityType.CanceledSetupExperience
   | ActivityType.InstalledCertificate
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode;
@@ -281,6 +283,7 @@ export interface IActivityDetails {
   team_name?: string | null;
   teams?: ITeamSummary[];
   triggered_by?: string;
+  from_setup_experience?: boolean;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -314,6 +317,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
   canceled_uninstall_software: "Canceled activity: uninstall software",
+  canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",

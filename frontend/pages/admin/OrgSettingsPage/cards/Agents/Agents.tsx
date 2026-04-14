@@ -127,7 +127,6 @@ const Agents = ({
           disabled={gitOpsModeEnabled}
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

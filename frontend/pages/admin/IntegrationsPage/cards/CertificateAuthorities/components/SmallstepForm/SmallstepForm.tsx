@@ -8,8 +8,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import { generateFormValidations, validateFormData } from "./helpers";
 
-const baseClass = "smallstep-form";
-
 export interface ISmallstepFormData {
   name: string;
   scepURL: string;

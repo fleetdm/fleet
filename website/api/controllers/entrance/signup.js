@@ -110,20 +110,6 @@ the account verification message.)`,
       organization = emailDomain;
     }
 
-
-    if (!sails.config.custom.enableBillingFeatures) {
-      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
-    }
-
-    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
-    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-      emailAddress: newEmailAddress
-    })
-    .timeout(5000)
-    .retry()
-    .intercept((error)=>{
-      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
-    });
     let newUserRecord = await User.create(_.extend({
       firstName,
       lastName,
@@ -131,7 +117,6 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
-      stripeCustomerId,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),

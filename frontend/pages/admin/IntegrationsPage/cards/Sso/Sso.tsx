@@ -23,8 +23,6 @@ import {
   newFormDataIdp,
 } from "../IdentityProviders/components/EndUserAuthSection/helpers";
 
-const baseClass = "app-config-form";
-
 interface ISsoFormData {
   idpName: string;
   enableSso: boolean;
@@ -318,7 +316,6 @@ const Sso = ({
           )}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

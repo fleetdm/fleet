@@ -326,7 +326,6 @@ const Smtp = ({
           {renderSmtpSection()}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent={

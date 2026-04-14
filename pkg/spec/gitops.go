@@ -1140,6 +1140,7 @@ var defaultAllowedExtensions = map[string]bool{
 var allowedScriptExtensions = map[string]bool{
 	".sh":  true,
 	".ps1": true,
+	".py":  true,
 }
 
 // GlobExpandOptions configures how flattenBaseItems expands glob patterns.

@@ -224,6 +224,7 @@ module.exports = {
         // wr: 'Web referral',
         // soc: 'Organic social',
         // "Digital" sources:
+        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
         ps: 'Paid search (PS)',
         so: 'Paid social (SO)',
         pm: 'Paid media (PM)',
@@ -247,7 +248,7 @@ module.exports = {
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
-      if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
+      if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
         attributionDetails.sourceChannel = 'Digital';
