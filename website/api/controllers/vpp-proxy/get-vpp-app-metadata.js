@@ -130,14 +130,14 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      if(err.statusCode === 403){
-        return {appleApiReturnedForbiddenResponse: err.body};
+      if(err.raw.statusCode === 403){
+        return {appleApiReturnedForbiddenResponse: err.raw.body};
       }
-      if(err.statusCode === 500){
-        return {appleApiReturnedServerError: err.body};
+      if(err.raw.statusCode === 500){
+        return {appleApiReturnedServerError: err.raw.body};
       }
       sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
-      return err.body;
+      return err.raw.body;
     });
 
     return responseFromAppleApi;
