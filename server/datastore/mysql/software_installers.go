@@ -3548,14 +3548,13 @@ WHERE
 // matching the given sha256 hash (storage_id) and optional URL, grouped by team ID.
 // Software installers can only have at most 1 installer per team for the given hash,
 // while in-house apps can have multiple (1 for ios and 1 for ipados).
-//
-// Note: the returned ExistingSoftwareInstaller structs do NOT populate StorageID
-// or HTTPETag fields. Use GetInstallerByTeamAndURL for cache-related lookups.
 func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
 	si.id AS installer_id,
 	si.team_id AS team_id,
+	si.storage_id AS storage_id,
+	si.http_etag AS http_etag,
 	si.filename AS filename,
 	si.extension AS extension,
 	si.version AS version,
@@ -3575,6 +3574,8 @@ UNION ALL
 SELECT
 	iha.id AS installer_id,
 	iha.team_id AS team_id,
+	iha.storage_id AS storage_id,
+	NULL AS http_etag,
 	iha.filename AS filename,
 	'ipa' AS extension,
 	iha.version AS version,

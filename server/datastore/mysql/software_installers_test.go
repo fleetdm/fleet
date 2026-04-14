@@ -3451,6 +3451,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
 		require.Equal(t, "darwin", i.Platform)
+		require.Equal(t, hash1, i.StorageID)
 	}
 
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
@@ -3474,6 +3475,8 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	var foundPlatforms []string
 	for _, inst := range installers[team1.ID] {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
+		require.Equal(t, "inhouse", inst.StorageID)
+		require.Nil(t, inst.HTTPETag) // in-house apps don't have ETags
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 
