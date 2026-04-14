@@ -27,16 +27,20 @@ type Datastore interface {
 	// CleanupBlobData deletes blob rows older than the specified number of days.
 	CleanupBlobData(ctx context.Context, days int) error
 
-	// RecordSCDData upserts the current active set of entity IDs for a single host
-	// as a slowly-changing-dimension. Rows not in the set are closed (valid_to set to now);
-	// new entity IDs are inserted with valid_from = now; still-active rows are left untouched.
-	RecordSCDData(ctx context.Context, dataset string, hostID uint, entityIDs []string, now time.Time) error
+	// RecordSCDData reconciles the current per-entity host bitmaps for a dataset
+	// against the table's open rows. Entities whose bitmap has not changed are left
+	// alone. Entities with a new bitmap get their open row closed (when valid_from
+	// is from a previous day) and a new row inserted for today; same-day bitmap
+	// changes overwrite today's row in place. Entities absent from the input
+	// that have open rows are closed.
+	RecordSCDData(ctx context.Context, dataset string, entityBitmaps map[string][]byte, now time.Time) error
 
-	// GetSCDData returns time-bucketed distinct-host counts for an SCD dataset over
-	// the given range. bucketInterval is the bucket width in hours (e.g. 24 for daily).
-	GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketIntervalHours int, hostFilter *chart.HostFilter, entityIDs []string) ([]chart.DataPoint, error)
+	// GetSCDData returns per-day distinct-host counts for an SCD dataset over the
+	// given range. Applies the optional host filter via bitmap AND and the optional
+	// entity filter via entity_id IN.
+	GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, hostFilter *chart.HostFilter, entityIDs []string) ([]chart.DataPoint, error)
 
-	// CleanupSCDData deletes SCD rows whose valid_to is older than the retention cutoff.
-	// Open rows (valid_to = sentinel) are never deleted.
+	// CleanupSCDData deletes closed SCD rows whose valid_to is older than the
+	// retention cutoff. Open rows (valid_to = sentinel) are never deleted.
 	CleanupSCDData(ctx context.Context, days int) error
 }

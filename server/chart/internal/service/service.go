@@ -109,10 +109,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 			data = fillZeroValues(data, startDate, endDate, opts.Downsample)
 		}
 	case chart.StorageTypeSCD:
-		// SCD datasets always bucket daily — the CTE fills zero buckets itself.
-		const bucketHours = 24
+		// SCD datasets always bucket daily — the datastore fills zero-valued days itself.
 		resolution = "daily"
-		data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, bucketHours, hostFilter, entityIDs)
+		data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, hostFilter, entityIDs)
 		if err == nil {
 			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
 		}
