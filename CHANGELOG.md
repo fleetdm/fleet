@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-- Fixed 500 on my device page on Fleet Free.
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
 
 ## Fleet 4.83.1 (Apr 10, 2026)
 
