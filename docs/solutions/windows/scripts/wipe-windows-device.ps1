@@ -135,8 +135,20 @@ try {
     foreach ($vol in $blVolumes) {
         if ($vol.ProtectionStatus -eq "On") {
             Write-Host "  BitLocker active on $($vol.MountPoint) - suspending for 1 reboot..."
-            Suspend-BitLocker -MountPoint $vol.MountPoint -RebootCount 1 -ErrorAction Stop
-            Write-Host "  BitLocker suspended on $($vol.MountPoint)"
+            $isOSVolume = $vol.MountPoint -eq $env:SystemDrive
+            try {
+                Suspend-BitLocker -MountPoint $vol.MountPoint -RebootCount 1 -ErrorAction Stop
+                Write-Host "  BitLocker suspended on $($vol.MountPoint)"
+            } catch {
+                if ($isOSVolume) {
+                    Write-Host "  ERROR: Failed to suspend BitLocker on OS volume $($vol.MountPoint): $($_.Exception.Message)"
+                    Write-Host "  Cannot proceed with wipe - BitLocker must be suspended on the OS volume to prevent recovery key prompts"
+                    Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+                    exit 1
+                } else {
+                    Write-Host "  WARNING: Failed to suspend BitLocker on $($vol.MountPoint): $($_.Exception.Message)"
+                }
+            }
         } else {
             Write-Host "  BitLocker already off or suspended on $($vol.MountPoint)"
         }
