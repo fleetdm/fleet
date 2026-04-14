@@ -19,7 +19,7 @@
 # RemoteWipe CSP. There is no alternative Windows API for triggering "Reset
 # this PC" programmatically without user interaction. The value of this script
 # is that it fixes the root causes before calling the wipe, and bypasses the
-# MDM command queue where server-side failures can occurr.
+# MDM command queue where server-side failures can occur.
 #
 # The OS is never formatted. Windows rebuilds from the local Component Store
 # (WinSxS) or via Cloud Download, so no USB media is required.
