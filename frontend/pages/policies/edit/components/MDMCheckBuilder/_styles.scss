@@ -1,0 +1,145 @@
+.mdm-check-builder {
+  margin-bottom: 24px;
+  min-height: 400px; // Ensure enough scrollable space for dropdown menus
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  &__templates-btn {
+    font-size: 14px;
+  }
+
+  &__checks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &__field-dropdown {
+    flex: 2;
+    min-width: 200px;
+
+    .Select-menu-outer {
+      max-height: 300px;
+      overflow-y: auto;
+      position: absolute;
+      width: 100%;
+      z-index: 10;
+    }
+  }
+
+  &__custom-field {
+    flex: 2;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__back-to-catalog {
+    font-size: 12px;
+    align-self: flex-start;
+  }
+
+  &__operator-dropdown {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  &__value-dropdown,
+  &__value-input {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  &__remove-btn {
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  &__add-btn {
+    margin-top: 12px;
+    font-size: 14px;
+
+    .fleeticon {
+      margin-right: 4px;
+    }
+  }
+
+  &__preview {
+    margin-top: 16px;
+    padding: 12px;
+    background-color: $ui-off-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  &__preview-label {
+    font-weight: $bold;
+    margin-right: 4px;
+  }
+
+  &__preview-text {
+    em {
+      font-style: italic;
+      color: $core-fleet-blue;
+    }
+
+    strong {
+      font-weight: $bold;
+    }
+  }
+
+  &__templates-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  &__template-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 4px;
+    gap: 16px;
+
+    &:hover {
+      background-color: $ui-off-white;
+    }
+  }
+
+  &__template-info {
+    flex: 1;
+
+    strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    p {
+      font-size: 13px;
+      color: $ui-fleet-black-75;
+      margin: 0;
+    }
+  }
+
+  &__template-use-btn {
+    flex-shrink: 0;
+  }
+}

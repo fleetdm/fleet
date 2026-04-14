@@ -37,6 +37,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
 		Type:                     req.Type,
 		PatchSoftwareTitleID:     req.PatchSoftwareTitleID,
+		MDMCheckDefinition:       req.MDMCheckDefinition,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -192,6 +193,12 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if p.Type != nil && *p.Type == fleet.PolicyTypePatch {
 		policyType = fleet.PolicyTypePatch
 	}
+	if p.Type != nil && *p.Type == fleet.PolicyTypeMDM {
+		policyType = fleet.PolicyTypeMDM
+	}
+	if p.MDMCheckDefinition != nil && policyType == fleet.PolicyTypeDynamic {
+		policyType = fleet.PolicyTypeMDM
+	}
 
 	softwareInstallerID, vppAppsTeamsID, err := svc.getInstallerOrVPPAppForTitle(ctx, &teamID, p.SoftwareTitleID)
 	if err != nil {
@@ -214,6 +221,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
 		Type:                     policyType,
 		PatchSoftwareTitleID:     p.PatchSoftwareTitleID,
+		MDMCheckDefinition:       p.MDMCheckDefinition,
 	}, nil
 }
 
@@ -568,6 +576,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.ConditionalAccessEnabled != nil {
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
+	}
+	if p.MDMCheckDefinition != nil {
+		policy.MDMCheckDefinition = p.MDMCheckDefinition
 	}
 	if removeStats {
 		policy.FailingHostCount = 0

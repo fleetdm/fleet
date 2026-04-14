@@ -26,17 +26,22 @@ import (
 
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GlobalPolicyRequest)
+	policyType := fleet.PolicyTypeDynamic
+	if req.MDMCheckDefinition != nil {
+		policyType = fleet.PolicyTypeMDM
+	}
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:          req.QueryID,
-		Query:            req.Query,
-		Name:             req.Name,
-		Description:      req.Description,
-		Resolution:       req.Resolution,
-		Platform:         req.Platform,
-		Critical:         req.Critical,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsExcludeAny: req.LabelsExcludeAny,
-		Type:             fleet.PolicyTypeDynamic,
+		QueryID:            req.QueryID,
+		Query:              req.Query,
+		Name:               req.Name,
+		Description:        req.Description,
+		Resolution:         req.Resolution,
+		Platform:           req.Platform,
+		Critical:           req.Critical,
+		LabelsIncludeAny:   req.LabelsIncludeAny,
+		LabelsExcludeAny:   req.LabelsExcludeAny,
+		Type:               policyType,
+		MDMCheckDefinition: req.MDMCheckDefinition,
 	})
 	if err != nil {
 		return fleet.GlobalPolicyResponse{Err: err}, nil

@@ -52,6 +52,7 @@ export interface IPolicy {
   patch_software?: IPolicySoftwareToInstall;
   labels_include_any?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
+  mdm_check_definition?: IMDMPolicyCheck[] | null;
 }
 export interface IPolicySoftwareToInstall {
   name: string;
@@ -104,6 +105,14 @@ export interface ILoadTeamPolicyResponse {
   policy: IPolicyStats;
 }
 
+// MDM Policy Check types
+export interface IMDMPolicyCheck {
+  field: string;
+  operator: string;
+  expected: string;
+  source?: string;
+}
+
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
@@ -122,9 +131,11 @@ export interface IPolicyFormData {
   labels_include_any?: string[];
   labels_exclude_any?: string[];
   /** Required for creating patch policy */
-  type?: "dynamic" | "patch";
+  type?: "dynamic" | "patch" | "mdm";
   /** Required for creating patch policy */
   patch_software_title_id?: number;
+  /** MDM check definitions for mdm policy type — sent as JSON array to API */
+  mdm_check_definition?: IMDMPolicyCheck[] | string;
 }
 
 export interface IPolicyNew {

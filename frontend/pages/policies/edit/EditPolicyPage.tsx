@@ -324,6 +324,7 @@ const PolicyPage = ({
           })
         ),
       onOpenSchemaSidebar,
+      onCloseSchemaSidebar,
       renderLiveQueryWarning,
       teamIdForApi,
       currentAutomatedPolicies,

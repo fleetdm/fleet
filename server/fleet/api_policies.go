@@ -1,19 +1,22 @@
 package fleet
 
+import "encoding/json"
+
 /////////////////////////////////////////////////////////////////////////////////
 // Global Policy - Add
 /////////////////////////////////////////////////////////////////////////////////
 
 type GlobalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
-	Query            string   `json:"query"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Resolution       string   `json:"resolution"`
-	Platform         string   `json:"platform"`
-	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	QueryID            *uint            `json:"query_id" renameto:"report_id"`
+	Query              string           `json:"query"`
+	Name               string           `json:"name"`
+	Description        string           `json:"description"`
+	Resolution         string           `json:"resolution"`
+	Platform           string           `json:"platform"`
+	Critical           bool             `json:"critical" premium:"true"`
+	LabelsIncludeAny   []string         `json:"labels_include_any"`
+	LabelsExcludeAny   []string         `json:"labels_exclude_any"`
+	MDMCheckDefinition *json.RawMessage `json:"mdm_check_definition"`
 }
 
 type GlobalPolicyResponse struct {
@@ -149,22 +152,23 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                   uint     `url:"fleet_id"`
-	QueryID                  *uint    `json:"query_id" renameto:"report_id"`
-	Query                    string   `json:"query"`
-	Name                     string   `json:"name"`
-	Description              string   `json:"description"`
-	Resolution               string   `json:"resolution"`
-	Platform                 string   `json:"platform"`
-	Critical                 bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID          *uint    `json:"software_title_id"`
-	ScriptID                 *uint    `json:"script_id"`
-	LabelsIncludeAny         []string `json:"labels_include_any"`
-	LabelsExcludeAny         []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
-	Type                     *string  `json:"type"`
-	PatchSoftwareTitleID     *uint    `json:"patch_software_title_id"`
+	TeamID                   uint             `url:"fleet_id"`
+	QueryID                  *uint            `json:"query_id" renameto:"report_id"`
+	Query                    string           `json:"query"`
+	Name                     string           `json:"name"`
+	Description              string           `json:"description"`
+	Resolution               string           `json:"resolution"`
+	Platform                 string           `json:"platform"`
+	Critical                 bool             `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool             `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint            `json:"software_title_id"`
+	ScriptID                 *uint            `json:"script_id"`
+	LabelsIncludeAny         []string         `json:"labels_include_any"`
+	LabelsExcludeAny         []string         `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool             `json:"conditional_access_enabled"`
+	Type                     *string          `json:"type"`
+	PatchSoftwareTitleID     *uint            `json:"patch_software_title_id"`
+	MDMCheckDefinition       *json.RawMessage `json:"mdm_check_definition"`
 }
 
 type TeamPolicyResponse struct {

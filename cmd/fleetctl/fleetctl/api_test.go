@@ -74,6 +74,7 @@ func TestRunApiCommand(t *testing.T) {
     "calendar_events_enabled": false,
     "conditional_access_enabled": false,
     "type": "dynamic",
+    "mdm_check_definition": null,
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,

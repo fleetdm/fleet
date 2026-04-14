@@ -30,6 +30,7 @@ interface IQueryEditorProps {
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
+  onCloseSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   teamIdForApi?: number;
   currentAutomatedPolicies?: number[];
@@ -48,6 +49,7 @@ const QueryEditor = ({
   onOsqueryTableSelect,
   goToSelectTargets,
   onOpenSchemaSidebar,
+  onCloseSchemaSidebar,
   renderLiveQueryWarning,
   teamIdForApi,
   currentAutomatedPolicies,
@@ -157,6 +159,8 @@ const QueryEditor = ({
       platform: formData.platform,
       labels_include_any: formData.labels_include_any,
       labels_exclude_any: formData.labels_exclude_any,
+      type: formData.type,
+      mdm_check_definition: formData.mdm_check_definition,
     };
     if (isPremiumTier) {
       payload.critical = formData.critical;
@@ -284,6 +288,7 @@ const QueryEditor = ({
         isStoredPolicyLoading={isStoredPolicyLoading}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
+        onCloseSchemaSidebar={onCloseSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
         isTeamObserver={isTeamObserver}
