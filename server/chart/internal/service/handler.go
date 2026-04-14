@@ -38,13 +38,14 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fl
 	}
 
 	opts := chart.RequestOpts{
-		Days:           days,
-		Downsample:     req.Downsample,
-		LabelIDs:       parseUintList(req.LabelIDs),
-		Platforms:      parseStringList(req.Platforms),
-		IncludeHostIDs: parseUintList(req.IncludeHostIDs),
-		ExcludeHostIDs: parseUintList(req.ExcludeHostIDs),
-		DatasetFilters: map[string]string{},
+		Days:            days,
+		Downsample:      req.Downsample,
+		TZOffsetMinutes: req.TZOffset,
+		LabelIDs:        parseUintList(req.LabelIDs),
+		Platforms:       parseStringList(req.Platforms),
+		IncludeHostIDs:  parseUintList(req.IncludeHostIDs),
+		ExcludeHostIDs:  parseUintList(req.ExcludeHostIDs),
+		DatasetFilters:  map[string]string{},
 	}
 
 	resp, err := svc.GetChartData(ctx, req.Metric, opts)

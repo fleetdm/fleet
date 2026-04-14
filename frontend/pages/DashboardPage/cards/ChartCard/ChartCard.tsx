@@ -84,6 +84,7 @@ const ChartCard = (): JSX.Element => {
       ...filterParams,
       days: selectedDays,
       downsample,
+      tz_offset: new Date().getTimezoneOffset(),
       label_ids: chartFilters.labelIDs.length
         ? chartFilters.labelIDs.join(",")
         : undefined,
