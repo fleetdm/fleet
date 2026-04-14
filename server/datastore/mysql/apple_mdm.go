@@ -6318,7 +6318,7 @@ WHERE
 func insertMDMConfigAssets(ctx context.Context, tx sqlx.ExtContext, assets []fleet.MDMConfigAsset, privateKey string) error {
 	stmt := `
 INSERT INTO mdm_config_assets
-  (name, value, md5_checksum)
+  (name, value, md5_checksum, renew_at)
 VALUES
   %s`
 
@@ -6332,8 +6332,14 @@ VALUES
 		}
 
 		hexChecksum := md5ChecksumBytes(encryptedVal)
-		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
-		args = append(args, a.Name, encryptedVal, hexChecksum)
+
+		var renewAt *time.Time
+		if a.Name.IsCertificateAsset() {
+			renewAt = fleet.ExtractCertRenewAt(a.Value)
+		}
+
+		insertVals.WriteString(`(?, ?, UNHEX(?), ?),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum, renewAt)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))

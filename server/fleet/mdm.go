@@ -3,7 +3,9 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -993,6 +995,7 @@ type MDMConfigAsset struct {
 	Name        MDMAssetName `db:"name"`
 	Value       []byte       `db:"value"`
 	MD5Checksum string       `db:"md5_checksum"`
+	RenewAt     *time.Time   `db:"renew_at"`
 }
 
 func (m MDMConfigAsset) Clone() (Cloner, error) {
@@ -1010,7 +1013,44 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 		copy(clone.Value, m.Value)
 	}
 
+	if m.RenewAt != nil {
+		t := *m.RenewAt
+		clone.RenewAt = &t
+	}
+
 	return clone
+}
+
+// IsCertificateAsset returns true if the asset name refers to a certificate
+// (as opposed to a key, token, password, or other secret).
+func (n MDMAssetName) IsCertificateAsset() bool {
+	switch n {
+	case MDMAssetCACert,
+		MDMAssetAPNSCert,
+		MDMAssetABMCert,
+		MDMAssetHostIdentityCACert,
+		MDMAssetConditionalAccessCACert,
+		MDMAssetConditionalAccessIDPCert:
+		return true
+	default:
+		return false
+	}
+}
+
+// ExtractCertRenewAt parses PEM-encoded certificate bytes and returns the
+// expiration time (NotAfter) of the first certificate found. It returns nil
+// if the data cannot be parsed as a PEM certificate.
+func ExtractCertRenewAt(pemBytes []byte) *time.Time {
+	block, _ := pem.Decode(pemBytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil
+	}
+	notAfter := cert.NotAfter.UTC()
+	return &notAfter
 }
 
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
