@@ -18,14 +18,11 @@ const baseClass = "view-yaml-modal";
 
 interface IViewYamlModalProps {
   softwareTitleName: string;
-  softwareTitleId: number;
-  teamId: number;
   iconUrl?: string | null;
   displayName?: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
   isScriptPackage?: boolean;
-  isIosOrIpadosApp?: boolean;
 }
 
 const ViewYamlModal = ({

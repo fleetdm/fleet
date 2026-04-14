@@ -224,6 +224,30 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), rpmPackage, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "3.0.7", rpmPackage.Version)
 	assert.Equal(t, "24.el9", rpmPackage.Release)
+
+	// Test Windows Defender sanitizer - MsMpEng.exe → Windows Defender (#18494)
+	winDefender := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefender, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefender.Name)
+
+	// Test Windows Defender case-insensitive match
+	winDefenderLower := &fleet.Software{
+		Name:   "msmpeng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderLower, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefenderLower.Name)
+
+	// Test Windows Defender with wrong source is not mutated
+	winDefenderWrongSource := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "apps",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderWrongSource, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "MsMpEng.exe", winDefenderWrongSource.Name)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -507,7 +531,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -3356,6 +3380,192 @@ func TestWindowsAcrobatDC(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := processFunc(softwareResults, testCase.registryResults)
 			require.Equal(t, testCase.expected, result)
+		})
+	}
+}
+
+func TestWindowsProgramFilesScan(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_program_files_scan"].SoftwareProcessResults
+
+	testCases := []struct {
+		name            string
+		mainResults     []map[string]string
+		fileScanResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name: "no file scan results returns main unchanged",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: nil,
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+		},
+		{
+			name: "all duplicates filtered out",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Git\cmd\git.exe`, "filename": "git.exe", "product_version": "2.43.0", "file_version": "2.43.0"},
+				{"path": `C:\Program Files\CMake\bin\cmake.exe`, "filename": "cmake.exe", "product_version": "3.28.1", "file_version": "3.28.1"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+		},
+		{
+			name: "new entries appended with correct columns",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.25030.2", "file_version": "4.18.25030.2"},
+				{"path": `C:\Program Files\Adobe\DNG Converter\DNGConverter.exe`, "filename": "DNGConverter.exe", "product_version": "16.1", "file_version": "16.1.0.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{
+					"name": "MsMpEng.exe", "version": "4.18.25030.2", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+				{
+					"name": "DNGConverter.exe", "version": "16.1", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Adobe\DNG Converter`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "version falls back to file_version when product_version is empty",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "", "file_version": "1.0.0.0"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "app.exe", "version": "1.0.0.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "case-insensitive path matching deduplicates",
+			mainResults: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `c:\program files\Adobe\subfolder\tool.exe`, "filename": "tool.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+		},
+		{
+			name: "exe in parent directory of known install path is not a duplicate",
+			mainResults: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\JetBrains\updater.exe`, "filename": "updater.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+				{
+					"name": "updater.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\JetBrains`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "drive root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\NewApp\app.exe`, "filename": "app.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+				{
+					"name": "app.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\NewApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "system32 installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\AnotherApp\tool.exe`, "filename": "tool.exe", "product_version": "3.0", "file_version": "3.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+				{
+					"name": "tool.exe", "version": "3.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\AnotherApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "Program Files root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeVendor\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeVendor`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "non-programs entries in main do not affect dedup",
+			mainResults: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := processFunc(tc.mainResults, tc.fileScanResults)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 }

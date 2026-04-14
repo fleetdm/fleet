@@ -161,7 +161,6 @@ const SoftwareTitleDetailsPage = ({
         softwareTitle={title}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
         isLoading={isSoftwareTitleLoading}
         onToggleViewYaml={onToggleViewYaml}

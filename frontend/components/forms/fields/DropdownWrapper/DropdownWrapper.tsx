@@ -335,9 +335,11 @@ export const generateCustomDropdownStyles = (
         padding: 0,
       };
     },
-    singleValue: (provided) => ({
+    singleValue: (provided, state) => ({
       ...provided,
-      color: COLORS["core-fleet-black"],
+      color: state.isDisabled
+        ? COLORS["ui-fleet-black-50"]
+        : COLORS["core-fleet-black"],
       fontSize: "13px",
       margin: 0,
       padding: 0,

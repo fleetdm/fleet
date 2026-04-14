@@ -97,11 +97,12 @@ const GitOpsModeIndicator = () => {
       underline={false}
       showArrow
       tipContent={tipContent}
-      className={baseClass}
       tipOffset={2}
     >
-      <Icon name="gitops-mode" />
-      <div className={`${baseClass}__text`}>GitOps mode</div>
+      <div className={`${baseClass}__content`}>
+        <Icon name="gitops-mode" />
+        GitOps mode
+      </div>
     </TooltipWrapper>
   );
 };

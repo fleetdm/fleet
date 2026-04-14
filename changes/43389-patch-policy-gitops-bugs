@@ -1,0 +1,2 @@
+- Fixed bug where renaming a patch policy in a GitOps file caused it to be deleted initially.
+- Fixed a nil pointer dereference in the contributor api spec/policies.

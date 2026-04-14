@@ -609,8 +609,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /jamf-alternative': {
-    action: 'landing-pages/view-jamf-alternative',
+  'GET /replace-jamf': {
+    action: 'landing-pages/view-replace-jamf',
     locals: {
       currentSection: 'platform',
       pageTitleForMeta: 'Replace Jamf with confidence',
@@ -644,6 +644,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /jamf-alternative': '/replace-jamf',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',

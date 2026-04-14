@@ -3005,6 +3005,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			config.Policies[i].ScriptID = &scriptID
 		}
+
+		// Get patch policy title IDs for the team
+		for i := range config.Policies {
+			config.Policies[i].PatchSoftwareTitleID = softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+		}
 	}
 
 	// Get the ids and names of current policies to figure out which ones to delete
@@ -3042,6 +3047,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 		}
 	}
+
 	var policiesToDelete []uint
 	for _, oldItem := range policies {
 		found := false
@@ -3049,6 +3055,13 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			if oldItem.Name == newItem.Name {
 				found = true
 				break
+			}
+			// patch policies are unique by patch_software_title_id so matching by name doesn't always work
+			if newItem.Type == fleet.PolicyTypePatch && oldItem.PatchSoftware != nil {
+				if oldItem.PatchSoftware.SoftwareTitleID == newItem.PatchSoftwareTitleID {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {
