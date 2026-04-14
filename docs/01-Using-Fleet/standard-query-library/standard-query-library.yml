@@ -2189,7 +2189,6 @@ spec:
       AND line LIKE '%ocredit=-1%'
       AND line LIKE '%difok=3%'
       AND line LIKE '%enforce_for_root%';
-  resolution:
   tags: compliance, hardening, critical
   contributors: spalmesano0
   script: |
@@ -2252,7 +2251,6 @@ spec:
         AND trim(line) = 'idle-delay=uint32 300'
         AND ltrim(line) NOT LIKE '#%'
     ) > 0;
-  resolution:
   tags: compliance, hardening, critical
   contributors: spalmesano0
   script: |
