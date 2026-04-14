@@ -27,8 +27,8 @@ Both **SSE** (Server-Sent Events) and **stdio** transports are supported.
 | Tool | Description |
 |------|-------------|
 | `get_endpoints` | List all hosts/endpoints enrolled in Fleet |
-| `get_host` | Get full details for a single host including labels, team, and platform info |
-| `get_fleets` | Get all fleets (teams) with their IDs and names |
+| `get_host` | Get full details for a single host including labels, fleet, and platform info |
+| `get_fleets` | Get all fleets (formerly "teams") with their IDs and names |
 | `get_queries` | List all saved Fleet queries |
 | `get_policies` | List all policies with pass/fail host counts |
 | `get_labels` | List all endpoint labels |
