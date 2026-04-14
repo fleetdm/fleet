@@ -54,9 +54,19 @@ if ($reagentInfo -match "Windows RE status:\s+Enabled") {
     Write-Host "  WinRE is disabled or missing - attempting to re-enable..."
     $enableResult = reagentc /enable 2>&1 | Out-String
 
-    if ($enableResult -match "Operation Successful") {
-        Write-Host "  WinRE re-enabled successfully"
-    } else {
+    if ($LASTEXITCODE -eq 0) {
+        # Verify WinRE was actually enabled by re-running reagentc /info
+        $reagentInfoAfter = reagentc /info 2>&1 | Out-String
+        if ($reagentInfoAfter -match "Windows RE status:\s+Enabled") {
+            Write-Host "  WinRE re-enabled successfully"
+        } else {
+            Write-Host "  WARNING: reagentc /enable returned success but WinRE is not enabled"
+            # Fall through to manual recovery attempt
+            $enableResult = ""
+        }
+    }
+
+    if ($LASTEXITCODE -ne 0 -or $enableResult -eq "") {
         $winreFound = $false
         $winreLocations = @(
             "$env:SystemDrive\Recovery\WindowsRE",
@@ -68,10 +78,14 @@ if ($reagentInfo -match "Windows RE status:\s+Enabled") {
                 Write-Host "  Found winre.wim at $loc - registering..."
                 reagentc /setreimage /path $loc 2>&1 | Out-Null
                 $retryResult = reagentc /enable 2>&1 | Out-String
-                if ($retryResult -match "Operation Successful") {
-                    Write-Host "  WinRE re-enabled using $loc"
-                    $winreFound = $true
-                    break
+                if ($LASTEXITCODE -eq 0) {
+                    # Verify WinRE was actually enabled
+                    $reagentInfoRetry = reagentc /info 2>&1 | Out-String
+                    if ($reagentInfoRetry -match "Windows RE status:\s+Enabled") {
+                        Write-Host "  WinRE re-enabled using $loc"
+                        $winreFound = $true
+                        break
+                    }
                 }
             }
         }
@@ -92,12 +106,12 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 Write-Host "[2/4] Checking Component Store (WinSxS) integrity..."
 
-$dismResult = & dism /Online /Cleanup-Image /CheckHealth 2>&1 | Out-String
+$dismResult = & dism /Online /Cleanup-Image /CheckHealth /English 2>&1 | Out-String
 if ($dismResult -match "No component store corruption detected") {
     Write-Host "  Component Store is healthy"
 } elseif ($dismResult -match "repairable") {
     Write-Host "  Corruption detected - attempting repair..."
-    $repairResult = & dism /Online /Cleanup-Image /RestoreHealth 2>&1 | Out-String
+    $repairResult = & dism /Online /Cleanup-Image /RestoreHealth /English 2>&1 | Out-String
     if ($repairResult -match "completed successfully") {
         Write-Host "  Component Store repaired"
     } else {
@@ -175,9 +189,13 @@ try {
     if ($build -ge 15063) {
         Write-Host "  Trying doWipeProtected..."
         try {
-            $session.InvokeMethod($namespaceName, $instance, "doWipeProtectedMethod", $params)
-            Write-Host "  Wipe command accepted (doWipeProtected)"
-            $wipeTriggered = $true
+            $result = $session.InvokeMethod($namespaceName, $instance, "doWipeProtectedMethod", $params)
+            if ($result.ReturnValue -eq 0) {
+                Write-Host "  Wipe command accepted (doWipeProtected)"
+                $wipeTriggered = $true
+            } else {
+                Write-Host "  doWipeProtected returned non-zero: $($result.ReturnValue)"
+            }
         } catch {
             Write-Host "  doWipeProtected failed: $($_.Exception.Message)"
         }
@@ -187,9 +205,13 @@ try {
     if (-not $wipeTriggered) {
         Write-Host "  Trying doWipe..."
         try {
-            $session.InvokeMethod($namespaceName, $instance, "doWipeMethod", $params)
-            Write-Host "  Wipe command accepted (doWipe)"
-            $wipeTriggered = $true
+            $result = $session.InvokeMethod($namespaceName, $instance, "doWipeMethod", $params)
+            if ($result.ReturnValue -eq 0) {
+                Write-Host "  Wipe command accepted (doWipe)"
+                $wipeTriggered = $true
+            } else {
+                Write-Host "  doWipe returned non-zero: $($result.ReturnValue)"
+            }
         } catch {
             Write-Host "  doWipe failed: $($_.Exception.Message)"
         }
