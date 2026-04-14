@@ -31,7 +31,7 @@ interface IActionsDropdownProps {
   variant?: "button" | "brand-button" | "small-button";
 }
 
-const getOptionBackgroundColor = (state: any) => {
+const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
@@ -252,6 +252,7 @@ const ActionsDropdown = ({
     }),
     menu: (provided) => ({
       ...provided,
+      backgroundColor: COLORS["core-fleet-white"],
       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
       borderRadius: "4px",
       zIndex: 6,

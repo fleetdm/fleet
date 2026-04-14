@@ -307,7 +307,8 @@ describe("InputField Component", () => {
       />
     );
 
-    const copyButton = screen.getByTestId("copy-icon").closest("button")!;
+    const copyButton = screen.getByTestId("copy-icon").closest("button");
+    if (!copyButton) throw new Error("Expected copy button to exist");
     await userEvent.click(copyButton);
 
     expect(writeTextMock).toHaveBeenCalledWith("Copy me");
@@ -339,7 +340,8 @@ describe("InputField Component", () => {
     expect(input).toHaveAttribute("type", "password");
 
     // Click the eye toggle to reveal the secret
-    const eyeButton = eyeIcon.closest("button")!;
+    const eyeButton = eyeIcon.closest("button");
+    if (!eyeButton) throw new Error("Expected eye button to exist");
     await userEvent.click(eyeButton);
 
     // After toggling, the input type should be text

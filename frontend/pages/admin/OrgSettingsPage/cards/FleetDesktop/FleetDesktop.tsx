@@ -23,7 +23,6 @@ interface IFleetDesktopFormErrors {
   transparencyURL?: string | null;
   alternativeBrowserHost?: string | null;
 }
-const baseClass = "app-config-form";
 
 const FleetDesktop = ({
   appConfig,
@@ -155,7 +154,6 @@ const FleetDesktop = ({
           helpText="If not set, Fleet Desktop uses your Fleet web address."
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

@@ -17,13 +17,12 @@ func Up_20260409153714(tx *sql.Tx) error {
 				path VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 				method VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
-				is_allowed BOOLEAN DEFAULT TRUE NOT NULL,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-				created_by_id INT UNSIGNED,
+				author_id INT UNSIGNED,
 
 				PRIMARY KEY (user_id, path, method),
 				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-				FOREIGN KEY (created_by_id) REFERENCES users(id) ON DELETE SET NULL
+				FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL
 			)
 		`)
 		if err != nil {

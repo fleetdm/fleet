@@ -9,7 +9,7 @@ const baseClass = "host-mdm-status-cell";
 
 const HostMdmStatusCell = ({
   row: {
-    original: { id, mdm, platform },
+    original: { mdm, platform },
   },
   cell: { value },
 }: {

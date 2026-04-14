@@ -12,8 +12,6 @@ import {
   validateFormData,
 } from "./helpers";
 
-const baseClass = "ndes-form";
-
 export interface ICustomSCEPFormData {
   name: string;
   scepURL: string;

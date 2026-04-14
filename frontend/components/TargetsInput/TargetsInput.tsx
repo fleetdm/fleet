@@ -74,6 +74,7 @@ const TargetsInput = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
+    return undefined;
   }, [isTargetsLoading]);
 
   useEffect(() => {
