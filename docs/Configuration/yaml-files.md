@@ -410,6 +410,7 @@ controls:
       - name: wifi-certificate
         certificate_authority_name: EST_WIFI
         subject_name: /CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+        subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
@@ -465,7 +466,8 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 - `name` is the name of the certificate. Name can be used as a certificate alias to reference in configuration profiles (custom settings).
 - `certificate_authority_name` is the name of the [certificate authority (CA)](#certificate-authorities) to issue the certificate from. Currently, only a custom SCEP CA is supported.
-- `subject_name` is the certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".
+- `subject_name` is the certificate's subject name (SN). Separate subject fields by a ",". For example: "/CN=john@example.com/O=Acme Inc.".
+- `subject_alternative_name` is the certificate's subject alternative name (SAN). Separate fields by a ",". For example: "UPN=john@example".
 
 #### Variables
 
