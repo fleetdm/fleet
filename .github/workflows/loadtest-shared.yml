@@ -56,7 +56,7 @@ jobs:
           go-version-file: 'go.mod'
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.10.2
+          terraform_version: 1.12.0
           terraform_wrapper: false
       - name: Terraform Init
         id: init
