@@ -2,9 +2,10 @@
 // chart data into a local database. Designed to run hourly via cron.
 //
 // Uptime: fetches currently online hosts, ORs into the current hour's blob.
-// CVE: fetches per-host vulnerability data, upserts the current state as SCD
-// rows (dataset='cve') with two statements per host: close stale open rows,
-// then INSERT ... ON DUPLICATE KEY UPDATE to add/keep active rows.
+// CVE: fetches per-host vulnerability data, builds per-CVE host bitmaps, and
+// reconciles them into host_scd_data (dataset='cve'). Unchanged CVEs keep their
+// existing open row; changed bitmaps close the prior-day row and open a new one
+// for today; intra-day changes overwrite today's row via ODKU.
 //
 // Usage:
 //
@@ -21,6 +22,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"flag"
@@ -37,9 +39,12 @@ import (
 
 const (
 	perPage = 500
-	// scdOpenSentinel matches the value used in the chart MySQL datastore —
-	// see server/chart/internal/mysql/scd.go.
-	scdOpenSentinel = "9999-12-31 23:59:59"
+	// scdOpenSentinel / scdDateFormat / scdUpsertBatch mirror constants in
+	// server/chart/internal/mysql/scd.go — the collector writes to the same table
+	// out-of-process and must keep the encoding in sync.
+	scdOpenSentinel = "9999-12-31"
+	scdDateFormat   = "2006-01-02"
+	scdUpsertBatch  = 200
 )
 
 func main() {
@@ -214,86 +219,137 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	}
 	log.Printf("  %d total hosts", len(hostIDs))
 
-	// Fetch per-host CVE lists.
+	// Invert per-host fetches into per-CVE host sets.
 	fetchStart := time.Now()
-	hostCVEs := make(map[uint][]string, len(hostIDs))
+	cveHosts := make(map[string][]uint)
 	for i, hostID := range hostIDs {
 		cves, err := fetchHostCVEs(api, hostID)
 		if err != nil {
 			log.Printf("  warning: host %d: %v", hostID, err)
 			continue
 		}
-		hostCVEs[hostID] = cves
+		for _, cve := range cves {
+			cveHosts[cve] = append(cveHosts[cve], hostID)
+		}
 		if (i+1)%50 == 0 {
-			log.Printf("  fetched %d/%d hosts (%.1fs)",
-				i+1, len(hostIDs), time.Since(fetchStart).Seconds())
+			log.Printf("  fetched %d/%d hosts, %d unique CVEs so far (%.1fs)",
+				i+1, len(hostIDs), len(cveHosts), time.Since(fetchStart).Seconds())
 		}
 	}
-	log.Printf("  fetched CVEs for %d hosts in %.1fs", len(hostCVEs), time.Since(fetchStart).Seconds())
+	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
 
-	// Record SCD state per host: close entries no longer present, upsert currently-active.
-	nowStr := time.Now().UTC().Format("2006-01-02 15:04:05")
+	// Build the desired entity->bitmap map for today.
+	entityBitmaps := make(map[string][]byte, len(cveHosts))
+	for cve, hosts := range cveHosts {
+		entityBitmaps[cve] = chart.HostIDsToBlob(hosts)
+	}
+
+	// Reconcile against the SCD table.
 	writeStart := time.Now()
-	var failed int
-	for hostID, cves := range hostCVEs {
-		if err := recordSCD(db, "cve", hostID, cves, nowStr); err != nil {
-			log.Printf("  warning: record SCD for host %d: %v", hostID, err)
-			failed++
+	today := time.Now().UTC().Format(scdDateFormat)
+	if err := reconcileSCD(db, "cve", entityBitmaps, today); err != nil {
+		return fmt.Errorf("reconcile SCD: %w", err)
+	}
+	log.Printf("  reconciled %d entities in %.1fs", len(entityBitmaps), time.Since(writeStart).Seconds())
+	return nil
+}
+
+// reconcileSCD applies the close-then-upsert flow for a dataset against the
+// entity->bitmap map for today. Mirrors Datastore.RecordSCDData in
+// server/chart/internal/mysql/scd.go.
+func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, today string) error {
+	// Fetch current open rows.
+	rows, err := db.Query(
+		`SELECT entity_id, host_bitmap, DATE_FORMAT(valid_from, '%Y-%m-%d')
+		 FROM host_scd_data
+		 WHERE dataset = ? AND valid_to = ?`,
+		dataset, scdOpenSentinel)
+	if err != nil {
+		return fmt.Errorf("fetch open SCD rows: %w", err)
+	}
+	type openRow struct {
+		bitmap    []byte
+		validFrom string
+	}
+	openByEntity := make(map[string]openRow)
+	for rows.Next() {
+		var entityID, validFrom string
+		var bitmap []byte
+		if err := rows.Scan(&entityID, &bitmap, &validFrom); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan open SCD row: %w", err)
+		}
+		openByEntity[entityID] = openRow{bitmap: bitmap, validFrom: validFrom}
+	}
+	rows.Close()
+
+	// Partition: unchanged rows are skipped; changed rows get an upsert and (if
+	// their open row is from a previous day) a close.
+	var toClose []string
+	var toUpsert []struct {
+		entityID string
+		bitmap   []byte
+	}
+
+	for entityID, bitmap := range entityBitmaps {
+		existing, hasOpen := openByEntity[entityID]
+		if hasOpen && bytes.Equal(existing.bitmap, bitmap) {
+			continue
+		}
+		if hasOpen && existing.validFrom < today {
+			toClose = append(toClose, entityID)
+		}
+		toUpsert = append(toUpsert, struct {
+			entityID string
+			bitmap   []byte
+		}{entityID, bitmap})
+	}
+
+	// Entities no longer present: close their open rows.
+	for entityID := range openByEntity {
+		if _, ok := entityBitmaps[entityID]; !ok {
+			toClose = append(toClose, entityID)
 		}
 	}
-	log.Printf("  recorded SCD for %d hosts (%d failed) in %.1fs",
-		len(hostCVEs)-failed, failed, time.Since(writeStart).Seconds())
-	return nil
-}
 
-// recordSCD applies the two-statement SCD upsert for a single host.
-// Mirrors Datastore.RecordSCDData in server/chart/internal/mysql/scd.go.
-func recordSCD(db *sql.DB, dataset string, hostID uint, entityIDs []string, nowStr string) error {
-	// Step 1: close any open rows whose entity isn't in the current set (or all
-	// open rows when the set is empty).
-	if len(entityIDs) == 0 {
-		_, err := db.Exec(
+	if len(toClose) > 0 {
+		placeholders := make([]string, len(toClose))
+		args := []any{today, dataset, scdOpenSentinel}
+		for i, e := range toClose {
+			placeholders[i] = "?"
+			args = append(args, e)
+		}
+		// Concatenating hardcoded "?" placeholder strings, not user input.
+		stmt := fmt.Sprintf( //nolint:gosec // G202
 			`UPDATE host_scd_data SET valid_to = ?
-			 WHERE dataset = ? AND host_id = ? AND valid_to = ?`,
-			nowStr, dataset, hostID, scdOpenSentinel)
-		return err
+			 WHERE dataset = ? AND valid_to = ? AND entity_id IN (%s)`,
+			strings.Join(placeholders, ","))
+		if _, err := db.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("close stale rows: %w", err)
+		}
 	}
 
-	placeholders := make([]string, len(entityIDs))
-	for i := range entityIDs {
-		placeholders[i] = "?"
-	}
-	closeArgs := []any{nowStr, dataset, hostID, scdOpenSentinel}
-	for _, e := range entityIDs {
-		closeArgs = append(closeArgs, e)
-	}
-	// Concatenating hardcoded "?" placeholder strings, not user input.
-	closeQuery := fmt.Sprintf( //nolint:gosec // G202
-		`UPDATE host_scd_data SET valid_to = ?
-		 WHERE dataset = ? AND host_id = ? AND valid_to = ?
-		   AND entity_id NOT IN (%s)`,
-		strings.Join(placeholders, ","))
-	if _, err := db.Exec(closeQuery, closeArgs...); err != nil {
-		return fmt.Errorf("close stale rows: %w", err)
-	}
+	for i := 0; i < len(toUpsert); i += scdUpsertBatch {
+		end := min(i+scdUpsertBatch, len(toUpsert))
+		batch := toUpsert[i:end]
 
-	// Step 2: upsert currently-active rows; ODKU with valid_from=valid_from is a
-	// no-op that preserves the original valid_from when the row is already open.
-	insertPlaceholders := make([]string, len(entityIDs))
-	insertArgs := make([]any, 0, len(entityIDs)*4)
-	for i, e := range entityIDs {
-		insertPlaceholders[i] = "(?, ?, ?, ?)"
-		insertArgs = append(insertArgs, dataset, hostID, e, nowStr)
-	}
-	// Concatenating hardcoded "(?, ?, ?, ?)" placeholder strings, not user input.
-	insertQuery := `INSERT INTO host_scd_data (dataset, host_id, entity_id, valid_from) VALUES ` + //nolint:gosec // G202
-		strings.Join(insertPlaceholders, ",") +
-		` ON DUPLICATE KEY UPDATE valid_from = valid_from`
-	if _, err := db.Exec(insertQuery, insertArgs...); err != nil {
-		return fmt.Errorf("upsert rows: %w", err)
+		placeholders := make([]string, len(batch))
+		args := make([]any, 0, len(batch)*4)
+		for j, r := range batch {
+			placeholders[j] = "(?, ?, ?, ?)"
+			args = append(args, dataset, r.entityID, r.bitmap, today)
+		}
+		// Concatenating hardcoded "(?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from) VALUES ` + //nolint:gosec // G202
+			strings.Join(placeholders, ", ") +
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`
+		if _, err := db.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("upsert rows: %w", err)
+		}
 	}
 	return nil
 }
+
 
 // --- API helpers ---
 
@@ -359,7 +415,6 @@ func fetchHostCVEs(api *apiClient, hostID uint) ([]string, error) {
 		if result.Meta == nil || !result.Meta.HasNextResults {
 			break
 		}
-		page++
 	}
 
 	cves := make([]string, 0, len(seen))
