@@ -106,10 +106,10 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 Write-Host "[2/4] Checking Component Store (WinSxS) integrity..."
 
-$dismResult = & dism /Online /Cleanup-Image /CheckHealth /English 2>&1 | Out-String
+$dismResult = & dism /Online /Cleanup-Image /ScanHealth /English 2>&1 | Out-String
 if ($dismResult -match "No component store corruption detected") {
     Write-Host "  Component Store is healthy"
-} elseif ($dismResult -match "repairable") {
+} elseif ($dismResult -match "The component store is repairable\.") {
     Write-Host "  Corruption detected - attempting repair..."
     $repairResult = & dism /Online /Cleanup-Image /RestoreHealth /English 2>&1 | Out-String
     if ($repairResult -match "completed successfully") {
@@ -118,7 +118,7 @@ if ($dismResult -match "No component store corruption detected") {
         Write-Host "  WARNING: Repair failed - device may use Cloud Download as fallback"
     }
 } else {
-    Write-Host "  Component Store check completed - continuing"
+    Write-Host "  WARNING: Component Store state unexpected - continuing"
 }
 Write-Host ""
 
