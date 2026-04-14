@@ -7,8 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// SeedFleet populates Fleet with a baseline set of standard saved queries.
-// Run this once against a fresh Fleet instance to bootstrap common queries.
+// SeedFleet populates Fleet with a baseline set of standard reports (formerly "queries").
+// Run this once against a fresh Fleet instance to bootstrap common reports.
 // Usage: set FLEET_BASE_URL and FLEET_API_KEY, then call SeedFleet() from a standalone main.
 func SeedFleet() {
 	_ = godotenv.Load()

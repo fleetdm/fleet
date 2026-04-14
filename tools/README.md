@@ -121,8 +121,8 @@ export FLEET_ENV_PATH=./tools/api/env
 
 # Test API endpoints
 ./tools/api/fleet/me
-./tools/api/fleet/queries/list
-./tools/api/fleet/queries/create 'my_query' 'SELECT * FROM processes;'
+./tools/api/fleet/reports/list
+./tools/api/fleet/reports/create 'my_report' 'SELECT * FROM processes;'
 ```
 
 ### Integration Testing
