@@ -83,7 +83,7 @@ We structure handbook pages based on audience.
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://github.com/orgs/fleetdm/projects/{PROJECT_ID})` for this department, including pending tasks and the status of new requests."
 
-  - `## Philisophical heading that matter to all roles in your department`
+  - `## Philosophical heading that matter to all roles in your department`
   - Department leaders can add sections to their own README.md pages between "contact us" and "responsibilities".  e.g. P0,P1 levels for CS.
 
   - `## Responsibilities`
