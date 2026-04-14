@@ -136,7 +136,7 @@ module.exports = {
       if(err.statusCode === 500){
         return {appleApiReturnedServerError: err.body};
       }
-      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occurred. Full error: ${require('util').inspect(err)}`);
       return err.body;
     });
 
