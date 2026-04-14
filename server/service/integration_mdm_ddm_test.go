@@ -1758,13 +1758,15 @@ WHERE name = ?`
 	// Get current variables_updated_at for host1's declarations (may have changed since earlier captures)
 	latestVarsUpdatedUUID := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
 	latestVarsUpdatedSerial := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
-	latestVarsUpdatedIdp := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclIdpUsername.DeclarationUUID)
 
+	// The IDP declaration is excluded from the manifest because its variable
+	// can't be resolved (no IdP user for this host), but it is still included
+	// in the DeclarationsToken computation so that the token matches the
+	// SQL-computed token from the tokens endpoint.
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
 		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
 		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
-		fleet.EffectiveDDMToken(dbDeclIdpUsername.Token, latestVarsUpdatedIdp): {Identifier: "com.fleet.var.idpusername"},
 	}
 
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
@@ -1772,14 +1774,9 @@ WHERE name = ?`
 	itemsResp = parseDeclarationItemsResp(t, r)
 	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
-	// Host1 fetches the activation for the IdP username declaration — the
-	// server checks that the referenced configuration's variables can be
-	// resolved and returns 404 because no IdP user exists for the host.
-	_, err = mdmDevice1.DeclarativeManagement("declaration/activation/com.fleet.var.idpusername.activation")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "404")
-
-	// Verify the declaration is marked as failed with the expected detail message
+	// Verify the IDP declaration is marked as failed after the declaration-items
+	// fetch (handleDeclarationItems detected unresolvable variables and excluded
+	// the declaration from the manifest).
 	var hostDecl fleet.MDMAppleHostDeclaration
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &hostDecl,

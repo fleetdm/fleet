@@ -6160,6 +6160,26 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			}
 			continue
 		}
+
+		// For declarations with fleet variables, check if the variables can
+		// be resolved for this host. If not, mark as failed and skip the
+		// declaration from the manifest so the device does not attempt to
+		// fetch or apply it. NOTE: the declaration is still included in the token
+		// computation below so that the token matches the SQL-computed
+		// token from handleTokens.
+		if d.VariablesUpdatedAt != nil {
+			decl, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, d.Identifier, hostUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "fetching declaration for variable check")
+			}
+			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(decl.RawJSON), hostUUID); err != nil {
+				if err := svc.markDeclarationFailed(ctx, hostUUID, decl, err.Error()); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+				}
+				continue
+			}
+		}
+
 		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt)
 		configurations = append(configurations, fleet.MDMAppleDDMManifest{
 			Identifier:  d.Identifier,
@@ -6271,17 +6291,6 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting linked configuration for activation declaration")
-	}
-
-	// Check if fleet variables in the declaration can be resolved for this
-	// host. If not, mark as failed and return 404 so the device does not try
-	// to apply this configuration.
-	if _, err := svc.replaceDeclarationFleetVariables(ctx, string(d.RawJSON), hostUUID); err != nil {
-		if markErr := svc.markDeclarationFailed(ctx, hostUUID, d, err.Error()); markErr != nil {
-			return nil, ctxerr.Wrap(ctx, markErr, "mark declaration with unresolvable variables as failed")
-		}
-		return nil, nano_service.NewHTTPStatusError(http.StatusNotFound,
-			ctxerr.Wrap(ctx, err, "fleet variables not resolvable"))
 	}
 
 	response := fmt.Sprintf(`
