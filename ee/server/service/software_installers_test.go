@@ -16,7 +16,6 @@ import (
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -1115,28 +1114,20 @@ func TestConditionalGETBehavior(t *testing.T) {
 			srv := httptest.NewServer(tt.handler)
 			t.Cleanup(srv.Close)
 
-			// Reproduce the downloadURLFn logic with If-None-Match support
-			client := fleethttp.NewClient()
-			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/test.sh", nil)
-			require.NoError(t, err)
-			if tt.ifNoneMatch != "" {
-				req.Header.Set("If-None-Match", tt.ifNoneMatch)
-			}
-			resp, err := client.Do(req)
+			const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/test.sh", tt.ifNoneMatch, maxSize)
 			if tt.expectErr {
-				// Fleet's downloadURLFn returns error for 4xx/5xx
-				require.NoError(t, err) // HTTP client doesn't error on 4xx/5xx
-				assert.GreaterOrEqual(t, resp.StatusCode, 400)
-				resp.Body.Close()
+				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			defer resp.Body.Close()
 
 			assert.Equal(t, tt.expectStatus, resp.StatusCode)
-			if tt.expectBodyNil && resp.StatusCode == http.StatusNotModified {
-				// 304 has no body, which is what our downloadURLFn returns as nil TempFileReader
-				assert.Equal(t, int64(0), resp.ContentLength)
+			if tt.expectBodyNil {
+				assert.Nil(t, tfr)
+			} else {
+				require.NotNil(t, tfr)
+				t.Cleanup(func() { tfr.Close() })
 			}
 		})
 	}

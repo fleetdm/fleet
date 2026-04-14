@@ -2275,6 +2275,78 @@ const (
 	batchSetFailedPrefix = "failed:"
 )
 
+// downloadInstallerURL downloads an installer from a URL. If ifNoneMatch is
+// non-empty, the request includes an If-None-Match header for conditional GET.
+//
+// On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
+// closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
+func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
+	client := fleethttp.NewClient()
+	client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating request for URL %q: %w", downloadURL, err)
+	}
+	if ifNoneMatch != "" {
+		req.Header.Set("If-None-Match", ifNoneMatch)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+			)
+		}
+
+		return nil, nil, fmt.Errorf("performing request for URL %q: %w", downloadURL, err)
+	}
+
+	// 304 Not Modified: content unchanged, return response with no body.
+	// Set Body to http.NoBody after closing so downstream Close() calls are safe.
+	if resp.StatusCode == http.StatusNotModified {
+		resp.Body.Close()
+		resp.Body = http.NoBody
+		return resp, nil, nil
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
+		)
+	}
+
+	// Allow all 2xx and 3xx status codes in this pass.
+	if resp.StatusCode >= 400 {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
+		)
+	}
+
+	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	if err != nil {
+		// the max size error can be received either at client.Do or here when
+		// reading the body if it's caught via a limited body reader.
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+			)
+		}
+		return nil, nil, fmt.Errorf("reading installer %q contents: %w", downloadURL, err)
+	}
+
+	return resp, tfr, nil
+}
+
 func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
@@ -2332,77 +2404,8 @@ func (svc *Service) softwareBatchUpload(
 	defer close(done)
 
 	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
-	// downloadURLFn downloads an installer from a URL. If ifNoneMatch is non-empty,
-	// the request includes an If-None-Match header for conditional GET.
-	//
-	// On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304
-	// and a closed body, tfr is nil. Callers MUST check resp.StatusCode before
-	// using tfr.
 	downloadURLFn := func(ctx context.Context, downloadURL string, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
-		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(maxInstallerSize)
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("creating request for URL %q: %w", downloadURL, err)
-		}
-		if ifNoneMatch != "" {
-			req.Header.Set("If-None-Match", ifNoneMatch)
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			var maxBytesErr *http.MaxBytesError
-			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-				return nil, nil, fleet.NewInvalidArgumentError(
-					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
-				)
-			}
-
-			return nil, nil, fmt.Errorf("performing request for URL %q: %w", downloadURL, err)
-		}
-
-		// 304 Not Modified: content unchanged, return response with no body.
-		// Set Body to http.NoBody after closing so downstream Close() calls are safe.
-		if resp.StatusCode == http.StatusNotModified {
-			resp.Body.Close()
-			resp.Body = http.NoBody
-			return resp, nil, nil
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusNotFound {
-			return nil, nil, fleet.NewInvalidArgumentError(
-				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
-			)
-		}
-
-		// Allow all 2xx and 3xx status codes in this pass.
-		if resp.StatusCode >= 400 {
-			return nil, nil, fleet.NewInvalidArgumentError(
-				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
-			)
-		}
-
-		tfr, err := fleet.NewTempFileReader(resp.Body, nil)
-		if err != nil {
-			// the max size error can be received either at client.Do or here when
-			// reading the body if it's caught via a limited body reader.
-			var maxBytesErr *http.MaxBytesError
-			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-				return nil, nil, fleet.NewInvalidArgumentError(
-					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
-				)
-			}
-			return nil, nil, fmt.Errorf("reading installer %q contents: %w", downloadURL, err)
-		}
-
-		return resp, tfr, nil
+		return downloadInstallerURL(ctx, downloadURL, ifNoneMatch, maxInstallerSize)
 	}
 
 	// retryDownload wraps downloadURLFn with the standard retry policy.
