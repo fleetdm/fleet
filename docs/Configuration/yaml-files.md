@@ -673,12 +673,8 @@ By default, Fleet uses conditional HTTP downloads to avoid re-downloading unchan
 If your server doesn't support ETags reliably, you can disable this behavior with `always_download: true`:
 
 ```yaml
-- url: https://nvidia.gpcloudservice.com/global-protect/getmsi.esp?version=64&platform=windows
+- url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
   always_download: true
-  install_script:
-    path: ../lib/software/install-msi.ps1
-  uninstall_script:
-    path: ../lib/software/uninstall-gp.ps1
 ```
 
 > Note: Conditional download is currently unsupported for .ipa files.
