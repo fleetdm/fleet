@@ -17,11 +17,11 @@ export const globalTypes = {
 
 const applyTheme = (isDark) => {
   document.body.classList.toggle("dark-mode", isDark);
-  document.body.style.backgroundColor = isDark ? "#181a1f" : "";
-  document.body.style.color = isDark ? "#e2e4ea" : "";
+  document.body.style.backgroundColor = isDark ? "var(--core-fleet-white)" : "";
+  document.body.style.color = isDark ? "var(--core-fleet-black)" : "";
 
   document.querySelectorAll(".docs-story").forEach((el) => {
-    el.style.backgroundColor = isDark ? "#181a1f" : "";
+    el.style.backgroundColor = isDark ? "var(--core-fleet-white)" : "";
   });
 };
 
