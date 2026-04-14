@@ -115,6 +115,16 @@
 
 .checkerboard-viz {
   width: 100%;
+
+  &__scroll-wrapper {
+    overflow-x: auto;
+
+    svg {
+      display: block;
+      margin: 0 auto;
+    }
+  }
+
   &__legend {
     display: flex;
     align-items: center;
