@@ -28,6 +28,7 @@ func TestStatistics(t *testing.T) {
 		{"ShouldSend", testStatisticsShouldSend},
 		{"ConditionalAccessStatistics", testConditionalAccessStatistics},
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
+		{"CertificateExpirations", testCertificateExpirations},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -771,4 +772,95 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"slack/darwin", "zoom/darwin"}, macOSApps)
 	assert.Equal(t, []string{"microsoft-teams/windows", "zoom/windows"}, windowsApps)
+}
+
+func testCertificateExpirations(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// 1. No data in any tables — expect empty result.
+	results, err := certificateExpirationsDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	require.Empty(t, results)
+
+	// Set up renew_at times (truncated to seconds because MySQL drops sub-second precision).
+	now := time.Now().Truncate(time.Second)
+	abmRenewAt1 := now.Add(30 * 24 * time.Hour).Truncate(time.Second)
+	abmRenewAt2 := now.Add(60 * 24 * time.Hour).Truncate(time.Second)
+	vppRenewAt := now.Add(90 * 24 * time.Hour).Truncate(time.Second)
+	certRenewAt := now.Add(120 * 24 * time.Hour).Truncate(time.Second)
+	deletedCertRenewAt := now.Add(150 * 24 * time.Hour).Truncate(time.Second)
+
+	// 2. Insert 2 ABM tokens with different renew_at dates.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token) VALUES (?, ?, ?, ?)`,
+			"OrgA", "apple1@example.com", abmRenewAt1, "tok1")
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO abm_tokens (organization_name, apple_id, renew_at, token) VALUES (?, ?, ?, ?)`,
+			"OrgC", "apple2@example.com", abmRenewAt2, "tok2")
+		return err
+	})
+
+	// 3. Insert 1 VPP token.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_tokens (organization_name, location, renew_at, token) VALUES (?, ?, ?, ?)`,
+			"OrgB", "US", vppRenewAt, "vtok1")
+		return err
+	})
+
+	// 4. Insert MDM config assets.
+	// Asset with renew_at set — should appear in results.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_config_assets (name, value, md5_checksum, renew_at) VALUES (?, ?, UNHEX(?), ?)`,
+			"ca_cert", []byte("cert-data"), "d41d8cd98f00b204e9800998ecf8427e", certRenewAt)
+		return err
+	})
+	// Asset with NULL renew_at — should NOT appear (filtered by WHERE renew_at IS NOT NULL).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_config_assets (name, value, md5_checksum, renew_at) VALUES (?, ?, UNHEX(?), NULL)`,
+			"apns_cert", []byte("cert-data2"), "d41d8cd98f00b204e9800998ecf8427e")
+		return err
+	})
+	// Asset with renew_at AND non-empty deletion_uuid — should NOT appear (filtered by WHERE deletion_uuid = '').
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_config_assets (name, value, md5_checksum, renew_at, deletion_uuid) VALUES (?, ?, UNHEX(?), ?, ?)`,
+			"abm_cert", []byte("cert-data3"), "d41d8cd98f00b204e9800998ecf8427e", deletedCertRenewAt, "some-deletion-uuid")
+		return err
+	})
+
+	// 5. Call certificateExpirationsDB again and verify the results.
+	results, err = certificateExpirationsDB(ctx, ds.reader(ctx))
+	require.NoError(t, err)
+	require.Len(t, results, 4)
+
+	// Truncate ExpiresAt to seconds for comparison.
+	for i := range results {
+		results[i].ExpiresAt = results[i].ExpiresAt.Truncate(time.Second)
+	}
+
+	expected := []fleet.CertificateExpiration{
+		{
+			Type:      "abm",
+			Name:      "OrgA/apple1@example.com",
+			ExpiresAt: abmRenewAt1,
+		},
+		{
+			Type:      "abm",
+			Name:      "OrgC/apple2@example.com",
+			ExpiresAt: abmRenewAt2,
+		},
+		{
+			Type:      "vpp",
+			Name:      "OrgB/US",
+			ExpiresAt: vppRenewAt,
+		},
+		{
+			Type:      "mdm_config_asset",
+			Name:      "ca_cert",
+			ExpiresAt: certRenewAt,
+		},
+	}
+
+	require.ElementsMatch(t, expected, results)
 }

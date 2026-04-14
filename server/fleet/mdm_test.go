@@ -2,13 +2,21 @@ package fleet_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
+	"time"
 
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -745,4 +754,121 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}
+
+func TestIsCertificateAsset(t *testing.T) {
+	tests := []struct {
+		name     string
+		asset    fleet.MDMAssetName
+		expected bool
+	}{
+		// Assets that should return true
+		{"ca_cert is certificate", fleet.MDMAssetCACert, true},
+		{"apns_cert is certificate", fleet.MDMAssetAPNSCert, true},
+		{"abm_cert is certificate", fleet.MDMAssetABMCert, true},
+		{"host_identity_ca_cert is certificate", fleet.MDMAssetHostIdentityCACert, true},
+		{"conditional_access_ca_cert is certificate", fleet.MDMAssetConditionalAccessCACert, true},
+		{"conditional_access_idp_cert is certificate", fleet.MDMAssetConditionalAccessIDPCert, true},
+
+		// Assets that should return false
+		{"ca_key is not certificate", fleet.MDMAssetCAKey, false},
+		{"apns_key is not certificate", fleet.MDMAssetAPNSKey, false},
+		{"abm_key is not certificate", fleet.MDMAssetABMKey, false},
+		{"scep_challenge is not certificate", fleet.MDMAssetSCEPChallenge, false},
+		{"ndes_password is not certificate", fleet.MDMAssetNDESPassword, false},
+		{"vpp_proxy_bearer_token is not certificate", fleet.MDMAssetVPPProxyBearerToken, false},
+		{"conditional_access_ca_key is not certificate", fleet.MDMAssetConditionalAccessCAKey, false},
+		{"conditional_access_idp_key is not certificate", fleet.MDMAssetConditionalAccessIDPKey, false},
+
+		// Unknown asset name
+		{"unknown asset is not certificate", fleet.MDMAssetName("unknown_asset"), false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.asset.IsCertificateAsset()
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestExtractCertRenewAt(t *testing.T) {
+	// Helper: generate a self-signed PEM certificate with a known NotAfter.
+	generateCertPEM := func(t *testing.T, notAfter time.Time) []byte {
+		t.Helper()
+
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		template := &x509.Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject:      pkix.Name{CommonName: "test"},
+			NotBefore:    time.Now().Add(-time.Hour),
+			NotAfter:     notAfter,
+		}
+
+		derBytes, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+		require.NoError(t, err)
+
+		pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+		require.NotNil(t, pemBytes)
+		return pemBytes
+	}
+
+	// Helper: generate a PEM-encoded private key block (not a certificate).
+	generateKeyPEM := func(t *testing.T) []byte {
+		t.Helper()
+
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		derBytes, err := x509.MarshalECPrivateKey(priv)
+		require.NoError(t, err)
+
+		return pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: derBytes})
+	}
+
+	expectedNotAfter := time.Date(2035, 6, 15, 12, 0, 0, 0, time.UTC)
+	validCertPEM := generateCertPEM(t, expectedNotAfter)
+
+	tests := []struct {
+		name       string
+		input      []byte
+		expectNil  bool
+		expectTime time.Time
+	}{
+		{
+			name:       "valid certificate",
+			input:      validCertPEM,
+			expectNil:  false,
+			expectTime: expectedNotAfter,
+		},
+		{
+			name:      "invalid PEM data",
+			input:     []byte("this is not valid PEM data"),
+			expectNil: true,
+		},
+		{
+			name:      "PEM block is not a certificate",
+			input:     generateKeyPEM(t),
+			expectNil: true,
+		},
+		{
+			name:      "empty input",
+			input:     []byte{},
+			expectNil: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.ExtractCertRenewAt(tc.input)
+			if tc.expectNil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.True(t, tc.expectTime.Equal(*result), "expected %v, got %v", tc.expectTime, *result)
+			}
+		})
+	}
 }
