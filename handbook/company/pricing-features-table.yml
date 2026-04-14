@@ -434,6 +434,20 @@
     - description: Escrow FileVault keys on macOS
     - description: Encrypt hard disks on Windows with BitLocker.
 #  
+#  ╦═╗╔═╗╔═╗╔═╗╦  ╦╔═╗╦═╗╦ ╦  ╦  ╔═╗╔═╗╦╔═  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔═╗
+#  ╠╦╝║╣ ║  ║ ║╚╗╔╝║╣ ╠╦╝╚╦╝  ║  ║ ║║  ╠╩╗  ╠═╝╠═╣╚═╗╚═╗║  ║ ║ ║║║╣ ╚═╗
+#  ╩╚═╚═╝╚═╝╚═╝ ╚╝ ╚═╝╩╚═ ╩   ╩═╝╚═╝╚═╝╩ ╩  ╩  ╩ ╩╚═╝╚═╝╚═╝╚═╝═╩╝╚═╝╚═╝
+- industryName: Recovery lock passcodes
+  description: Automatically escrow and rotate unique Recovery Lock passwords for macOS hosts to help end users recover from a forgotten local password.
+  documentationUrl: https://fleetdm.com/guides/recovery-lock-password
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/37497
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+#  
 #  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗╔═╗
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╠═╝║╣ ╠╦╝╠═╣ ║ ║║║║║ ╦  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ║ ║╠═╝ ║║╠═╣ ║ ║╣ ╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╩  ╚═╝╩╚═╩ ╩ ╩ ╩╝╚╝╚═╝  ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝╚═╝

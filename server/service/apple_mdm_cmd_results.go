@@ -171,7 +171,7 @@ func NewInstalledApplicationListResultsHandler(
 				HostUUID:      installedAppResult.HostUUID(),
 				CommandUUID:   expectedInstall.InstallCommandUUID,
 				CommandStatus: terminalStatus,
-			}, true); err != nil {
+			}, fleet.NewActivityFunc(newActivityFn)); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true

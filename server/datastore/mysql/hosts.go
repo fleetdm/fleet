@@ -4727,13 +4727,15 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 }
 
 // SetOrUpdateHostDisksEncryption sets the host's flag indicating if the disk
-// encryption is enabled.
-func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+// encryption is enabled. For Windows hosts, bitlockerProtectionStatus tracks
+// whether BitLocker protection is active (0=off, 1=on) separately from
+// whether the disk data is encrypted. Pass nil for non-Windows hosts (stored as NULL).
+func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET encrypted = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
-		`INSERT INTO host_disks (encrypted, host_id) VALUES (?, ?)`,
-		encrypted, hostID,
+		`UPDATE host_disks SET encrypted = ?, bitlocker_protection_status = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
+		`INSERT INTO host_disks (encrypted, bitlocker_protection_status, host_id) VALUES (?, ?, ?)`,
+		encrypted, bitlockerProtectionStatus, hostID,
 	)
 }
 

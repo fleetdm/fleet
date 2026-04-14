@@ -59,6 +59,7 @@ const getVulnUnsupportedSourceText = (
   if (isIpadOrIphoneSoftwareSource(source)) {
     return source === "ios_apps" ? "iOS" : "iPadOS";
   }
+  return undefined;
 };
 
 const SoftwareVersionDetailsPage = ({

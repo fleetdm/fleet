@@ -1501,6 +1501,28 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 	return true, nil
 }
 
+// generateWindowsEUAToken returns a Fleet-signed EUA token for the given Windows
+// MDM device ID if the device enrolled with a valid Azure UPN
+func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string) string {
+	if svc.wstepCertManager == nil {
+		return ""
+	}
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "unable to fetch windows mdm enrollment for EUA token generation", "err", err, "device_id", deviceID)
+		return ""
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return ""
+	}
+	token, err := svc.wstepCertManager.NewEUAToken(device.MDMEnrollUserID, deviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "unable to generate EUA token for fleetd install", "err", err, "device_id", deviceID)
+		return ""
+	}
+	return token
+}
+
 func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
 	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 	if err != nil {
@@ -1529,6 +1551,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	globalEnrollSecret := secrets[0].Secret
 	addCommandUUID := uuid.NewString()
 	execCommandUUID := uuid.NewString()
+
+	euaTokenArg := ""
+	if token := svc.generateWindowsEUAToken(ctx, deviceID); token != "" {
+		euaTokenArg = ` EUA_TOKEN="` + token + `"`
+	}
 
 	rawAddCmd := []byte(`
 <Add>
@@ -1562,7 +1589,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>

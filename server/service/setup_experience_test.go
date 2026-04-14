@@ -305,7 +305,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	vppUUID := "vpp-uuid"
 
 	t.Run("unsupported result type", func(t *testing.T) {
-		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]interface{}{"key": "value"}, true)
+		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]any{"key": "value"}, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported result type")
 	})
@@ -351,7 +351,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					ExecutionID: scriptUUID,
 					ExitCode:    tt.exitCode,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, true)
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, nil)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceScriptStatusFuncInvoked)
@@ -388,8 +388,6 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				requireTerminalStatus := true // when this flag is true, we don't expect pending status to update
-
 				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					require.Equal(t, hostUUID, hostUUID)
 					require.Equal(t, executionID, softwareUUID)
@@ -409,34 +407,16 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					ExecutionID:     softwareUUID,
 					InstallerStatus: tt.status,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				activityFnCalled := false
+				activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					activityFnCalled = true
+					return nil
+				}
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked)
-
-				requireTerminalStatus = false // when this flag is false, we do expect pending status to update
-
-				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-					require.Equal(t, hostUUID, hostUUID)
-					require.Equal(t, executionID, softwareUUID)
-					require.Equal(t, tt.expectStatus, status)
-					require.True(t, status.IsValid())
-					if status.IsTerminalStatus() {
-						require.True(t, status == fleet.SetupExperienceStatusSuccess || status == fleet.SetupExperienceStatusFailure)
-					} else {
-						require.True(t, status == fleet.SetupExperienceStatusPending || status == fleet.SetupExperienceStatusRunning)
-					}
-					return true, nil
-				}
-				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
-				require.NoError(t, err)
-				shouldUpdate := tt.alwaysUpdated
-				if tt.expectStatus == fleet.SetupExperienceStatusPending || tt.expectStatus == fleet.SetupExperienceStatusRunning {
-					shouldUpdate = true
-				}
-				require.Equal(t, shouldUpdate, updated)
-				require.Equal(t, shouldUpdate, ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked)
+				require.False(t, activityFnCalled)
 			})
 		}
 	})
@@ -476,8 +456,6 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 		for _, tt := range testCases {
 			t.Run(tt.name, func(t *testing.T) {
-				requireTerminalStatus := true // when this flag is true, we don't expect pending status to update
-
 				ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hostUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 					require.Equal(t, hostUUID, hostUUID)
 					require.Equal(t, cmdUUID, vppUUID)
@@ -496,36 +474,230 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 					CommandUUID:   vppUUID,
 					CommandStatus: tt.status,
 				}
-				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
+				activityFnCalled := false
+				activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					activityFnCalled = true
+					return nil
+				}
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 				require.NoError(t, err)
 				require.Equal(t, tt.alwaysUpdated, updated)
 				require.Equal(t, tt.alwaysUpdated, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked)
-
-				requireTerminalStatus = false // when this flag is false, we do expect pending status to update
-
-				ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hostUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-					require.Equal(t, hostUUID, hostUUID)
-					require.Equal(t, cmdUUID, vppUUID)
-					require.Equal(t, tt.expected, status)
-					require.True(t, status.IsValid())
-					if status.IsTerminalStatus() {
-						require.True(t, status == fleet.SetupExperienceStatusSuccess || status == fleet.SetupExperienceStatusFailure)
-					} else {
-						require.True(t, status == fleet.SetupExperienceStatusPending || status == fleet.SetupExperienceStatusRunning)
-					}
-					return true, nil
-				}
-				ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
-
-				updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, result, requireTerminalStatus)
-				require.NoError(t, err)
-				shouldUpdate := tt.alwaysUpdated
-				if tt.expected == fleet.SetupExperienceStatusPending || tt.expected == fleet.SetupExperienceStatusRunning {
-					shouldUpdate = true
-				}
-				require.Equal(t, shouldUpdate, updated)
-				require.Equal(t, shouldUpdate, ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked)
+				require.False(t, activityFnCalled)
 			})
 		}
+	})
+
+	t.Run("software install failure triggers cancel and activity", func(t *testing.T) {
+		teamID := uint(1)
+		failedSoftwareTitleID := uint(42)
+		failedSoftwareName := "FailedApp"
+		pendingExecID := "pending-exec-id"
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			require.Equal(t, hostUUID, hUUID)
+			require.Equal(t, softwareUUID, executionID)
+			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
+			return true, nil
+		}
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "darwin",
+				TeamID:   &teamID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			require.Equal(t, teamID, tid)
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftware: true,
+						},
+					},
+				},
+			}, nil
+		}
+
+		installerID := uint(10)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{
+					ID:                              1,
+					HostUUID:                        hostUUID,
+					Name:                            failedSoftwareName,
+					Status:                          fleet.SetupExperienceStatusFailure,
+					SoftwareInstallerID:             &installerID,
+					HostSoftwareInstallsExecutionID: &softwareUUID,
+					SoftwareTitleID:                 &failedSoftwareTitleID,
+				},
+				{
+					ID:                              2,
+					HostUUID:                        hostUUID,
+					Name:                            "PendingApp",
+					Status:                          fleet.SetupExperienceStatusPending,
+					SoftwareInstallerID:             &installerID,
+					HostSoftwareInstallsExecutionID: &pendingExecID,
+				},
+			}, nil
+		}
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hID uint, executionID string) (fleet.ActivityDetails, error) {
+			require.Equal(t, uint(1), hID)
+			require.Equal(t, pendingExecID, executionID)
+			return nil, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			require.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+
+		var activityFnCalled bool
+		var recordedActivity fleet.ActivityDetails
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityFnCalled = true
+			recordedActivity = activity
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated)
+		require.True(t, activityFnCalled)
+		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked)
+		require.True(t, ds.CancelHostUpcomingActivityFuncInvoked)
+
+		canceledActivity, ok := recordedActivity.(fleet.ActivityTypeCanceledSetupExperience)
+		require.True(t, ok)
+		require.Equal(t, uint(1), canceledActivity.HostID)
+		require.Equal(t, failedSoftwareName, canceledActivity.SoftwareTitle)
+		require.Equal(t, failedSoftwareTitleID, canceledActivity.SoftwareTitleID)
+	})
+
+	t.Run("late arriving result for canceled item does not trigger duplicate activity", func(t *testing.T) {
+		// See https://github.com/fleetdm/fleet/pull/43437#discussion_r3074297752
+		// 1. Software install A fails → triggers cancel of pending VPP install B + emits activity
+		// 2. Later, B's MDM command result (Error) arrives. The datastore guard returns
+		//    updated=false because B is already in "canceled" state, so the cancel/activity
+		//    path is NOT entered a second time.
+
+		teamID := uint(1)
+		failedSoftwareTitleID := uint(42)
+		failedSoftwareName := "FailedApp"
+		pendingVPPCommandUUID := "pending-vpp-cmd"
+		installerID := uint(10)
+		vppTeamID := uint(1)
+
+		// ---- Step 1: Software install A fails ----
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			require.Equal(t, hostUUID, hUUID)
+			require.Equal(t, softwareUUID, executionID)
+			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
+			return true, nil // updated
+		}
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "darwin",
+				TeamID:   &teamID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftware: true,
+						},
+					},
+				},
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{
+					ID:                              1,
+					HostUUID:                        hostUUID,
+					Name:                            failedSoftwareName,
+					Status:                          fleet.SetupExperienceStatusFailure,
+					SoftwareInstallerID:             &installerID,
+					HostSoftwareInstallsExecutionID: &softwareUUID,
+					SoftwareTitleID:                 &failedSoftwareTitleID,
+				},
+				{
+					ID:              2,
+					HostUUID:        hostUUID,
+					Name:            "PendingVPPApp",
+					Status:          fleet.SetupExperienceStatusPending,
+					VPPAppTeamID:    &vppTeamID,
+					NanoCommandUUID: &pendingVPPCommandUUID,
+				},
+			}, nil
+		}
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hID uint, executionID string) (fleet.ActivityDetails, error) {
+			return nil, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			require.Equal(t, hostUUID, hUUID)
+			return nil
+		}
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+
+		activityCallCount := 0
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityCallCount++
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated)
+		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked)
+		require.Equal(t, 1, activityCallCount, "activity should have been emitted exactly once")
+
+		// ---- Step 2: Late-arriving VPP result for B (already canceled) ----
+		// The datastore guard returns (false, nil) because B's row is already "canceled".
+
+		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(ctx context.Context, hUUID string, cmdUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			require.Equal(t, hostUUID, hUUID)
+			require.Equal(t, vppUUID, cmdUUID)
+			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
+			return false, nil // guard blocked: row already canceled
+		}
+		ds.MaybeUpdateSetupExperienceVPPStatusFuncInvoked = false
+
+		// Reset invoked flags so we can assert they are NOT set again.
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+
+		vppResult := fleet.SetupExperienceVPPInstallResult{
+			HostUUID:      hostUUID,
+			CommandUUID:   vppUUID,
+			CommandStatus: fleet.MDMAppleStatusError,
+		}
+		updated, err = maybeUpdateSetupExperienceStatus(ctx, ds, vppResult, activityFn)
+		require.NoError(t, err)
+		require.False(t, updated, "update should be blocked by datastore guard")
+		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "cancel should NOT be called again")
+		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked, "cancel upcoming activity should NOT be called again")
+		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
 	})
 }
