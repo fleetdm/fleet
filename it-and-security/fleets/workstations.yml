@@ -275,10 +275,6 @@ software:
         - Apple Silicon macOS hosts
       categories:
         - Developer tools
-    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
-      self_service: true
-      categories:
-        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -358,10 +354,6 @@ software:
       self_service: true
       categories:
         - Productivity
-    - slug: suspicious-package/darwin # Suspicious Package for macOS
-      self_service: true
-      categories:
-        - Developer tools
     - slug: figma/darwin # Figma for macOS
       self_service: true
       categories:
