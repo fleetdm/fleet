@@ -19,8 +19,13 @@ import EmptyTable from "components/EmptyTable";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
+<<<<<<< HEAD:frontend/pages/ManageControlsPage/Variables/Variables.tsx
 import AddCustomVariableModal from "./components/AddCustomVariableModal";
 import DeleteCustomVariableModal from "./components/DeleteCustomVariableModal";
+=======
+import AddSecretModal from "./components/AddSecretModal";
+import DeleteSecretModal from "./components/DeleteSecretModal";
+>>>>>>> af414715a3 (Fleet UI: New empty states):frontend/pages/ManageControlsPage/Secrets/Secrets.tsx
 
 const baseClass = "variables";
 

@@ -1,6 +1,7 @@
 import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   getVulnFilterRenderDetails,
@@ -102,7 +103,7 @@ const EmptySoftwareTable = ({
   const emptySoftware = getEmptySoftwareInfo();
 
   return (
-    <EmptyTable
+    <EmptyState
       graphicName="empty-search-question"
       header={emptySoftware.header}
       info={emptySoftware.info}

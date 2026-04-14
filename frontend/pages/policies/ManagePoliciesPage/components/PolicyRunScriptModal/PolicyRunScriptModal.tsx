@@ -27,6 +27,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import EmptyState from "components/EmptyState";
 
 const baseClass = "policy-run-script-modal";
 
@@ -124,19 +125,22 @@ const PolicyRunScriptModal = ({
     }
     if (!availableScripts?.length) {
       return (
-        <div className={`${baseClass}__no-scripts`}>
-          <b>No scripts available for install</b>
-          <div>
-            Go to{" "}
-            <CustomLink
-              url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
-                fleet_id: teamId,
-              })}
-              text="Controls &gt; Scripts"
-            />{" "}
-            to add scripts to this fleet.
-          </div>
-        </div>
+        <EmptyState
+          header="No scripts available for install"
+          width="small"
+          info={
+            <div>
+              Go to{" "}
+              <CustomLink
+                url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
+                  fleet_id: teamId,
+                })}
+                text="Controls &gt; Scripts"
+              />{" "}
+              to add scripts to this fleet.
+            </div>
+          }
+        />
       );
     }
 

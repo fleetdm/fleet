@@ -98,6 +98,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState/EmptyState";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1758,7 +1759,7 @@ const ManageHostsPage = ({
 
       return (
         <>
-          {EmptyTable({
+          {EmptyState({
             graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
