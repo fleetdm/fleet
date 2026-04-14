@@ -1,0 +1,12 @@
+{
+  "name": "Granola",
+  "slug": "granola/windows",
+  "package_identifier": "Granola.Granola",
+  "unique_identifier": "Granola",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/granola_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/granola_uninstall.ps1"
+}
