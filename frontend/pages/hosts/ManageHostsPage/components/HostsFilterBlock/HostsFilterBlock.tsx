@@ -63,9 +63,9 @@ interface IHostsFilterBlockProps {
   params: {
     munkiIssueDetails: IMunkiIssuesAggregate | null;
     policyResponse: PolicyResponse;
-    policyId?: any;
+    policyId?: string | number;
     policy?: IPolicy;
-    macSettingsStatus?: any;
+    macSettingsStatus?: MacSettingsStatusQueryParam;
     softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
