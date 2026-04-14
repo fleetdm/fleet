@@ -57,8 +57,8 @@ module.exports = {
       description: 'The Apple API returned a server error',
       statusCode: 500,
     },
-    appleApiReturnedUnauthorizedResponse: {
-      description: 'The Apple API returned an unauthorized response',
+    appleApiReturnedForbiddenResponse: {
+      description: 'The Apple API returned a forbidden response',
       statusCode: 403,
     },
   },
@@ -131,7 +131,7 @@ module.exports = {
     })
     .tolerate((err)=>{
       if(err.statusCode === 403){
-        return {appleApiReturnedUnauthorizedResponse: err.body};
+        return {appleApiReturnedForbiddenResponse: err.body};
       }
       if(err.statusCode === 500){
         return {appleApiReturnedServerError: err.body};
