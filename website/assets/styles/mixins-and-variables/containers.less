@@ -20,12 +20,12 @@
 // Docs pages: all docs/ detail & library pages
 // Base: 48px, tablet: 32px, mobile: 32px 24px
 .page-container-docs() {
-  padding: 48px;
+  padding: @page-padding-sm;
   @media (max-width: 991px) {
-    padding: 32px;
+    padding: @page-padding-tablet;
   }
   @media (max-width: 575px) {
-    padding: 32px 24px;
+    padding: @page-padding-tablet-mobile;
   }
 }
 
@@ -34,12 +34,12 @@
 // deals, admin/query-generator
 // Base: 64px, tablet: 64px 32px, mobile: 32px 24px
 .page-container() {
-  padding: 64px;
+  padding: @page-padding;
   @media (max-width: 991px) {
-    padding: 64px 32px;
+    padding: @page-padding @page-padding-tablet;
   }
   @media (max-width: 575px) {
-    padding: 32px 24px;
+    padding: @page-padding-tablet-mobile;
   }
 }
 
@@ -50,12 +50,12 @@
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
-  padding: 64px;
+  padding: @page-padding;
   @media (max-width: 991px) {
-    padding: 64px 32px;
+    padding: @page-padding @page-padding-tablet;
   }
   @media (max-width: 575px) {
-    padding: 32px 24px;
+    padding: @page-padding-tablet-mobile;
   }
 }
 
