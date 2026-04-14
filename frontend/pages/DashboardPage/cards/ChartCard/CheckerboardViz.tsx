@@ -72,7 +72,7 @@ const CheckerboardViz = ({
   const is24h = selectedDays === 1;
   let hoursPerSlot = 1;
   if (selectedDays === 30) {
-    hoursPerSlot = 4;
+    hoursPerSlot = 3;
   } else if (selectedDays >= 7) {
     hoursPerSlot = 2;
   }
