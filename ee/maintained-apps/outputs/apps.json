@@ -1003,6 +1003,13 @@
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
+      "name": "Linear",
+      "slug": "linear/windows",
+      "platform": "windows",
+      "unique_identifier": "Linear",
+      "description": "Linear is an app to manage software development and track bugs."
+    },
+    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
