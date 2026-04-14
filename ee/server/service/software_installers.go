@@ -2708,7 +2708,7 @@ func (svc *Service) softwareBatchUpload(
 							if resp != nil {
 								statusCode = resp.StatusCode
 							}
-							return fmt.Errorf("download of %q returned no body (status %d); the server may be incorrectly returning 304", p.URL, statusCode)
+							return fmt.Errorf("download of %q returned no body (status %d)", p.URL, statusCode)
 						}
 
 						installer.InstallerFile = tfr
