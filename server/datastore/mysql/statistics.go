@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -186,6 +187,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
 
+		certExpirations, err := certificateExpirationsDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "certificate expirations")
+		}
+		stats.CertificateExpirations = certExpirations
+
 		return nil
 	}
 
@@ -315,6 +322,36 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 	}
 
 	return macOSApps, windowsApps, nil
+}
+
+func certificateExpirationsDB(ctx context.Context, db sqlx.QueryerContext) ([]fleet.CertificateExpiration, error) {
+	var abmTokens []fleet.ABMToken
+	if err := sqlx.SelectContext(ctx, db, &abmTokens, `SELECT organization_name, apple_id, renew_at FROM abm_tokens`); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting abm tokens")
+	}
+
+	var vppTokens []fleet.VPPTokenDB
+	if err := sqlx.SelectContext(ctx, db, &vppTokens, `SELECT organization_name, location, renew_at FROM vpp_tokens`); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp tokens")
+	}
+
+	result := make([]fleet.CertificateExpiration, 0, len(abmTokens)+len(vppTokens))
+	for _, t := range abmTokens {
+		result = append(result, fleet.CertificateExpiration{
+			Type:      "abm",
+			Name:      fmt.Sprintf("%s/%s", t.OrganizationName, t.AppleID),
+			ExpiresAt: t.RenewAt,
+		})
+	}
+	for _, t := range vppTokens {
+		result = append(result, fleet.CertificateExpiration{
+			Type:      "vpp",
+			Name:      fmt.Sprintf("%s/%s", t.OrgName, t.Location),
+			ExpiresAt: t.RenewDate,
+		})
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context, fleetConfig config.FleetConfig) (bool, error) {

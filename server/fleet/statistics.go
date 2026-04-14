@@ -73,6 +73,14 @@ type StatisticsPayload struct {
 	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
 	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
 	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+	// CertificateExpirations is a list of certificate/token expiration dates for ABM and VPP tokens.
+	CertificateExpirations []CertificateExpiration `json:"certificateExpirations,omitempty"`
+}
+
+type CertificateExpiration struct {
+	Type      string    `json:"type"`
+	Name      string    `json:"name"`
+	ExpiresAt time.Time `json:"expiresAt"`
 }
 
 type HostsCountByOrbitVersion struct {

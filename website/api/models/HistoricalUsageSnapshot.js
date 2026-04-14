@@ -55,6 +55,7 @@ module.exports = {
     conditionalAccessEnabled: {required: true, type: 'boolean'},
     conditionalAccessBypassDisabled: {required: true, type: 'boolean'},
     entraConditionalAccessConfigured: {required: true, type: 'boolean'},
+    certificateExpirations: {type: 'json', defaultsTo: []},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

@@ -51,6 +51,7 @@ module.exports = {
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
     conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
+    certificateExpirations: {type: [{type: 'string', name: 'string', expiresAt: 'string'}], defaultsTo: [] },
   },
 
 
