@@ -382,6 +382,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grammarly: GrammarlyDesktop,
   granola: Granola,
   imazing: IMazingProfileEditor,
+  "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,
   "intellij idea": IntelliJIdea,
