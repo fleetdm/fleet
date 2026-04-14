@@ -6,11 +6,6 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import {
-  createMockBatchScriptSummary,
-  createMockScriptBatchHostResults,
-} from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
@@ -107,7 +102,7 @@ export interface IScriptBatchSupportedFilters {
   query?: string;
   label_id?: number;
   team_id?: number;
-  status: any; // TODO - improve upstream typing
+  status?: string; // TODO: More defined typing
 }
 interface IRunScriptBatchRequestBase {
   script_id: number;

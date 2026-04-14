@@ -13,11 +13,6 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Microsoft Edge installed
-  description: macOS hosts with Microsoft Edge installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Visual Studio Code installed
   description: macOS hosts with Visual Studio Code installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';
@@ -116,11 +111,6 @@
 - name: Macs with Logi Options+ installed
   description: macOS hosts with Logi Options+ installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';
-  label_membership_type: dynamic
-  platform: darwin
-- name: Macs with Suspicious Package installed
-  description: macOS hosts with Suspicious Package installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackage';
   label_membership_type: dynamic
   platform: darwin
 - name: Macs with Figma installed

@@ -9,9 +9,11 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,6 +137,78 @@ func TestSTSTokenWithDeviceID(t *testing.T) {
 	// Tampered token is rejected
 	_, err = cm.GetEUATokenClaims(token + "tampered")
 	require.Error(t, err)
+}
+
+func TestTokenRejectsNonRSAAlgorithms(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	m := cm.(*manager)
+	// Marshal the RSA public key to use as the HS256 "secret" — this mirrors
+	// the classic RSA-to-HMAC algorithm confusion attack shape.
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(m.identityCert.PublicKey)
+	require.NoError(t, err)
+
+	stsClaims := func() STSClaims {
+		return STSClaims{
+			UPN: "attacker@example.com",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "STSAuthToken",
+			},
+		}
+	}
+	euaClaims := func() euaJWTClaims {
+		return euaJWTClaims{
+			UPN:      "attacker@example.com",
+			DeviceID: "device-123",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "EUAToken",
+			},
+		}
+	}
+
+	t.Run("STS rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, stsClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("STS rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, stsClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, euaClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, euaClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
 }
 
 func TestCertFingerprintHexStr(t *testing.T) {
