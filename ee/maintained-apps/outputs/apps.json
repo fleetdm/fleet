@@ -1724,6 +1724,13 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "Thunderbird",
+      "slug": "thunderbird/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
+      "description": "Thunderbird is a free and open-source e-mail client."
+    },
+    {
       "name": "Todoist",
       "slug": "todoist-app/darwin",
       "platform": "darwin",
