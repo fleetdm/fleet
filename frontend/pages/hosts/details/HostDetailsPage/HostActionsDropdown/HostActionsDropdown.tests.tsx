@@ -1988,4 +1988,154 @@ describe("Host Actions Dropdown", () => {
       }
     );
   });
+
+  describe("Debug logging action", () => {
+    it("renders the Enable debug logging action for a global admin on a darwin host", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Enable debug logging")).toBeInTheDocument();
+    });
+
+    it("renders the Enable debug logging action for a global maintainer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalMaintainer: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Enable debug logging")).toBeInTheDocument();
+    });
+
+    it("swaps the label to Disable debug logging when orbit debug is active", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          orbitDebugActive
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Disable debug logging")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Enable debug logging")
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the action for a global observer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            currentUser: createMockUser({ global_role: "observer" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(
+        screen.queryByText("Enable debug logging")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Disable debug logging")
+      ).not.toBeInTheDocument();
+    });
+
+    it.each(["ios", "ipados", "android"])(
+      "hides the action on %s (orbit is not installed on mobile)",
+      async (platform) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform={platform}
+            hostMdmEnrollmentStatus={null}
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(
+          screen.queryByText("Enable debug logging")
+        ).not.toBeInTheDocument();
+      }
+    );
+  });
 });
