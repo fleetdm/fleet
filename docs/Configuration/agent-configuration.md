@@ -306,5 +306,25 @@ agent_options:
   script_execution_timeout: 600
 ```
 
+## orbit
+
+The `orbit` block configures the orbit agent itself (as opposed to osquery). It's kept separate from `command_line_flags` so orbit-specific settings don't need to satisfy the osquery flag schema.
+
+### debug_logging
+
+When `true`, orbit runs at debug log level and passes `--verbose` and `--tls_dump` to osqueryd on every host in the team (or globally, if set on no-team agent options). Unlike `command_line_flags`, toggling this does **not** require an orbit restart: the change is applied on each host's next config poll (up to 30 seconds). Default: `false`.
+
+Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/rest-api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
+
+See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design.
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging: true
+```
+
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">

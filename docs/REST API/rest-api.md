@@ -4242,6 +4242,65 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 `Status: 200`
 
+### Set host orbit debug logging
+
+Enables or disables orbit (and osqueryd) verbose logging for a single host at runtime. Orbit picks up the new state on its next config poll (up to 30 seconds) with no restart required. When enabling, the override auto-expires after the supplied duration (default 24 hours, maximum 7 days) and reverts the host to the team-level setting.
+
+This endpoint can only be called by a user with the **admin** or **maintainer** role on the host's team. See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design.
+
+`POST /api/v1/fleet/hosts/:id/debug-logging`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                                                                                                                                  |
+| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| id       | integer | path | **Required**. The host's id.                                                                                                                                                                                                                                 |
+| enabled  | boolean | body | **Required**. `true` to enable debug logging on the host, `false` to clear any active host-level override.                                                                                                                                                   |
+| duration | string  | body | Only used when `enabled` is `true`. A Go-style duration string (e.g. `"15m"`, `"1h"`, `"24h"`). Defaults to `"24h"` if omitted. Values above 7 days return a 422.                                                                                             |
+
+#### Example — enable for 1 hour
+
+`POST /api/v1/fleet/hosts/121/debug-logging`
+
+##### Request body
+
+```json
+{
+  "enabled": true,
+  "duration": "1h"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "orbit_debug_until": "2026-04-15T18:00:00Z"
+}
+```
+
+#### Example — disable
+
+`POST /api/v1/fleet/hosts/121/debug-logging`
+
+##### Request body
+
+```json
+{
+  "enabled": false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
 ### Update hosts' fleet
 
 _Available in Fleet Premium_
