@@ -49,8 +49,8 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": false,
           "end_user_local_account_type": "",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
@@ -230,8 +230,8 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": false,
           "end_user_local_account_type": "",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,

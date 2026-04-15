@@ -128,7 +128,7 @@
         "macos_manual_agent_install": null,
         "require_all_software_macos": false,
         "require_all_software_windows": false,
-        "enable_managed_local_account": false,
+        "enable_create_local_admin_account": false,
         "end_user_local_account_type": ""
       },
       "windows_settings": {
