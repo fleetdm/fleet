@@ -9,19 +9,19 @@
 // Preferred workflow (reuses the canonical Fleet downloader):
 //
 //	fleetctl vulnerability-data-stream --dir /tmp/vulnsdb
-//	go run ./tools/nvd/cpe-accuracy --vuln-path /tmp/vulnsdb
+//	go run ./tools/nvd/accuracy/cpe-accuracy --vuln-path /tmp/vulnsdb
 //
 // Other options:
 //
 //	# Let the tool download the CPE data itself into a temp dir (slow first run).
-//	go run ./tools/nvd/cpe-accuracy
+//	go run ./tools/nvd/accuracy/cpe-accuracy
 //
 //	# Reuse the env var the existing Go tests use for caching.
-//	NVD_TEST_VULNDB_DIR=/tmp/vulnsdb go run ./tools/nvd/cpe-accuracy
+//	NVD_TEST_VULNDB_DIR=/tmp/vulnsdb go run ./tools/nvd/accuracy/cpe-accuracy
 //
 //	# Verbose / machine-readable output.
-//	go run ./tools/nvd/cpe-accuracy --vuln-path /tmp/vulnsdb --verbose
-//	go run ./tools/nvd/cpe-accuracy --vuln-path /tmp/vulnsdb --json
+//	go run ./tools/nvd/accuracy/cpe-accuracy --vuln-path /tmp/vulnsdb --verbose
+//	go run ./tools/nvd/accuracy/cpe-accuracy --vuln-path /tmp/vulnsdb --json
 //
 // Exit code is 0 when every case passes and 1 when any case fails. Pass-true-negative
 // cases (expected empty, generated empty) are counted as passes.
