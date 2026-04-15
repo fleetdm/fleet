@@ -176,46 +176,52 @@ No new endpoints. Existing agent-options flows cover this:
 #### Host-level — new
 
 ```
-POST   /api/v1/fleet/hosts/:id/debug-logging
-Body:  { "enabled": true, "duration": "1h" }      # or "expires_at": "<RFC3339>"
-Response: { "orbit_debug_until": "2026-04-15T17:00:00Z" }
-
-DELETE /api/v1/fleet/hosts/:id/debug-logging
-Response: 204 No Content
+POST /api/v1/fleet/hosts/:id/debug-logging
+Body — enable:   { "enabled": true, "duration": "1h" }
+Body — disable:  { "enabled": false }
+Response (enable):  { "orbit_debug_until": "2026-04-15T17:00:00Z" }
+Response (disable): {}
 ```
 
 Endpoint behavior:
 
-- `duration` is a Go-parseable duration string. Default **24h** if omitted. Maximum **7d**; values above cap are rejected with 422 and a `fleet.InvalidArgumentError`.
-- Authorization: `admin` or `maintainer` on the host's team (same role gating as host refetch).
+- A single `POST` endpoint handles both enable and disable based on the `enabled` field. No `DELETE` variant.
+- `duration` is a Go-parseable duration string (e.g. `"1h"`, `"30m"`). Default **24h** when omitted. Maximum **7d**; unparseable, negative, or over-cap values return 422 with a `fleet.InvalidArgumentError`.
+- Authorization: admin or maintainer on the host's team. The service method calls `svc.authz.Authorize(ctx, host, fleet.ActionWrite)`, which is stricter than the refetch endpoint (refetch uses `ActionRead` to allow observers).
 - Emits an activity log entry for audit (see [Activities](#activities) below).
 
-Registered via the standard endpoint pattern in `server/service/handler.go`, service method in `server/service/hosts.go`, datastore method in `server/datastore/mysql/hosts.go`.
+Registered via the standard endpoint pattern in `server/service/handler.go`, service method in `server/service/hosts.go`, datastore method in `server/datastore/mysql/hosts.go`. Duration is parsed inside the service method (after authz) so probing with bad input can't short-circuit the auth check.
 
 #### Activities
 
-Two new activity types, modeled on `ActivityTypeEditedAgentOptions` at `server/fleet/activities.go:520-527`:
+Two new activity types, each implementing `HostIDs() []uint` so they surface in the host details activity tab as well as the global activity feed:
 
 ```go
-type ActivityTypeEnabledHostDebugLogging struct {
+type ActivityTypeEnabledHostOrbitDebugLogging struct {
     HostID          uint      `json:"host_id"`
     HostDisplayName string    `json:"host_display_name"`
     ExpiresAt       time.Time `json:"expires_at"`
 }
-func (a ActivityTypeEnabledHostDebugLogging) ActivityName() string {
-    return "enabled_host_debug_logging"
+func (a ActivityTypeEnabledHostOrbitDebugLogging) ActivityName() string {
+    return "enabled_host_orbit_debug_logging"
+}
+func (a ActivityTypeEnabledHostOrbitDebugLogging) HostIDs() []uint {
+    return []uint{a.HostID}
 }
 
-type ActivityTypeDisabledHostDebugLogging struct {
+type ActivityTypeDisabledHostOrbitDebugLogging struct {
     HostID          uint   `json:"host_id"`
     HostDisplayName string `json:"host_display_name"`
 }
-func (a ActivityTypeDisabledHostDebugLogging) ActivityName() string {
-    return "disabled_host_debug_logging"
+func (a ActivityTypeDisabledHostOrbitDebugLogging) ActivityName() string {
+    return "disabled_host_orbit_debug_logging"
+}
+func (a ActivityTypeDisabledHostOrbitDebugLogging) HostIDs() []uint {
+    return []uint{a.HostID}
 }
 ```
 
-Documented in `docs/Contributing/reference/audit-logs.md` alongside the existing entries.
+Documented in `docs/Contributing/reference/audit-logs.md` alongside the existing entries. The frontend maps each activity to a dedicated component under `frontend/pages/hosts/details/cards/Activity/ActivityItems/` — host activities must be present in `pastActivityComponentMap` or the host details activity tab will crash when the activity is rendered.
 
 #### fleetctl
 
@@ -246,14 +252,17 @@ server's GetOrbitConfig (server/service/orbit.go:355) computes:
     returns OrbitConfig{DebugLogging: &debug, Flags: <merged flags>}
     │
     ▼
-orbit's DebugLogRunner receiver:
-    if cfg.DebugLogging != nil && zerolog.GlobalLevel() != desiredLevel(cfg):
-        zerolog.SetGlobalLevel(desiredLevel(cfg))
-        log.Info().Msgf("log level changed to %s by server config", ...)
+orbit's DebugLogReceiver:
+    if cfg.DebugLogging != nil && zerolog.GlobalLevel() != desired(cfg):
+        if !startedInDebug || desired == Debug:   # startup flag floors
+            zerolog.SetGlobalLevel(desired)
+            log.Info().Str("from", ...).Str("to", ...).Msg("orbit log level changed by server config")
     │
     ▼
-orbit's FlagRunner receiver (existing, orbit/pkg/update/flag_runner.go:47-83):
-    diffs server Flags against on-disk osquery.flags
+orbit's FlagRunner receiver (orbit/pkg/update/flag_runner.go):
+    decodes server Flags into a map (nil/empty → empty map, not early-return)
+    if startedInDebug: inject --verbose/--tls_dump unless admin specified them
+    diffs against on-disk osquery.flags
     if different: write file + TriggerOrbitRestart("osquery flags updated")
 ```
 
@@ -261,7 +270,7 @@ orbit's FlagRunner receiver (existing, orbit/pkg/update/flag_runner.go:47-83):
 
 1. **Host override is one-way.** A host-level `orbit_debug_until` in the future forces debug ON but cannot force it OFF when the team default is ON. Rationale: ambiguity-free mental model; to turn a specific host off while its team is on, remove it from the team.
 2. **Lapsed overrides are ignored.** `orbit_debug_until < now()` is treated as unset.
-3. **Startup `--debug` flag is the initial state only.** Once the first `GetOrbitConfig` response arrives, the server's answer takes over. This means `--debug` + server-says-off will flip to off at the first config tick — acceptable for a PoC; revisit if customers object.
+3. **Startup `--debug` / `ORBIT_DEBUG=1` is a floor.** When orbit is launched with the debug flag, the server cannot turn debug off on that process: the startup flag is passed into both `DebugLogReceiver` and `FlagRunner` as `startedInDebug`, and each rejects a server-driven transition to "off". The server can still raise debug on (idempotent). This lets operators pin a host to debug mode for local investigation without the server silently silencing them. Admin-specified values in `command_line_flags` still win over the floor (e.g. `verbose: false` explicitly set by admin overrides the injected `verbose: true`) — that's the escape hatch.
 
 ### Auto-expiry
 
@@ -272,13 +281,13 @@ Two layers:
 
 ### Osquery flag synchronization
 
-The existing `FlagRunner` at `orbit/pkg/update/flag_runner.go:47-83` already handles "server pushes new osquery flags → orbit diffs, writes, restarts osqueryd." We lean on this rather than duplicating the logic:
+The existing `FlagRunner` handles "server pushes new osquery flags → orbit diffs, writes, restarts osqueryd." We lean on this rather than duplicating the logic, with two behavior changes needed to make the debug-off transition work:
 
-- When `GetOrbitConfig` computes `DebugLogging = true` for a host, it must also **merge** `{"verbose": true, "tls_dump": true}` into the `Flags` blob before returning. The merge goes in the server's response builder so that orbit's existing restart-on-diff logic picks it up automatically.
-- When `DebugLogging` flips back to false, the server removes those flags from the blob and `FlagRunner` will restart osqueryd to clear them.
-- Critically, the `reflect.DeepEqual` check at `orbit/pkg/update/flag_runner.go:71` ensures **no restart when nothing changes** — if the admin already had `verbose: true` in `command_line_flags`, flipping debug logging on doesn't re-flag or restart osqueryd.
+- When `GetOrbitConfig` computes `DebugLogging = true`, it **merges** `{"verbose": true, "tls_dump": true}` into the returned `Flags` blob (`resolveOrbitDebugLogging` in `server/service/orbit.go`). The merge goes in the server's response builder so orbit's existing restart-on-diff logic picks it up automatically.
+- **FlagRunner bug fix (`orbit/pkg/update/flag_runner.go`).** The pre-existing code short-circuited with `if len(config.Flags) == 0 { return nil }`, meaning once flags had been written to `osquery.flags`, the server could never clear them. That broke the debug-off transition: the server stops merging verbose/tls_dump, `Flags` becomes nil on the wire, FlagRunner bailed, and osqueryd stayed verbose forever. Fixed by treating nil/empty as "empty map" and reconciling — with an additional guard that skips when the disk has no file AND the server sends nothing, so hosts that have never had flags don't trigger a restart storm on deploy. This side-effect also fixes the symmetric pre-existing bug of admin removing `command_line_flags` having no effect.
+- The `reflect.DeepEqual` check ensures **no restart when nothing changes** — if the admin already had `verbose: true` in `command_line_flags`, flipping debug logging on doesn't re-flag or restart osqueryd.
 
-Merge precedence for overlapping keys: admin-specified `command_line_flags` wins over debug-derived flags. Debug mode should never weaken an admin's explicit choice.
+Merge precedence for overlapping keys: admin-specified `command_line_flags` wins over debug-derived flags. Debug mode should never weaken an admin's explicit choice. The FlagRunner's startup-flag floor (see [Precedence rules](#precedence-rules)) only injects verbose/tls_dump when not already specified — giving admins an escape hatch via `verbose: false`.
 
 ## Implementation plan
 
@@ -311,11 +320,13 @@ Order below is a suggested implementation sequence. Each step can be its own com
 ### 4. Orbit-side receiver
 
 - New file: `orbit/pkg/update/debug_log_runner.go` implementing `fleet.OrbitConfigReceiver`.
+  - `NewDebugLogReceiver(startedInDebug bool)` captures whether orbit was launched with `--debug` / `ORBIT_DEBUG=1`.
   - Compares `cfg.DebugLogging` against `zerolog.GlobalLevel()`.
-  - Calls `zerolog.SetGlobalLevel(...)` only when a change is required.
-  - Logs the transition at info level.
-- Register the receiver in `orbit/cmd/orbit/orbit.go` alongside `FlagRunner`.
-- Unit test for the receiver (mock config, assert level changes).
+  - When `startedInDebug=true`, refuses to lower to Info (startup flag is a floor).
+  - Calls `zerolog.SetGlobalLevel(...)` only when a change is required. Logs the transition at info level.
+- Extend `FlagUpdateOptions` with `StartedInDebug bool` so FlagRunner can symmetrically pin osquery `--verbose`/`--tls_dump` on when orbit was started in debug mode.
+- Register both receivers in `orbit/cmd/orbit/orbit.go` with `startedInDebug := c.Bool("debug")`.
+- Unit tests for the receiver (mock config, assert level changes, including the startup-flag-is-floor cases).
 
 ### 5. fleetctl
 
@@ -341,6 +352,6 @@ These decisions should be revisited before productionizing. They're acceptable t
 
 1. **Sensitive data in debug output.** Before exposing this to admins through the UI, audit orbit's debug-level log statements for enrollment secrets, tokens, or URL query parameters. If any sensitive values are logged, scrub them at the log call site.
 2. **Rate-limiting the host endpoint.** A noisy automation that flips debug every minute would churn osqueryd restarts every 30s. Consider a minimum-interval guard (e.g., reject if the previous toggle was < 5 minutes ago).
-3. **Startup-flag precedence.** Should `ORBIT_DEBUG=1` at startup act as a floor (server can only raise, never lower)? Current design lets server wins — simpler, but surprises operators who set the env var expecting it to stick.
+3. ~~**Startup-flag precedence.**~~ **Resolved: startup flag is a floor.** `--debug` / `ORBIT_DEBUG=1` at launch can no longer be silently silenced by the server. See [Precedence rules](#precedence-rules) for the details.
 4. **Per-host "force off" override.** We picked one-way (force-on only) for simplicity. If customers ask for a way to exclude a single host from a team-wide debug sweep, revisit.
 5. **Category/component filtering.** Orbit has several subsystems (TUF updater, MDM migrator, Fleet Desktop, extensions); a single global level is coarse. A future enhancement could scope debug to a subsystem.
