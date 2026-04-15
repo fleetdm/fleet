@@ -185,7 +185,9 @@ To replace the Fleet logo with your organization's logo:
  
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
-> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
+> Setup experience software installs alphabetically (by name unless custom display name is added), one at a time. The setup script runs after all software installs are complete. Software won't appear in the upcoming activity until the previous install is complete (success or fail).
+
+> Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after the setup experience software/script. They aren't installed/run in any particular order.
 
 ### Exiting the setup experience
 
@@ -285,6 +287,6 @@ Fleet uses [swiftDialog](https://github.com/swiftDialog/swiftDialog) to show end
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
-<meta name="publishedOn" value="2024-07-03">
+<meta name="publishedOn" value="2026-04-15">
 <meta name="articleTitle" value="Setup experience">
 <meta name="description" value="Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup">
