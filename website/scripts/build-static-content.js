@@ -773,10 +773,10 @@ module.exports = {
                     try {
                       parsedVideoUrl = URL.parse(embeddedMetadata.webinarEmbeddedVideoUrl);
                     } catch(err) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err)
+                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err);
                     }
                     if(parsedVideoUrl.search) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `)
+                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
                     }
                   }
                 }
