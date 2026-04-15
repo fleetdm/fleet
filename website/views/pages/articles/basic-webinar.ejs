@@ -22,7 +22,7 @@
         <div purpose="sidebar-container">
           <div purpose="right-sidebar" class="d-flex flex-column">
             <div purpose="form-container">
-              <div id="download-form" purpose="whitepaper-download-form">
+              <div id="webinar-recording-form" purpose="webinar-recording-form">
                 <h4>Sign up to watch the webinar</h4>
                 <ajax-form class="w-100" action="deliverWebinarAccessRequest" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedDownloadForm()">
                   <div class="form-group">
@@ -40,7 +40,7 @@
                     <input tabindex="3" class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
                     <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
                   </div>
-                  <ajax-button tabindex="4" purpose="download-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Watch the webinar</ajax-button>
+                  <ajax-button tabindex="4" purpose="watch-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Watch the webinar</ajax-button>
                   <cloud-error v-if="cloudError === 'invalidEmailDomain'">
                     <p>
                       Please enter your work or school email address.
@@ -56,8 +56,8 @@
         <div purpose="article-container">
           <div purpose="article-content" parasails-has-no-page-script>
             <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
-            <div purpose="download-cta" class="d-lg-none d-flex">
-              <a purpose="download-button" class="btn btn-primary" href="#download-form">Download whitepaper</a>
+            <div purpose="watch-cta" class="d-lg-none d-flex">
+              <a purpose="watch-button" class="btn btn-primary" href="#webinar-recording-form">Watch the recording</a>
             </div>
             <div purpose="about-fleet-section">
               <h3>About Fleet</h3>
