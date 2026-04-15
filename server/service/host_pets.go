@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -11,36 +12,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-//----------------------------------------------------------------------------//
-// Pet stat decay / signal tuning constants                                   //
-//----------------------------------------------------------------------------//
-
 const (
-	// Passive decay per hour of neglect (applied on every read).
-	decayHungerPerHour      = 3 // hunger rises (higher = hungrier)
-	decayCleanlinessPerHour = 2 // cleanliness drops
-	decayHappinessPerHour   = 1 // happiness drops slowly
-	// Health does not decay on its own; it drains from sustained bad stats.
-
-	// Action effects (applied on POST /pet/action).
-	actionFeedHungerDelta      = -30 // Feed: lower hunger
-	actionFeedHappinessDelta   = 5
-	actionPlayHappinessDelta   = 30
-	actionPlayHungerDelta      = 10 // playing makes you hungry
-	actionCleanCleanlinessDelta = 40
-	actionCleanHappinessDelta  = 5
-	actionMedicineHealthDelta  = 30
-
-	// Device-hygiene signal effects (applied on every read, once per read).
-	signalFailingPolicyHealthPerPolicy     = -5
-	signalDiskEncryptionOffHappinessDelta  = -10
-	signalMdmUnenrolledHealthDelta         = -10
-	signalAllPoliciesPassingHealthDelta    = 2
-	signalDiskEncryptionOnHappinessDelta   = 2
-
 	// Name validation.
 	maxPetNameLen = 32
 	minPetNameLen = 1
+
+	// Happiness decays toward its target by this many points per hour of
+	// elapsed time since the pet was last persisted (last_interacted_at).
+	// At 2/h, a +12 self-service bump above target dissipates in ~6 hours.
+	happinessDecayPerHour = 2
+
+	// Cap simulated elapsed time when computing happiness decay so a pet
+	// that hasn't been read in a year doesn't snap from a "fresh bump"
+	// straight to the target on the next read — caller still sees a
+	// gradual trend if they refresh frequently after a long gap.
+	maxHappinessDecayWindow = 7 * 24 * time.Hour
 )
 
 //----------------------------------------------------------------------------//
@@ -160,7 +146,8 @@ func (svc *Service) GetDevicePet(ctx context.Context, host *fleet.Host) (*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get host pet")
 	}
 
-	svc.applyDecayAndSignals(ctx, pet, host)
+	metrics, now := svc.gatherHostMetrics(ctx, host)
+	applyHostMetricsToPet(pet, metrics, now)
 	return pet, nil
 }
 
@@ -197,140 +184,180 @@ func (svc *Service) AdoptDevicePet(ctx context.Context, host *fleet.Host, name, 
 		return nil, ctxerr.Wrap(ctx, err, "create host pet")
 	}
 
-	svc.applyDecayAndSignals(ctx, pet, host)
+	metrics, now := svc.gatherHostMetrics(ctx, host)
+	applyHostMetricsToPet(pet, metrics, now)
 	return pet, nil
 }
 
-// ApplyDevicePetAction applies a single action to the host's pet (feed, play,
-// clean, medicine) and returns the updated pet. Passive decay and device-hygiene
-// signals are applied first.
-func (svc *Service) ApplyDevicePetAction(ctx context.Context, host *fleet.Host, action fleet.HostPetAction) (*fleet.HostPet, error) {
+// ApplyDevicePetAction is deprecated. Pet stats are now driven entirely by
+// host hygiene signals (check-ins, failing policies, vulnerabilities, MDM
+// posture, disk encryption, and self-service install events) — there's no
+// longer any user-driven action that mutates them. The endpoint stays
+// registered so older Fleet Desktop clients don't 404, but it always
+// returns 410 Gone.
+func (svc *Service) ApplyDevicePetAction(ctx context.Context, _ *fleet.Host, _ fleet.HostPetAction) (*fleet.HostPet, error) {
 	svc.authz.SkipAuthorization(ctx)
-
-	if !fleet.IsValidHostPetAction(string(action)) {
-		invalid := fleet.NewInvalidArgumentError("action", "must be one of feed, play, clean, medicine")
-		return nil, ctxerr.Wrap(ctx, invalid)
-	}
-
-	pet, err := svc.ds.GetHostPet(ctx, host.ID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "no pet found for this host - adopt one first"})
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get host pet")
-	}
-
-	// Apply decay and device signals before the action so each action is
-	// measured against the current state of the pet, not a stale snapshot.
-	svc.applyDecayAndSignals(ctx, pet, host)
-
-	// Apply the action's deltas.
-	switch action {
-	case fleet.HostPetActionFeed:
-		// Over-feeding: if hunger is already low, the pet gets stuffed and sad.
-		if pet.Hunger < 20 {
-			pet.Happiness = adjustStat(pet.Happiness, -10)
-			pet.Health = adjustStat(pet.Health, -2)
-		} else {
-			pet.Happiness = adjustStat(pet.Happiness, actionFeedHappinessDelta)
-		}
-		pet.Hunger = adjustStat(pet.Hunger, actionFeedHungerDelta)
-
-	case fleet.HostPetActionPlay:
-		pet.Happiness = adjustStat(pet.Happiness, actionPlayHappinessDelta)
-		pet.Hunger = adjustStat(pet.Hunger, actionPlayHungerDelta)
-
-	case fleet.HostPetActionClean:
-		pet.Cleanliness = adjustStat(pet.Cleanliness, actionCleanCleanlinessDelta)
-		pet.Happiness = adjustStat(pet.Happiness, actionCleanHappinessDelta)
-
-	case fleet.HostPetActionMedicine:
-		pet.Health = adjustStat(pet.Health, actionMedicineHealthDelta)
-	}
-
-	// An action counts as an interaction — reset the decay clock.
-	pet.LastInteractedAt = svc.clock.Now()
-
-	if err := svc.ds.SaveHostPet(ctx, pet); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "save host pet")
-	}
-
-	// Recompute derived mood for the response.
-	pet.Mood = computeMood(pet)
-	return pet, nil
+	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		Message:     "pet actions have been removed; the pet now reacts to your device's hygiene automatically",
+		InternalErr: errors.New("ApplyDevicePetAction is deprecated"),
+	})
 }
 
 //----------------------------------------------------------------------------//
-// Internal: decay + signal application                                       //
+// Internal: host-metrics derivation                                          //
 //----------------------------------------------------------------------------//
 
-// applyDecayAndSignals mutates the pet in-place by applying:
-//   1. Passive decay based on time elapsed since last_interacted_at.
-//   2. Device-hygiene signals (failing policies, disk encryption, MDM).
-//   3. Cross-stat feedback: if hunger/cleanliness are maxed, health drains.
-//
-// This intentionally does *not* persist the pet — we only write to the DB on
-// explicit actions. This keeps GETs cheap and avoids the user's browser silently
-// grinding down their pet by refreshing.
-func (svc *Service) applyDecayAndSignals(ctx context.Context, pet *fleet.HostPet, host *fleet.Host) {
+// gatherHostMetrics builds the HostPetMetrics snapshot the derivation reads,
+// pulling failing policies + open vulns from the datastore and overlaying any
+// demo overrides. Returns the metrics and the "now" timestamp the derivation
+// should use (real now + any demo time offset).
+func (svc *Service) gatherHostMetrics(ctx context.Context, host *fleet.Host) (fleet.HostPetMetrics, time.Time) {
 	now := svc.clock.Now()
-	hours := now.Sub(pet.LastInteractedAt).Hours()
-	if hours < 0 {
-		hours = 0
+	m := fleet.HostPetMetrics{
+		SeenTime:              host.SeenTime,
+		DiskEncryptionEnabled: host.DiskEncryptionEnabled,
+		MDMUnenrolled:         host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Off",
 	}
 
-	// 1. Passive decay (fractional-friendly via int truncation — fine for a pet).
-	pet.Hunger = adjustStat(pet.Hunger, int(hours*float64(decayHungerPerHour)))
-	pet.Cleanliness = adjustStat(pet.Cleanliness, -int(hours*float64(decayCleanlinessPerHour)))
-	pet.Happiness = adjustStat(pet.Happiness, -int(hours*float64(decayHappinessPerHour)))
-
-	// 2. Device-hygiene signals. These are "what the pet sees right now", not a
-	//    running accumulator — they're applied every read but the result is
-	//    bounded by the stat clamps, so they don't compound unbounded.
-	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
-	if err == nil && len(policies) > 0 {
-		failing := 0
+	// Failing policies. ListPoliciesForHost may return an error on hosts with
+	// no membership rows; we treat that as zero failing policies rather than
+	// failing the whole request, matching the previous behaviour.
+	if policies, err := svc.ds.ListPoliciesForHost(ctx, host); err == nil {
 		for _, p := range policies {
 			if p.Response == "fail" {
-				failing++
+				m.FailingPolicyCount++
 			}
 		}
-		if failing == 0 {
-			pet.Health = adjustStat(pet.Health, signalAllPoliciesPassingHealthDelta)
-		} else {
-			pet.Health = adjustStat(pet.Health, failing*signalFailingPolicyHealthPerPolicy)
+	}
+
+	// Open vulns by severity. Same forgiving treatment — a transient vuln
+	// query failure shouldn't blank the pet.
+	if crit, high, err := svc.ds.CountOpenHostVulnsBySeverity(ctx, host.ID); err == nil {
+		m.CriticalVulnCount = crit
+		m.HighVulnCount = high
+	}
+
+	// Demo overlay. GetHostPetDemoOverrides returns (nil, nil) when no row
+	// exists, so this is a no-op on real deployments.
+	if overrides, err := svc.ds.GetHostPetDemoOverrides(ctx, host.ID); err == nil && overrides != nil {
+		overrides.Apply(&m)
+		if overrides.TimeOffsetHours != 0 {
+			now = now.Add(time.Duration(overrides.TimeOffsetHours) * time.Hour)
 		}
 	}
 
-	if host.DiskEncryptionEnabled != nil {
-		if *host.DiskEncryptionEnabled {
-			pet.Happiness = adjustStat(pet.Happiness, signalDiskEncryptionOnHappinessDelta)
-		} else {
-			pet.Happiness = adjustStat(pet.Happiness, signalDiskEncryptionOffHappinessDelta)
-		}
-	}
+	return m, now
+}
 
-	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Off" {
-		pet.Health = adjustStat(pet.Health, signalMdmUnenrolledHealthDelta)
-	}
+// applyHostMetricsToPet derives the pet's display stats from a host metrics
+// snapshot. Pure function over (pet, metrics, now) so it's table-testable
+// without any mocks. Mutates pet in place; does NOT persist.
+//
+// Hunger / cleanliness / health snap to whatever the host metrics say —
+// these stats are the pet's *display* of the host's posture, not an
+// accumulator the user can grind. Happiness is the one persisted stat: it
+// decays over time toward a target derived from disk encryption posture, and
+// is bumped above target by event-driven signals (currently: successful
+// self-service installs / uninstalls).
+func applyHostMetricsToPet(pet *fleet.HostPet, m fleet.HostPetMetrics, now time.Time) {
+	pet.Hunger = hungerFromMetrics(m, now)
+	pet.Cleanliness = cleanlinessFromMetrics(m)
+	pet.Health = healthFromMetrics(m)
 
-	// 3. Cross-stat feedback: a starving, filthy pet loses health.
-	if pet.Hunger >= 90 {
-		pet.Health = adjustStat(pet.Health, -5)
-	}
-	if pet.Cleanliness <= 10 {
-		pet.Health = adjustStat(pet.Health, -5)
-	}
+	target := happinessTargetFromMetrics(m)
+	pet.Happiness = decayedHappiness(pet.Happiness, target, now.Sub(pet.LastInteractedAt))
 
-	// 4. Derived mood.
 	pet.Mood = computeMood(pet)
 }
 
-// adjustStat clamps stat ± delta to [HostPetStatFloor, HostPetStatCeiling].
-// Using int for delta keeps callers ergonomic (negative deltas, int8 overflow
-// sidestepped) while the stored value stays uint8.
-func adjustStat(stat uint8, delta int) uint8 {
-	v := int(stat) + delta
+// hungerFromMetrics: time-since-check-in → hunger band. Higher hunger means
+// the pet is hungrier (i.e. the host hasn't checked in recently).
+func hungerFromMetrics(m fleet.HostPetMetrics, now time.Time) uint8 {
+	if m.SeenTime.IsZero() {
+		// Brand-new host that's never checked in. Don't punish — return
+		// the baseline so the pet looks normal until the first check-in.
+		return fleet.HostPetTargetHungerBaseline
+	}
+	hours := now.Sub(m.SeenTime).Hours()
+	switch {
+	case hours < fleet.HostPetHungerHoursFresh:
+		return fleet.HostPetTargetHungerFresh
+	case hours < fleet.HostPetHungerHoursStale:
+		return fleet.HostPetTargetHungerStale
+	case hours < fleet.HostPetHungerHoursVeryStale:
+		return fleet.HostPetTargetHungerVeryStale
+	default:
+		return fleet.HostPetTargetHungerStarving
+	}
+}
+
+// cleanlinessFromMetrics: each failing policy drags cleanliness down from the
+// baseline. All-passing → baseline.
+func cleanlinessFromMetrics(m fleet.HostPetMetrics) uint8 {
+	drag := int(m.FailingPolicyCount) * int(fleet.HostPetCleanlinessPerFailingPolicy)
+	return clampStat(int(fleet.HostPetTargetCleanlinessBaseline) - drag)
+}
+
+// healthFromMetrics: critical/high vulns drain health hardest. MDM unenrolled
+// adds a small additional penalty.
+func healthFromMetrics(m fleet.HostPetMetrics) uint8 {
+	v := int(fleet.HostPetTargetHealthBaseline)
+	v -= int(m.CriticalVulnCount) * int(fleet.HostPetHealthPerCriticalVuln)
+	v -= int(m.HighVulnCount) * int(fleet.HostPetHealthPerHighVuln)
+	if m.MDMUnenrolled {
+		v -= int(fleet.HostPetHealthMDMUnenrolledPenalty)
+	}
+	return clampStat(v)
+}
+
+// happinessTargetFromMetrics: the floor that persisted happiness decays
+// toward. Disk encryption is the only host-state signal that moves the
+// target right now — self-service events bump happiness above it.
+func happinessTargetFromMetrics(m fleet.HostPetMetrics) uint8 {
+	v := int(fleet.HostPetTargetHappinessBaseline)
+	if m.DiskEncryptionEnabled != nil {
+		if *m.DiskEncryptionEnabled {
+			v += int(fleet.HostPetHappinessDiskEncOnBonus)
+		} else {
+			v -= int(fleet.HostPetHappinessDiskEncOffPenalty)
+		}
+	}
+	return clampStat(v)
+}
+
+// decayedHappiness slides current toward target by happinessDecayPerHour
+// per hour of elapsed time, capped at maxHappinessDecayWindow so a long
+// idle stretch doesn't snap straight to target.
+func decayedHappiness(current, target uint8, elapsed time.Duration) uint8 {
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	if elapsed > maxHappinessDecayWindow {
+		elapsed = maxHappinessDecayWindow
+	}
+	step := int(elapsed.Hours() * float64(happinessDecayPerHour))
+	if step <= 0 {
+		return current
+	}
+	if current < target {
+		next := int(current) + step
+		if next > int(target) {
+			next = int(target)
+		}
+		return clampStat(next)
+	}
+	if current > target {
+		next := int(current) - step
+		if next < int(target) {
+			next = int(target)
+		}
+		return clampStat(next)
+	}
+	return current
+}
+
+// clampStat constrains v to [HostPetStatFloor, HostPetStatCeiling].
+func clampStat(v int) uint8 {
 	if v < int(fleet.HostPetStatFloor) {
 		v = int(fleet.HostPetStatFloor)
 	}

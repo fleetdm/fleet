@@ -671,6 +671,16 @@ type CreateHostPetFunc func(ctx context.Context, hostID uint, name string, speci
 
 type SaveHostPetFunc func(ctx context.Context, pet *fleet.HostPet) error
 
+type ApplyHostPetHappinessDeltaFunc func(ctx context.Context, hostID uint, delta int) error
+
+type CountOpenHostVulnsBySeverityFunc func(ctx context.Context, hostID uint) (critical uint, high uint, err error)
+
+type GetHostPetDemoOverridesFunc func(ctx context.Context, hostID uint) (*fleet.HostPetDemoOverrides, error)
+
+type UpsertHostPetDemoOverridesFunc func(ctx context.Context, overrides *fleet.HostPetDemoOverrides) error
+
+type DeleteHostPetDemoOverridesFunc func(ctx context.Context, hostID uint) error
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -2841,6 +2851,21 @@ type DataStore struct {
 
 	SaveHostPetFunc        SaveHostPetFunc
 	SaveHostPetFuncInvoked bool
+
+	ApplyHostPetHappinessDeltaFunc        ApplyHostPetHappinessDeltaFunc
+	ApplyHostPetHappinessDeltaFuncInvoked bool
+
+	CountOpenHostVulnsBySeverityFunc        CountOpenHostVulnsBySeverityFunc
+	CountOpenHostVulnsBySeverityFuncInvoked bool
+
+	GetHostPetDemoOverridesFunc        GetHostPetDemoOverridesFunc
+	GetHostPetDemoOverridesFuncInvoked bool
+
+	UpsertHostPetDemoOverridesFunc        UpsertHostPetDemoOverridesFunc
+	UpsertHostPetDemoOverridesFuncInvoked bool
+
+	DeleteHostPetDemoOverridesFunc        DeleteHostPetDemoOverridesFunc
+	DeleteHostPetDemoOverridesFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -6908,6 +6933,41 @@ func (s *DataStore) SaveHostPet(ctx context.Context, pet *fleet.HostPet) error {
 	s.SaveHostPetFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveHostPetFunc(ctx, pet)
+}
+
+func (s *DataStore) ApplyHostPetHappinessDelta(ctx context.Context, hostID uint, delta int) error {
+	s.mu.Lock()
+	s.ApplyHostPetHappinessDeltaFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyHostPetHappinessDeltaFunc(ctx, hostID, delta)
+}
+
+func (s *DataStore) CountOpenHostVulnsBySeverity(ctx context.Context, hostID uint) (uint, uint, error) {
+	s.mu.Lock()
+	s.CountOpenHostVulnsBySeverityFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountOpenHostVulnsBySeverityFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostPetDemoOverrides(ctx context.Context, hostID uint) (*fleet.HostPetDemoOverrides, error) {
+	s.mu.Lock()
+	s.GetHostPetDemoOverridesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostPetDemoOverridesFunc(ctx, hostID)
+}
+
+func (s *DataStore) UpsertHostPetDemoOverrides(ctx context.Context, overrides *fleet.HostPetDemoOverrides) error {
+	s.mu.Lock()
+	s.UpsertHostPetDemoOverridesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostPetDemoOverridesFunc(ctx, overrides)
+}
+
+func (s *DataStore) DeleteHostPetDemoOverrides(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.DeleteHostPetDemoOverridesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostPetDemoOverridesFunc(ctx, hostID)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {

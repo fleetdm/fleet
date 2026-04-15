@@ -1021,6 +1021,20 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
 				}
+
+				// Self-service uninstalls nudge the host's virtual pet's
+				// happiness — same pattern as the install hook above. Errors
+				// are logged and swallowed.
+				if selfService {
+					if err := svc.ds.ApplyHostPetHappinessDelta(ctx, host.ID, int(fleet.HostPetHappinessSelfServiceBump)); err != nil {
+						svc.logger.WarnContext(ctx,
+							"apply host pet happiness delta after self-service uninstall",
+							"host_id", host.ID,
+							"execution_id", hsr.ExecutionID,
+							"err", err,
+						)
+					}
+				}
 			}
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
@@ -1545,6 +1559,21 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		if status == fleet.SoftwareInstalled {
 			if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
+			}
+		}
+
+		// Self-service installs nudge the host's virtual pet's happiness — see
+		// `server/fleet/host_pet.go`. Errors here are logged and swallowed:
+		// the pet feature must never block a software install from completing.
+		// No-op for hosts without an adopted pet.
+		if hsi.SelfService && status == fleet.SoftwareInstalled {
+			if err := svc.ds.ApplyHostPetHappinessDelta(ctx, host.ID, int(fleet.HostPetHappinessSelfServiceBump)); err != nil {
+				svc.logger.WarnContext(ctx,
+					"apply host pet happiness delta after self-service install",
+					"host_id", host.ID,
+					"install_uuid", result.InstallUUID,
+					"err", err,
+				)
 			}
 		}
 	}

@@ -1,14 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
 import deviceUserAPI from "services/entities/device_user";
 import { NotificationContext } from "context/notification";
-import {
-  HostPetAction,
-  HostPetMood,
-  IHostPet,
-} from "interfaces/host_pet";
+import { HostPetMood, IHostPet } from "interfaces/host_pet";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -28,13 +24,17 @@ const MOOD_EMOJI: Record<HostPetMood, string> = {
   sick: "😾",
 };
 
+// Mood captions explain *why* the pet feels how it does, so users learn that
+// keeping their device healthy makes the pet healthy. The pet no longer
+// reacts to button clicks — the four old action buttons (feed/play/clean/
+// medicine) were removed because they were trivial to game.
 const MOOD_CAPTION: Record<HostPetMood, string> = {
-  happy: "is purring contentedly.",
+  happy: "is purring — your device looks great.",
   content: "is chilling.",
-  sad: "looks glum — maybe play with them?",
-  hungry: "is crying for food!",
-  dirty: "is a grubby little goblin.",
-  sick: "feels awful — try some medicine.",
+  sad: "looks glum. Try installing something from Self-service.",
+  hungry: "hasn't seen your laptop in a while — wake it up?",
+  dirty: "is unhappy about your failing policies.",
+  sick: "feels awful — vulnerable software is making them sick. Update apps.",
 };
 
 interface IStatBarProps {
@@ -82,6 +82,11 @@ const PetCard = ({ deviceAuthToken, className }: IPetCardProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const [adoptName, setAdoptName] = useState("");
+  // isPetting is purely cosmetic — clicking "Pet" briefly applies an
+  // animation class. There's no API call: the backend's stat machinery is
+  // driven entirely by host hygiene now.
+  const [isPetting, setIsPetting] = useState(false);
+  const pettingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     data: petData,
@@ -120,15 +125,13 @@ const PetCard = ({ deviceAuthToken, className }: IPetCardProps) => {
     }
   );
 
-  const actionMutation = useMutation(
-    (action: HostPetAction) =>
-      deviceUserAPI.applyDevicePetAction(deviceAuthToken, action),
-    {
-      onSuccess: () => invalidatePet(),
-      onError: () =>
-        renderFlash("error", "That didn't work. Try again in a sec."),
+  const handlePet = () => {
+    setIsPetting(true);
+    if (pettingTimeoutRef.current) {
+      clearTimeout(pettingTimeoutRef.current);
     }
-  );
+    pettingTimeoutRef.current = setTimeout(() => setIsPetting(false), 800);
+  };
 
   if (isLoadingPet) {
     return (
@@ -193,11 +196,6 @@ const PetCard = ({ deviceAuthToken, className }: IPetCardProps) => {
   const emoji = MOOD_EMOJI[pet.mood] ?? MOOD_EMOJI.content;
   const caption = MOOD_CAPTION[pet.mood] ?? MOOD_CAPTION.content;
 
-  const handleAction = (action: HostPetAction) => {
-    if (actionMutation.isLoading) return;
-    actionMutation.mutate(action);
-  };
-
   return (
     <div className={classnames(baseClass, className)}>
       <div className={`${baseClass}__header`}>
@@ -208,12 +206,21 @@ const PetCard = ({ deviceAuthToken, className }: IPetCardProps) => {
       <div
         className={classnames(
           `${baseClass}__stage`,
-          `${baseClass}__stage--${pet.mood}`
+          `${baseClass}__stage--${pet.mood}`,
+          isPetting && `${baseClass}__stage--petting`
         )}
       >
         <div className={`${baseClass}__pet-emoji`} aria-label={pet.mood}>
           {emoji}
         </div>
+        {isPetting && (
+          <div
+            className={`${baseClass}__petting-heart`}
+            aria-hidden="true"
+          >
+            ♥
+          </div>
+        )}
         <p className={`${baseClass}__caption`}>
           {pet.name} {caption}
         </p>
@@ -227,39 +234,15 @@ const PetCard = ({ deviceAuthToken, className }: IPetCardProps) => {
       </div>
 
       <div className={`${baseClass}__actions`}>
-        <Button
-          variant="default"
-          onClick={() => handleAction("feed")}
-          disabled={actionMutation.isLoading}
-        >
-          Feed
-        </Button>
-        <Button
-          variant="default"
-          onClick={() => handleAction("play")}
-          disabled={actionMutation.isLoading}
-        >
-          Play
-        </Button>
-        <Button
-          variant="default"
-          onClick={() => handleAction("clean")}
-          disabled={actionMutation.isLoading}
-        >
-          Clean
-        </Button>
-        <Button
-          variant="default"
-          onClick={() => handleAction("medicine")}
-          disabled={actionMutation.isLoading || pet.health > 70}
-        >
-          Medicine
+        <Button variant="default" onClick={handlePet}>
+          Pet
         </Button>
       </div>
 
       <p className={`${baseClass}__hint`}>
-        Tip: the state of your device affects your pet too. Failing policies,
-        disabled disk encryption, or a pet left alone will make them unwell.
+        Your pet reacts to your device&apos;s health: keep checking in, fix
+        failing policies, update vulnerable software, and use Self-service to
+        keep them happy. The Pet button is just for fun.
       </p>
     </div>
   );
