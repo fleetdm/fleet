@@ -29,10 +29,10 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 		return nil, ctxerr.Wrap(ctx, err, "reading homebrew input data directory")
 	}
 
-	i := &brewIngester{
-		baseURL: baseBrewAPIURL,
-		logger:  logger,
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+	i := &BrewIngester{
+		BaseURL: BaseBrewAPIURL,
+		Logger:  logger,
+		Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
@@ -52,7 +52,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"fileName": f.Name()})
 		}
 
-		var input inputApp
+		var input InputApp
 		if err := json.Unmarshal(fileBytes, &input); err != nil {
 			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"fileName": f.Name()})
 		}
@@ -73,9 +73,9 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 			continue
 		}
 
-		i.logger.InfoContext(ctx, "ingesting homebrew app", "name", input.Name)
+		i.Logger.InfoContext(ctx, "ingesting homebrew app", "name", input.Name)
 
-		outApp, err := i.ingestOne(ctx, input)
+		outApp, err := i.IngestOne(ctx, input)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew app")
 		}
@@ -87,23 +87,23 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	return manifestApps, nil
 }
 
-const baseBrewAPIURL = "https://formulae.brew.sh/api/"
+const BaseBrewAPIURL = "https://formulae.brew.sh/api/"
 
-type brewIngester struct {
-	baseURL string
-	logger  *slog.Logger
-	client  *http.Client
+type BrewIngester struct {
+	BaseURL string
+	Logger  *slog.Logger
+	Client  *http.Client
 }
 
-func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
+func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintained_apps.FMAManifestApp, error) {
+	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create http request")
 	}
 
-	res, err := i.client.Do(req)
+	res, err := i.Client.Do(req)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute http request")
 	}
@@ -227,7 +227,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	return out, nil
 }
 
-type inputApp struct {
+type InputApp struct {
 	// Name is the user-friendly name of the app.
 	Name string `json:"name"`
 	// Token is the identifier in the source data for the app (e.g. homebrew token).

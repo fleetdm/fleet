@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -51,6 +52,30 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: payload.TeamID}}, fleet.ActionWrite); err != nil {
 			return nil, err
 		}
+	}
+
+	if payload.FromHomebrew != "" {
+		ingester := homebrew.BrewIngester{
+			BaseURL: homebrew.BaseBrewAPIURL,
+			Logger:  slog.New(slog.DiscardHandler),
+			Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		}
+		var input homebrew.InputApp
+		input.Token = payload.FromHomebrew
+
+		fma, err := ingester.IngestOne(ctx, input)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "ingest one")
+		}
+
+		payload.BundleIdentifier = fma.UniqueIdentifier
+		payload.URL = fma.InstallerURL
+		payload.InstallScript = fma.InstallScript
+		payload.Version = fma.Version
+		payload.UninstallScript = fma.UninstallScript
+
+		fmt.Printf("%#v\n", payload)
+
 	}
 
 	// validate labels before we do anything else

@@ -11,7 +11,7 @@ import (
 	"github.com/micromdm/plist"
 )
 
-func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
+func installScriptForApp(app InputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)

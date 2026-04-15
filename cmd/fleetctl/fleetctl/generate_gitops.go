@@ -1337,6 +1337,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			hasEnrollmentProfile := enrollmentProfile != nil
 
+			// TODO(JK):
+
 			// If the team has any of these configured, we need to generate the macos_setup section.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"

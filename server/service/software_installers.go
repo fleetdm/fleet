@@ -37,6 +37,7 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
 	AutomaticInstall  bool
+	FromHomebrew      string
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -459,6 +460,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
+		FromHomebrew:      req.FromHomebrew,
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
