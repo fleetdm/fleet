@@ -54,17 +54,17 @@ macOS, iOS, and iPadOS hosts listed in AB and assigned to a Fleet will sync to F
 
 When one of your uploaded AB tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
 
-### To renew an AB token:
+### Renew AB:
+
+> Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 
 1. Sign in to [Apple Business](https://business.apple.com/).
 2. Select **Devices > Management** and select your MDM server.
 3. Select the three dots and select **Download Token**.
 4. In Fleet, navigate to the **Settings > Integrations > MDM** page.
-5. Under **Apple Business (AB)**:
-  - Select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**, and then find the token that you want to renew. 
-  - Select the **Actions > Renew** for the token.
-> **Note:** Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
-6. Upload the token (.p7m file) downloaded in step 3.
+5. Under **Apple Business (AB)** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**, and then find the token that you want to renew.
+6. Select the **Actions > Renew** for the token.
+7. Upload the token (.p7m file) downloaded in step 3.
 
 ### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
 
@@ -106,17 +106,23 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 ### Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
 
-1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
+1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > MDM**.
+2. Under **Apple Business (AB)**, select **Add VPP** next to **Volume Purchasing Program (VPP)**.
+3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
+4. Head to **Settings > Apps & Books** and download the content token for the location you want to use. Each token is based on a location in Apple Business.
+5. Upload the content token (.vpptoken file) to Fleet.
+6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
-2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business, and then select the **Upload** button at the bottom to upload it to Fleet.
+### Renew VPP:
 
-3. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
+> Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 
-### To renew a VPP token:
-
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
-
-2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business and then upload the new token to Fleet.
+1. Navigate to the **Settings > Integrations > MDM** page
+2. Under **Apple Business (AB)**, select **Edit** next to **Volume Purchasing Program (VPP)** and then find the token that you want to renew.
+3. Select the **Actions > Renew** for the token.
+4. Sign in to [Apple Business](https://business.apple.com).
+5. Head to **Settings > Apps & Books** and download your content token.
+6. Upload the content token (.vpptoken file) to Fleet.
 
 ## Best practice
 
