@@ -989,3 +989,109 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+func TestResolveOrbitDebugLogging(t *testing.T) {
+	ctx := t.Context()
+	future := time.Now().Add(time.Hour)
+	past := time.Now().Add(-time.Hour)
+
+	cases := []struct {
+		name       string
+		orbitOpts  *fleet.OrbitAgentOptions
+		host       *fleet.Host
+		inFlags    json.RawMessage
+		wantDebug  bool
+		wantFlags  map[string]any // nil means "unchanged / empty"
+		wantFlagsN bool           // true means expect nil/empty flags
+	}{
+		{
+			name:       "no orbit opts, no host override -> debug off, flags untouched",
+			orbitOpts:  nil,
+			host:       &fleet.Host{},
+			inFlags:    nil,
+			wantDebug:  false,
+			wantFlagsN: true,
+		},
+		{
+			name:      "admin-specified flags preserved when debug off",
+			orbitOpts: &fleet.OrbitAgentOptions{DebugLogging: false},
+			host:      &fleet.Host{},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: false,
+			wantFlags: map[string]any{"distributed_interval": float64(10)},
+		},
+		{
+			name:      "team debug on merges verbose/tls_dump",
+			orbitOpts: &fleet.OrbitAgentOptions{DebugLogging: true},
+			host:      &fleet.Host{},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: true,
+			wantFlags: map[string]any{
+				"distributed_interval": float64(10),
+				"verbose":              true,
+				"tls_dump":             true,
+			},
+		},
+		{
+			name:      "admin verbose:false wins over debug-on",
+			orbitOpts: &fleet.OrbitAgentOptions{DebugLogging: true},
+			host:      &fleet.Host{},
+			inFlags:   json.RawMessage(`{"verbose":false}`),
+			wantDebug: true,
+			wantFlags: map[string]any{
+				"verbose":  false,
+				"tls_dump": true,
+			},
+		},
+		{
+			name:      "unexpired host override forces debug on even when team off",
+			orbitOpts: &fleet.OrbitAgentOptions{DebugLogging: false},
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   nil,
+			wantDebug: true,
+			wantFlags: map[string]any{
+				"verbose":  true,
+				"tls_dump": true,
+			},
+		},
+		{
+			name:       "expired host override is ignored, falls back to team setting",
+			orbitOpts:  &fleet.OrbitAgentOptions{DebugLogging: false},
+			host:       &fleet.Host{OrbitDebugUntil: &past},
+			inFlags:    nil,
+			wantDebug:  false,
+			wantFlagsN: true,
+		},
+		{
+			name:      "host override is force-on only, cannot turn off team debug",
+			orbitOpts: &fleet.OrbitAgentOptions{DebugLogging: true},
+			host:      &fleet.Host{OrbitDebugUntil: nil},
+			inFlags:   nil,
+			wantDebug: true,
+			wantFlags: map[string]any{
+				"verbose":  true,
+				"tls_dump": true,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotFlags, gotDebug, err := resolveOrbitDebugLogging(ctx, tc.orbitOpts, tc.host, tc.inFlags)
+			require.NoError(t, err)
+			require.NotNil(t, gotDebug)
+			require.Equal(t, tc.wantDebug, *gotDebug)
+
+			if tc.wantFlagsN {
+				// When debug is off, the helper returns the input unchanged.
+				require.Equal(t, tc.inFlags, gotFlags)
+				return
+			}
+			if tc.wantFlags != nil {
+				var got map[string]any
+				require.NoError(t, json.Unmarshal(gotFlags, &got))
+				require.Equal(t, tc.wantFlags, got)
+			}
+		})
+	}
+}

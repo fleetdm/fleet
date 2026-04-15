@@ -28,6 +28,21 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+	// Orbit holds options that configure the orbit agent itself, as opposed to
+	// osquery. Kept in a separate block so orbit-level concerns don't pollute
+	// the osquery schema validated in agent_options_generated.go.
+	Orbit *OrbitAgentOptions `json:"orbit,omitempty"`
+}
+
+// OrbitAgentOptions holds team-level configuration for the orbit agent itself.
+// See docs/Contributing/architecture/orbit-debug-logging.md for the debug
+// logging flow.
+type OrbitAgentOptions struct {
+	// DebugLogging enables debug-level logging for orbit on all hosts in the
+	// team (or globally, if set on app_config agent options). Off by default.
+	// Individual hosts can additionally force debug on via the host-level
+	// debug-logging endpoint.
+	DebugLogging bool `json:"debug_logging,omitempty"`
 }
 
 type AgentOptionsOverrides struct {

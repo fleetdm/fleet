@@ -67,6 +67,12 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	// DebugLogging, when set, instructs orbit to enable (true) or disable
+	// (false) debug-level logging at runtime. A nil value means the server is
+	// not expressing an opinion and orbit should keep its current level. This
+	// is the runtime-togglable counterpart to the --debug / ORBIT_DEBUG startup
+	// flag; see docs/Contributing/architecture/orbit-debug-logging.md.
+	DebugLogging *bool `json:"debug_logging,omitempty"`
 }
 
 type OrbitConfigReceiver interface {

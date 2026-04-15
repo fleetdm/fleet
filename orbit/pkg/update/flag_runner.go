@@ -57,14 +57,22 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		flagFileExists = false
 	}
 
-	if len(config.Flags) == 0 {
-		// command_line_flags not set in YAML, nothing to do
-		return nil
+	// Decode whatever the server sent; nil/empty means "no flags" which is a
+	// valid state we must be able to reconcile TO (e.g. admin removed
+	// command_line_flags, or orbit debug logging was turned off and the
+	// server-side merge no longer pushes verbose/tls_dump).
+	osqueryFlagMapFromFleet := map[string]string{}
+	if len(config.Flags) > 0 {
+		osqueryFlagMapFromFleet, err = getFlagsFromJSON(config.Flags)
+		if err != nil {
+			return fmt.Errorf("error parsing flags: %w", err)
+		}
 	}
 
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
-	if err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
+	// Nothing on disk, nothing from the server: no-op. This preserves the
+	// original behavior for hosts that have never had agent-options flags.
+	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
+		return nil
 	}
 
 	// compare both flags, if they are equal, nothing to do

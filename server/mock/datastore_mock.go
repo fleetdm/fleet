@@ -779,6 +779,8 @@ type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value
 
 type UpdateHostRefetchCriticalQueriesUntilFunc func(ctx context.Context, hostID uint, until *time.Time) error
 
+type UpdateHostOrbitDebugUntilFunc func(ctx context.Context, hostID uint, until *time.Time) error
+
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
@@ -2997,6 +2999,9 @@ type DataStore struct {
 
 	UpdateHostRefetchCriticalQueriesUntilFunc        UpdateHostRefetchCriticalQueriesUntilFunc
 	UpdateHostRefetchCriticalQueriesUntilFuncInvoked bool
+
+	UpdateHostOrbitDebugUntilFunc        UpdateHostOrbitDebugUntilFunc
+	UpdateHostOrbitDebugUntilFuncInvoked bool
 
 	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
 	FlippingPoliciesForHostFuncInvoked bool
@@ -7271,6 +7276,13 @@ func (s *DataStore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	s.UpdateHostRefetchCriticalQueriesUntilFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostRefetchCriticalQueriesUntilFunc(ctx, hostID, until)
+}
+
+func (s *DataStore) UpdateHostOrbitDebugUntil(ctx context.Context, hostID uint, until *time.Time) error {
+	s.mu.Lock()
+	s.UpdateHostOrbitDebugUntilFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostOrbitDebugUntilFunc(ctx, hostID, until)
 }
 
 func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {

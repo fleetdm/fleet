@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -136,6 +137,31 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	}
 
 	return c.authenticatedRequest(params, verb, path, &responseBody)
+}
+
+// SetHostOrbitDebugLogging enables or disables orbit debug logging on a single
+// host. When enabled, duration controls how long the override stays active
+// (server-enforced default 24h, cap 7d; pass 0 for the default). Returns the
+// resolved expiry timestamp, or nil when disabled.
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (c *Client) SetHostOrbitDebugLogging(hostID uint, enabled bool, duration time.Duration) (*time.Time, error) {
+	verb, path := "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", hostID)
+	// Serialize as a Go duration string ("24h") on the wire — the endpoint
+	// parses this back with time.ParseDuration. See the request struct in
+	// hosts.go for why nanoseconds aren't used.
+	var durationStr string
+	if duration > 0 {
+		durationStr = duration.String()
+	}
+	params := hostOrbitDebugLoggingRequest{
+		Enabled:  enabled,
+		Duration: durationStr,
+	}
+	var responseBody hostOrbitDebugLoggingResponse
+	if err := c.authenticatedRequest(&params, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.OrbitDebugUntil, nil
 }
 
 // GetHostsReport returns a report of all hosts.

@@ -26,6 +26,8 @@ import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninst
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
+import EnabledHostOrbitDebugLoggingActivityItem from "./ActivityItems/EnabledHostOrbitDebugLoggingActivityItem";
+import DisabledHostOrbitDebugLoggingActivityItem from "./ActivityItems/DisabledHostOrbitDebugLoggingActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -72,6 +74,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.InstalledCertificate]: InstalledCertificateActivityItem,
   [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
+  [ActivityType.EnabledHostOrbitDebugLogging]: EnabledHostOrbitDebugLoggingActivityItem,
+  [ActivityType.DisabledHostOrbitDebugLogging]: DisabledHostOrbitDebugLoggingActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

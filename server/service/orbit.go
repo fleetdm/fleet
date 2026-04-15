@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -352,6 +353,55 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return fleet.OrbitGetConfigResponse{OrbitConfig: cfg}, nil
 }
 
+// resolveOrbitDebugLogging computes the effective debug-logging state for a
+// host and merges the corresponding osquery verbose flags into the supplied
+// command-line flags blob when debug is enabled.
+//
+// Precedence:
+//   - team-level agent_options.orbit.debug_logging provides the baseline
+//   - an unexpired host-level override (host.OrbitDebugUntil in the future)
+//     forces debug ON regardless of the team setting (host override is
+//     force-on only; it cannot force OFF)
+//
+// When debug is on, `verbose` and `tls_dump` are added to the flags blob only
+// if the admin has not already set them explicitly — admin-specified values
+// always win. When debug is off, the flags blob is returned unchanged.
+//
+// See docs/Contributing/architecture/orbit-debug-logging.md for the design.
+func resolveOrbitDebugLogging(ctx context.Context, orbitOpts *fleet.OrbitAgentOptions, host *fleet.Host, flags json.RawMessage) (json.RawMessage, *bool, error) {
+	debug := false
+	if orbitOpts != nil {
+		debug = orbitOpts.DebugLogging
+	}
+	if host != nil && host.OrbitDebugUntil != nil && host.OrbitDebugUntil.After(time.Now()) {
+		debug = true
+	}
+
+	if !debug {
+		return flags, &debug, nil
+	}
+
+	// Decode into a map so we can add keys without clobbering admin values.
+	adminFlags := map[string]any{}
+	if len(flags) > 0 {
+		if err := json.Unmarshal(flags, &adminFlags); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: parse command_line_flags")
+		}
+	}
+	if _, ok := adminFlags["verbose"]; !ok {
+		adminFlags["verbose"] = true
+	}
+	if _, ok := adminFlags["tls_dump"]; !ok {
+		adminFlags["tls_dump"] = true
+	}
+
+	merged, err := json.Marshal(adminFlags)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: marshal merged flags")
+	}
+	return merged, &debug, nil
+}
+
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -560,13 +610,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 		}
 
+		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, opts.Orbit, host, opts.CommandLineStartUpFlags)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            opts.CommandLineStartUpFlags,
+			Flags:            mergedFlags,
 			Extensions:       extensionsFiltered,
 			Notifications:    notifs,
 			NudgeConfig:      nudgeConfig,
 			UpdateChannels:   updateChannels,
+			DebugLogging:     debugLogging,
 		}, nil
 	}
 
@@ -635,13 +691,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 	}
 
+	mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, opts.Orbit, host, opts.CommandLineStartUpFlags)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
-		Flags:            opts.CommandLineStartUpFlags,
+		Flags:            mergedFlags,
 		Extensions:       extensionsFiltered,
 		Notifications:    notifs,
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
+		DebugLogging:     debugLogging,
 	}, nil
 }
 

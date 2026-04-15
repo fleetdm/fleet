@@ -240,6 +240,8 @@ type HostByIdentifierFunc func(ctx context.Context, identifier string, opts flee
 
 type RefetchHostFunc func(ctx context.Context, id uint) (err error)
 
+type SetHostOrbitDebugLoggingFunc func(ctx context.Context, hostID uint, enabled bool, duration time.Duration) (*time.Time, error)
+
 type CleanupExpiredHostsFunc func(ctx context.Context) ([]fleet.DeletedHostDetails, error)
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
@@ -1240,6 +1242,9 @@ type Service struct {
 
 	RefetchHostFunc        RefetchHostFunc
 	RefetchHostFuncInvoked bool
+
+	SetHostOrbitDebugLoggingFunc        SetHostOrbitDebugLoggingFunc
+	SetHostOrbitDebugLoggingFuncInvoked bool
 
 	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
 	CleanupExpiredHostsFuncInvoked bool
@@ -3017,6 +3022,13 @@ func (s *Service) RefetchHost(ctx context.Context, id uint) (err error) {
 	s.RefetchHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.RefetchHostFunc(ctx, id)
+}
+
+func (s *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, duration time.Duration) (*time.Time, error) {
+	s.mu.Lock()
+	s.SetHostOrbitDebugLoggingFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostOrbitDebugLoggingFunc(ctx, hostID, enabled, duration)
 }
 
 func (s *Service) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {

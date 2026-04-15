@@ -2,7 +2,9 @@ package fleetctl
 
 import (
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/urfave/cli/v2"
 )
@@ -20,6 +22,73 @@ func hostsCommand() *cli.Command {
 		Usage: "Manage Fleet hosts",
 		Subcommands: []*cli.Command{
 			transferCommand(),
+			hostDebugLoggingCommand(),
+		},
+	}
+}
+
+func hostDebugLoggingCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "debug-logging",
+		Usage:     "Enable or disable orbit debug logging on a single host",
+		UsageText: "Toggles runtime orbit debug logging for the given host. When enabled, orbit picks up the change on its next config poll (up to 30s) without restarting. Osquery is also flipped to verbose when debug is on. Requires admin or maintainer on the host's team.",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "host",
+				Usage:    "Host identifier (hostname, UUID, serial, or osquery host id)",
+				Required: true,
+			},
+			&cli.BoolFlag{
+				Name:  "enable",
+				Usage: "Enable debug logging on the host",
+			},
+			&cli.BoolFlag{
+				Name:  "disable",
+				Usage: "Disable debug logging and clear any active host override",
+			},
+			&cli.DurationFlag{
+				Name:  "duration",
+				Usage: "How long debug logging stays on (default 24h, max 7d). Only valid with --enable.",
+			},
+			configFlag(),
+			contextFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			enable := c.Bool("enable")
+			disable := c.Bool("disable")
+			duration := c.Duration("duration")
+
+			switch {
+			case enable == disable:
+				return errors.New("exactly one of --enable or --disable is required")
+			case disable && duration != 0:
+				return errors.New("--duration cannot be used with --disable")
+			case duration < 0:
+				return errors.New("--duration must not be negative")
+			}
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			host, err := client.HostByIdentifier(c.String("host"))
+			if err != nil {
+				return fmt.Errorf("resolve host: %w", err)
+			}
+
+			until, err := client.SetHostOrbitDebugLogging(host.ID, enable, duration)
+			if err != nil {
+				return err
+			}
+
+			if enable {
+				fmt.Fprintf(c.App.Writer, "Orbit debug logging enabled on host %d until %s (UTC).\n", host.ID, until.Format(time.RFC3339))
+			} else {
+				fmt.Fprintf(c.App.Writer, "Orbit debug logging disabled on host %d.\n", host.ID)
+			}
+			return nil
 		},
 	}
 }

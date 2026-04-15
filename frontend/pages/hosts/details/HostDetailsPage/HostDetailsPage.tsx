@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick } from "lodash";
+import { formatDistanceToNow } from "date-fns";
 
 import PATHS from "router/paths";
 
@@ -70,6 +71,8 @@ import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import InfoBanner from "components/InfoBanner";
+import Button from "components/buttons/Button";
 
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
@@ -124,6 +127,7 @@ import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import LockModal from "./modals/LockModal";
+import DebugLoggingModal from "./modals/DebugLoggingModal";
 import UnlockModal from "./modals/UnlockModal";
 import {
   HostMdmDeviceStatusUIState,
@@ -232,6 +236,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+  const [showDebugLoggingModal, setShowDebugLoggingModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
   // Undefined used to return to true after closing the lock modal
   const [showLocationModal, setShowLocationModal] = useState<
@@ -969,9 +974,21 @@ const HostDetailsPage = ({
       case "clearPasscode":
         setShowClearPasscodeModal(true);
         break;
+      case "debugLogging":
+        setShowDebugLoggingModal(true);
+        break;
       default: // do nothing
     }
   };
+
+  // Orbit debug logging is active when orbit_debug_until is set and in the
+  // future. The server already treats expired values as inactive, but the UI
+  // does its own comparison so the action label flips between Enable/Disable
+  // immediately after a successful toggle.
+  const orbitDebugActive = Boolean(
+    host?.orbit_debug_until &&
+      new Date(host.orbit_debug_until).getTime() > Date.now()
+  );
 
   const onSelectCertificate = (certificate: IHostCertificate) => {
     setSelectedCertificate(certificate);
@@ -1009,6 +1026,7 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
         }
+        orbitDebugActive={orbitDebugActive}
       />
     );
   };
@@ -1297,6 +1315,27 @@ const HostDetailsPage = ({
     return (
       <>
         <>
+          {orbitDebugActive && host?.orbit_debug_until && (
+            <div className={`${baseClass}__debug-banner`}>
+              <InfoBanner
+                color="yellow"
+                cta={
+                  <Button
+                    variant="alert"
+                    onClick={() => setShowDebugLoggingModal(true)}
+                  >
+                    Disable
+                  </Button>
+                }
+              >
+                Orbit debug logging is on. Expires{" "}
+                {formatDistanceToNow(new Date(host.orbit_debug_until), {
+                  addSuffix: true,
+                })}
+                .
+              </InfoBanner>
+            </div>
+          )}
           {!mainContentConfig.renderedBanner && (
             <HostDetailsBanners
               mdmEnrollmentStatus={host?.mdm.enrollment_status}
@@ -1710,6 +1749,20 @@ const HostDetailsPage = ({
               isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
+            />
+          )}
+          {showDebugLoggingModal && (
+            <DebugLoggingModal
+              hostId={host.id}
+              hostName={host.display_name}
+              isCurrentlyActive={orbitDebugActive}
+              onSuccess={() => {
+                setShowDebugLoggingModal(false);
+                // Refetch host details so the banner + action label pick up
+                // the new orbit_debug_until.
+                refetchHostDetails();
+              }}
+              onClose={() => setShowDebugLoggingModal(false)}
             />
           )}
           {selectedHostSWForInventoryVersions && (

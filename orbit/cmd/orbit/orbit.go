@@ -1261,6 +1261,14 @@ func orbitAction(c *cli.Context) error {
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
+	// Runtime orbit debug logging toggle. The server sets OrbitConfig.DebugLogging
+	// based on team agent options + any unexpired host-level override; this
+	// receiver flips zerolog's global level accordingly. Osquery verbose flags
+	// are merged server-side into OrbitConfig.Flags, so flagUpdateReceiver above
+	// will restart osqueryd if and only if the flags actually change.
+	// See docs/Contributing/architecture/orbit-debug-logging.md.
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver())
+
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
 			c.String("root-dir"),

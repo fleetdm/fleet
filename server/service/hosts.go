@@ -1587,6 +1587,121 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	return nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Host orbit debug logging
+////////////////////////////////////////////////////////////////////////////////
+
+const (
+	// defaultOrbitDebugLoggingDuration is the fallback TTL for a host-level
+	// orbit debug-logging override when the caller doesn't specify one.
+	defaultOrbitDebugLoggingDuration = 24 * time.Hour
+	// maxOrbitDebugLoggingDuration caps how long a host-level override can be
+	// active for. Forces re-enablement on long investigations.
+	maxOrbitDebugLoggingDuration = 7 * 24 * time.Hour
+)
+
+type hostOrbitDebugLoggingRequest struct {
+	HostID uint `url:"id"`
+	// Enabled controls whether debug logging is turned on (true) or cleared
+	// (false). When false, Duration is ignored.
+	Enabled bool `json:"enabled"`
+	// Duration is a Go duration string (e.g. "24h", "30m"). An empty or
+	// omitted value means "use the server default". time.Duration is not
+	// used on the wire because encoding/json represents it as nanoseconds,
+	// which doesn't round-trip with the human-readable "24h" form the UI and
+	// fleetctl send.
+	Duration string `json:"duration,omitempty"`
+}
+
+type hostOrbitDebugLoggingResponse struct {
+	OrbitDebugUntil *time.Time `json:"orbit_debug_until,omitempty"`
+	Err             error      `json:"error,omitempty"`
+}
+
+func (r hostOrbitDebugLoggingResponse) Error() error { return r.Err }
+
+func hostOrbitDebugLoggingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*hostOrbitDebugLoggingRequest)
+	var duration time.Duration
+	if req.Duration != "" {
+		d, err := time.ParseDuration(req.Duration)
+		if err != nil {
+			return hostOrbitDebugLoggingResponse{
+				Err: fleet.NewInvalidArgumentError(
+					"duration",
+					fmt.Sprintf("invalid duration %q: %s", req.Duration, err),
+				),
+			}, nil
+		}
+		duration = d
+	}
+	until, err := svc.SetHostOrbitDebugLogging(ctx, req.HostID, req.Enabled, duration)
+	if err != nil {
+		return hostOrbitDebugLoggingResponse{Err: err}, nil
+	}
+	return hostOrbitDebugLoggingResponse{OrbitDebugUntil: until}, nil
+}
+
+// SetHostOrbitDebugLogging enables or disables the host-level orbit debug
+// logging override for a single host. When enabled, orbit picks up the new
+// state on its next config poll (up to 30s) and no restart is required.
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (svc *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, duration time.Duration) (*time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find host for orbit debug logging")
+	}
+
+	// Admin/maintainer only — mirrors other host-mutating endpoints. Observers
+	// should not be able to flip on verbose logging that may leak tokens.
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if !enabled {
+		if err := svc.ds.UpdateHostOrbitDebugUntil(ctx, hostID, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clearing host orbit debug override")
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledHostOrbitDebugLogging{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create disabled host orbit debug logging activity")
+		}
+		return nil, nil
+	}
+
+	if duration < 0 {
+		return nil, fleet.NewInvalidArgumentError("duration", "must not be negative")
+	}
+	if duration == 0 {
+		duration = defaultOrbitDebugLoggingDuration
+	}
+	if duration > maxOrbitDebugLoggingDuration {
+		return nil, fleet.NewInvalidArgumentError(
+			"duration",
+			fmt.Sprintf("must not exceed %s", maxOrbitDebugLoggingDuration),
+		)
+	}
+
+	until := time.Now().Add(duration).UTC().Truncate(time.Second)
+	if err := svc.ds.UpdateHostOrbitDebugUntil(ctx, hostID, &until); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting host orbit debug override")
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEnabledHostOrbitDebugLogging{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		ExpiresAt:       until,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create enabled host orbit debug logging activity")
+	}
+	return &until, nil
+}
+
 func (svc *Service) verifyMDMConfiguredAndConnected(ctx context.Context, host *fleet.Host) error {
 	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 		if errors.Is(err, fleet.ErrMDMNotConfigured) {

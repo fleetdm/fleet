@@ -2233,6 +2233,69 @@ func TestRefetchHost(t *testing.T) {
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
+func TestSetHostOrbitDebugLogging(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	host := &fleet.Host{ID: 42, Hostname: "h42"}
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+
+	var lastUntil *time.Time
+	ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, id uint, until *time.Time) error {
+		require.Equal(t, host.ID, id)
+		lastUntil = until
+		return nil
+	}
+	var emitted []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		emitted = append(emitted, activity)
+		return nil
+	}
+
+	userCtx := test.UserContext(ctx, test.UserAdmin)
+
+	// Enable with explicit duration.
+	until, err := svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 2*time.Hour)
+	require.NoError(t, err)
+	require.NotNil(t, until)
+	require.NotNil(t, lastUntil)
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *lastUntil, 5*time.Second)
+	require.Len(t, emitted, 1)
+	require.Equal(t, "enabled_host_orbit_debug_logging", emitted[0].ActivityName())
+
+	// Enable with 0 duration falls back to the default (24h).
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 0)
+	require.NoError(t, err)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *lastUntil, 5*time.Second)
+
+	// Duration above cap is rejected.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 30*24*time.Hour)
+	require.Error(t, err)
+	var iae *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &iae)
+
+	// Negative duration is rejected.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, -time.Second)
+	require.Error(t, err)
+
+	// Disable clears the override and emits the disable activity.
+	emitted = emitted[:0]
+	lastUntil = nil
+	ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, id uint, until *time.Time) error {
+		require.Nil(t, until)
+		return nil
+	}
+	until, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, false, 0)
+	require.NoError(t, err)
+	require.Nil(t, until)
+	require.Len(t, emitted, 1)
+	require.Equal(t, "disabled_host_orbit_debug_logging", emitted[0].ActivityName())
+}
+
 func TestRefetchHostUserInTeams(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

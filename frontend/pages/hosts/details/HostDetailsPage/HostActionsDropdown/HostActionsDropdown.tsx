@@ -26,6 +26,8 @@ interface IHostActionsDropdownProps {
   isRecoveryLockPasswordEnabled?: boolean;
   diskEncryptionProfileStatus?: string;
   recoveryLockPasswordAvailable?: boolean;
+  /** True when an unexpired orbit_debug_until is set on this host. */
+  orbitDebugActive?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -42,6 +44,7 @@ const HostActionsDropdown = ({
   isRecoveryLockPasswordEnabled = false,
   diskEncryptionProfileStatus,
   recoveryLockPasswordAvailable = false,
+  orbitDebugActive = false,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -96,6 +99,7 @@ const HostActionsDropdown = ({
     isRecoveryLockPasswordEnabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    orbitDebugActive,
   });
 
   // No options to render. Exit early

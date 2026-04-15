@@ -162,6 +162,8 @@ export enum ActivityType {
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
   ClearedPasscode = "cleared_passcode",
+  EnabledHostOrbitDebugLogging = "enabled_host_orbit_debug_logging",
+  DisabledHostOrbitDebugLogging = "disabled_host_orbit_debug_logging",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -184,7 +186,9 @@ export type IHostPastActivityType =
   | ActivityType.CanceledSetupExperience
   | ActivityType.InstalledCertificate
   | ActivityType.ResentCertificate
-  | ActivityType.ClearedPasscode;
+  | ActivityType.ClearedPasscode
+  | ActivityType.EnabledHostOrbitDebugLogging
+  | ActivityType.DisabledHostOrbitDebugLogging;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -233,6 +237,8 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
+  /** When a host-scoped orbit debug logging override expires (RFC3339). */
+  expires_at?: string;
   enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
   global?: boolean;
   grace_period_days?: number;
@@ -466,4 +472,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
   [ActivityType.ClearedPasscode]: "Cleared passcode",
+  [ActivityType.EnabledHostOrbitDebugLogging]:
+    "Enabled host orbit debug logging",
+  [ActivityType.DisabledHostOrbitDebugLogging]:
+    "Disabled host orbit debug logging",
 };

@@ -119,3 +119,38 @@ func TestDoFlagsUpdateWithEmptyFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, restartQueued)
 }
+
+// TestDoFlagsUpdateWithNilFlags covers the case where the server returns no
+// Flags field at all (nil json.RawMessage). This is what the server does when
+// the team has no agent-options command_line_flags set — which is the common
+// case when orbit debug logging is toggled off: the merged verbose/tls_dump
+// flags are gone but the admin never had any other flags, so the server sends
+// nil. FlagRunner must still reconcile the on-disk osquery.flags so osqueryd
+// drops its verbose behavior on next restart.
+func TestDoFlagsUpdateWithNilFlags(t *testing.T) {
+	rootDir := t.TempDir()
+	osqueryFlagsFile := filepath.Join(rootDir, "osquery.flags")
+
+	var restartQueued bool
+	queueOrbitRestart := func(string) { restartQueued = true }
+	fr := NewFlagReceiver(queueOrbitRestart, FlagUpdateOptions{RootDir: rootDir})
+
+	// Nil Flags + no file on disk → no-op (preserves behavior for hosts that
+	// never had agent-options flags).
+	err := fr.Run(&fleet.OrbitConfig{Flags: nil})
+	require.NoError(t, err)
+	require.False(t, restartQueued)
+
+	// Nil Flags + file on disk with content → reconcile to empty + restart.
+	// This is the key case for orbit-debug-logging disable.
+	err = os.WriteFile(osqueryFlagsFile, []byte("--verbose=true\n--tls_dump=true\n"), 0o644)
+	require.NoError(t, err)
+	err = fr.Run(&fleet.OrbitConfig{Flags: nil})
+	require.NoError(t, err)
+	require.True(t, restartQueued)
+
+	// After the reconciliation, the file should be empty.
+	contents, err := os.ReadFile(osqueryFlagsFile)
+	require.NoError(t, err)
+	require.Empty(t, string(contents))
+}
