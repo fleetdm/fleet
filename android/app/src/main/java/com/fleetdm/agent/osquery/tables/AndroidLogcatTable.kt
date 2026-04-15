@@ -21,22 +21,12 @@ class AndroidLogcatTable(private val context: Context) : TablePlugin {
     )
 
     override suspend fun generate(ctx: TableQueryContext): List<Map<String, String>> {
-        if (!isLogcatTableEnabled()) return emptyList()
+        if (!com.fleetdm.agent.BuildConfig.DEBUG && !isLogcatTableEnabled()) return emptyList()
 
         val rows = mutableListOf<Map<String, String>>()
         val command =
             listOf(
                 "logcat", "-d", "-v", "brief",
-                "fleet-app:V",
-                "fleet-ApiClient:V",
-                "fleet-distributed:V",
-                "fleet-CertificateEnrollmentWorker:V",
-                "fleet-CertificateOrchestrator:V",
-                "fleet-boot:V",
-                "fleet-RoleNotificationReceiverService:V",
-                "fleet-crash:V",
-                "FleetOsquery:V",
-                "*:S",
             ).toTypedArray()
 
         try {
