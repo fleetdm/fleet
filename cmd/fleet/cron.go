@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1908,7 +1910,31 @@ func newHelloWorldSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("hello_world", func(ctx context.Context) error {
-			fmt.Println("------------------ hello world -----------------------")
+			teamID := uint(17)
+			installers, err := ds.GetHomebrewInstallers(ctx, teamID) // TODO(JK): hardcoded
+			if err != nil {
+				return err
+			}
+
+			ingester := &homebrew.BrewIngester{
+				BaseURL: homebrew.BaseBrewAPIURL,
+				Logger:  logger,
+				Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			}
+
+			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
+			for _, si := range installers {
+				var input homebrew.InputApp
+				input.Token = si.SoftwareTitle
+
+				fma, err := ingester.IngestOne(ctx, input)
+				if err != nil {
+					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "current", si.Version, "err", err)
+					continue
+				}
+				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "current", si.Version, "latest", fma.Version)
+			}
+			logger.InfoContext(ctx, "--------------------------------------------------------------")
 			return nil
 		}),
 	)
