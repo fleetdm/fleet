@@ -33,6 +33,8 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
+import FleetArcade from "components/FleetArcade";
+import useKonamiCode from "hooks/useKonamiCode";
 
 interface IAppProps {
   children: JSX.Element;
@@ -91,6 +93,14 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [arcadeOpen, setArcadeOpen] = useState(false);
+
+  // Secret: up up down down left right left right b a launches the arcade,
+  // but only for an authenticated user and never on the device user page.
+  useKonamiCode(
+    () => setArcadeOpen(true),
+    !!currentUser && !location?.pathname.includes("/device/")
+  );
 
   // We will do a series of API calls to get the data that we need to display
   // warnings to the user about various token expirations.
@@ -298,6 +308,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
             >
               <div className={baseClass}>{children}</div>
             </ErrorBoundary>
+            {arcadeOpen && <FleetArcade onClose={() => setArcadeOpen(false)} />}
           </NotificationProvider>
         </PolicyProvider>
       </QueryProvider>
