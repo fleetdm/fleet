@@ -236,6 +236,15 @@ const ManageHostsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
 
+  // Open add hosts modal via query param (e.g. from command palette)
+  useEffect(() => {
+    if (queryParams?.add_hosts === "1") {
+      setShowAddHostsModal(true);
+      const { add_hosts, ...rest } = queryParams;
+      router.replace({ pathname: location.pathname, query: rest });
+    }
+  }, [queryParams?.add_hosts, location.pathname, router]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
