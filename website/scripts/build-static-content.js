@@ -753,7 +753,7 @@ module.exports = {
                     }
                   }
                 }
-                // If this is a whitepaper article, we'll check to make sure it has a whitepaperFilename and TODO metatags
+                // If this is a whitepaper article, we'll check to make sure it has `whitepaperFilename` and `formCallToAction` meta tags.
                 if(embeddedMetadata.category === 'whitepaper') {
                   if(!embeddedMetadata.formCallToAction){
                     throw new Error(`Failed compiling markdown content: A whitepaper article is missing a 'formCallToAction' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a formCallToAction meta tag with a value set to the heading that should be displayed on the form to download the whitepaper (e.g., "Learn how GitOps transforms device management") and try running this script again.`);
