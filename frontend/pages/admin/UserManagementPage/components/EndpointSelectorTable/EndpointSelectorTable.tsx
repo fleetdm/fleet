@@ -80,27 +80,7 @@ const searchResultsTableHeaders = [
 const generateSelectedTableHeaders = (
   handleRemove: (row: Row<IEndpointRow>) => void
 ) => [
-  {
-    title: "Name",
-    Header: "Name",
-    accessor: "display_name",
-    disableSortBy: true,
-    Cell: NameCell,
-  },
-  {
-    title: "Protocol",
-    Header: "Protocol",
-    accessor: "method",
-    disableSortBy: true,
-    Cell: (cellProps: ICellProps) => <code>{cellProps.cell.value}</code>,
-  },
-  {
-    title: "Path",
-    Header: "Path",
-    accessor: "path",
-    disableSortBy: true,
-    Cell: (cellProps: ICellProps) => <code>{cellProps.cell.value}</code>,
-  },
+  ...searchResultsTableHeaders,
   {
     id: "delete",
     Header: "",
