@@ -183,7 +183,7 @@ Whitepaper articles use a separate article template that requires additional `<m
 ### Webinar article meta tags
 
 Webinar articles use a separate article template and require one additional meta tag:
-- `webinarEmbeddedVideoUrl` : The URL of the webinar video. This will be ebmedded on a page that users are taken to after filling out the form to watch a webinar.
+- `webinarEmbeddedVideoUrl` : The URL of the webinar video. This will be embedded on a page that users are taken to after filling out the form to watch a webinar.
 
 
 ## Linking to a location on GitHub
