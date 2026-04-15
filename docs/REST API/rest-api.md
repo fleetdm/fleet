@@ -58,8 +58,6 @@ Authorization: Bearer <your token>
 
 ### Log in
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
-
 Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
 `POST /api/v1/fleet/login`
@@ -161,8 +159,6 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 ### Log out
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
-
 Logs out the authenticated user.
 
 `POST /api/v1/fleet/logout`
@@ -178,8 +174,6 @@ Logs out the authenticated user.
 ---
 
 ### Forgot password
-
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
@@ -227,8 +221,6 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 ### Update password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
-
 `POST /api/v1/fleet/change_password`
 
 Changes the password for the authenticated user.
@@ -275,8 +267,6 @@ Changes the password for the authenticated user.
 
 ### Reset password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
-
 Resets a user's password. Which user is determined by the password reset token used. The password reset token can be found in the password reset email sent to the desired user.
 
 `POST /api/v1/fleet/reset_password`
@@ -311,8 +301,6 @@ Resets a user's password. Which user is determined by the password reset token u
 ---
 
 ### Me
-
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 Retrieves the user data for the authenticated user.
 
@@ -363,8 +351,6 @@ Retrieves the user data for the authenticated user.
 
 ### Perform required password reset
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
-
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
 `POST /api/v1/fleet/perform_required_password_reset`
@@ -408,8 +394,6 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 ### SSO config
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
-
 Gets the current SSO configuration.
 
 `GET /api/v1/fleet/sso`
@@ -435,8 +419,6 @@ Gets the current SSO configuration.
 ---
 
 ### Initiate SSO
-
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 `POST /api/v1/fleet/sso`
 
@@ -487,8 +469,6 @@ Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; M
 
 ### SSO callback
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
-
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
 `POST /api/v1/fleet/sso/callback`
@@ -530,8 +510,6 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ## Activities
 
 ### List activities
-
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
@@ -640,8 +618,6 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Request certificate](#request-certificate)
 
 ### Connect certificate authority (CA)
-
-((Admin)) ((GitOps))
 
 Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA.
 
@@ -766,8 +742,6 @@ Object with the following structure:
 
 ### Add certificate template
 
-((Admin)) ((Maintainer)) ((GitOps))
-
 
 Add a certificate template to deploy a certificate to all hosts on the fleet. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
 
@@ -813,8 +787,6 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 
 ### Update certificate authority (CA)
 
-((Admin)) ((GitOps))
-
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `PATCH /api/v1/fleet/certificate_authorities/:id`
@@ -854,8 +826,6 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 `Status: 200`
 
 ### List certificate authorities (CAs)
-
-((Admin))
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -912,8 +882,6 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 ```
 
 ### Get certificate authority (CA)
-
-((Admin))
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
