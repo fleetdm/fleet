@@ -574,6 +574,8 @@ type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*flee
 
 type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
 
+type HostDeviceURLFunc func(ctx context.Context, hostID uint) (string, error)
+
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error)
@@ -1747,6 +1749,9 @@ type Service struct {
 
 	GetHostDEPAssignmentDetailsFunc        GetHostDEPAssignmentDetailsFunc
 	GetHostDEPAssignmentDetailsFuncInvoked bool
+
+	HostDeviceURLFunc        HostDeviceURLFunc
+	HostDeviceURLFuncInvoked bool
 
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
@@ -4201,6 +4206,13 @@ func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) 
 	s.GetHostDEPAssignmentDetailsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDEPAssignmentDetailsFunc(ctx, hostID)
+}
+
+func (s *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.HostDeviceURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostDeviceURLFunc(ctx, hostID)
 }
 
 func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {

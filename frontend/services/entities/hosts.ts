@@ -256,6 +256,11 @@ export interface IGetHostCertsRequestParams extends IListOptions {
   host_id: number;
 }
 
+export interface IGetHostDeviceURLResponse {
+  host_id: number;
+  device_url: string;
+}
+
 export interface IGetHostCertificatesResponse {
   certificates: IHostCertificate[];
   meta: {
@@ -664,6 +669,11 @@ export default {
   getRecoveryLockPassword: (id: number) => {
     const { HOST_RECOVERY_LOCK_PASSWORD } = endpoints;
     return sendRequest("GET", HOST_RECOVERY_LOCK_PASSWORD(id));
+  },
+
+  getDeviceURL: (id: number): Promise<IGetHostDeviceURLResponse> => {
+    const { HOST_DEVICE_URL } = endpoints;
+    return sendRequest("GET", HOST_DEVICE_URL(id));
   },
 
   rotateRecoveryLockPassword: (id: number): Promise<void> => {
