@@ -665,6 +665,12 @@ type ConditionalAccessClearBypassesFunc func(ctx context.Context) error
 
 type ConditionalAccessBypassedAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
 
+type GetHostPetFunc func(ctx context.Context, hostID uint) (*fleet.HostPet, error)
+
+type CreateHostPetFunc func(ctx context.Context, hostID uint, name string, species string) (*fleet.HostPet, error)
+
+type SaveHostPetFunc func(ctx context.Context, pet *fleet.HostPet) error
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -2826,6 +2832,15 @@ type DataStore struct {
 
 	ConditionalAccessBypassedAtFunc        ConditionalAccessBypassedAtFunc
 	ConditionalAccessBypassedAtFuncInvoked bool
+
+	GetHostPetFunc        GetHostPetFunc
+	GetHostPetFuncInvoked bool
+
+	CreateHostPetFunc        CreateHostPetFunc
+	CreateHostPetFuncInvoked bool
+
+	SaveHostPetFunc        SaveHostPetFunc
+	SaveHostPetFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -6872,6 +6887,27 @@ func (s *DataStore) ConditionalAccessBypassedAt(ctx context.Context, hostID uint
 	s.ConditionalAccessBypassedAtFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessBypassedAtFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostPet(ctx context.Context, hostID uint) (*fleet.HostPet, error) {
+	s.mu.Lock()
+	s.GetHostPetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostPetFunc(ctx, hostID)
+}
+
+func (s *DataStore) CreateHostPet(ctx context.Context, hostID uint, name string, species string) (*fleet.HostPet, error) {
+	s.mu.Lock()
+	s.CreateHostPetFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateHostPetFunc(ctx, hostID, name, species)
+}
+
+func (s *DataStore) SaveHostPet(ctx context.Context, pet *fleet.HostPet) error {
+	s.mu.Lock()
+	s.SaveHostPetFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveHostPetFunc(ctx, pet)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {

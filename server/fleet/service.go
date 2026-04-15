@@ -458,6 +458,16 @@ type Service interface {
 	// BypassConditionalAccess lets a host skip conditional access checks for one check
 	BypassConditionalAccess(ctx context.Context, host *Host) error
 
+	// GetDevicePet returns the pet for the given host, applying stat decay based on
+	// elapsed time and device-hygiene signals. Returns nil (no error) when the
+	// host has not adopted a pet yet.
+	GetDevicePet(ctx context.Context, host *Host) (*HostPet, error)
+	// AdoptDevicePet creates a new pet for the given host.
+	AdoptDevicePet(ctx context.Context, host *Host, name, species string) (*HostPet, error)
+	// ApplyDevicePetAction applies the given action (feed/play/clean/medicine) to
+	// the host's pet and returns the updated pet.
+	ApplyDevicePetAction(ctx context.Context, host *Host, action HostPetAction) (*HostPet, error)
+
 	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints

@@ -896,6 +896,20 @@ type Datastore interface {
 	// ConditionalAccessBypassedAt returns the time the bypass was enabled for a host, or nil if no bypass exists
 	ConditionalAccessBypassedAt(ctx context.Context, hostID uint) (*time.Time, error)
 
+	///////////////////////////////////////////////////////////////////////////////
+	// HostPetStore
+	//
+
+	// GetHostPet returns the pet associated with the given host. Returns a
+	// not-found error (see fleet.IsNotFound) when the host has not adopted a pet
+	// yet.
+	GetHostPet(ctx context.Context, hostID uint) (*HostPet, error)
+	// CreateHostPet adopts a new pet for the given host. Returns an already-exists
+	// error if the host already has a pet.
+	CreateHostPet(ctx context.Context, hostID uint, name, species string) (*HostPet, error)
+	// SaveHostPet persists the given pet's stats and last_interacted_at.
+	SaveHostPet(ctx context.Context, pet *HostPet) error
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error

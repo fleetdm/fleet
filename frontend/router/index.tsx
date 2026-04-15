@@ -433,6 +433,7 @@ const routes = (
             <Route path="self-service" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
+            <Route path="pet" component={DeviceUserPage} />
           </Route>
         </Route>
       </Route>
