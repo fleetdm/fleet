@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 
 	"github.com/Masterminds/semver"
@@ -19,9 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var bomRegexp = regexp.MustCompile(`(.+)\t([0-9]+/[0-9]+)`)
-
-// See helful docs in http://bomutils.dyndns.org/tutorial.html
+// See helpful docs in http://bomutils.dyndns.org/tutorial.html
 
 // BuildPkg builds a macOS .pkg.
 //
@@ -332,170 +329,42 @@ func writeUpdateClientCertificate(opt Options, orbitRoot string) error {
 }
 
 // xarBom creates the actual .pkg format. It's a xar archive with a BOM (Bill of
-// materials?). See http://bomutils.dyndns.org/tutorial.html.
-func xarBom(opt Options, rootPath string) error {
-	// Adapted from BSD licensed
-	// https://github.com/go-flutter-desktop/hover/blob/v0.46.2/cmd/packaging/darwin-pkg.go
-
-	// Copy payload/scripts
-	if err := cpio(
+// materials). See http://bomutils.dyndns.org/tutorial.html.
+//
+// All operations (cpio, mkbom, xar) are implemented in pure Go — no external
+// binaries or Docker images required.
+func xarBom(_ Options, rootPath string) error {
+	// Create compressed cpio archives for payload and scripts.
+	if err := writeCPIOGzip(
 		filepath.Join(rootPath, "root"),
 		filepath.Join(rootPath, "flat", "base.pkg", "Payload"),
+		0, 80,
 	); err != nil {
 		return fmt.Errorf("cpio Payload: %w", err)
 	}
-	if err := cpio(
+	if err := writeCPIOGzip(
 		filepath.Join(rootPath, "scripts"),
 		filepath.Join(rootPath, "flat", "base.pkg", "Scripts"),
+		0, 80,
 	); err != nil {
 		return fmt.Errorf("cpio Scripts: %w", err)
 	}
 
-	// Make Bill of materials (bom)
-	var cmdMkbom *exec.Cmd
-	isDarwin := runtime.GOOS == "darwin"
-	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
-
-	switch {
-	case isDarwin:
-		// Using mkbom directly results in permissions listed for the current user and group. We
-		// transform the output in order to explicitly set root (0) and admin (80).
-		inBomPath := filepath.Join(rootPath, "inBom")
-		cmd := exec.Command("mkbom", filepath.Join(rootPath, "root"), inBomPath)
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("initial mkbom: %w", err)
-		}
-		bomContents, err := exec.Command("lsbom", inBomPath).Output()
-		if err != nil {
-			return fmt.Errorf("lsbom inBom: %w", err)
-		}
-		bomContents = bomReplace(bomContents)
-		if err := os.WriteFile(inBomPath, bomContents, 0); err != nil {
-			return fmt.Errorf("write inBom: %w", err)
-		}
-
-		// Use the file list (with transformed permissions) via -i flag
-		cmdMkbom = exec.Command("mkbom", "-i", "inBom", filepath.Join("flat", "base.pkg", "Bom"))
-		cmdMkbom.Dir = rootPath
-
-	// No need for transformation when using the Linux mkbom because of the -u and -g flags
-	// available in that command.
-	case isLinuxNative:
-		cmdMkbom = exec.Command(
-			"mkbom", "-u", "0", "-g", "80",
-			filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"),
-		)
-		cmdMkbom.Dir = rootPath
-	default:
-		// Same as linux native, but modified for running in Docker. This should
-		// be either Windows, or Linux without the --native-tooling flag.
-		cmdMkbom = exec.Command(
-			"docker", "run", "--rm", "-v", rootPath+":/root", "fleetdm/bomutils",
-			"mkbom", "-u", "0", "-g", "80",
-			// Use / instead of filepath.Join because these will always be paths within the Docker
-			// container (so Linux file paths) -- if we use filepath.Join we'll get invalid paths on
-			// Windows due to use of backslashes.
-			"/root/root", "/root/flat/base.pkg/Bom",
-		)
-	}
-
-	cmdMkbom.Stdout, cmdMkbom.Stderr = os.Stdout, os.Stderr
-	if err := cmdMkbom.Run(); err != nil {
+	// Create Bill of Materials (BOM) with uid=0 (root) and gid=80 (admin).
+	if err := writeBOM(
+		filepath.Join(rootPath, "root"),
+		filepath.Join(rootPath, "flat", "base.pkg", "Bom"),
+		0, 80,
+	); err != nil {
 		return fmt.Errorf("mkbom: %w", err)
 	}
 
-	// List files for xar
-	var files []string
-	err := filepath.Walk(
+	// Create XAR archive (the .pkg file) with no compression.
+	if err := writeXAR(
 		filepath.Join(rootPath, "flat"),
-		func(path string, info os.FileInfo, _ error) error {
-			relativePath, err := filepath.Rel(filepath.Join(rootPath, "flat"), path)
-			if err != nil {
-				return err
-			}
-			files = append(files, relativePath)
-			return nil
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("iterate files: %w", err)
-	}
-
-	// Make xar
-	var cmdXar *exec.Cmd
-	switch {
-	case isDarwin, isLinuxNative:
-		cmdXar = exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
-		cmdXar.Dir = filepath.Join(rootPath, "flat")
-	default:
-		cmdXar = exec.Command(
-			"docker", "run", "--rm", "-v", rootPath+":/root", "-w", "/root/flat", "fleetdm/bomutils",
-			"xar",
-		)
-		cmdXar.Args = append(cmdXar.Args, append([]string{"--compression", "none", "-cf", "/root/orbit.pkg"}, files...)...)
-	}
-
-	cmdXar.Stdout, cmdXar.Stderr = os.Stdout, os.Stderr
-	if err := cmdXar.Run(); err != nil {
+		filepath.Join(rootPath, "orbit.pkg"),
+	); err != nil {
 		return fmt.Errorf("run xar: %w", err)
-	}
-
-	return nil
-}
-
-// bomReplace replaces the permission strings (typically "501/20") with the appropriate string ("0/80")
-func bomReplace(inBom []byte) []byte {
-	return bomRegexp.ReplaceAll(inBom, []byte("$1\t0/80"))
-}
-
-func cpio(srcPath, dstPath string) error {
-	// This is the compression routine that is expected for pkg files.
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o755)
-	if err != nil {
-		return fmt.Errorf("open dst: %w", err)
-	}
-	defer dst.Close()
-
-	cmdFind := exec.Command("find", ".")
-	cmdFind.Dir = srcPath
-	cmdCpio := exec.Command("cpio", "-o", "--format", "odc", "-R", "0:80")
-	cmdCpio.Dir = srcPath
-	cmdGzip := exec.Command("gzip", "-c")
-
-	// Pipes like this: find | cpio | gzip > dstPath
-	cmdCpio.Stdin, err = cmdFind.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("pipe cpio: %w", err)
-	}
-	cmdGzip.Stdin, err = cmdCpio.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("pipe gzip: %w", err)
-	}
-	cmdGzip.Stdout = dst
-
-	err = cmdGzip.Start()
-	if err != nil {
-		return fmt.Errorf("start gzip: %w", err)
-	}
-	err = cmdCpio.Start()
-	if err != nil {
-		return fmt.Errorf("start cpio: %w", err)
-	}
-	err = cmdFind.Run()
-	if err != nil {
-		return fmt.Errorf("run find: %w", err)
-	}
-	err = cmdCpio.Wait()
-	if err != nil {
-		return fmt.Errorf("wait cpio: %w", err)
-	}
-	err = cmdGzip.Wait()
-	if err != nil {
-		return fmt.Errorf("wait gzip: %w", err)
-	}
-	err = dst.Sync()
-	if err != nil {
-		return fmt.Errorf("sync dst: %w", err)
 	}
 
 	return nil
