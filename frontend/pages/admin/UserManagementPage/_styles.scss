@@ -262,7 +262,24 @@
       }
     }
 
+    .data-table__table {
+      table-layout: fixed;
+    }
+
+    .method__header,
+    .method__cell {
+      width: 100px;
+    }
+
+    .path__cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .delete__header,
     .delete__cell {
+      width: 40px;
       text-align: center;
     }
   }
