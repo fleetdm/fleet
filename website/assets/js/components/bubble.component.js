@@ -26,23 +26,23 @@ parasails.registerComponent('bubble', {
 
     switch (this.type.toLowerCase()) {
       case 'admin':
-        roleLink = '/guides/role-based-access#admin'
+        roleLink = '/guides/role-based-access#admin';
         break;
       case 'maintainer':
-        roleLink = '/guides/role-based-access#maintainer'
+        roleLink = '/guides/role-based-access#maintainer';
         break;
       case 'observer':
-        roleLink = '/guides/role-based-access#observer'
+        roleLink = '/guides/role-based-access#observer';
         break;
       case 'observer+':
-        roleLink = '/guides/role-based-access#observer2'
+        roleLink = '/guides/role-based-access#observer2';
         rawType = 'observer-plus';
         break;
       case 'technician':
-        roleLink = '/guides/role-based-access#technician'
+        roleLink = '/guides/role-based-access#technician';
         break;
       case 'gitops':
-        roleLink = '/guides/role-based-access#gitops'
+        roleLink = '/guides/role-based-access#gitops';
         break;
     }
 
