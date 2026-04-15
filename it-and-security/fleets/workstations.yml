@@ -314,10 +314,6 @@ software:
       self_service: true
       categories:
         - Productivity
-    - slug: imazing-profile-editor/darwin # iMazing Profile Editor for macOS
-      self_service: true
-      categories:
-        - Developer tools
     - slug: postman/darwin # Postman for macOS
       self_service: true
       categories:
