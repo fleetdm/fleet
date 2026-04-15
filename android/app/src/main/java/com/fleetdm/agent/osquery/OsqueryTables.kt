@@ -36,7 +36,7 @@ object OsqueryTables {
         TableRegistry.register(OsVersionTable())
         TableRegistry.register(OsqueryInfoTable(context))
         TableRegistry.register(CertificatesTable())
-        TableRegistry.register(DeviceInfoTable())
+        TableRegistry.register(DeviceInfoTable(context))
         TableRegistry.register(NetworkInterfacesTable(context))
         TableRegistry.register(BatteryTable(context))
         TableRegistry.register(WifiNetworksTable(context))

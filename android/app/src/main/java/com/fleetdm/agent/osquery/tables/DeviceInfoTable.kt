@@ -1,12 +1,14 @@
 package com.fleetdm.agent.osquery.tables
 
+import android.app.KeyguardManager
+import android.content.Context
 import android.os.Build
 import com.fleetdm.agent.osquery.core.ColumnDef
 import com.fleetdm.agent.osquery.core.TablePlugin
 import com.fleetdm.agent.osquery.core.TableQueryContext
 import java.util.Locale
 
-class DeviceInfoTable : TablePlugin {
+class DeviceInfoTable(private val context: Context) : TablePlugin {
     override val name: String = "device_info"
 
     override fun columns(): List<ColumnDef> = listOf(
@@ -21,10 +23,14 @@ class DeviceInfoTable : TablePlugin {
         ColumnDef("bootloader"),
         ColumnDef("tags"),
         ColumnDef("type"),
+        ColumnDef("is_device_secure"),
     )
 
     override suspend fun generate(ctx: TableQueryContext): List<Map<String, String>> {
         fun s(v: String?): String = (v ?: "").trim()
+
+        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        val isSecure = if (km?.isDeviceSecure == true) "1" else "0"
 
         return listOf(
             mapOf(
@@ -39,6 +45,7 @@ class DeviceInfoTable : TablePlugin {
                 "bootloader" to s(Build.BOOTLOADER),
                 "tags" to s(Build.TAGS).lowercase(Locale.ROOT),
                 "type" to s(Build.TYPE).lowercase(Locale.ROOT),
+                "is_device_secure" to isSecure,
             ),
         )
     }
