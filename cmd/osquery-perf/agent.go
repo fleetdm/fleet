@@ -1191,8 +1191,8 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 	// a tokens fetch is compared to it: if it matches, the server has settled
 	// (or nothing changed on the first pass). If it differs, we sync
 	// declaration-items and fetch changed declarations, then loop to check
-	// again. This way the tokens call at the top of iteration N+1 serves as
-	// the convergence check for iteration N — no redundant fetch.
+	// again (mimicking the real device behavior, see
+	// https://github.com/fleetdm/fleet/issues/43050#issuecomment-4252241277.
 	prevToken := a.ddmGlobalToken
 	var items *fleet.MDMAppleDDMDeclarationItemsResponse
 	var currentTokens map[string]string
@@ -1217,9 +1217,7 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 		}
 
 		// Check each manifest item against cached tokens, fetch changed ones.
-		// Real devices fetch activations before configurations.
 		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations))
-
 		for _, d := range items.Declarations.Activations {
 			currentTokens[d.Identifier] = d.ServerToken
 			if a.ddmDeclTokens[d.Identifier] != d.ServerToken {
@@ -1240,7 +1238,9 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 			}
 		}
 
-		// Check for removed items (in cache but not in manifest)
+		// Check for removed items (in cache but not in manifest) - no need to check if changes are
+		// already detected, as the whole set of declaration tokens will get replaced with the current ones.
+		// This is just to detect the case where the only change is a removal.
 		if !changed {
 			for id := range a.ddmDeclTokens {
 				if _, ok := currentTokens[id]; !ok {
@@ -1250,8 +1250,6 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 			}
 		}
 
-		// Record this token so the next iteration's tokens fetch can detect
-		// whether the server has settled.
 		prevToken = globalToken
 	}
 
