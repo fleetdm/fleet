@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2603.3.3",
+      "version": "2603.3.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad' AND version_compare(bundle_short_version, '2603.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad' AND version_compare(bundle_short_version, '2603.3.4') < 0);"
       },
-      "installer_url": "https://storage.googleapis.com/dialpad_native/osx/arm64/Dialpad.2603.3.3.zip",
+      "installer_url": "https://storage.googleapis.com/dialpad_native/osx/arm64/Dialpad.2603.3.4.zip",
       "install_script_ref": "ce137382",
       "uninstall_script_ref": "baa2497a",
-      "sha256": "23a7a7456d660d5a52cd6360e90bbf54d61b4a5ebdfd62f2b1c81b8528a90368",
+      "sha256": "872343f67bbf5dfa3f2968f3a1ff58b8c0552ac1c5edf09104b83919e0ca111d",
       "default_categories": [
         "Communication"
       ]
