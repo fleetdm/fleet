@@ -626,6 +626,23 @@ module.exports.routes = {
     }
   },
 
+
+  'GET /webinars/:slug': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: false,
+    }
+  },
+
+  'GET /webinars/:slug/watch': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: true,
+      disableChatbotAndIndexing: true,
+      hideFooterLinks: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
