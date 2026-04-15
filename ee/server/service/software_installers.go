@@ -76,6 +76,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UninstallScript = fma.UninstallScript
 		payload.Title = payload.FromHomebrew // hack
 		payload.Extension = filepath.Base(payload.URL)
+		payload.Platform = "darwin"
 
 		fmt.Printf("%#v\n", payload)
 
@@ -90,6 +91,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		defer installerTFR.Close()
 
 		fmt.Println("downloaded: ", filename)
+		payload.Filename = filename
 
 		payload.InstallerFile = installerTFR
 		payload.StorageID = fma.SHA256

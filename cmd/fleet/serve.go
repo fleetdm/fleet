@@ -1207,6 +1207,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "failed to register batch activities schedule")
 	}
 
+	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		return newHelloWorldSchedule(ctx, instanceID, ds, logger)
+	}); err != nil {
+		initFatal(err, "failed to register hello_world schedule")
+	}
+
 	vulnerabilityScheduleDisabled := false
 	if config.Vulnerabilities.DisableSchedule {
 		vulnerabilityScheduleDisabled = true

@@ -1893,6 +1893,28 @@ func cronBatchActivityCompletionChecker(
 	return nil
 }
 
+func newHelloWorldSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronHelloWorld)
+		defaultInterval = 30 * time.Second
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("hello_world", func(ctx context.Context) error {
+			fmt.Println("------------------ hello world -----------------------")
+			return nil
+		}),
+	)
+	return s, nil
+}
+
 func stringSliceToUintSlice(ctx context.Context, s []string, logger *slog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {

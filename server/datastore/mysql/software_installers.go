@@ -324,8 +324,9 @@ INSERT INTO software_installers (
  	url,
  	upgrade_code,
  	is_active,
-	patch_query
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?)`
+	patch_query,
+	from_homebrew
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -350,6 +351,7 @@ INSERT INTO software_installers (
 			payload.UpgradeCode,
 			true,
 			payload.PatchQuery,
+			payload.FromHomebrew != "",
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
