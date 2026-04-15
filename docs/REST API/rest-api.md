@@ -742,7 +742,6 @@ Object with the following structure:
 
 ### Add certificate template
 
-
 Add a certificate template to deploy a certificate to all hosts on the fleet. Fleet currently supports adding certificates for Android that are issued from a custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority.
 
 `POST /api/v1/fleet/certificates`
