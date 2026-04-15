@@ -13,7 +13,7 @@ func TestDebugLogReceiver(t *testing.T) {
 	orig := zerolog.GlobalLevel()
 	t.Cleanup(func() { zerolog.SetGlobalLevel(orig) })
 
-	r := NewDebugLogReceiver()
+	r := NewDebugLogReceiver(false)
 
 	trueVal := true
 	falseVal := false
@@ -77,5 +77,34 @@ func TestDebugLogReceiverNilConfig(t *testing.T) {
 	orig := zerolog.GlobalLevel()
 	t.Cleanup(func() { zerolog.SetGlobalLevel(orig) })
 
-	require.NoError(t, NewDebugLogReceiver().Run(nil))
+	require.NoError(t, NewDebugLogReceiver(false).Run(nil))
+}
+
+// TestDebugLogReceiverStartupFlagIsFloor verifies that when orbit was
+// launched with --debug, the server cannot lower the level to info: the
+// startup flag acts as a floor. Requests to turn debug ON are still honored.
+func TestDebugLogReceiverStartupFlagIsFloor(t *testing.T) {
+	orig := zerolog.GlobalLevel()
+	t.Cleanup(func() { zerolog.SetGlobalLevel(orig) })
+
+	r := NewDebugLogReceiver(true)
+
+	trueVal := true
+	falseVal := false
+
+	// Server says off, but startup flag keeps debug on.
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: &falseVal}))
+	require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
+
+	// Level somehow got lowered externally (shouldn't happen, but defense
+	// in depth) — server says off — we still refuse to lower.
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: &falseVal}))
+	require.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
+
+	// Server says on from a lowered state — honored (raising is always OK).
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: &trueVal}))
+	require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
 }
