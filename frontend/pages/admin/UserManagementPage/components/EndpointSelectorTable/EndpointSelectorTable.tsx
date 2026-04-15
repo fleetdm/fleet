@@ -209,8 +209,12 @@ const EndpointSelectorTable = ({
             emptyComponent={() => (
               <div className="empty-search">
                 <div className="empty-search__inner">
-                  <h4>No matching endpoints.</h4>
-                  <p>Try a different search term.</p>
+                  <h4>No matching API endpoints.</h4>
+                  <p>
+                    Please check the API documentation and try again.
+                    <br />
+                    Experimental endpoints are not supported.
+                  </p>
                 </div>
               </div>
             )}

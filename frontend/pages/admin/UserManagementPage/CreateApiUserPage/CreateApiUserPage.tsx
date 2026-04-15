@@ -5,7 +5,6 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
@@ -61,14 +60,8 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
           router.push(PATHS.ADMIN_USERS);
         }
       })
-      .catch((userErrors: { data: IApiError }) => {
-        if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-          setFormErrors({
-            name: "A user with this name already exists",
-          });
-        } else {
-          renderFlash("error", "Could not create user. Please try again.");
-        }
+      .catch(() => {
+        renderFlash("error", "Could not create user. Please try again.");
       })
       .finally(() => {
         setIsSubmitting(false);

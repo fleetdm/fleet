@@ -22,7 +22,7 @@ const ApiKeyDisplay = ({ apiKey, onDone }: IApiKeyDisplayProps) => {
         Please make a note of this API key since it is the only time you will be
         able to view it.
       </InfoBanner>
-      <div className={`${baseClass}__done-button`}>
+      <div>
         <Button onClick={onDone}>Done</Button>
       </div>
     </div>

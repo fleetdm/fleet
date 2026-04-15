@@ -17,8 +17,6 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import ApiAccessSection from "../ApiAccessSection";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-const baseClass = "api-user-form";
-
 export interface IApiEndpointRef {
   method: string;
   path: string;
@@ -201,7 +199,6 @@ const ApiUserForm = ({
       <div className="form-field team-field">
         <div className="form-field__label">Permissions</div>
         <Radio
-          className={`${baseClass}__radio-input`}
           label="Global user"
           id="global-user"
           checked={isGlobalUser}
@@ -210,7 +207,6 @@ const ApiUserForm = ({
           onChange={handleIsGlobalUserChange}
         />
         <Radio
-          className={`${baseClass}__radio-input`}
           label="Assign to fleet(s)"
           id="assign-teams"
           checked={!isGlobalUser}
@@ -225,7 +221,7 @@ const ApiUserForm = ({
   );
 
   return (
-    <div className={baseClass}>
+    <div>
       <form autoComplete="off">
         <InputField
           name="name"
