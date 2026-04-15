@@ -62,16 +62,18 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     }
   );
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ILoadTeamsResponse) => data.teams,
+  });
 
-  const isLoading = isInvite ? isLoadingInvite : isLoadingUser;
+  const isLoading =
+    (isInvite ? isLoadingInvite : isLoadingUser) ||
+    (isPremiumTier && isLoadingTeams);
   const hasError = isInvite ? inviteError || !invite : userError || !user;
   const entityData = isInvite ? invite : user;
 
@@ -215,7 +217,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     <MainContent className={baseClass}>
       <>
         <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
-        <h1>Edit user</h1>
+        <h1>{showApiForm ? "Edit API-only user" : "Edit user"}</h1>
         {showApiForm ? (
           <ApiUserForm
             onCancel={() => router.push(PATHS.ADMIN_USERS)}
