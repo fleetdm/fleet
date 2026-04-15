@@ -1,14 +1,14 @@
 module.exports = {
 
 
-  friendlyName: 'View query library',
+  friendlyName: 'View report library',
 
 
-  description: 'Display "Query library" page.',
+  description: 'Display "Report library" page.',
 
 
   exits: {
-    success: { viewTemplatePath: 'pages/docs/query-library' },
+    success: { viewTemplatePath: 'pages/docs/report-library' },
     badConfig: { responseType: 'badConfig' },
   },
 
