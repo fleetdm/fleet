@@ -28358,8 +28358,9 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
 			Teams        []teamEntry   `json:"teams"`
 		} `json:"user"`
-		Token string `json:"token"`
-		Err   string `json:"error,omitempty"`
+		Token  string              `json:"token"`
+		Err    string              `json:"error,omitempty"`
+		Errors []map[string]string `json:"errors,omitempty"`
 	}
 
 	cases := []struct {
@@ -28401,7 +28402,8 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			},
 			wantStatus: http.StatusUnprocessableEntity,
 			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
-				require.Contains(t, resp.Err, "|GET|api/v1/fleet/nonexistent/endpoint|")
+				require.Len(t, resp.Errors, 1)
+				require.Contains(t, resp.Errors[0]["reason"], "|GET|/api/v1/fleet/nonexistent/endpoint|")
 			},
 		},
 		{

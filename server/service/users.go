@@ -240,10 +240,15 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 // Create API-Only user
 ////////////////////////////////////////////////////////////////////////////////
 
+type fleetsPayload struct {
+	ID   uint   `json:"id" db:"id"`
+	Role string `json:"role" db:"role"`
+}
+
 type createAPIOnlyUserRequest struct {
 	Name         *string                 `json:"name,omitempty"`
 	GlobalRole   *string                 `json:"global_role,omitempty"`
-	Fleets       *[]fleet.UserTeam       `json:"fleets,omitempty"`
+	Fleets       *[]fleetsPayload        `json:"fleets,omitempty"`
 	APIEndpoints *[]fleet.APIEndpointRef `json:"api_endpoints,omitempty"`
 }
 
@@ -273,6 +278,16 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 		}, nil
 	}
 
+	var fleets []fleet.UserTeam
+	if req.Fleets != nil {
+		for _, t := range *req.Fleets {
+			val := fleet.UserTeam{}
+			val.ID = t.ID
+			val.Role = t.Role
+			fleets = append(fleets, val)
+		}
+	}
+
 	user, token, err := svc.CreateUser(ctx, fleet.UserPayload{
 		Name:                     req.Name,
 		Email:                    &email,
@@ -280,7 +295,7 @@ func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Servi
 		APIOnly:                  new(true),
 		AdminForcedPasswordReset: new(false),
 		GlobalRole:               req.GlobalRole,
-		Teams:                    req.Fleets,
+		Teams:                    &fleets,
 		APIEndpoints:             req.APIEndpoints,
 	})
 	if err != nil {
