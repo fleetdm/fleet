@@ -23,53 +23,8 @@
   query: SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
-- name: x86 Windows hosts with Brave Browser installed
-  description: x86 Windows hosts with Brave Browser installed
-  query: SELECT 1 FROM programs WHERE name = 'Brave' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
 - name: x86 Windows hosts with Visual Studio Code installed
   description: x86 Windows hosts with Visual Studio Code installed
   query: SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual Studio Code%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Docker Desktop installed
-  description: x86 Windows hosts with Docker Desktop installed
-  query: SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with GitHub Desktop installed
-  description: x86 Windows hosts with GitHub Desktop installed
-  query: SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Postman installed
-  description: x86 Windows hosts with Postman installed
-  query: SELECT 1 FROM programs WHERE name LIKE 'Postman%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Sublime Text installed
-  description: x86 Windows hosts with Sublime Text installed
-  query: SELECT 1 FROM programs WHERE name = 'Sublime Text' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Spotify installed
-  description: x86 Windows hosts with Spotify installed
-  query: SELECT 1 FROM programs WHERE name = 'Spotify' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Figma installed
-  description: x86 Windows hosts with Figma installed
-  query: SELECT 1 FROM programs WHERE name = 'Figma' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Google Drive installed
-  description: x86 Windows hosts with Google Drive installed
-  query: SELECT 1 FROM programs WHERE name = 'Google Drive' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
-  label_membership_type: dynamic
-  platform: windows
-- name: x86 Windows hosts with Cursor installed
-  description: x86 Windows hosts with Cursor installed
-  query: SELECT 1 FROM programs WHERE name = 'Cursor' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
