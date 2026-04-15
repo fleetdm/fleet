@@ -6,6 +6,8 @@ Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by 
 
 Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
+To deploy certificates on a self-hosted Fleet instance, you'll need to configure a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
 Currently, these are supported platforms for each certificate authority:
 - **Okta**: macOS, iOS, and iPadOS
 - **DigiCert**: macOS, iOS, and iPadOS
@@ -701,13 +703,13 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>FLEET DEVICE MANAGEMENT</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -954,7 +956,7 @@ Automatic renewal is only supported if the validity period is set to 2 days or l
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
+Fleet automatically retries failed certificate delivery for macOS, iOS, iPadOS, Windows, and Android hosts. Apple and Android certificates are attempted up to 4 times (1 initial attempt + 3 retries). Currently, Windows are attempted only once (4 times [coming soon](https://github.com/fleetdm/fleet/issues/42981)).
 
 > Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >

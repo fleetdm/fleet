@@ -23,9 +23,6 @@ They integrated Fleet as a cornerstone of their digital transformation. They req
 - **Operational efficiency:** The transition achieved a 100% reduction in manual data entry for key asset management tasks, freeing IT staff to focus on high-impact innovations like drone logistics.  
 - **Automated asset tracking:** Using Fleet’s API, the team synced device data directly with warehouse inventory systems, ensuring that critical cold-chain hardware is always accounted for across 89 branches.
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.  
 
 <meta name="articleTitle" value="Agritech producer replaces manual tracking across 273 devices">
 <meta name="authorFullName" value="Irena Reedy">

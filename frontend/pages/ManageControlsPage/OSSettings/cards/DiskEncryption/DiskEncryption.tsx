@@ -275,7 +275,6 @@ const DiskEncryption = ({
           )}
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
-              tipOffset={-12}
               renderChildren={(d) => (
                 <Button
                   disabled={d}

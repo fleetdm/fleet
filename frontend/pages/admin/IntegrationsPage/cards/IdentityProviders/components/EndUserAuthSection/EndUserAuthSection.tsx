@@ -11,7 +11,6 @@ import configAPI from "services/entities/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -137,15 +136,14 @@ const EndUserAuthSection = ({
     return (
       <form>
         <p>
-          If enabled in{" "}
+          After configuring, head to{" "}
           <strong>
             Controls &gt; Setup experience &gt; End user authentication
-          </strong>
-          , end users will be required to authenticate when they first set up
-          their host.{" "}
+          </strong>{" "}
+          to require end users to authenticate.{" "}
           <CustomLink
             text="Learn more"
-            url="https://fleetdm.com/guides/setup-experience#end-user-authentication"
+            url="https://fleetdm.com/learn-more-about/end-user-authentication"
             newTab
           />
         </p>
@@ -202,7 +200,6 @@ const EndUserAuthSection = ({
           />
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent="Complete all required fields to save end user authentication."

@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -687,7 +688,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return true, nil
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM APNs and SCEP assets"),
@@ -768,7 +769,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleBMSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM ABM assets"),
@@ -856,7 +857,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
-		logger.InfoContext(cmd.Context(), "Apple Business Manager enabled")
+		logger.InfoContext(cmd.Context(), "Apple Business enabled")
 	}
 
 	// register the Microsoft MDM services
@@ -1248,7 +1249,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
 	}); err != nil {
 		initFatal(err, "failed to register apple_mdm_worker schedule")
 	}
@@ -1482,6 +1483,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes}, extra...)
+
+		if err := apiendpoints.Init(apiHandler); err != nil {
+			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
+		}
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request

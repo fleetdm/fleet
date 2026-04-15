@@ -1174,6 +1174,10 @@ func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware 
 func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
 	softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(specs))
 	for i, si := range specs {
+		if si.AlwaysDownload && si.SHA256 != "" {
+			return nil, errors.New("Couldn't edit software. The 'always_download' option cannot be used with 'hash_sha256'.")
+		}
+
 		var qc string
 		var err error
 
@@ -1304,6 +1308,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
+			AlwaysDownload:     si.AlwaysDownload,
 		}
 
 		if si.Slug != nil {
@@ -2470,18 +2475,22 @@ func (c *Client) DoGitOps(
 		}
 	}
 
-	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply Android certificates if present
+	// Apply Android certificates before policies so that certificate templates
+	// exist on the server before the profile reconciler's next cron cycle. This
+	// prevents a race where the cron fires after profiles are uploaded (by
+	// ApplyGroup above) but before cert templates exist, which would cause ONC
+	// profiles to be sent without waiting for the cert.
 	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
 			return nil, gitOpsErr.WithFileContext(baseDir, filename)
 		}
+		return nil, err
+	}
+
+	err = c.doGitOpsPolicies(incoming, teamSoftwareInstallers, teamVPPApps, teamScripts, logFn, dryRun)
+	if err != nil {
 		return nil, err
 	}
 
@@ -2996,6 +3005,11 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 			config.Policies[i].ScriptID = &scriptID
 		}
+
+		// Get patch policy title IDs for the team
+		for i := range config.Policies {
+			config.Policies[i].PatchSoftwareTitleID = softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+		}
 	}
 
 	// Get the ids and names of current policies to figure out which ones to delete
@@ -3033,6 +3047,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			}
 		}
 	}
+
 	var policiesToDelete []uint
 	for _, oldItem := range policies {
 		found := false
@@ -3040,6 +3055,13 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 			if oldItem.Name == newItem.Name {
 				found = true
 				break
+			}
+			// patch policies are unique by patch_software_title_id so matching by name doesn't always work
+			if newItem.Type == fleet.PolicyTypePatch && oldItem.PatchSoftware != nil {
+				if oldItem.PatchSoftware.SoftwareTitleID == newItem.PatchSoftwareTitleID {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {

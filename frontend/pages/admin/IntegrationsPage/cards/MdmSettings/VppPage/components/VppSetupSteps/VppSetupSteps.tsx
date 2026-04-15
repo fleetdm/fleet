@@ -20,7 +20,7 @@ const VppSetupSteps = ({ extendendSteps = false }: IVppSetupStepsProps) => {
           <CustomLink
             newTab
             url="https://business.apple.com"
-            text="Apple Business Manager"
+            text="Apple Business"
           />
           {extendendSteps && (
             <>
@@ -51,8 +51,7 @@ const VppSetupSteps = ({ extendendSteps = false }: IVppSetupStepsProps) => {
           you want to use.
           {extendendSteps && (
             <>
-              <br /> Each token is based on a location in Apple Business
-              Manager.
+              <br /> Each token is based on a location in Apple Business.
             </>
           )}
         </p>

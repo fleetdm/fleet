@@ -236,7 +236,7 @@ Reports can be specified inline in your `default.yml` file or `fleets/fleet-name
 
 ### Options
 
-For possible options, see the parameters for the [Create query API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-query).
+For possible options, see the parameters for the [Create report API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-report).
 
 ### Example
 
@@ -388,8 +388,8 @@ controls:
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
@@ -401,21 +401,21 @@ controls:
           - Engineering
           - Product
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ../lib/windows-profile.xml
   android_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ../lib/android-profile.json
     certificates:
       - name: wifi-certificate
         certificate_authority_name: EST_WIFI
-        subject_name: /CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
-  macos_setup: # Available in Fleet Premium
+        subject_name: CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
+  setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
-    enable_release_device_manually: true
-    macos_setup_assistant: ../lib/dep-profile.json
-    script: ../lib/macos-setup-script.sh
+    apple_enable_release_device_manually: true
+    apple_setup_assistant: ../lib/dep-profile.json
+    macos_script: ../lib/macos-setup-script.sh
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -443,16 +443,16 @@ controls:
 - `deadline_days` specifies the number of days before Windows installs updates (default: `null`)
 - `grace_period_days` specifies the number of days before Windows restarts to install updates (default: `null`)
 
-### macos_settings and windows_settings
+### apple_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
-- `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
+- `apple_settings.configuration_profiles` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `windows_settings.configuration_profiles` is a list of paths to Windows configuration profiles (.xml).
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### android_settings
 
-- `android_settings.custom_settings` is a list of paths to Android configuration profiles (.json).
+- `android_settings.configuration_profiles` is a list of paths to Android configuration profiles (.json).
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -460,7 +460,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 - `name` is the name of the certificate. Name can be used as a certificate alias to reference in configuration profiles (custom settings).
 - `certificate_authority_name` is the name of the [certificate authority (CA)](#certificate-authorities) to issue the certificate from. Currently, only a custom SCEP CA is supported.
-- `subject_name` is the certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".
+- `subject_name` is the certificate's subject name (SN). Separate subject fields by a "/". For example: "CN=john@example.com, O=Acme Inc.".
 
 #### Variables
 
@@ -502,19 +502,19 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
 
 
-### macos_setup
+### setup_experience
 
-The `macos_setup` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
+The `setup_experience` section lets you control the out-of-the-box [setup experience](https://fleetdm.com/guides/setup-experience).
 
-> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature.** The `macos_manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
-- `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
+- `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
-- `macos_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
+- `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
+- `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 #### Example
@@ -522,14 +522,14 @@ The `macos_setup` section lets you control the out-of-the-box [setup experience]
 `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
 
 ```yaml
-macos_setup:
+setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
-  manual_agent_install: false
+  macos_manual_agent_install: false
   enable_end_user_authentication: true
   lock_end_user_info: true
-  enable_release_device_manually: false
-  macos_setup_assistant: "./setup_assistant.json"
-  script: "./post_setup.sh"
+  apple_enable_release_device_manually: false
+  apple_setup_assistant: "./setup_assistant.json"
+  macos_script: "./post_setup.sh"
 ```
 
 ### macos_migration
@@ -623,7 +623,7 @@ software:
 
 ### packages
 
-- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3. If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
+- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (up to 3 attempts). If you don't want to host the package, add it to Fleet first and then copy the `hash_sha256`.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
@@ -656,6 +656,23 @@ You can view the hash for existing software in the software detail page in the F
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
 ```
+
+##### Script-only
+
+Script-only packages (`.sh` and `.ps1` files) are referenced directly inline in the team YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+
+`self_service`, `categories`, `labels`, and `icon` are specified inline in the team YAML file.
+
+```yaml
+software:
+  packages:
+    - path: ../lib/linux/scripts/vpn-setup.sh
+      self_service: true
+      categories:
+        - Utilities
+```
+
+> Script-only packages do not currently support configuration via a separate package YAML file. All options must be specified inline in the team YAML file.
 
 ### app_store_apps
 
@@ -1160,7 +1177,7 @@ org_settings:
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) during Automated Device Enrollment (ADE).
 
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
+Once the IdP settings are configured, you can use the [`controls.setup_experience.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
 
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
