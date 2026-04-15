@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import DataError from "components/DataError";
+import CustomLink from "components/CustomLink";
 import { IApiEndpoint } from "interfaces/api_endpoint";
 import apiEndpointsAPI from "services/entities/api_endpoints";
 
@@ -214,6 +215,14 @@ const EndpointSelectorTable = ({
         placeholder="Search by name or path"
         onChange={setSearchText}
       />
+      <span className="form-field__help-text">
+        You can find this information in the{" "}
+        <CustomLink
+          url="https://fleetdm.com/docs/rest-api/rest-api"
+          text="REST API docs"
+          newTab
+        />
+      </span>
       {isActiveSearch && (
         <div className={`${baseClass}__search-dropdown`} ref={dropdownRef}>
           <TableContainer<Row<IEndpointRow>>
