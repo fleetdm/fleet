@@ -92,8 +92,8 @@ module "free" {
   redis_config = {
     name = local.customer_free
     engine         = "redis"
-    engine_version = "6.x"
-    family         = "redis6.x"
+    engine_version = "7.1"
+    family         = "redis7"
     log_delivery_configuration = [
       {
         destination      = "dogfood-free-redis-logs"
