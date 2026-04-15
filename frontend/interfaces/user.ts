@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 import { IUserSettings } from "./config";
+import { IApiEndpointRef } from "./api_endpoint";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -59,7 +60,7 @@ export interface IUser {
   api_only: boolean;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
-  api_endpoints?: { method: string; path: string }[];
+  api_endpoints?: IApiEndpointRef[];
 }
 
 /**

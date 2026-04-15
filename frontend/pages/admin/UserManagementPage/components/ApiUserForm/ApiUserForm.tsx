@@ -1,8 +1,8 @@
 import React, { FormEvent, useState, useContext } from "react";
 
 import { AppContext } from "context/app";
-import { endpointKey } from "interfaces/api_endpoint";
-import { ITeam } from "interfaces/team";
+import { IApiEndpointRef, endpointKey } from "interfaces/api_endpoint";
+import { ITeam, INewTeamUser } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 
 import { SingleValue } from "react-select-5";
@@ -17,20 +17,10 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import ApiAccessSection from "../ApiAccessSection";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-export interface IApiEndpointRef {
-  method: string;
-  path: string;
-}
-
-export interface IFleetRef {
-  id: number;
-  role: string;
-}
-
 export interface IApiUserFormData {
   name: string;
   global_role: UserRole | null;
-  fleets: IFleetRef[];
+  fleets: INewTeamUser[];
   api_endpoints?: IApiEndpointRef[] | null;
 }
 
@@ -155,7 +145,10 @@ const ApiUserForm = ({
       global_role: isGlobalUser ? globalRole : null,
       fleets: isGlobalUser
         ? []
-        : fleets.map((f) => ({ id: f.id, role: f.role || "observer" })),
+        : fleets.map((f) => ({
+            id: f.id,
+            role: f.role || "observer",
+          })),
       api_endpoints: apiEndpoints,
     });
   };
