@@ -32,12 +32,12 @@ const ADD_USER_OPTIONS: IDropdownOption[] = [
   {
     label: "Regular user",
     value: "human",
-    helpText: "Can access Fleet UI and API",
+    helpText: "A human with access to Fleet",
   },
   {
     label: "API-only user",
     value: "api",
-    helpText: "Can only access Fleet API",
+    helpText: "For GitOps or Fleet API automations",
   },
 ];
 
