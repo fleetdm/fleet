@@ -496,6 +496,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/demo", createDemoNotificationEndpoint, nil)
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_url", getHostDeviceURLEndpoint, getHostDeviceURLRequest{})
 
+	// Pet demo endpoints — registered conditionally based on the `pet_demo`
+	// build tag (the default build's stub is a no-op). See host_pets_demo.go.
+	registerPetDemoEndpoints(ue)
+
 	ue.POST("/api/_version_/fleet/labels", createLabelEndpoint, fleet.CreateLabelRequest{})
 	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, fleet.ModifyLabelRequest{})
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}", getLabelEndpoint, fleet.GetLabelRequest{})

@@ -91,6 +91,26 @@
     animation: pet-shake 1.2s ease-in-out infinite;
   }
 
+  // Petting overrides the mood animation for ~0.8s while the user is
+  // showing the pet some love. Purely cosmetic — no API call.
+  &__stage--petting .pet-card__pet-emoji {
+    animation: pet-purr 0.4s ease-in-out infinite !important;
+  }
+
+  &__stage {
+    position: relative;
+  }
+
+  &__petting-heart {
+    position: absolute;
+    top: 30%;
+    right: calc(50% - 80px);
+    color: #ff6b9d;
+    font-size: 32px;
+    pointer-events: none;
+    animation: pet-heart-rise 0.8s ease-out forwards;
+  }
+
   &__caption {
     margin: 0;
     font-size: $small;
@@ -190,5 +210,28 @@
   }
   75% {
     transform: translateX(4px);
+  }
+}
+
+@keyframes pet-purr {
+  0%, 100% {
+    transform: scale(1) rotate(0);
+  }
+  50% {
+    transform: scale(1.06) rotate(-2deg);
+  }
+}
+
+@keyframes pet-heart-rise {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60px) scale(1.2);
+    opacity: 0;
   }
 }

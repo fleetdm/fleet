@@ -959,6 +959,25 @@ type Datastore interface {
 	CreateHostPet(ctx context.Context, hostID uint, name, species string) (*HostPet, error)
 	// SaveHostPet persists the given pet's stats and last_interacted_at.
 	SaveHostPet(ctx context.Context, pet *HostPet) error
+	// ApplyHostPetHappinessDelta atomically clamps and bumps the persisted
+	// happiness on the given host's pet. No-op (returns nil) if the host has
+	// no pet — used by the self-service install success path which doesn't
+	// know whether the user has adopted.
+	ApplyHostPetHappinessDelta(ctx context.Context, hostID uint, delta int) error
+	// CountOpenHostVulnsBySeverity returns the number of open critical (CVSS
+	// >= 9.0) and high (7.0 <= CVSS < 9.0) vulnerabilities affecting software
+	// installed on the given host.
+	CountOpenHostVulnsBySeverity(ctx context.Context, hostID uint) (critical, high uint, err error)
+	// GetHostPetDemoOverrides returns the demo override row for the given
+	// host, or nil if there isn't one. Used by the demo build to drive stat
+	// changes without touching real host data.
+	GetHostPetDemoOverrides(ctx context.Context, hostID uint) (*HostPetDemoOverrides, error)
+	// UpsertHostPetDemoOverrides creates or updates the demo override row for
+	// the given host.
+	UpsertHostPetDemoOverrides(ctx context.Context, overrides *HostPetDemoOverrides) error
+	// DeleteHostPetDemoOverrides removes the demo override row for the given
+	// host. No-op if no row exists.
+	DeleteHostPetDemoOverrides(ctx context.Context, hostID uint) error
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
