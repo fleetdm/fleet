@@ -16356,3 +16356,137 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
 }
+
+// TestHostOrbitDebugLogging exercises the POST /hosts/:id/debug-logging
+// endpoint that enables or disables orbit debug logging for a single host.
+// It covers: happy-path enable with a custom duration, the default duration
+// when omitted, the 7d cap, rejection of invalid/negative durations, the
+// disable flow, 404 for missing hosts, and authz (observer denied).
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (s *integrationTestSuite) TestHostOrbitDebugLogging() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	host := hosts[0]
+
+	// ---- Enable with explicit duration ----
+	var enableResp hostOrbitDebugLoggingResponse
+	beforeEnable := time.Now()
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusOK, &enableResp,
+	)
+	require.NoError(t, enableResp.Err)
+	require.NotNil(t, enableResp.OrbitDebugUntil)
+	// Expiry should be ~1h from now.
+	require.WithinDuration(t, beforeEnable.Add(time.Hour), *enableResp.OrbitDebugUntil, time.Minute)
+
+	// DB row should reflect the override.
+	dbHost, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, dbHost.OrbitDebugUntil)
+	require.True(t, dbHost.OrbitDebugUntil.After(time.Now()))
+
+	// Activity was emitted.
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHostOrbitDebugLogging{}.ActivityName(),
+		"",
+		0,
+	)
+
+	// ---- Enable with omitted duration falls back to the 24h default ----
+	var defaultResp hostOrbitDebugLoggingResponse
+	beforeDefault := time.Now()
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true},
+		http.StatusOK, &defaultResp,
+	)
+	require.NoError(t, defaultResp.Err)
+	require.NotNil(t, defaultResp.OrbitDebugUntil)
+	require.WithinDuration(t,
+		beforeDefault.Add(24*time.Hour),
+		*defaultResp.OrbitDebugUntil,
+		time.Minute,
+	)
+
+	// ---- Duration above the 7d cap is rejected ----
+	var capResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "720h"}, // 30 days
+		http.StatusUnprocessableEntity, &capResp,
+	)
+
+	// ---- Invalid duration string returns 422 ----
+	var badResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "not-a-duration"},
+		http.StatusUnprocessableEntity, &badResp,
+	)
+
+	// ---- Negative duration is rejected ----
+	var negResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "-1h"},
+		http.StatusUnprocessableEntity, &negResp,
+	)
+
+	// ---- Disable clears the override and emits the disable activity ----
+	var disableResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: false},
+		http.StatusOK, &disableResp,
+	)
+	require.NoError(t, disableResp.Err)
+	require.Nil(t, disableResp.OrbitDebugUntil)
+
+	dbHost, err = s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, dbHost.OrbitDebugUntil)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHostOrbitDebugLogging{}.ActivityName(),
+		"",
+		0,
+	)
+
+	// ---- Unknown host ID returns 404 ----
+	var notFoundResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", hosts[len(hosts)-1].ID+9999),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusNotFound, &notFoundResp,
+	)
+
+	// ---- Observer is forbidden ----
+	// Create a fresh observer user and switch tokens for the check. The
+	// endpoint authorizes against fleet.ActionWrite on the host, which
+	// observers must not have.
+	observerPwd := test.GoodPassword
+	observerEmail := "orbit-debug-observer@example.com"
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:                     ptr.String("orbit-debug-observer"),
+		Email:                    ptr.String(observerEmail),
+		Password:                 ptr.String(observerPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	defer func() { s.token = s.getTestAdminToken() }()
+	s.token = s.getTestToken(observerEmail, observerPwd)
+
+	var forbiddenResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusForbidden, &forbiddenResp,
+	)
+}

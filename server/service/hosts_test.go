@@ -2259,7 +2259,7 @@ func TestSetHostOrbitDebugLogging(t *testing.T) {
 	userCtx := test.UserContext(ctx, test.UserAdmin)
 
 	// Enable with explicit duration.
-	until, err := svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 2*time.Hour)
+	until, err := svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "2h")
 	require.NoError(t, err)
 	require.NotNil(t, until)
 	require.NotNil(t, lastUntil)
@@ -2267,20 +2267,25 @@ func TestSetHostOrbitDebugLogging(t *testing.T) {
 	require.Len(t, emitted, 1)
 	require.Equal(t, "enabled_host_orbit_debug_logging", emitted[0].ActivityName())
 
-	// Enable with 0 duration falls back to the default (24h).
-	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 0)
+	// Enable with empty duration falls back to the default (24h).
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "")
 	require.NoError(t, err)
 	require.WithinDuration(t, time.Now().Add(24*time.Hour), *lastUntil, 5*time.Second)
 
 	// Duration above cap is rejected.
-	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, 30*24*time.Hour)
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "720h") // 30 days
 	require.Error(t, err)
 	var iae *fleet.InvalidArgumentError
 	require.ErrorAs(t, err, &iae)
 
 	// Negative duration is rejected.
-	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, -time.Second)
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "-1s")
 	require.Error(t, err)
+
+	// Unparseable duration is rejected with an InvalidArgumentError.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "not-a-duration")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &iae)
 
 	// Disable clears the override and emits the disable activity.
 	emitted = emitted[:0]
@@ -2289,7 +2294,7 @@ func TestSetHostOrbitDebugLogging(t *testing.T) {
 		require.Nil(t, until)
 		return nil
 	}
-	until, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, false, 0)
+	until, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, false, "")
 	require.NoError(t, err)
 	require.Nil(t, until)
 	require.Len(t, emitted, 1)

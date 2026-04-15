@@ -303,9 +303,9 @@ type Host struct {
 	// docs/Contributing/architecture/orbit-debug-logging.md.
 	OrbitDebugUntil *time.Time `json:"orbit_debug_until,omitempty" db:"orbit_debug_until" csv:"-"`
 	NodeKey         *string    `json:"-" db:"node_key" csv:"-"`
-	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
-	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
+	OrbitNodeKey    *string    `json:"-" db:"orbit_node_key" csv:"-"`
+	Hostname        string     `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID            string     `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
 	Platform       string        `json:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`

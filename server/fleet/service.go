@@ -427,11 +427,12 @@ type Service interface {
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// SetHostOrbitDebugLogging enables or disables orbit debug logging for a
-	// single host. When enabling, duration controls how long the override
-	// stays active (default 24h, max 7d). Returns the resolved expiry, or
-	// nil when disabled. See
+	// single host. durationStr is a Go duration string (e.g. "1h", "24h");
+	// empty means "use the server default" (24h). Values >7d or negative
+	// return an InvalidArgumentError. Returns the resolved expiry, or nil
+	// when disabled. See
 	// docs/Contributing/architecture/orbit-debug-logging.md.
-	SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, duration time.Duration) (*time.Time, error)
+	SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, durationStr string) (*time.Time, error)
 	// CleanupExpiredHosts cleans up hosts that have exceeded the expiry window and creates activities for each deletion.
 	CleanupExpiredHosts(ctx context.Context) ([]DeletedHostDetails, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.

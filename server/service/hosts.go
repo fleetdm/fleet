@@ -1620,22 +1620,9 @@ type hostOrbitDebugLoggingResponse struct {
 
 func (r hostOrbitDebugLoggingResponse) Error() error { return r.Err }
 
-func hostOrbitDebugLoggingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func hostOrbitDebugLoggingEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*hostOrbitDebugLoggingRequest)
-	var duration time.Duration
-	if req.Duration != "" {
-		d, err := time.ParseDuration(req.Duration)
-		if err != nil {
-			return hostOrbitDebugLoggingResponse{
-				Err: fleet.NewInvalidArgumentError(
-					"duration",
-					fmt.Sprintf("invalid duration %q: %s", req.Duration, err),
-				),
-			}, nil
-		}
-		duration = d
-	}
-	until, err := svc.SetHostOrbitDebugLogging(ctx, req.HostID, req.Enabled, duration)
+	until, err := svc.SetHostOrbitDebugLogging(ctx, req.HostID, req.Enabled, req.Duration)
 	if err != nil {
 		return hostOrbitDebugLoggingResponse{Err: err}, nil
 	}
@@ -1645,8 +1632,10 @@ func hostOrbitDebugLoggingEndpoint(ctx context.Context, request interface{}, svc
 // SetHostOrbitDebugLogging enables or disables the host-level orbit debug
 // logging override for a single host. When enabled, orbit picks up the new
 // state on its next config poll (up to 30s) and no restart is required.
-// See docs/Contributing/architecture/orbit-debug-logging.md.
-func (svc *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, duration time.Duration) (*time.Time, error) {
+// durationStr is a Go duration string (e.g. "1h", "24h"); an empty value
+// means "use the server default". See
+// docs/Contributing/architecture/orbit-debug-logging.md.
+func (svc *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, enabled bool, durationStr string) (*time.Time, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -1675,6 +1664,20 @@ func (svc *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, e
 		return nil, nil
 	}
 
+	// Parse the duration after the auth checks so that unauthenticated
+	// probing with garbage input still returns a proper 403 rather than a
+	// 422 that leaks the endpoint's existence.
+	var duration time.Duration
+	if durationStr != "" {
+		d, err := time.ParseDuration(durationStr)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError(
+				"duration",
+				fmt.Sprintf("invalid duration %q: %s", durationStr, err),
+			)
+		}
+		duration = d
+	}
 	if duration < 0 {
 		return nil, fleet.NewInvalidArgumentError("duration", "must not be negative")
 	}
