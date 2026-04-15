@@ -88,6 +88,7 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
 import BypassModal from "./BypassModal";
+import PetCard from "./PetCard";
 
 const baseClass = "device-user";
 
@@ -98,11 +99,13 @@ const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
+  PATHS.DEVICE_USER_DETAILS_PET,
 ] as const;
 
 const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+  PATHS.DEVICE_USER_DETAILS_PET,
 ] as const;
 
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
@@ -742,6 +745,9 @@ const DeviceUserPage = ({
                     </TabText>
                   </Tab>
                 )}
+                <Tab>
+                  <TabText>Pet</TabText>
+                </Tab>
               </TabList>
               {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                 <TabPanel>
@@ -835,6 +841,9 @@ const DeviceUserPage = ({
                   />
                 </TabPanel>
               )}
+              <TabPanel>
+                <PetCard deviceAuthToken={deviceAuthToken} />
+              </TabPanel>
             </Tabs>
           </TabNav>
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (

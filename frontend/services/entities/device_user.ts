@@ -3,6 +3,11 @@ import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 import { IHostCertificate } from "interfaces/certificates";
+import {
+  HostPetAction,
+  HostPetSpecies,
+  IHostPet,
+} from "interfaces/host_pet";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
@@ -61,6 +66,15 @@ export interface IGetSetupExperienceStatusesResponse {
 
 export interface IGetSetupExperienceStatusesParams {
   token: string;
+}
+
+export interface IGetDevicePetResponse {
+  pet: IHostPet | null;
+}
+
+export interface IAdoptDevicePetPayload {
+  name: string;
+  species?: HostPetSpecies;
 }
 
 export default {
@@ -199,5 +213,32 @@ export default {
   bypassConditionalAccess: (token: string) => {
     const { DEVICE_BYPASS_CONDITIONAL_ACCESS } = endpoints;
     return sendRequest("POST", DEVICE_BYPASS_CONDITIONAL_ACCESS(token));
+  },
+
+  getDevicePet: (token: string): Promise<IGetDevicePetResponse> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    return sendRequest("GET", `${DEVICE_USER_DETAILS}/${token}/pet`);
+  },
+
+  adoptDevicePet: (
+    token: string,
+    payload: IAdoptDevicePetPayload
+  ): Promise<{ pet: IHostPet }> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    return sendRequest(
+      "POST",
+      `${DEVICE_USER_DETAILS}/${token}/pet`,
+      payload
+    );
+  },
+
+  applyDevicePetAction: (
+    token: string,
+    action: HostPetAction
+  ): Promise<{ pet: IHostPet }> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    return sendRequest("POST", `${DEVICE_USER_DETAILS}/${token}/pet/action`, {
+      action,
+    });
   },
 };

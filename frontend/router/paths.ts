@@ -184,6 +184,9 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
+  DEVICE_USER_DETAILS_PET: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/pet`;
+  },
   DEVICE_TRANSPARENCY: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/api/v1/fleet/device/${deviceAuthToken}/transparency`;
   },

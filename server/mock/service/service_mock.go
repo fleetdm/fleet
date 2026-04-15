@@ -266,6 +266,12 @@ type ListDevicePoliciesFunc func(ctx context.Context, host *fleet.Host) ([]*flee
 
 type BypassConditionalAccessFunc func(ctx context.Context, host *fleet.Host) error
 
+type GetDevicePetFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostPet, error)
+
+type AdoptDevicePetFunc func(ctx context.Context, host *fleet.Host, name string, species string) (*fleet.HostPet, error)
+
+type ApplyDevicePetActionFunc func(ctx context.Context, host *fleet.Host, action fleet.HostPetAction) (*fleet.HostPet, error)
+
 type GetDeviceSoftwareIconsTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 type DisableAuthForPingFunc func(ctx context.Context)
@@ -1293,6 +1299,15 @@ type Service struct {
 
 	BypassConditionalAccessFunc        BypassConditionalAccessFunc
 	BypassConditionalAccessFuncInvoked bool
+
+	GetDevicePetFunc        GetDevicePetFunc
+	GetDevicePetFuncInvoked bool
+
+	AdoptDevicePetFunc        AdoptDevicePetFunc
+	AdoptDevicePetFuncInvoked bool
+
+	ApplyDevicePetActionFunc        ApplyDevicePetActionFunc
+	ApplyDevicePetActionFuncInvoked bool
 
 	GetDeviceSoftwareIconsTitleIconFunc        GetDeviceSoftwareIconsTitleIconFunc
 	GetDeviceSoftwareIconsTitleIconFuncInvoked bool
@@ -3143,6 +3158,27 @@ func (s *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host)
 	s.BypassConditionalAccessFuncInvoked = true
 	s.mu.Unlock()
 	return s.BypassConditionalAccessFunc(ctx, host)
+}
+
+func (s *Service) GetDevicePet(ctx context.Context, host *fleet.Host) (*fleet.HostPet, error) {
+	s.mu.Lock()
+	s.GetDevicePetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDevicePetFunc(ctx, host)
+}
+
+func (s *Service) AdoptDevicePet(ctx context.Context, host *fleet.Host, name string, species string) (*fleet.HostPet, error) {
+	s.mu.Lock()
+	s.AdoptDevicePetFuncInvoked = true
+	s.mu.Unlock()
+	return s.AdoptDevicePetFunc(ctx, host, name, species)
+}
+
+func (s *Service) ApplyDevicePetAction(ctx context.Context, host *fleet.Host, action fleet.HostPetAction) (*fleet.HostPet, error) {
+	s.mu.Lock()
+	s.ApplyDevicePetActionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyDevicePetActionFunc(ctx, host, action)
 }
 
 func (s *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
