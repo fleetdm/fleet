@@ -56,8 +56,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /queries': {
-    action: 'docs/view-query-library',
+  'GET /reports': {
+    action: 'docs/view-report-library',
     locals: {
       currentSection: 'more',
       pageTitleForMeta: 'Queries',
@@ -65,8 +65,8 @@ module.exports.routes = {
     }
   },
 
-  'GET /queries/:slug': {
-    action: 'docs/view-query-detail',// Meta title and description set in view action
+  'GET /reports/:slug': {
+    action: 'docs/view-report-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
@@ -489,7 +489,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /query-generator': {
+  'GET /report-generator': {
     action: 'query-generator/view-query-generator',
     locals: {
       showAdminLinks: true,
@@ -1062,6 +1062,15 @@ module.exports.routes = {
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
   'GET /fleet-gitops': '/infrastructure-as-code',
+  'GET /queries': '/reports',
+  'GET /query-generator': '/report-generator',
+  'GET /queries/:slug': {
+    fn: (req, res) => {
+      return res.redirect('/reports/' + req.param('slug'));
+    }
+  },
+
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
