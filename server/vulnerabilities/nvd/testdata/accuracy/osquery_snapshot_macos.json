@@ -1,0 +1,2022 @@
+{
+  "metadata": {
+    "last_updated": "2026-04-15T22:41:28Z",
+    "platform": "macos",
+    "macos_version": "26.4",
+    "osquery_version": "5.22.1",
+    "notes": "Captured via bundled Orbit osqueryd on the Fleet testdata macOS VM"
+  },
+  "software": [
+    {
+      "name": "50onPaletteServer.app",
+      "version": "1.1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.50onPaletteIM"
+    },
+    {
+      "name": "ABAssistantService.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ABAssistantService"
+    },
+    {
+      "name": "AMSEngagementViewService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AMSEngagementViewService"
+    },
+    {
+      "name": "AOSAlertManager.app",
+      "version": "1.07",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AOSAlertManager"
+    },
+    {
+      "name": "AOSHeartbeat.app",
+      "version": "1.07",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AOSHeartbeat"
+    },
+    {
+      "name": "AOSPushRelay.app",
+      "version": "1.07",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AOSPushRelay"
+    },
+    {
+      "name": "AOSUIPrefPaneLauncher.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AOSUIPrefPaneLauncher"
+    },
+    {
+      "name": "ARDAgent.app",
+      "version": "3.9.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.RemoteDesktopAgent"
+    },
+    {
+      "name": "AVB Configuration.app",
+      "version": "1440.7",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AVB-Audio-Configuration"
+    },
+    {
+      "name": "AXVisualSupportAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.AXVisualSupportAgent"
+    },
+    {
+      "name": "About This Mac.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AboutThisMacLauncher"
+    },
+    {
+      "name": "Accessibility Reader.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.AccessibilityReader"
+    },
+    {
+      "name": "Accessibility Tutorial.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AccessibilityOnboarding"
+    },
+    {
+      "name": "AccessibilityUIServer.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AccessibilityUIServer"
+    },
+    {
+      "name": "AccessibilityVisualsAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AccessibilityVisualsAgent"
+    },
+    {
+      "name": "Activity Monitor.app",
+      "version": "10.14",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ActivityMonitor"
+    },
+    {
+      "name": "AddPrinter.app",
+      "version": "607",
+      "source": "apps",
+      "bundle_identifier": "com.apple.print.add"
+    },
+    {
+      "name": "AddressBookManager.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AddressBook.abd"
+    },
+    {
+      "name": "AddressBookSourceSync.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AddressBookSourceSync"
+    },
+    {
+      "name": "AddressBookSync.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AddressBook.sync"
+    },
+    {
+      "name": "AddressBookUrlForwarder.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AddressBook.UrlForwarder"
+    },
+    {
+      "name": "AinuIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.inputmethod.Ainu"
+    },
+    {
+      "name": "AirDrop.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder.Open-AirDrop"
+    },
+    {
+      "name": "AirPlayUIAgent.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AirPlayUIAgent"
+    },
+    {
+      "name": "AirPort Base Station Agent.app",
+      "version": "2.2.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AirPortBaseStationAgent"
+    },
+    {
+      "name": "AirPort Utility.app",
+      "version": "6.3.9",
+      "source": "apps",
+      "bundle_identifier": "com.apple.airport.airportutility"
+    },
+    {
+      "name": "AirScanLegacyDiscovery.app",
+      "version": "607",
+      "source": "apps",
+      "bundle_identifier": "com.apple.print.AirScanLegacyDiscovery"
+    },
+    {
+      "name": "AirScanScanner.app",
+      "version": "18",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AirScanScanner"
+    },
+    {
+      "name": "App Store.app",
+      "version": "3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AppStore"
+    },
+    {
+      "name": "AppSSOAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AppSSOAgent"
+    },
+    {
+      "name": "Apple Diagnostics.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DiagnosticsModeAssistant"
+    },
+    {
+      "name": "AppleMobileDeviceHelper.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SyncServices.AppleMobileDeviceHelper"
+    },
+    {
+      "name": "AppleMobileSync.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SyncServices.AppleMobileSync"
+    },
+    {
+      "name": "AppleScript Utility.app",
+      "version": "1.1.2",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AppleScriptUtility"
+    },
+    {
+      "name": "AppleSpell.service",
+      "version": "2.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AppleSpell"
+    },
+    {
+      "name": "Apps.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.apps.launcher"
+    },
+    {
+      "name": "AquaAppearanceHelper.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AquaAppearanceHelper"
+    },
+    {
+      "name": "Archive Utility.app",
+      "version": "10.15",
+      "source": "apps",
+      "bundle_identifier": "com.apple.archiveutility"
+    },
+    {
+      "name": "AskPermissionUI.app",
+      "version": "129.4.10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AskPermissionUI"
+    },
+    {
+      "name": "Assistive Control.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.inputmethod.AssistiveControl"
+    },
+    {
+      "name": "Audio MIDI Setup.app",
+      "version": "3.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.audio.AudioMIDISetup"
+    },
+    {
+      "name": "AutoFillPanelService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AutoFillPanelService"
+    },
+    {
+      "name": "AutomationModeUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.dt.AutomationModeUI"
+    },
+    {
+      "name": "Automator Application Stub.app",
+      "version": "1.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Automator.Automator-Application-Stub"
+    },
+    {
+      "name": "Automator Installer.app",
+      "version": "2.10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AutomatorInstaller"
+    },
+    {
+      "name": "Automator.app",
+      "version": "2.10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Automator"
+    },
+    {
+      "name": "BackgroundTaskManagementAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.backgroundtaskmanagement.agent"
+    },
+    {
+      "name": "Batteries.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Batteries"
+    },
+    {
+      "name": "Bluetooth File Exchange.app",
+      "version": "9.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.BluetoothFileExchange"
+    },
+    {
+      "name": "BluetoothSetupAssistant.app",
+      "version": "9.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.BluetoothSetupAssistant"
+    },
+    {
+      "name": "BluetoothUIServer.app",
+      "version": "9.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.BluetoothUIServer"
+    },
+    {
+      "name": "BluetoothUIService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.BluetoothUIService"
+    },
+    {
+      "name": "Books.app",
+      "version": "8.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.iBooksX"
+    },
+    {
+      "name": "Boot Camp Assistant.app",
+      "version": "6.1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.bootcampassistant"
+    },
+    {
+      "name": "Build Web Page.app",
+      "version": "10.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.BuildWebPage"
+    },
+    {
+      "name": "CIMFindInputCodeTool.app",
+      "version": "104",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CCE.CIMFindInputCode"
+    },
+    {
+      "name": "Calculator.app",
+      "version": "12.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.calculator"
+    },
+    {
+      "name": "Calendar.app",
+      "version": "16.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.iCal"
+    },
+    {
+      "name": "CalendarFileHandler.app",
+      "version": "8.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CalendarFileHandler"
+    },
+    {
+      "name": "Calibration Assistant.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Calibration-Assistant"
+    },
+    {
+      "name": "Captive Network Assistant.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CaptiveNetworkAssistant"
+    },
+    {
+      "name": "Certificate Assistant.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CertificateAssistant"
+    },
+    {
+      "name": "CharacterPalette.app",
+      "version": "2.0.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CharacterPaletteIM"
+    },
+    {
+      "name": "Chess.app",
+      "version": "3.18",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Chess"
+    },
+    {
+      "name": "ChineseTextConverterService.app",
+      "version": "2.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ChineseTextConverterService"
+    },
+    {
+      "name": "CinematicFramingOnboardingUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CMViewSrvc"
+    },
+    {
+      "name": "ClassroomStudentMenuExtra.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ClassroomStudentMenuExtra"
+    },
+    {
+      "name": "Claude Code URL Handler.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.anthropic.claude-code-url-handler"
+    },
+    {
+      "name": "Clock.app",
+      "version": "1.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.clock"
+    },
+    {
+      "name": "Cocoa-AppleScript Applet.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScriptEditor.id.cocoa-applet-template"
+    },
+    {
+      "name": "ColorSync Utility.app",
+      "version": "12.2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ColorSyncUtility"
+    },
+    {
+      "name": "Computer.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder.Open-Computer"
+    },
+    {
+      "name": "Conflict Resolver.app",
+      "version": "8.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.syncservices.ConflictResolver"
+    },
+    {
+      "name": "Console.app",
+      "version": "1.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Console"
+    },
+    {
+      "name": "Contacts.app",
+      "version": "14.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.AddressBook"
+    },
+    {
+      "name": "ContinuityCaptureOnboardingUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ContinuityCaptureOnboardingUI"
+    },
+    {
+      "name": "ControlCenter.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.controlcenter"
+    },
+    {
+      "name": "ControlStrip.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.controlstrip"
+    },
+    {
+      "name": "CoreLocationAgent.app",
+      "version": "3072.0.46.3.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CoreLocationAgent"
+    },
+    {
+      "name": "CoreServicesUIAgent.app",
+      "version": "369",
+      "source": "apps",
+      "bundle_identifier": "com.apple.coreservices.uiagent"
+    },
+    {
+      "name": "Coverage Details.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.NewDeviceOutreachApp"
+    },
+    {
+      "name": "DFRHUD.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.DFRHUD"
+    },
+    {
+      "name": "DVD Player.app",
+      "version": "6.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DVDPlayer"
+    },
+    {
+      "name": "Database Events.app",
+      "version": "1.0.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.databaseevents"
+    },
+    {
+      "name": "Desk View.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DeskCam"
+    },
+    {
+      "name": "Diagnostics Reporter.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DiagnosticsReporter"
+    },
+    {
+      "name": "DictationIM.app",
+      "version": "6.2.47",
+      "source": "apps",
+      "bundle_identifier": "com.apple.inputmethod.ironwood"
+    },
+    {
+      "name": "Dictionary.app",
+      "version": "2.3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Dictionary"
+    },
+    {
+      "name": "Digital Color Meter.app",
+      "version": "6.11",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DigitalColorMeter"
+    },
+    {
+      "name": "Directory Utility.app",
+      "version": "7.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DirectoryUtility"
+    },
+    {
+      "name": "DiscHelper.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DiscHelper"
+    },
+    {
+      "name": "Disk Utility.app",
+      "version": "22.7",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DiskUtility"
+    },
+    {
+      "name": "DiskImageMounter.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DiskImageMounter"
+    },
+    {
+      "name": "DiskImages UI Agent.app",
+      "version": "683.100.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.frameworks.diskimages.diuiagent"
+    },
+    {
+      "name": "Display Calibrator.app",
+      "version": "4.19",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ColorSyncCalibrator"
+    },
+    {
+      "name": "Dock.app",
+      "version": "1.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.dock"
+    },
+    {
+      "name": "Dwell Control.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.DwellControl"
+    },
+    {
+      "name": "EmojiFunctionRowIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.EmojiFunctionRowItem-Container"
+    },
+    {
+      "name": "Enhanced Logging.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.EnhancedLogging"
+    },
+    {
+      "name": "Erase Assistant.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.EraseAssistant"
+    },
+    {
+      "name": "EscrowSecurityAlert.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.EscrowSecurityAlert"
+    },
+    {
+      "name": "Expansion Slot Utility.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ExpansionSlotUtility"
+    },
+    {
+      "name": "FaceTime.app",
+      "version": "36",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FaceTime"
+    },
+    {
+      "name": "Family.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Family"
+    },
+    {
+      "name": "FamilyExtensionHost.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FamilyExtensionHost"
+    },
+    {
+      "name": "Feedback Assistant.app",
+      "version": "5.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.appleseed.FeedbackAssistant"
+    },
+    {
+      "name": "FeedbackRemoteView.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FeedbackRemoteView"
+    },
+    {
+      "name": "FileProvider-Feedback.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FileProvider-Feedback"
+    },
+    {
+      "name": "FileSystemUIAgent.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FileSystemUIAgent"
+    },
+    {
+      "name": "FindMy.app",
+      "version": "4.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.findmy"
+    },
+    {
+      "name": "FindMyMacMessenger.app",
+      "version": "4.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FindMyMacMessenger"
+    },
+    {
+      "name": "Finder.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder"
+    },
+    {
+      "name": "Firefox.app",
+      "version": "149.0.2",
+      "source": "apps",
+      "bundle_identifier": "org.mozilla.firefox"
+    },
+    {
+      "name": "Fleet Desktop.app",
+      "version": "1.54.0",
+      "source": "apps",
+      "bundle_identifier": "com.fleetdm.desktop"
+    },
+    {
+      "name": "Folder Actions Setup.app",
+      "version": "1.2",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FolderActionsSetup"
+    },
+    {
+      "name": "FolderActionsDispatcher.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FolderActionsDispatcher"
+    },
+    {
+      "name": "FollowUpUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FollowUpUI"
+    },
+    {
+      "name": "Font Book.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FontBook"
+    },
+    {
+      "name": "FontRegistryUIAgent.app",
+      "version": "81.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.FontRegistryUIAgent"
+    },
+    {
+      "name": "Freeform.app",
+      "version": "4.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.freeform"
+    },
+    {
+      "name": "Game Center.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.gamecenter"
+    },
+    {
+      "name": "GameOverlayUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.GameOverlayUI"
+    },
+    {
+      "name": "GameTrampoline.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.GameTrampoline"
+    },
+    {
+      "name": "Games.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.games"
+    },
+    {
+      "name": "Grapher.app",
+      "version": "2.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.grapher"
+    },
+    {
+      "name": "Home.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Home"
+    },
+    {
+      "name": "IDSRemoteURLConnectionAgent.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.idsfoundation.IDSRemoteURLConnectionAgent"
+    },
+    {
+      "name": "IMAutomaticHistoryDeletionAgent.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.IMAutomaticHistoryDeletionAgent"
+    },
+    {
+      "name": "IMTransferAgent.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.imtransferservices.IMTransferAgent"
+    },
+    {
+      "name": "IOUIAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.IOUIAgent"
+    },
+    {
+      "name": "Image Capture.app",
+      "version": "8.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Image_Capture"
+    },
+    {
+      "name": "Image Events.app",
+      "version": "1.1.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.imageevents"
+    },
+    {
+      "name": "Image Playground.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.GenerativePlaygroundApp"
+    },
+    {
+      "name": "Install Command Line Developer Tools.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.dt.CommandLineTools.installondemand"
+    },
+    {
+      "name": "Install in Progress.app",
+      "version": "3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PackageUIKit.Install-in-Progress"
+    },
+    {
+      "name": "Installer Progress.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Installer-Progress"
+    },
+    {
+      "name": "Installer.app",
+      "version": "6.2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.installer"
+    },
+    {
+      "name": "JapaneseIM-KanaTyping.app",
+      "version": "6.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.JapaneseIM.KanaTyping"
+    },
+    {
+      "name": "JapaneseIM-RomajiTyping.app",
+      "version": "6.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.JapaneseIM.RomajiTyping"
+    },
+    {
+      "name": "JavaLauncher.app",
+      "version": "326",
+      "source": "apps",
+      "bundle_identifier": "com.apple.JavaLauncher"
+    },
+    {
+      "name": "Journal.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.journal"
+    },
+    {
+      "name": "KerberosMenuExtra.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.KerberosMenuExtra"
+    },
+    {
+      "name": "KeyboardAccessAgent.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.KeyboardAccessAgent"
+    },
+    {
+      "name": "KeyboardSetupAssistant.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.KeyboardSetupAssistant"
+    },
+    {
+      "name": "Keychain Access.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.keychainaccess"
+    },
+    {
+      "name": "Keychain Circle Notification.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.security.Keychain-Circle-Notification"
+    },
+    {
+      "name": "KoreanIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.KIM-Container"
+    },
+    {
+      "name": "Language Chooser.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Language-Chooser"
+    },
+    {
+      "name": "LinkedNotesUIService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.LinkedNotesUIService"
+    },
+    {
+      "name": "Live Captions.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.LiveTranscriptionAgent"
+    },
+    {
+      "name": "LiveSpeech.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.LiveSpeech"
+    },
+    {
+      "name": "MDMMigrationTrampoline.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MDMMigrationTrampoline"
+    },
+    {
+      "name": "MRT.app",
+      "version": "1.93",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MRT"
+    },
+    {
+      "name": "MTLReplayer.app",
+      "version": "314.12",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MTLReplayer"
+    },
+    {
+      "name": "Magnifier.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Magnifier"
+    },
+    {
+      "name": "Mail.app",
+      "version": "16.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.mail"
+    },
+    {
+      "name": "MakePDF.app",
+      "version": "10.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MakePDF"
+    },
+    {
+      "name": "ManagedClient.app",
+      "version": "18.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ManagedClient"
+    },
+    {
+      "name": "Maps.app",
+      "version": "3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Maps"
+    },
+    {
+      "name": "Medical Imaging Calibrator.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MedicalImagingCalibrator"
+    },
+    {
+      "name": "Memory Slot Utility.app",
+      "version": "1.5.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MemorySlotUtility"
+    },
+    {
+      "name": "Messages.app",
+      "version": "26.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MobileSMS"
+    },
+    {
+      "name": "Migration Assistant.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MigrateAssistant"
+    },
+    {
+      "name": "MirrorDisplays.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.preference.displays.MirrorDisplays"
+    },
+    {
+      "name": "Mission Control.app",
+      "version": "1.2",
+      "source": "apps",
+      "bundle_identifier": "com.apple.exposelauncher"
+    },
+    {
+      "name": "MobileDeviceUpdater.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.MobileDeviceUpdater"
+    },
+    {
+      "name": "Music.app",
+      "version": "1.6.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Music"
+    },
+    {
+      "name": "MusicRecognitionMac.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.musicrecognition.mac"
+    },
+    {
+      "name": "NetAuthAgent.app",
+      "version": "6.2",
+      "source": "apps",
+      "bundle_identifier": "com.apple.NetAuthAgent"
+    },
+    {
+      "name": "Network.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder.Open-Network"
+    },
+    {
+      "name": "News.app",
+      "version": "11.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.news"
+    },
+    {
+      "name": "Notes.app",
+      "version": "4.13",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Notes"
+    },
+    {
+      "name": "NotificationCenter.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.notificationcenterui"
+    },
+    {
+      "name": "NowPlayingTouchUI.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.NowPlayingTouchUI"
+    },
+    {
+      "name": "OBEXAgent.app",
+      "version": "9.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.OBEXAgent"
+    },
+    {
+      "name": "OSDUIHelper.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.OSDUIHelper"
+    },
+    {
+      "name": "OpenSpell.service",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.OpenSpell"
+    },
+    {
+      "name": "PIPAgent.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PIPAgent"
+    },
+    {
+      "name": "Paired Devices.app",
+      "version": "7.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PairedDevices"
+    },
+    {
+      "name": "ParentalControls.app",
+      "version": "4.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.familycontrols.useragent"
+    },
+    {
+      "name": "Pass Viewer.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Pass-Viewer"
+    },
+    {
+      "name": "PassViewer.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PassViewer"
+    },
+    {
+      "name": "PasswordManagerBrowserExtensionHelper.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PasswordManagerBrowserExtensionHelper"
+    },
+    {
+      "name": "Passwords.app",
+      "version": "2.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Passwords"
+    },
+    {
+      "name": "PasswordsMenuBarExtra.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Passwords.MenuBarExtra"
+    },
+    {
+      "name": "PeopleMessageService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PeopleMessageService"
+    },
+    {
+      "name": "PeopleViewService.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PeopleViewService"
+    },
+    {
+      "name": "Phone.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.mobilephone"
+    },
+    {
+      "name": "Photo Booth.app",
+      "version": "13.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PhotoBooth"
+    },
+    {
+      "name": "Photos.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Photos"
+    },
+    {
+      "name": "PluginIM.app",
+      "version": "26.200",
+      "source": "apps",
+      "bundle_identifier": "com.apple.inputmethod.PluginIM"
+    },
+    {
+      "name": "Podcasts.app",
+      "version": "1.1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.podcasts"
+    },
+    {
+      "name": "PowerChime.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PowerChime"
+    },
+    {
+      "name": "PressAndHold.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PAH-Container"
+    },
+    {
+      "name": "Preview.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Preview"
+    },
+    {
+      "name": "PreviewShell.app",
+      "version": "16.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PreviewShell"
+    },
+    {
+      "name": "PreviewShellMac.app",
+      "version": "16.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.PreviewShellMac"
+    },
+    {
+      "name": "Print Center.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.printcenter"
+    },
+    {
+      "name": "Pro Display Calibrator.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.displaycalibrator"
+    },
+    {
+      "name": "Problem Reporter.app",
+      "version": "10.13",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ProblemReporter"
+    },
+    {
+      "name": "ProfileHelper.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.mcx.ProfileHelper"
+    },
+    {
+      "name": "Python.app",
+      "version": "3.9.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.python3"
+    },
+    {
+      "name": "Quick Look Simulator.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.quicklook.QuickLookSimulator"
+    },
+    {
+      "name": "QuickLookUIHelper.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.quicklook.ui.helper"
+    },
+    {
+      "name": "QuickTime Player.app",
+      "version": "10.5",
+      "source": "apps",
+      "bundle_identifier": "com.apple.QuickTimePlayerX"
+    },
+    {
+      "name": "RapportUIAgent.app",
+      "version": "7.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.RapportUIAgent"
+    },
+    {
+      "name": "Recents.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder.Open-Recents"
+    },
+    {
+      "name": "RegisterPluginIMApp.app",
+      "version": "26.200",
+      "source": "apps",
+      "bundle_identifier": "com.apple.pluginIM.pluginIMRegistrator"
+    },
+    {
+      "name": "Reminders.app",
+      "version": "7.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.reminders"
+    },
+    {
+      "name": "Remote Desktop Message.app",
+      "version": "3.9.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.RemoteDesktopMessageAgent"
+    },
+    {
+      "name": "Rosetta 2 Updater.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.OAHSoftwareUpdateApp"
+    },
+    {
+      "name": "SCIM.app",
+      "version": "104",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SCIM-Container"
+    },
+    {
+      "name": "SSMenuAgent.app",
+      "version": "3.9.8",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SSMenuAgent"
+    },
+    {
+      "name": "STMUIHelper.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.STMFramework.UIHelper"
+    },
+    {
+      "name": "Safari.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Safari"
+    },
+    {
+      "name": "Screen Sharing.app",
+      "version": "6.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScreenSharing"
+    },
+    {
+      "name": "Screen Time.app",
+      "version": "3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScreenTimeWidgetApplication"
+    },
+    {
+      "name": "ScreenReaderUIServer.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScreenReaderUIServer"
+    },
+    {
+      "name": "ScreenSaverEngine.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScreenSaver.Engine"
+    },
+    {
+      "name": "Screenshot.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.screenshot.launcher"
+    },
+    {
+      "name": "Script Editor.app",
+      "version": "2.11",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScriptEditor2"
+    },
+    {
+      "name": "Script Menu.app",
+      "version": "1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScriptMenuApp"
+    },
+    {
+      "name": "ScriptMonitor.app",
+      "version": "1.0.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScriptMonitor"
+    },
+    {
+      "name": "Setup Assistant.app",
+      "version": "10.10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SetupAssistant"
+    },
+    {
+      "name": "ShortcutDroplet.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.shortcuts.droplet"
+    },
+    {
+      "name": "Shortcuts Events.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.shortcuts.events"
+    },
+    {
+      "name": "Shortcuts.app",
+      "version": "7.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.shortcuts"
+    },
+    {
+      "name": "ShortcutsActions.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ShortcutsActions"
+    },
+    {
+      "name": "Siri.app",
+      "version": "3520.76.2.14.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Siri"
+    },
+    {
+      "name": "Siri.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.siri.launcher"
+    },
+    {
+      "name": "Software Update.app",
+      "version": "6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SoftwareUpdate"
+    },
+    {
+      "name": "SoftwareUpdateNotificationManager.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SoftwareUpdateNotificationManager"
+    },
+    {
+      "name": "SpacesTouchBarAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SpacesTouchBarAgent"
+    },
+    {
+      "name": "SpeechDataInstallerd.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.speech.SpeechDataInstallerd"
+    },
+    {
+      "name": "SpeechRecognitionServer.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.speech.SpeechRecognitionServer"
+    },
+    {
+      "name": "SpeechService.service",
+      "version": "9.2.22",
+      "source": "apps",
+      "bundle_identifier": "com.apple.speech.SpeechService"
+    },
+    {
+      "name": "Spotlight.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Spotlight"
+    },
+    {
+      "name": "Spotlight.service",
+      "version": "3.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SpotlightService"
+    },
+    {
+      "name": "StageManagerOnboarding.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.windowmanager.StageManagerOnboarding"
+    },
+    {
+      "name": "Stickies.app",
+      "version": "10.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Stickies"
+    },
+    {
+      "name": "Stocks.app",
+      "version": "8.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.stocks"
+    },
+    {
+      "name": "Summary Service.app",
+      "version": "2.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SummaryService"
+    },
+    {
+      "name": "SyncServer.app",
+      "version": "8.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.syncserver"
+    },
+    {
+      "name": "System Events.app",
+      "version": "1.3.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.systemevents"
+    },
+    {
+      "name": "System Information.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SystemProfiler"
+    },
+    {
+      "name": "System Settings.app",
+      "version": "15.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.systempreferences"
+    },
+    {
+      "name": "System Speech.app",
+      "version": "9.2.22",
+      "source": "apps",
+      "bundle_identifier": "com.apple.speech.synthesis.SpeechSynthesisServer"
+    },
+    {
+      "name": "SystemIntents.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.SystemIntents"
+    },
+    {
+      "name": "SystemUIServer.app",
+      "version": "1.7",
+      "source": "apps",
+      "bundle_identifier": "com.apple.systemuiserver"
+    },
+    {
+      "name": "TCIM.app",
+      "version": "104",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TCIM-Container"
+    },
+    {
+      "name": "TMHelperAgent.app",
+      "version": "13",
+      "source": "apps",
+      "bundle_identifier": "com.apple.timemachine.HelperAgent"
+    },
+    {
+      "name": "TV.app",
+      "version": "1.6.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TV"
+    },
+    {
+      "name": "TYIM.app",
+      "version": "104",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TYIM-Container"
+    },
+    {
+      "name": "TamilIM.app",
+      "version": "1.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.inputmethod.Tamil"
+    },
+    {
+      "name": "Terminal.app",
+      "version": "2.15",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Terminal"
+    },
+    {
+      "name": "TextEdit.app",
+      "version": "1.20",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TextEdit"
+    },
+    {
+      "name": "TextInputMenuAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TextInputMenuAgent"
+    },
+    {
+      "name": "TextInputSwitcher.app",
+      "version": "1.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TextInputSwitcher"
+    },
+    {
+      "name": "ThermalTrap.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ThermalTrap"
+    },
+    {
+      "name": "Ticket Viewer.app",
+      "version": "4.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Ticket-Viewer"
+    },
+    {
+      "name": "Time Machine.app",
+      "version": "1.3",
+      "source": "apps",
+      "bundle_identifier": "com.apple.backup.launcher"
+    },
+    {
+      "name": "Tips.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.helpviewer"
+    },
+    {
+      "name": "TipsSpotlightHandler.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.tips"
+    },
+    {
+      "name": "TrackpadIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TrackpadIM-Container"
+    },
+    {
+      "name": "TransliterationIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.TransliterationIM-Container"
+    },
+    {
+      "name": "UASharedPasteboardProgressUI.app",
+      "version": "54.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.coreservices.UASharedPasteboardProgressUI"
+    },
+    {
+      "name": "UIKitSystem.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.UIKitSystemApp"
+    },
+    {
+      "name": "UniversalAccessControl.app",
+      "version": "7.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.UniversalAccessControl"
+    },
+    {
+      "name": "UniversalControl.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.universalcontrol"
+    },
+    {
+      "name": "UnmountAssistantAgent.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.UnmountAssistantAgent"
+    },
+    {
+      "name": "UserNotificationCenter.app",
+      "version": "82",
+      "source": "apps",
+      "bundle_identifier": "com.apple.UserNotificationCenter"
+    },
+    {
+      "name": "VietnameseIM.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.VIM-Container"
+    },
+    {
+      "name": "VoiceMemos.app",
+      "version": "3.2",
+      "source": "apps",
+      "bundle_identifier": "com.apple.VoiceMemos"
+    },
+    {
+      "name": "VoiceOver Quickstart.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.VoiceOverQuickstart"
+    },
+    {
+      "name": "VoiceOver Utility.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.VoiceOverUtility"
+    },
+    {
+      "name": "VoiceOver.app",
+      "version": "10",
+      "source": "apps",
+      "bundle_identifier": "com.apple.VoiceOver"
+    },
+    {
+      "name": "WallpaperAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.wallpaper.agent"
+    },
+    {
+      "name": "WatchFaceAlert.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.WatchFaceAlert"
+    },
+    {
+      "name": "Weather.app",
+      "version": "6.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.weather"
+    },
+    {
+      "name": "WeatherMenu.app",
+      "version": "6.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.weather.menu"
+    },
+    {
+      "name": "Web App.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.Safari.WebApp"
+    },
+    {
+      "name": "WebStorm.app",
+      "version": "2026.1",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.WebStorm"
+    },
+    {
+      "name": "WiFiAgent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.wifi.WiFiAgent"
+    },
+    {
+      "name": "WidgetKit Simulator.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.widgetkit.simulator"
+    },
+    {
+      "name": "WindowManager.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.apple.WindowManager"
+    },
+    {
+      "name": "WindowManagerShowDesktopEducation.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.windowmanager.ShowDesktopEducation"
+    },
+    {
+      "name": "Wireless Diagnostics.app",
+      "version": "11.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.wifi.diagnostics"
+    },
+    {
+      "name": "Wish.app",
+      "version": "8.5.9",
+      "source": "apps",
+      "bundle_identifier": "com.tcltk.wish"
+    },
+    {
+      "name": "WorkoutAlert-Mac.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.WorkoutAlert-Mac"
+    },
+    {
+      "name": "XProtect.app",
+      "version": "157",
+      "source": "apps",
+      "bundle_identifier": "com.apple.XProtectFramework.XProtect"
+    },
+    {
+      "name": "cef_server Helper (GPU).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.cefserver.helper.gpu"
+    },
+    {
+      "name": "cef_server Helper (Plugin).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.cefserver.helper.plugin"
+    },
+    {
+      "name": "cef_server Helper (Renderer).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.cefserver.helper.renderer"
+    },
+    {
+      "name": "cef_server Helper.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.cefserver.helper"
+    },
+    {
+      "name": "cef_server.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "com.jetbrains.cefserver"
+    },
+    {
+      "name": "ctkbind.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ctkbind"
+    },
+    {
+      "name": "eaptlstrust.app",
+      "version": "13.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.eap8021x.eaptlstrust"
+    },
+    {
+      "name": "iCloud Drive.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.bird"
+    },
+    {
+      "name": "iCloud Drive.app",
+      "version": "26.4",
+      "source": "apps",
+      "bundle_identifier": "com.apple.finder.Open-iCloudDrive"
+    },
+    {
+      "name": "iCloud+.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.icq"
+    },
+    {
+      "name": "iCloud.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.CloudKit.ShareBear"
+    },
+    {
+      "name": "iCloudUserNotificationsd.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.iCloudUserNotificationsd"
+    },
+    {
+      "name": "iOS App Installer.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.IPAInstaller"
+    },
+    {
+      "name": "iPhone Mirroring.app",
+      "version": "1.6",
+      "source": "apps",
+      "bundle_identifier": "com.apple.ScreenContinuity"
+    },
+    {
+      "name": "identityservicesd.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.identityservicesd"
+    },
+    {
+      "name": "imagent.app",
+      "version": "10.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.imagent"
+    },
+    {
+      "name": "jcef Helper (GPU).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "org.jcef.jcef.helper.gpu"
+    },
+    {
+      "name": "jcef Helper (Plugin).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "org.jcef.jcef.helper.plugin"
+    },
+    {
+      "name": "jcef Helper (Renderer).app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "org.jcef.jcef.helper.renderer"
+    },
+    {
+      "name": "jcef Helper.app",
+      "version": "",
+      "source": "apps",
+      "bundle_identifier": "org.jcef.jcef.helper"
+    },
+    {
+      "name": "loginwindow.app",
+      "version": "9.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.loginwindow"
+    },
+    {
+      "name": "nbagent.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.nbagent"
+    },
+    {
+      "name": "privatecloudcomputed.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.privatecloudcomputed"
+    },
+    {
+      "name": "qlmanage.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.quicklook.qlmanage"
+    },
+    {
+      "name": "quicklookd.app",
+      "version": "5.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.QuickLookDaemon"
+    },
+    {
+      "name": "rcd.app",
+      "version": "362",
+      "source": "apps",
+      "bundle_identifier": "com.apple.rcd"
+    },
+    {
+      "name": "screencaptureui.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.screencaptureui"
+    },
+    {
+      "name": "sociallayerd.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.sociallayerd"
+    },
+    {
+      "name": "storeuid.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.storeuid"
+    },
+    {
+      "name": "syncuid.app",
+      "version": "8.1",
+      "source": "apps",
+      "bundle_identifier": "com.apple.syncservices.syncuid"
+    },
+    {
+      "name": "universalAccessAuthWarn.app",
+      "version": "1.0",
+      "source": "apps",
+      "bundle_identifier": "com.apple.accessibility.universalAccessAuthWarn"
+    },
+    {
+      "name": "deno",
+      "version": "2.7.12",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "firefox",
+      "version": "149.0.2",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "jpeg-turbo",
+      "version": "3.1.4.1",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "libtiff",
+      "version": "4.7.1_1",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "little-cms2",
+      "version": "2.18",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "lz4",
+      "version": "1.10.0",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "readline",
+      "version": "8.3.3",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "sqlite",
+      "version": "3.53.0",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "xz",
+      "version": "5.8.3",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7_1",
+      "source": "homebrew_packages"
+    },
+    {
+      "name": "altgraph",
+      "version": "0.17.2",
+      "source": "python_packages"
+    },
+    {
+      "name": "future",
+      "version": "0.18.2",
+      "source": "python_packages"
+    },
+    {
+      "name": "macholib",
+      "version": "1.15.2",
+      "source": "python_packages"
+    },
+    {
+      "name": "pip",
+      "version": "21.2.4",
+      "source": "python_packages"
+    },
+    {
+      "name": "setuptools",
+      "version": "58.0.4",
+      "source": "python_packages"
+    },
+    {
+      "name": "six",
+      "version": "1.15.0",
+      "source": "python_packages"
+    },
+    {
+      "name": "wheel",
+      "version": "0.37.0",
+      "source": "python_packages"
+    }
+  ]
+}
