@@ -306,6 +306,10 @@ software:
       setup_experience: true
       categories:
         - Productivity
+    - slug: claude-code/darwin # Claude Code for macOS
+      self_service: true
+      categories:
+        - Developer tools
     - slug: github/darwin # GitHub Desktop for macOS
       self_service: true
       categories:
@@ -393,6 +397,12 @@ software:
         - "x86-based Windows hosts"
       categories:
         - Productivity
+    - slug: claude-code/windows # Claude Code for Windows
+      self_service: true
+      labels_include_any:
+        - "x86-based Windows hosts"
+      categories:
+        - Developer tools
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
       categories:
