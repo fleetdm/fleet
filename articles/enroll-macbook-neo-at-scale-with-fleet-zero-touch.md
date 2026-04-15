@@ -31,9 +31,9 @@ Zero-touch enrollment eliminates this bottleneck. Devices ship directly from App
 
 Fleet integrates with [Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to support zero-touch enrollment through Apple's Automated Device Enrollment (ADE). Here's how the pieces fit together:
 
-1. **Purchase devices through Apple or an authorized reseller.** When you buy MacBook Neos through an authorized channel and provide your ABM Organization ID, each device's serial number is automatically registered to your Apple Business account.
+1. **Purchase devices through Apple or an authorized reseller.** When you buy MacBook Neos through an authorized channel and provide your AB Organization ID, each device's serial number is automatically registered to your Apple Business account.
 
-2. **Assign devices to Fleet in Apple Business.** In the ABM portal, assign the registered serial numbers to your Fleet MDM server. This tells Apple's activation servers to direct those devices to Fleet when they first boot up.
+2. **Assign devices to Fleet in Apple Business.** In the AB portal, assign the registered serial numbers to your Fleet MDM server. This tells Apple's activation servers to direct those devices to Fleet when they first boot up.
 
 3. **Configure enrollment settings in Fleet.** Set up your [enrollment profile](https://fleetdm.com/guides/setup-experience), including which Setup Assistant screens to show or skip, whether to require end user authentication, and which team to assign the device to. Fleet also supports a [bootstrap package](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) for installing essential software during first setup.
 
@@ -50,8 +50,8 @@ Before placing a large MacBook Neo order, make sure your Fleet infrastructure is
 
 ### Verify Apple Business setup
 
-- Confirm your [ABM account](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) is verified and active with a valid D-U-N-S number.
-- Ensure your Fleet MDM server is added as a virtual MDM server in ABM.
+- Confirm your [AB account](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) is verified and active with a valid D-U-N-S number.
+- Ensure your Fleet MDM server is added as a virtual MDM server in AB.
 - Verify that your Apple Push Notification (APNs) certificate is current and won't expire during the rollout window.
 
 ### Configure enrollment profiles and policies
@@ -62,7 +62,7 @@ Before placing a large MacBook Neo order, make sure your Fleet infrastructure is
 
 ### Use teams for department-level configuration
 
-Fleet's [teams](https://fleetdm.com/guides/teams) let you segment devices by department, office, or role. Different teams can receive different configuration profiles, software packages, and policies. Assign your ABM devices to the appropriate Fleet team so each MacBook Neo gets the right setup for its intended user.
+Fleet's [teams](https://fleetdm.com/guides/teams) let you segment devices by department, office, or role. Different teams can receive different configuration profiles, software packages, and policies. Assign your AB devices to the appropriate Fleet team so each MacBook Neo gets the right setup for its intended user.
 
 ### Stage software and bootstrap packages
 
