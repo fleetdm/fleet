@@ -37,7 +37,7 @@
                   </div>
                   <div class="form-group">
                     <label for="email-address">Work email *</label>
-                    <input tabindex="3" class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
+                    <input tabindex="3" class="form-control" id="email-address" type="email" autocomplete="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
                     <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
                   </div>
                   <ajax-button tabindex="4" purpose="watch-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Watch the webinar</ajax-button>
@@ -87,7 +87,7 @@
       <div purpose="success-message">
         <h1 class="pb-3"><%= thisPage.meta.articleTitle %></h1>
         <div purpose="embedded-video">
-          <iframe src="<%= thisPage.meta.webinarEmbeddedVideoUrl %>?loop=false&muted=false&preload=true&responsive=false" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>
+          <iframe title="Webinar recording: <%= thisPage.meta.articleTitle %>" src="<%= thisPage.meta.webinarEmbeddedVideoUrl %>?loop=false&muted=false&preload=true&responsive=false" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>
         </div>
       </div>
 
