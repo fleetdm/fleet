@@ -40,7 +40,7 @@
                     <input tabindex="3" class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
                     <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
                   </div>
-                  <ajax-button tabindex="4" purpose="download-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Download whitepaper</ajax-button>
+                  <ajax-button tabindex="4" purpose="download-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Watch the webinar</ajax-button>
                   <cloud-error v-if="cloudError === 'invalidEmailDomain'">
                     <p>
                       Please enter your work or school email address.
@@ -85,7 +85,7 @@
   <%} else {%>
     <div purpose="page-container" class="mx-auto">
       <div purpose="success-message">
-        <h1><%= thisPage.meta.articleTitle %></h1>
+        <h1 class="pb-3"><%= thisPage.meta.articleTitle %></h1>
         <div purpose="embedded-video">
           <iframe src="<%= thisPage.meta.webinarEmbeddedVideoUrl %>?loop=false&muted=false&preload=true&responsive=false" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>
         </div>
