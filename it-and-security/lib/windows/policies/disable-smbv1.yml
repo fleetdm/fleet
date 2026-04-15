@@ -1,0 +1,21 @@
+- name: Windows - SMBv1 disabled
+  query: >-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM registry
+      WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters\SMB1'
+      AND CAST(data AS INTEGER) = 0
+    );
+  critical: true
+  description: >-
+    SMBv1 is a legacy file-sharing protocol with known security vulnerabilities, including
+    exploitation by ransomware such as WannaCry. This policy verifies that SMBv1 is disabled
+    by checking that the registry key
+    HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters\SMB1 is set to 0.
+  resolution: >-
+    To disable SMBv1, open PowerShell as Administrator and run:
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force.
+    Alternatively, ensure the registry key
+    HKLM\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters\SMB1 is set to 0.
+    A reboot may be required for the change to take effect. If the issue persists,
+    please reach out in #help-dogfooding.
+  platform: windows
