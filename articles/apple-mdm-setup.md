@@ -8,16 +8,31 @@ To turn on Windows MDM features, head to this [Windows MDM setup article](https:
 
 ## Turn on Apple MDM
 
-Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
-
-To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
-
-Then select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
+Apple uses Apple Push Notification service (APNs) APNs to authenticate and manage interactions between Fleet and hosts.
 
 > Apple requires that APNs certificates are renewed annually.
 > - The recommended approach is to use a shared admin account to generate the CSR ensuring it can be renewed regardless of individual availability.
-> - If your certificate expires, you must turn MDM off and back on for all macOS hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
-> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
+> - If your certificate expires, you must turn MDM off and back on for all Apple hosts. Until then, configuration profile changes and other MDM commands will remain stuck in “Pending.”
+> - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all Apple hosts.
+
+How to connect Fleet to APNs:
+
+1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
+3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
+4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/). If you don't have an Apple ID, select **Create yours now**.
+5. In Apple Push Certificates Portal, select **Create a Certificate**, upload your CSR, and download your APNs certificate.
+6. Upload APNs certificate (.pem file) in Fleet.
+
+### Renew APNs
+
+1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
+2. Select **Renew certificate** under the Apple (macOS, iOS, iPadOS) MDM section.
+3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
+4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
+5. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
+6. Upload your CSR and download new APNs certificate.
+7. Upload APNs certificate (.pem file) in Fleet.
 
 ## Apple Business (AB)
 
@@ -95,14 +110,16 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 ### Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
 
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
-2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
+
+2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business, and then select the **Upload** button at the bottom to upload it to Fleet.
 
 3. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
 ### To renew a VPP token:
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
-2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
+
+2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business and then upload the new token to Fleet.
 
 ## Best practice
 
@@ -146,27 +163,9 @@ The acquisitions's VPP token will be assigned to the above fleets.
 Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
 renews each host's SCEP certificates automatically every 180 days.
 
-## Troubleshooting
+## Troubleshooting failed enrollments
 
-### Failed enrollments
-
-If a host is restarted/shut down during macOS Setup Assistant, it will fail to enroll to Fleet. Failed enrollments also happen if Fleet instance is down for an upgrade. When this happens, sometimes hosts automatically restart setup. If that doesn't happen, the best practice is to remotely [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) if the host is connected to Wi-Fi. If it's not, you'll need physical access to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
-
-### Apple Business (AB)
-
-Fleet surfaces Apple Business (AB) automatic enrollment profile assignment by retrieving assignment errors and timestamps for each host. While Fleet does not actively monitor push events, admins can view assignment and push timestamps in host details. If a device shows an assignment time but no push time, admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
-
-![Fleet-AB-workflow](https://github.com/fleetdm/fleet/blob/main/website/assets/images/articles/abm-assignment-workflow.jpg)
-
-To view an AB issue:
-
-1. If there is an active issue assigning a profile, a vital called **AB issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with AB issues.
-2. Select a host to view host details where you can review the MDM status. Clicking on the MDM status will display a modal with the following information:
-   - **MDM status**: the host’s current state in Fleet’s MDM lifecycle.
-   - **Profile assignment**: timestamp of the last successful profile assignment reported by Apple Business for this host.
-   - **Profile push**: timestamp of the last successful retrieval of the assigned profile by the host. If the profile wasn’t pushed, the host cannot activate MDM.
-   - **Profile status**: the most recent status reported by Apple for this host.
-   - **Profile assignment error** (if active error): a failure during DEP profile assignment or push. Includes error details for troubleshooting.
+If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
