@@ -10,7 +10,7 @@ If you see an endpoint documented here that you'd like to use, please [file a fe
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
-- [Live query](#live-query)
+- [Live report](#live-report)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
 - [Orbit-authenticated routes](#orbit-authenticated-routes)
@@ -40,7 +40,7 @@ successful response format.
 
 ## Packs
 
-Scheduling queries in Fleet is the best practice for collecting data from hosts. To learn how to schedule queries, [check out the docs here](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query).
+Reports in Fleet is the best practice for collecting data from hosts. To learn how to add reports, [check out the docs here](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query).
 
 The API routes to control packs are supported for backwards compatibility.
 
@@ -1527,9 +1527,9 @@ while passing the `mdm-byod` enrollment type.
 
 These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet with `fleetctl` and [configuration files in YAML syntax](https://fleetdm.com/docs/using-fleet/configuration-files/).
 
-- [Get queries](#get-queries)
-- [Get query](#get-query)
-- [Apply queries](#apply-queries)
+- [Get reports](#get-reports)
+- [Get report](#get-report)
+- [Apply reports](#apply-reports)
 - [Apply policies](#apply-policies)
 - [Get packs](#get-packs)
 - [Apply packs](#apply-packs)
@@ -1542,11 +1542,11 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Modify enroll secrets](#modify-enroll-secrets)
 - [Store secret variables](#store-secret-variables)
 
-### Get queries
+### Get reports
 
-Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
+Returns a list of all reports in the Fleet instance. Each item returned includes the name, description, and SQL of the report.
 
-`GET /api/v1/fleet/spec/queries`
+`GET /api/v1/fleet/spec/reports`
 
 #### Parameters
 
@@ -1554,7 +1554,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/spec/queries`
+`GET /api/v1/fleet/spec/reports`
 
 ##### Default response
 
@@ -1577,21 +1577,21 @@ None.
 }
 ```
 
-### Get query
+### Get report
 
-Returns the name, description, and SQL of the query specified by name.
+Returns the name, description, and SQL of the report specified by name.
 
-`GET /api/v1/fleet/spec/queries/{name}`
+`GET /api/v1/fleet/spec/reports/{name}`
 
 #### Parameters
 
 | Name | Type   | In   | Description                          |
 | ---- | ------ | ---- | ------------------------------------ |
-| name | string | path | **Required.** The name of the query. |
+| name | string | path | **Required.** The name of the report. |
 
 #### Example
 
-`GET /api/v1/fleet/spec/queries/query1`
+`GET /api/v1/fleet/spec/reports/query1`
 
 ##### Default response
 
@@ -1607,9 +1607,9 @@ Returns the name, description, and SQL of the query specified by name.
 }
 ```
 
-### Apply queries
+### Apply reports
 
-Creates and/or modifies the queries included in the list. To modify an existing query, the name of the query must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
+Creates and/or modifies the reports included in the list. To modify an existing report, the name of the report must already be used by an existing report. If a report with the specified name doesn't exist in Fleet, a new report will be created.
 
 If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
 
@@ -1619,13 +1619,13 @@ If a query field is not specified in the "spec" then its default value depending
 
 | Name  | Type | In   | Description                                                      |
 | ----- | ---- | ---- | ---------------------------------------------------------------- |
-| specs | list | body | **Required.** The list of the queries to be created or modified. |
+| specs | list | body | **Required.** The list of the reports to be created or modified. |
 
-For more information about the query fields, please refer to the [Create query endpoint](https://fleetdm.com/docs/using-fleet/rest-api#create-query).
+For more information about the query fields, please refer to the [Create report endpoint](https://fleetdm.com/docs/using-fleet/rest-api#create-report).
 
 #### Example
 
-`POST /api/v1/fleet/spec/queries`
+`POST /api/v1/fleet/spec/reports`
 
 ##### Request body
 
@@ -1634,12 +1634,12 @@ For more information about the query fields, please refer to the [Create query e
   "specs": [
     {
       "name": "new_query",
-      "description": "This will be a new query because a query with the name 'new_query' doesn't exist in Fleet.",
+      "description": "This will be a new report because a report with the name 'new_report' doesn't exist in Fleet.",
       "query": "SELECT * FROM osquery_info"
     },
     {
       "name": "osquery_schedule",
-      "description": "This queries description and SQL will be modified because a query with the name 'osquery_schedule' exists in Fleet.",
+      "description": "This report's description and SQL will be modified because a report with the name 'osquery_schedule' exists in Fleet.",
       "query": "SELECT * FROM osquery_info"
     }
   ]
@@ -2492,22 +2492,22 @@ Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
 
 ---
 
-## Live query
+## Live report
 
 These API routes are used by the Fleet UI.
 
-- [Check live query status](#check-live-query-status)
+- [Check live report status](#check-live-report-status)
 - [Check result store status](#check-result-store-status)
 - [Search targets](#search-targets)
 - [Count targets](#count-targets)
-- [Run live query](#run-live-query)
-- [Run live query by name](#run-live-query-by-name)
-- [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-websocket-api)
-- [Retrieve live query results (SockJS)](#retrieve-live-query-results-sockjs)
+- [Run live report](#run-live-report)
+- [Run live report by name](#run-live-report-by-name)
+- [Retrieve live report results (standard WebSocket API)](#retrieve-live-report-results-standard-websocket-api)
+- [Retrieve live report results (SockJS)](#retrieve-live-report-results-sockjs)
 
-### Check live query status
+### Check live report status
 
-This checks the status of Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+This checks the status of Fleet's ability to run a live report. If an error is present in the response, Fleet won't be able to run a live report successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live reports.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -2525,7 +2525,7 @@ None.
 
 ### Check result store status
 
-This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
+This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live report successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live reports.
 
 `GET /api/v1/fleet/status/result_store`
 
@@ -2666,11 +2666,11 @@ Counts the number of online and offline hosts included in a given set of selecte
 }
 ```
 
-### Run live query
+### Run live report
 
-Runs the specified query as a live query on the specified hosts or group of hosts and returns a new live query campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
+Runs the specified report as a live report on the specified hosts or group of hosts and returns a new live report campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
 
-After you initiate the query, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
+After you initiate the report, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run`
 
@@ -2762,11 +2762,11 @@ One of `query` and `query_id` must be specified.
 }
 ```
 
-### Run live query by name
+### Run live report by name
 
-Runs the specified saved query as a live query on the specified targets. Returns a new live query campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
+Runs the specified saved report as a live report on the specified targets. Returns a new live report campaign. Individual hosts must be specified with the host's hostname. Groups of hosts are specified by label name.
 
-After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
+After the report has been initiated, [get results via WebSocket](#retrieve-live-report-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run_by_identifiers`
 
@@ -2891,13 +2891,13 @@ One of `query` and `query_id` must be specified.
 ```
 
 
-### Retrieve live query results (standard WebSocket API)
+### Retrieve live report results (standard WebSocket API)
 
-You can retrieve the results of a live query using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
+You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
-Before you retrieve the live query results, you must create a live query campaign by running the live query. Use the [Run live query](#run-live-query) or [Run live query by name](#run-live-query-by-name) endpoints to create a live query campaign.
+Before you retrieve the live report results, you must create a live report campaign by running the live report. Use the [Run live report](#run-live-report) or [Run live report by name](#run-live-report-by-name) endpoints to create a live report campaign.
 
-Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
+Note that live reports are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the report.
 
 `/api/v1/fleet/results/websocket`
 
@@ -2906,7 +2906,7 @@ Note that live queries are automatically cancelled if this method is not called 
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
+| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
 
 ### Example
 
@@ -2982,7 +2982,7 @@ o
 ```
 
 ```json
-// Sends the expected results, actual results so far, and the status of the live query
+// Sends the expected results, actual results so far, and the status of the live report
 
 [
   {
@@ -3033,11 +3033,11 @@ o
 ]
 ```
 
-### Retrieve live query results (SockJS)
+### Retrieve live report results (SockJS)
 
-You can also retrieve live query results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
+You can also retrieve live report results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
 
-Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-query-results-standard-websocket-api).
+Note that SockJS has been found to be substantially less reliable than the [standard WebSockets approach](#retrieve-live-report-results-standard-websocket-api).
 
 `/api/v1/fleet/results/`
 
@@ -3046,7 +3046,7 @@ Note that SockJS has been found to be substantially less reliable than the [stan
 | Name       | Type    | In  | Description                                                      |
 | ---------- | ------- | --- | ---------------------------------------------------------------- |
 | token      | string  |     | **Required.** The token used to authenticate with the Fleet API. |
-| campaignID | integer |     | **Required.** The ID of the live query campaign.                 |
+| campaignID | integer |     | **Required.** The ID of the live report campaign.                 |
 
 ### Example
 
@@ -3123,7 +3123,7 @@ o
 ```
 
 ```json
-// Sends the expected results, actual results so far, and the status of the live query
+// Sends the expected results, actual results so far, and the status of the live report
 
 [
   {
