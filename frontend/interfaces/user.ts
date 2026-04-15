@@ -105,7 +105,6 @@ export interface ICreateUserFormData {
   password?: string | null;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
-  api_only?: boolean;
   teams: ITeam[];
 }
 
