@@ -50,7 +50,7 @@ Before placing a large MacBook Neo order, make sure your Fleet infrastructure is
 
 ### Verify Apple Business setup
 
-- Confirm your [AB account](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) is verified and active with a valid D-U-N-S number.
+- Confirm your [AB account](https://fleetdm.com/articles/what-is-apple-business-a-complete-guide) is verified and active with a valid D-U-N-S number.
 - Ensure your Fleet MDM server is added as a virtual MDM server in AB.
 - Verify that your Apple Push Notification (APNs) certificate is current and won't expire during the rollout window.
 
