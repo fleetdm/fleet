@@ -764,7 +764,7 @@ module.exports = {
                     }
                   }
                 }
-                // If this is a webinar article, we'll check to make sure it has a webinarFilename and TODO metatags
+                // If this is a webinar article, we'll check to make sure it has a webinarEmbeddedVideoUrl meta tag.
                 if(embeddedMetadata.category === 'webinar') {
                   if(!embeddedMetadata.webinarEmbeddedVideoUrl){
                     throw new Error(`Failed compiling markdown content: A webinar article is missing a 'webinarEmbeddedVideoUrl' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a webinarEmbeddedVideoUrl meta tag with a value that is the URL of the webinar this article is presenting, and try running this script again.`);
