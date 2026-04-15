@@ -6,11 +6,13 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import {
   ICreateUserFormData,
+  IResetPasswordForm,
   IUpdateUserFormData,
   IUser,
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
 import { ITeamSummary } from "interfaces/team";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { IUserSettings } from "interfaces/config";
 
 export interface ISortOption {
@@ -178,12 +180,14 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  resetPassword: (formData: any) => {
+  resetPassword: (
+    formData: IResetPasswordForm & { password_reset_token: string }
+  ) => {
     const { RESET_PASSWORD } = endpoints;
 
     return sendRequest("POST", RESET_PASSWORD, formData);
   },
-  setup: (formData: any) => {
+  setup: (formData: IRegistrationFormData) => {
     const { SETUP } = endpoints;
     const setupData = helpers.setupData(formData);
 

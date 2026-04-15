@@ -145,7 +145,7 @@ const SelectQueryModal = ({
           <>
             {" "}
             or{" "}
-            <Button variant="text-link" onClick={onQueryHostCustom}>
+            <Button variant="link" onClick={onQueryHostCustom}>
               create your own report
             </Button>
           </>
