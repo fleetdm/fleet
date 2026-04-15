@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver whitepaper download request',
+  friendlyName: 'Deliver webinar access request',
 
 
   description: '',
