@@ -27,6 +27,20 @@ const baseClass = "fleet-arcade";
 const MAX_PAGES = 20;
 const HOSTS_PER_PAGE = 100;
 
+// Visualization caps. We focus the arcade on the most "interesting" hosts
+// (worst vuln/issues scores) so the canvas stays readable and the framerate
+// stays high on large deployments.
+const MAX_FLEETS = 10;
+const MAX_HOSTS_PER_FLEET = 50;
+
+// Composite badness score: critical vulns weigh heavily, with total issues
+// (which already includes failing policies) as the broader signal.
+const hostIssueScore = (h: IHost): number => {
+  const critical = h.issues?.critical_vulnerabilities_count ?? 0;
+  const total = h.issues?.total_issues_count ?? 0;
+  return critical * 10 + total;
+};
+
 interface IFleetArcadeProps {
   onClose: () => void;
 }
@@ -95,9 +109,28 @@ const FleetArcade = ({ onClose }: IFleetArcadeProps): JSX.Element => {
 
         if (cancelled) return;
 
-        const names = Array.from(
-          new Set(collected.map((h) => h.team_name || NO_FLEET_LABEL))
-        );
+        // Group everything first, then trim each fleet down to its worst
+        // MAX_HOSTS_PER_FLEET hosts and keep only the worst MAX_FLEETS fleets
+        // (ranked by aggregate badness of those top hosts).
+        const allGroups = groupByFleet(collected);
+        const trimmedGroups: {
+          name: string;
+          hosts: IHost[];
+          score: number;
+        }[] = Object.entries(allGroups).map(([name, hosts]) => {
+          const sorted = [...hosts].sort(
+            (a, b) => hostIssueScore(b) - hostIssueScore(a)
+          );
+          const top = sorted.slice(0, MAX_HOSTS_PER_FLEET);
+          const score = top.reduce((acc, h) => acc + hostIssueScore(h), 0);
+          return { name, hosts: top, score };
+        });
+
+        const selectedGroups = trimmedGroups
+          .sort((a, b) => b.score - a.score)
+          .slice(0, MAX_FLEETS);
+
+        const names = selectedGroups.map((g) => g.name);
         colorMapRef.current = buildFleetColorMap(names);
         setFleetNames(names);
 
@@ -111,10 +144,8 @@ const FleetArcade = ({ onClose }: IFleetArcadeProps): JSX.Element => {
         const width = canvas?.clientWidth || window.innerWidth;
         const height = canvas?.clientHeight || window.innerHeight;
 
-        const groups = groupByFleet(collected);
-        const formationEntries = Object.entries(groups);
-        formationsRef.current = formationEntries.map(
-          ([name, hosts], idx) =>
+        formationsRef.current = selectedGroups.map(
+          ({ name, hosts }, idx) =>
             new FleetFormation(name, hosts, width, height, idx * 0.8)
         );
 
