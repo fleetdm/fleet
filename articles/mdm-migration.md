@@ -4,7 +4,7 @@ This guide provides instructions for migrating devices from your current MDM sol
 
 > For seamless MDM migration, [view this guide](https://fleetdm.com/guides/seamless-mdm-migration).
 
-> For Apple's native MDM migration support for ABM-registered devices running macOS, iOS or iPadOS 26, [consult Apple's documentation](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web)
+> For Apple's native MDM migration support for AB-registered devices running macOS, iOS or iPadOS 26, [consult Apple's documentation](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web)
 
 ## Requirements
 
@@ -29,9 +29,9 @@ To migrate hosts, we will do the following steps:
 
 ### Step 2: Assign hosts in Apple Business (AB) to Fleet
 
-1. In ABM, unassign your hosts from your current MDM solution by selecting **Devices** and then selecting **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
+1. In AB, unassign your hosts from your current MDM solution by selecting **Inventory** > **Devices** then **Select** and then selecting **Select All**. Then, select **Actions** > **Unassign device management**.
 
-2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
+2. Assign these hosts to Fleet: select **Inventory** > **Devices** then **Select** and then selecting **Select All**. Then, select **Actions** > **Assign device management** and select your Fleet server in the dropdown.
 
 ### Step 3: Choose migration workflow and migrate hosts
 
@@ -45,11 +45,11 @@ The end user migration workflow allows the user to kick off migration by unenrol
 
 End user experience:
 
-- After a host is unenrolled from your current MDM solution, the end user is prompted with Apple’s Remote Management full-screen pop-up, typically within two hours, if the host is assigned to Fleet in ABM.
+- After a host is unenrolled from your current MDM solution, the end user is prompted with Apple’s Remote Management full-screen pop-up, typically within two hours, if the host is assigned to Fleet in AB.
 
 > **Note:** After Fleet begins prompting end users to enroll, it will continue to prompt them every few minutes.
 <img width="1400" alt="macOS Remote Management popup" src="https://github.com/user-attachments/assets/084946a5-1658-4d8c-852d-3cf5f5d58655">
-- If the host is not assigned to Fleet in ABM (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device page**.
+- If the host is not assigned to Fleet in AB (manual enrollment), the end user will be given the option to download the MDM enrollment profile on their **My device** page.
 <img width="1600" alt="Fleet icon in menu bar" src="https://raw.githubusercontent.com/fleetdm/fleet/main/website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
 <img width="1400" alt="My device page - turn on MDM" src="https://user-images.githubusercontent.com/5359586/229950406-98343bf7-9653-4117-a8f5-c03359ba0d86.png">
 
@@ -125,9 +125,9 @@ After turning on disk encryption in Fleet, share [these guided instructions](#ho
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (ADE) hosts.
 
-In 2024, Apple added the ability to manage activation lock in Apple Business (AB). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
+In 2024, Apple added the ability to manage activation lock in Apple Business (AB). For devices that are owned by the business and available in AB, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/business/welcome/web).
 
-If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
+If a device is not available in AB and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
 
 If the Activation Lock is enabled, you will need the Activation Lock bypass code to wipe and reuse the Mac successfully.
 
