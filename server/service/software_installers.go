@@ -37,7 +37,7 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
 	AutomaticInstall  bool
-	FromHomebrew      string
+	FromHomebrew      string `form:"from_homebrew" json:"from_homebrew"`
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -366,6 +366,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode self_service bool in multipart form: %s", err.Error())}
 		}
 		decoded.SelfService = parsed
+	}
+
+	val, ok = r.MultipartForm.Value["from_homebrew"]
+	if ok && len(val) > 0 {
+		decoded.FromHomebrew = val[0]
 	}
 
 	// decode labels

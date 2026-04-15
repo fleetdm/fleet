@@ -54,6 +54,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
+	fmt.Println("FromHombrew: ", payload.FromHomebrew)
 	if payload.FromHomebrew != "" {
 		ingester := homebrew.BrewIngester{
 			BaseURL: homebrew.BaseBrewAPIURL,
@@ -73,9 +74,25 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.InstallScript = fma.InstallScript
 		payload.Version = fma.Version
 		payload.UninstallScript = fma.UninstallScript
+		payload.Title = payload.FromHomebrew // hack
+		payload.Extension = filepath.Base(payload.URL)
 
 		fmt.Printf("%#v\n", payload)
 
+		// Copied from AddFleetMaintainedApp
+		// Download installer from the URL
+		timeout := maintained_apps.InstallerTimeout
+		client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
+		installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, fma.InstallerURL, client)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "downloading app installer")
+		}
+		defer installerTFR.Close()
+
+		fmt.Println("downloaded: ", filename)
+
+		payload.InstallerFile = installerTFR
+		payload.StorageID = fma.SHA256
 	}
 
 	// validate labels before we do anything else
@@ -110,8 +127,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	failOnBlankScript := !strings.HasSuffix(payload.Filename, ".ipa")
 
-	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
+	if payload.FromHomebrew == "" {
+		if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
+		}
 	}
 
 	// Validate install/post-install/uninstall script contents for non-script
