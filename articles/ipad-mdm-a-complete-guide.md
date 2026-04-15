@@ -84,7 +84,7 @@ An institutionally-owned iPad deployed 1:1 for a single employee as a primary wo
 
 ### Apple Business and Apple School Manager integration
 
-ABM and ASM integration allows your organization to easily grow your iPad deployments to enterprise scale. ABM / ASM administrators can assign devices to one or many MDM servers in the portal. In addition, most MDM solutions allow for multiple enrollment groupings, meaning enrollment can be customized for potentially unique deployments like special-use iPads if needed.
+AB and ASM integration allows your organization to easily grow your iPad deployments to enterprise scale. AB / ASM administrators can assign devices to one or many MDM servers in the portal. In addition, most MDM solutions allow for multiple enrollment groupings, meaning enrollment can be customized for potentially unique deployments like special-use iPads if needed.
 
 When users power on a new iPad, the device contacts an Apple service configured to recognize and handoff managed devices to specific MDM servers. This ensures that devices belonging to your organization are assigned the correct enrollment profile. Once enrollment is complete, all management configurations are delivered. Fully remote, "touchless" iPad deployments which make use of Apple's "Return To Service" MDM features are also possible.
 
@@ -162,7 +162,7 @@ Beyond iPad, top-level considerations when choosing an MDM include:
 
 ### iPad-specific MDM capabilities
 
-iPad-specific MDM capabilities deserve verification during MDM vendor evaluation. Shared iPad support is essential for multi-user scenarios, while kiosk mode and Single App Mode are requirements for retail deployments and digital signage installations and more. Classroom management features for education including screen monitoring and app restrictions require explicit MDM support, and ABM / ASM along with Apps and Books content integration determines whether you can implement zero-touch enrollment or manage app and content licensing at scale.
+iPad-specific MDM capabilities deserve verification during MDM vendor evaluation. Shared iPad support is essential for multi-user scenarios, while kiosk mode and Single App Mode are requirements for retail deployments and digital signage installations and more. Classroom management features for education including screen monitoring and app restrictions require explicit MDM support, and AB / ASM along with Apps and Books content integration determines whether you can implement zero-touch enrollment or manage app and content licensing at scale.
 
 ### Ease of use and operational fit
 
