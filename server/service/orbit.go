@@ -1963,3 +1963,71 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 
 	return nil, fleet.ErrMissingLicense
 }
+
+// Software inventory reporting from Android agents
+
+type orbitPostSoftwareInventoryRequest struct {
+	OrbitNodeKey string                              `json:"orbit_node_key"`
+	Software     []fleet.OrbitSoftwareInventoryItem `json:"software"`
+}
+
+func (r *orbitPostSoftwareInventoryRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *orbitPostSoftwareInventoryRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostSoftwareInventoryResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostSoftwareInventoryResponse) Error() error { return r.Err }
+
+func postOrbitSoftwareInventoryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*orbitPostSoftwareInventoryRequest)
+	if err := svc.ReportSoftwareInventory(ctx, req.Software); err != nil {
+		return orbitPostSoftwareInventoryResponse{Err: err}, nil
+	}
+	return orbitPostSoftwareInventoryResponse{}, nil
+}
+
+func (svc *Service) ReportSoftwareInventory(ctx context.Context, items []fleet.OrbitSoftwareInventoryItem) error {
+	// skipauth: Orbit-authenticated endpoint, host is set in context by middleware.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	if len(items) == 0 {
+		return nil
+	}
+
+	truncate := func(s string, maxLen int) string {
+		runes := []rune(s)
+		if len(runes) > maxLen {
+			return string(runes[:maxLen])
+		}
+		return s
+	}
+
+	software := make([]fleet.Software, 0, len(items))
+	for _, item := range items {
+		sw := fleet.Software{
+			Name:          truncate(item.AppName, fleet.SoftwareNameMaxLength),
+			Version:       truncate(item.Version, fleet.SoftwareVersionMaxLength),
+			ApplicationID: ptr.String(truncate(item.PackageName, fleet.SoftwareBundleIdentifierMaxLength)),
+			Source:        "android_apps",
+			Installed:     true,
+		}
+		software = append(software, sw)
+	}
+
+	if _, err := svc.ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software from orbit")
+	}
+	return nil
+}

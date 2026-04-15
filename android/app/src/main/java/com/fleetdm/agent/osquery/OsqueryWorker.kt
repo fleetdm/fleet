@@ -17,6 +17,9 @@ import androidx.work.WorkerParameters
 import com.fleetdm.agent.AndroidOrbitConfig
 import com.fleetdm.agent.ApiClient
 import com.fleetdm.agent.BuildConfig
+import com.fleetdm.agent.SoftwareInventoryItem
+import com.fleetdm.agent.osquery.core.TableQueryContext
+import com.fleetdm.agent.osquery.core.TableRegistry
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
@@ -72,6 +75,22 @@ class OsqueryWorker(
             Log.i(TAG, "About to call FleetDistributedQueryRunner.runOnce()")
             FleetDistributedQueryRunner.runOnce()
             Log.i(TAG, "FleetDistributedQueryRunner.runOnce() finished")
+
+            try {
+                val rows = TableRegistry.runTable("installed_apps", TableQueryContext())
+                val software = rows.map { row ->
+                    SoftwareInventoryItem(
+                        appName = row["app_name"] ?: "",
+                        version = row["version_name"] ?: "",
+                        packageName = row["package_name"] ?: "",
+                    )
+                }
+                ApiClient.reportSoftwareInventory(software)
+                    .onSuccess { Log.i(TAG, "Reported ${software.size} installed apps") }
+                    .onFailure { Log.w(TAG, "Failed to report software inventory: ${it.message}") }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to collect software inventory: ${e.message}")
+            }
 
             scheduleNext(androidConfig)
             return Result.success()

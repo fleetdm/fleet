@@ -106,6 +106,13 @@ type AndroidOrbitConfig struct {
 	BatterySaverIntervalSeconds    int `json:"battery_saver_interval_seconds"`
 }
 
+// OrbitSoftwareInventoryItem represents an installed app reported by an Android agent.
+type OrbitSoftwareInventoryItem struct {
+	AppName     string `json:"app_name"`
+	Version     string `json:"version"`
+	PackageName string `json:"package_name"`
+}
+
 func DefaultAndroidOrbitConfig() AndroidOrbitConfig {
 	return AndroidOrbitConfig{
 		DistributedReadIntervalSeconds: DefaultAndroidDistributedReadIntervalSeconds,

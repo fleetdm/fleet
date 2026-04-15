@@ -324,6 +324,29 @@ object ApiClient : CertificateApiClient {
         )
     }
 
+    suspend fun reportSoftwareInventory(
+        software: List<SoftwareInventoryItem>,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        val orbitNodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        makeRequest(
+            endpoint = "/api/fleet/orbit/software_inventory",
+            method = "POST",
+            body = ReportSoftwareInventoryRequest(
+                orbitNodeKey = orbitNodeKey,
+                software = software,
+            ),
+            bodySerializer = ReportSoftwareInventoryRequest.serializer(),
+            responseSerializer = kotlinx.serialization.json.JsonElement.serializer(),
+            authorized = false,
+        ).fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
+    }
+
     suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, serverUrl: String) {
         dataStore.edit { preferences ->
             val currentEnrollSecret = preferences[ENROLL_SECRET]
@@ -612,6 +635,24 @@ data class OrbitUpdateChannels(
 
     @SerialName("desktop")
     val desktop: String = "",
+)
+
+@Serializable
+data class SoftwareInventoryItem(
+    @SerialName("app_name")
+    val appName: String,
+    @SerialName("version")
+    val version: String,
+    @SerialName("package_name")
+    val packageName: String,
+)
+
+@Serializable
+private data class ReportSoftwareInventoryRequest(
+    @SerialName("orbit_node_key")
+    val orbitNodeKey: String,
+    @SerialName("software")
+    val software: List<SoftwareInventoryItem>,
 )
 
 @Serializable
