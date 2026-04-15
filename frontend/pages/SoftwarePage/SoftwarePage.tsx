@@ -407,10 +407,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             </TabList>
           </Tabs>
         </TabNav>
-        <div
-          key={location?.pathname}
-          className="tab-nav-routed-content"
-        >
+        <div key={location?.pathname} className="tab-nav-routed-content">
           {React.cloneElement(children, {
             router,
             isSoftwareEnabled: Boolean(

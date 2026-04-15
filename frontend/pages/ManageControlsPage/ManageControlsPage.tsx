@@ -186,10 +186,7 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabNav>
-        <div
-          key={location?.pathname}
-          className="tab-nav-routed-content"
-        >
+        <div key={location?.pathname} className="tab-nav-routed-content">
           {React.cloneElement(children, {
             teamIdForApi,
             currentPage: page,

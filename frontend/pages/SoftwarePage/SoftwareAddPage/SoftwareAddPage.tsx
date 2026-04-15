@@ -139,10 +139,7 @@ const SoftwareAddPage = ({
               </TabList>
             </Tabs>
           </TabNav>
-          <div
-            key={location?.pathname}
-            className="tab-nav-routed-content"
-          >
+          <div key={location?.pathname} className="tab-nav-routed-content">
             {React.cloneElement(children, {
               router,
               currentTeamId: parseInt(location.query.fleet_id, 10),

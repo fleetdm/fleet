@@ -97,7 +97,9 @@ const SingleFlashMessage = ({
           name={alertType === "success" ? "success" : "error"}
           // Static (un-themed) so icon stays light on the colored toast
           // surface in both light and dark mode.
-          color={alertType === "warning-filled" ? "static-black" : "static-white"}
+          color={
+            alertType === "warning-filled" ? "static-black" : "static-white"
+          }
         />
         <span>{message}</span>
       </div>
