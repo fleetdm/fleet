@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav, measureSearch } from '../../helpers/perf';
+import { tableRow, getNameFromRow } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
 
 test.describe('Vulnerabilities load times', () => {
   test('Vulnerabilities page', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
@@ -42,12 +40,12 @@ test.describe('Vulnerabilities load times', () => {
     await page.goto('/software/vulnerabilities');
     await expect(tableRow(page)).toBeVisible();
 
-    const cveName = await tableRow(page).locator('td').first().innerText();
+    const cveName = await getNameFromRow(page, 0);
 
     await measureSearch(
       page, testInfo, 'Search CVE',
-      page.getByPlaceholder('Search by CVE'), cveName!.trim(),
-      async () => { await expect(page.getByRole('table').getByText(cveName!.trim()).first()).toBeVisible(); }
+      page.getByPlaceholder('Search by CVE'), cveName,
+      async () => { await expect(page.getByRole('table').getByText(cveName).first()).toBeVisible(); }
     );
   });
 });

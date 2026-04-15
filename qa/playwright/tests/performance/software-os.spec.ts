@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav } from '../../helpers/perf';
+import { tableRow } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
 
 test.describe('Software OS load times', () => {
   test('OS page', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {

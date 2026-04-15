@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav } from '../../helpers/perf';
+import { tableRow, tableOrEmpty } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
 
 test.describe('Host Details load times', () => {
   let hostDetailPath: string;
@@ -59,9 +57,7 @@ test.describe('Host Details load times', () => {
       await page.getByRole('button', { name: /filter/i }).click();
       await page.locator('.software-filters-modal .fleet-slider').click();
       await page.locator('.software-filters-modal').getByRole('button', { name: 'Apply' }).click();
-      await expect(
-        tableRow(page).or(page.locator('.empty-table__container'))
-      ).toBeVisible();
+      await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
 
@@ -72,9 +68,7 @@ test.describe('Host Details load times', () => {
 
     await measureNav(page, testInfo, 'Library view', async () => {
       await page.getByRole('tab', { name: 'Library' }).click();
-      await expect(
-        tableRow(page).or(page.locator('.empty-table__container'))
-      ).toBeVisible();
+      await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
 
@@ -84,9 +78,7 @@ test.describe('Host Details load times', () => {
 
     await measureNav(page, testInfo, 'Policies tab', async () => {
       await page.getByRole('tab', { name: 'Policies' }).click();
-      await expect(
-        tableRow(page).or(page.locator('.empty-table__container'))
-      ).toBeVisible();
+      await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
 });

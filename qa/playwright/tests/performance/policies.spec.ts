@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav } from '../../helpers/perf';
+import { tableRow, tableOrEmpty, selectTeam } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
-
-const tableOrEmpty = (page: import('@playwright/test').Page) =>
-  tableRow(page).or(page.locator('.empty-table__container'));
 
 test.describe('Policies load times', () => {
   // ── All fleets ──────────────────────────────────────────────────────────────
@@ -31,8 +26,7 @@ test.describe('Policies load times', () => {
     await expect(tableRow(page)).toBeVisible();
 
     await measureNav(page, testInfo, 'Team page', async () => {
-      await page.locator('.team-dropdown__control').click();
-      await page.locator('.team-dropdown__option').nth(1).click();
+      await selectTeam(page);
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
@@ -40,9 +34,8 @@ test.describe('Policies load times', () => {
   test('Team - Software automation filter', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/policies/manage');
     await expect(tableRow(page)).toBeVisible();
-    await page.locator('.team-dropdown__control').click();
-    await page.locator('.team-dropdown__option').nth(1).click();
-    await expect(tableRow(page)).toBeVisible();
+    await selectTeam(page);
+    await expect(tableOrEmpty(page)).toBeVisible();
 
     const currentUrl = page.url();
     const url = new URL(currentUrl);

@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav, measureSearch } from '../../helpers/perf';
+import { tableRow, tableOrEmpty, selectStatusFilter, selectPlatformFilter, selectFirstCustomLabel } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
-
-const tableOrEmpty = (page: import('@playwright/test').Page) =>
-  tableRow(page).or(page.locator('.empty-table__container'));
 
 test.describe('Hosts load times', () => {
   test('Hosts list', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
@@ -21,13 +16,8 @@ test.describe('Hosts load times', () => {
     await page.goto('/hosts/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    // Open the status filter dropdown and select "Online"
-    await page.locator('.manage-hosts__status-filter .react-select__control').click();
-    const onlineOption = page.locator('[data-testid="dropdown-option"]').filter({ hasText: 'Online' });
-    await expect(onlineOption).toBeVisible();
-
     await measureNav(page, testInfo, 'Online status filter', async () => {
-      await onlineOption.click();
+      await selectStatusFilter(page, 'Online');
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
@@ -36,12 +26,8 @@ test.describe('Hosts load times', () => {
     await page.goto('/hosts/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    await page.locator('.label-filter-select__control').click();
-    const macOption = page.locator('.label-filter-select__option').filter({ hasText: 'macOS' });
-    await expect(macOption).toBeVisible();
-
     await measureNav(page, testInfo, 'Platform filter - macOS', async () => {
-      await macOption.click();
+      await selectPlatformFilter(page, 'macOS');
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
@@ -50,12 +36,8 @@ test.describe('Hosts load times', () => {
     await page.goto('/hosts/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    await page.locator('.label-filter-select__control').click();
-    const winOption = page.locator('.label-filter-select__option').filter({ hasText: 'Windows' });
-    await expect(winOption).toBeVisible();
-
     await measureNav(page, testInfo, 'Platform filter - Windows', async () => {
-      await winOption.click();
+      await selectPlatformFilter(page, 'Windows');
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
@@ -64,12 +46,8 @@ test.describe('Hosts load times', () => {
     await page.goto('/hosts/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    await page.locator('.label-filter-select__control').click();
-    const linuxOption = page.locator('.label-filter-select__option').filter({ hasText: 'Linux' });
-    await expect(linuxOption).toBeVisible();
-
     await measureNav(page, testInfo, 'Platform filter - Linux', async () => {
-      await linuxOption.click();
+      await selectPlatformFilter(page, 'Linux');
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });
@@ -79,23 +57,8 @@ test.describe('Hosts load times', () => {
     await page.goto('/hosts/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    await page.locator('.label-filter-select__control').click();
-    // Pick the first custom label (skip platform labels like macOS, Windows, Linux)
-    const platforms = ['macOS', 'Windows', 'Linux', 'ChromeOS', 'iOS', 'iPadOS', 'Android'];
-    const allOptions = page.locator('.label-filter-select__option');
-    const count = await allOptions.count();
-    let labelOption = allOptions.first();
-    for (let i = 0; i < count; i++) {
-      const text = await allOptions.nth(i).textContent();
-      if (text && !platforms.some((p) => text.includes(p))) {
-        labelOption = allOptions.nth(i);
-        break;
-      }
-    }
-    await expect(labelOption).toBeVisible();
-
     await measureNav(page, testInfo, 'Label filter', async () => {
-      await labelOption.click();
+      await selectFirstCustomLabel(page);
       await expect(tableOrEmpty(page)).toBeVisible();
     });
   });

@@ -1,14 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav } from '../../helpers/perf';
+import { tableRow, contentOrEmpty } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
-
-/** Resolves to the first match of either populated content or empty state */
-const contentOrEmpty = (page: import('@playwright/test').Page, populated: string, empty: string) =>
-  page.locator(populated).or(page.locator(empty)).first();
 
 test.describe('Controls load times', () => {
   // ── OS Updates ──────────────────────────────────────────────────────────────
@@ -131,7 +125,7 @@ test.describe('Controls load times', () => {
     await measureNav(page, testInfo, 'Scripts - Batch progress', async () => {
       await page.goto('/controls/scripts/progress');
       await expect(
-        contentOrEmpty(page, '.paginated-list__row', '.script-batch-progress__empty')
+        contentOrEmpty(page, '.paginated-list__row:not(.paginated-list__header)', '.script-batch-progress__empty')
       ).toBeVisible();
     });
   });

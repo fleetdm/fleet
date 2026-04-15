@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav, measureSearch } from '../../helpers/perf';
+import { tableRow, getNameFromRow } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
 
 test.describe('Software load times', () => {
   test('Software page', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
@@ -56,12 +54,12 @@ test.describe('Software load times', () => {
     await page.goto('/software/titles');
     await expect(tableRow(page)).toBeVisible();
 
-    const itemName = await tableRow(page).locator('td').nth(1).innerText();
+    const itemName = await getNameFromRow(page);
 
     await measureSearch(
       page, testInfo, 'Search software',
-      page.getByPlaceholder('Search by name'), itemName!.trim(),
-      async () => { await expect(page.getByRole('table').getByText(itemName!.trim()).first()).toBeVisible(); }
+      page.getByPlaceholder('Search by name'), itemName,
+      async () => { await expect(page.getByRole('table').getByText(itemName).first()).toBeVisible(); }
     );
   });
 
@@ -112,12 +110,12 @@ test.describe('Software load times', () => {
     await page.goto('/software/versions');
     await expect(tableRow(page)).toBeVisible();
 
-    const itemName = await tableRow(page).locator('td').nth(1).innerText();
+    const itemName = await getNameFromRow(page);
 
     await measureSearch(
       page, testInfo, 'Versions - search',
-      page.getByPlaceholder('Search by name'), itemName!.trim(),
-      async () => { await expect(page.getByRole('table').getByText(itemName!.trim()).first()).toBeVisible(); }
+      page.getByPlaceholder('Search by name'), itemName,
+      async () => { await expect(page.getByRole('table').getByText(itemName).first()).toBeVisible(); }
     );
   });
 });

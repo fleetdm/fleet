@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { measureNav, measureSearch } from '../../helpers/perf';
+import { tableRow, selectTeam, getNameFromRow } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
-
-const tableRow = (page: import('@playwright/test').Page) =>
-  page.getByRole('table').locator('tbody').getByRole('row').first();
 
 test.describe('Reports load times', () => {
   // ── All fleets ──────────────────────────────────────────────────────────────
@@ -26,12 +24,12 @@ test.describe('Reports load times', () => {
     await page.goto('/reports/manage');
     await expect(tableRow(page)).toBeVisible();
 
-    const reportName = await tableRow(page).locator('td').nth(1).innerText();
+    const reportName = await getNameFromRow(page);
 
     await measureSearch(
       page, testInfo, 'All fleets - search',
-      page.getByPlaceholder('Search by name'), reportName!.trim(),
-      async () => { await expect(page.getByRole('table').getByText(reportName!.trim()).first()).toBeVisible(); }
+      page.getByPlaceholder('Search by name'), reportName,
+      async () => { await expect(page.getByRole('table').getByText(reportName).first()).toBeVisible(); }
     );
   });
 
@@ -41,8 +39,7 @@ test.describe('Reports load times', () => {
     await expect(tableRow(page)).toBeVisible();
 
     await measureNav(page, testInfo, 'Team page', async () => {
-      await page.locator('.team-dropdown__control').click();
-      await page.locator('.team-dropdown__option').nth(1).click();
+      await selectTeam(page);
       await expect(tableRow(page)).toBeVisible();
     });
   });
@@ -50,9 +47,7 @@ test.describe('Reports load times', () => {
   test('Team - platform filter', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/reports/manage');
     await expect(tableRow(page)).toBeVisible();
-    await page.locator('.team-dropdown__control').click();
-    await page.locator('.team-dropdown__option').nth(1).click();
-    await page.waitForURL(/fleet_id/);
+    await selectTeam(page);
     await expect(tableRow(page)).toBeVisible();
 
     const currentUrl = page.url();
@@ -68,18 +63,15 @@ test.describe('Reports load times', () => {
   test('Team - search', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/reports/manage');
     await expect(tableRow(page)).toBeVisible();
-    await page.locator('.team-dropdown__control').click();
-    await page.locator('.team-dropdown__option').nth(1).click();
-    await page.waitForURL(/fleet_id/);
+    await selectTeam(page);
     await expect(tableRow(page)).toBeVisible();
 
-    // Get just the report name text, not the "Inherited" badge suffix
-    const reportName = await tableRow(page).locator('td').nth(1).locator('.data-table__tooltip-truncated-text').innerText();
+    const reportName = await getNameFromRow(page);
 
     await measureSearch(
       page, testInfo, 'Team - search',
-      page.getByPlaceholder('Search by name'), reportName!.trim(),
-      async () => { await expect(page.getByRole('table').getByText(reportName!.trim()).first()).toBeVisible(); }
+      page.getByPlaceholder('Search by name'), reportName,
+      async () => { await expect(page.getByRole('table').getByText(reportName).first()).toBeVisible(); }
     );
   });
 });
