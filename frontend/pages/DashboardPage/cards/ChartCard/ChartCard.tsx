@@ -23,13 +23,6 @@ import { IDataSet, IFormattedDataPoint } from "./types";
 
 const baseClass = "chart-card";
 
-const DAYS_OPTIONS: CustomOptionType[] = [
-  { label: "Last 24 hours", value: "1" },
-  { label: "Last 7 days", value: "7" },
-  { label: "Last 14 days", value: "14" },
-  { label: "Last 30 days", value: "30" },
-];
-
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
@@ -59,8 +52,16 @@ const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
 const getDataset = (name: string): IDataSet =>
   DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
+const hasActiveFilters = (filters: IChartFilterState): boolean => {
+  return (
+    filters.labelIDs.length > 0 ||
+    filters.platforms.length > 0 ||
+    filters.selectedHosts.length > 0
+  );
+};
+
 const ChartCard = (): JSX.Element => {
-  const [selectedDays, setSelectedDays] = useState(30);
+  const [selectedDays] = useState(30);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -168,19 +169,6 @@ const ChartCard = (): JSX.Element => {
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header-left`}>
           <DropdownWrapper
-            name="days-range"
-            value={String(selectedDays)}
-            options={DAYS_OPTIONS}
-            onChange={(option: SingleValue<CustomOptionType>) => {
-              if (option) {
-                setSelectedDays(Number(option.value));
-              }
-            }}
-            className={`${baseClass}__days-dropdown`}
-          />
-        </div>
-        <div className={`${baseClass}__header-right`}>
-          <DropdownWrapper
             name="dataset"
             value={selectedMetric}
             options={DATASET_OPTIONS}
@@ -191,6 +179,11 @@ const ChartCard = (): JSX.Element => {
             }}
             className={`${baseClass}__dataset-dropdown`}
           />
+          {hasActiveFilters(chartFilters) && (
+            <span className={`${baseClass}__filtered-badge`}>Filtered</span>
+          )}
+        </div>
+        <div className={`${baseClass}__header-right`}>
           <button
             type="button"
             className={`${baseClass}__settings-btn`}

@@ -17,7 +17,7 @@
     gap: $pad-small;
   }
 
-  &__days-dropdown {
+  &__dataset-dropdown {
     // Hide the form field label
     .form-field__label {
       display: none;
@@ -55,12 +55,18 @@
     }
   }
 
-  &__chart-type-dropdown {
-    min-width: 200px;
-
-    .dropdown-wrapper__label {
-      display: none;
-    }
+  &__filtered-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    margin-left: $pad-small;
+    font-size: $xx-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 12px;
+    background: $core-fleet-white;
+    white-space: nowrap;
   }
 
   &__settings-btn {
@@ -69,15 +75,15 @@
     justify-content: center;
     width: 38px;
     height: 38px;
-    border: 1px solid $ui-fleet-black-10;
+    border: none;
     border-radius: $border-radius;
-    background: $core-fleet-white;
+    background: transparent;
     cursor: pointer;
     color: $ui-fleet-black-75;
-    transition: border-color 150ms ease;
+    transition: color 150ms ease;
 
     &:hover {
-      border-color: $ui-fleet-black-50;
+      color: $core-fleet-black;
     }
   }
 
@@ -118,10 +124,38 @@
 
   &__scroll-wrapper {
     overflow-x: auto;
+  }
+
+  &__grid-area {
+    display: flex;
+    align-items: stretch;
 
     svg {
       display: block;
-      margin: 0 auto;
+      flex-shrink: 0;
+    }
+  }
+
+  &__y-axis {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  &__y-axis-icon {
+    opacity: 0.6;
+  }
+
+  &__x-axis {
+    display: flex;
+    justify-content: space-between;
+    padding-top: $pad-xsmall;
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+  }
+
+  &__x-axis-label {
+    &--end {
+      text-align: right;
     }
   }
 
