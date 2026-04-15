@@ -76,7 +76,9 @@ In Fleet, go to **Settings** → **Integrations** → **Certificate authorities*
 Alternatively, configure via GitOps in your `org_settings`:
 
 ```yaml
-integrations:
+org_settings:
+  integrations:
+    ...
   certificate_authorities:
     ndes_scep_proxy:
       url: https://your-okta-org.okta.com/scep
@@ -181,13 +183,13 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
+```sql
 **Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it.
 SELECT 1
 FROM certificates
 WHERE issuer LIKE '%/DC=com/DC=okta%'
   AND ca=0
   AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 14;
-);
 ```
 
 **[View example static SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**

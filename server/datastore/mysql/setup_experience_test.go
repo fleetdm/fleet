@@ -34,6 +34,7 @@ func TestSetupExperience(t *testing.T) {
 		{"TestUpdateSetupExperienceScriptWhileEnqueued", testUpdateSetupExperienceScriptWhileEnqueued},
 		{"TestEnqueueSetupExperienceItemsWindows", testEnqueueSetupExperienceItemsWindows},
 		{"EnqueueSetupExperienceItemsWithDisplayName", testEnqueueSetupExperienceItemsWithDisplayName},
+		{"UpdateStatusGuardsTerminalStates", testUpdateStatusGuardsTerminalStates},
 	}
 
 	for _, c := range cases {
@@ -1792,6 +1793,185 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, inSetupExperience)
+}
+
+func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hostUUID := uuid.NewString()
+
+	// --- Set up foreign-key references ---
+
+	// User (required for software installer)
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "GuardTest",
+		Email:      "guard@example.com",
+		GlobalRole: new("admin"),
+		Password:   []byte("12characterslong!"),
+	})
+	require.NoError(t, err)
+
+	// Software installer
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Filename:        "guard_test.pkg",
+		Title:           "Guard Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		Extension:       "pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// VPP token + app
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Guard Kong", "GuardJungle")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		BundleIdentifier: "com.guard.test",
+		Name:             "guard_test.app",
+		LatestVersion:    "1.0.0",
+	}, nil)
+	require.NoError(t, err)
+	var vppAppsTeamsID uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &vppAppsTeamsID,
+		`SELECT id FROM vpp_apps_teams WHERE adam_id = ?`, vppApp.AdamID)
+	require.NoError(t, err)
+
+	// Setup experience script (raw SQL, same pattern as testSetupExperienceStatusResults)
+	var scriptID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO setup_experience_scripts (name) VALUES (?)`, "guard_test_script")
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		scriptID = uint(id) //nolint: gosec
+		return nil
+	})
+
+	// --- Helpers ---
+
+	insertRow := func(sesr *fleet.SetupExperienceStatusResult) {
+		stmt := `INSERT INTO setup_experience_status_results
+			(id, host_uuid, name, status, software_installer_id,
+			 host_software_installs_execution_id, vpp_app_team_id,
+			 nano_command_uuid, setup_experience_script_id,
+			 script_execution_id, error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, stmt,
+				sesr.ID, sesr.HostUUID, sesr.Name, sesr.Status,
+				sesr.SoftwareInstallerID,
+				sesr.HostSoftwareInstallsExecutionID,
+				sesr.VPPAppTeamID, sesr.NanoCommandUUID,
+				sesr.SetupExperienceScriptID,
+				sesr.ScriptExecutionID, sesr.Error)
+			require.NoError(t, err)
+			id, err := res.LastInsertId()
+			require.NoError(t, err)
+			sesr.ID = uint(id) //nolint: gosec
+			return nil
+		})
+	}
+
+	readStatus := func(id uint) fleet.SetupExperienceStatusResultStatus {
+		var status fleet.SetupExperienceStatusResultStatus
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM setup_experience_status_results WHERE id = ?", id)
+		})
+		return status
+	}
+
+	// --- Negative tests: terminal states must not be overwritten ---
+
+	terminalStatuses := []fleet.SetupExperienceStatusResultStatus{
+		fleet.SetupExperienceStatusCancelled,
+		fleet.SetupExperienceStatusFailure,
+		fleet.SetupExperienceStatusSuccess,
+	}
+
+	for _, termStatus := range terminalStatuses {
+		// Software installer row
+		execID := uuid.NewString()
+		row := &fleet.SetupExperienceStatusResult{
+			HostUUID:                        hostUUID,
+			Name:                            "sw-" + string(termStatus),
+			Status:                          termStatus,
+			SoftwareInstallerID:             new(installerID),
+			HostSoftwareInstallsExecutionID: new(execID),
+		}
+		insertRow(row)
+		updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, execID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "software installer row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+
+		// VPP row
+		nanoUUID := uuid.NewString()
+		row = &fleet.SetupExperienceStatusResult{
+			HostUUID:        hostUUID,
+			Name:            "vpp-" + string(termStatus),
+			Status:          termStatus,
+			VPPAppTeamID:    new(vppAppsTeamsID),
+			NanoCommandUUID: new(nanoUUID),
+		}
+		insertRow(row)
+		updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, nanoUUID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "VPP row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+
+		// Script row
+		scriptExecID := uuid.NewString()
+		row = &fleet.SetupExperienceStatusResult{
+			HostUUID:                hostUUID,
+			Name:                    "script-" + string(termStatus),
+			Status:                  termStatus,
+			SetupExperienceScriptID: new(scriptID),
+			ScriptExecutionID:       new(scriptExecID),
+		}
+		insertRow(row)
+		updated, err = ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, scriptExecID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "script row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+	}
+
+	// --- Positive control: pending row CAN be updated ---
+
+	pendingExecID := uuid.NewString()
+	pendingRow := &fleet.SetupExperienceStatusResult{
+		HostUUID:                        hostUUID,
+		Name:                            "sw-pending-positive",
+		Status:                          fleet.SetupExperienceStatusPending,
+		SoftwareInstallerID:             new(installerID),
+		HostSoftwareInstallsExecutionID: new(pendingExecID),
+	}
+	insertRow(pendingRow)
+	updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, pendingExecID, fleet.SetupExperienceStatusFailure)
+	require.NoError(t, err)
+	require.True(t, updated, "pending row should be updated")
+	require.Equal(t, fleet.SetupExperienceStatusFailure, readStatus(pendingRow.ID))
+
+	// --- Bug-scenario test: canceled VPP row must not flip to failure ---
+
+	cancelledNanoUUID := uuid.NewString()
+	cancelledVPPRow := &fleet.SetupExperienceStatusResult{
+		HostUUID:        hostUUID,
+		Name:            "vpp-canceled-bug",
+		Status:          fleet.SetupExperienceStatusCancelled,
+		VPPAppTeamID:    new(vppAppsTeamsID),
+		NanoCommandUUID: new(cancelledNanoUUID),
+	}
+	insertRow(cancelledVPPRow)
+	updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, cancelledNanoUUID, fleet.SetupExperienceStatusFailure)
+	require.NoError(t, err)
+	require.False(t, updated, "cancelled VPP row must not be overwritten by late failure result")
+	require.Equal(t, fleet.SetupExperienceStatusCancelled, readStatus(cancelledVPPRow.ID))
 }
 
 func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {

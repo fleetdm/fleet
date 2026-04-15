@@ -1,6 +1,6 @@
 # Marketing assets
 
-This is the single source of truth of all Fleet customer stroies.
+This is the single source of truth for all Fleet customer stories.
 
 ## 🟠 Social proof
 
@@ -97,8 +97,6 @@ Champion stories and case studies showing real customers achieving real outcomes
 
 ### Fleet customer testimonials
 
-> ![An icon indicating that this section has important information](https://fleetdm.com/images/icon-info-16x16@2x.png)
->
 > All quotes sourced from [fleetdm.com/customers](https://fleetdm.com/customers)
 
 | # | Company | Industry | Name | Title | Quote |
