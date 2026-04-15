@@ -3267,6 +3267,28 @@ software:
 		assert.Empty(t, result.Software.Packages[0].SHA256)
 	})
 
+	t.Run("sh_script_with_shell_variables", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/shell-vars.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a script that uses standard shell variables (not set in CI env).
+		scriptContent := []byte("#!/bin/bash\necho \"EUID=$EUID\"\necho \"USER=$USER\"\necho \"HOME=$HOME\"\n")
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "shell-vars.sh"), scriptContent, 0o755))
+
+		// Shell variables must not be expanded by the gitops parser.
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "shell-vars.sh"))
+	})
+
 	t.Run("valid_ps1_script_path", func(t *testing.T) {
 		config := getTeamConfig([]string{"software"})
 		config += `
