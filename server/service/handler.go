@@ -494,6 +494,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/notifications/{id:[0-9]+}/read", markNotificationReadEndpoint, fleet.MarkNotificationReadRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/read_all", markAllNotificationsReadEndpoint, nil)
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/demo", createDemoNotificationEndpoint, nil)
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_url", getHostDeviceURLEndpoint, getHostDeviceURLRequest{})
 
 	ue.POST("/api/_version_/fleet/labels", createLabelEndpoint, fleet.CreateLabelRequest{})
 	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, fleet.ModifyLabelRequest{})

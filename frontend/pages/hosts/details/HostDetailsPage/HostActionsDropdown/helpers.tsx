@@ -79,6 +79,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
     value: "delete",
   },
+  {
+    label: "Copy My device link",
+    value: "copyMyDeviceLink",
+    disabled: false,
+  },
 ] as const;
 
 interface IHostActionConfigOptions {
@@ -273,6 +278,13 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 };
 
+// Copy My device link returns a URL that embeds the host's device auth token.
+// That URL is effectively a credential, so the backend restricts the endpoint
+// to global admins only — match that here.
+const canCopyMyDeviceLink = (config: IHostActionConfigOptions) => {
+  return config.isGlobalAdmin;
+};
+
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
@@ -424,6 +436,10 @@ const removeUnavailableOptions = (
 
   if (!canUnlock(config)) {
     options = options.filter((option) => option.value !== "unlock");
+  }
+
+  if (!canCopyMyDeviceLink(config)) {
+    options = options.filter((option) => option.value !== "copyMyDeviceLink");
   }
 
   // TODO: refactor to filter in one pass using predefined filters specified for each of the

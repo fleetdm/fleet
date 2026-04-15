@@ -45,6 +45,7 @@ import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import { stringToClipboard } from "utilities/copy_text";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
@@ -968,6 +969,22 @@ const HostDetailsPage = ({
         break;
       case "clearPasscode":
         setShowClearPasscodeModal(true);
+        break;
+      case "copyMyDeviceLink":
+        if (!host) break;
+        hostAPI
+          .getDeviceURL(host.id)
+          .then(({ device_url }) =>
+            stringToClipboard(device_url).then(() =>
+              renderFlash("success", "My device link copied to clipboard.")
+            )
+          )
+          .catch(() =>
+            renderFlash(
+              "error",
+              "Couldn't copy My device link. The host may not have checked in yet."
+            )
+          );
         break;
       default: // do nothing
     }
