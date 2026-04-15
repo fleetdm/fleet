@@ -75,6 +75,30 @@ export default {
       token: response.token,
     }));
   },
+  createApiOnlyUser: (formData: {
+    name: string;
+    global_role?: string | null;
+    fleets?: { id: number; role: string }[];
+    api_endpoints?: { method: string; path: string }[];
+  }): Promise<{ user: IUser; token?: string }> => {
+    const { USERS_API_ONLY } = endpoints;
+
+    return sendRequest("POST", USERS_API_ONLY, formData).then((response) => ({
+      user: helpers.addGravatarUrlToResource(response.user),
+      token: response.token,
+    }));
+  },
+  updateApiOnlyUser: (
+    userId: number,
+    formData: Record<string, unknown>
+  ): Promise<IUser> => {
+    const { USERS_API_ONLY } = endpoints;
+    const path = `${USERS_API_ONLY}/${userId}`;
+
+    return sendRequest("PATCH", path, formData).then((response) =>
+      helpers.addGravatarUrlToResource(response.user)
+    );
+  },
   getUserById: (userId: number): Promise<IUser> => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;

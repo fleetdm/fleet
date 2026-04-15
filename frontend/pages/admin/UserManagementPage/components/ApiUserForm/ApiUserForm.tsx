@@ -18,11 +18,16 @@ import { roleOptions } from "../../helpers/userManagementHelpers";
 
 const baseClass = "api-user-form";
 
+export interface IApiEndpointRef {
+  method: string;
+  path: string;
+}
+
 export interface IApiUserFormData {
   name: string;
   global_role: UserRole | null;
-  teams: ITeam[];
-  api_only: true;
+  fleets: ITeam[];
+  api_endpoints?: IApiEndpointRef[];
 }
 
 interface IApiUserFormProps {
@@ -32,7 +37,7 @@ interface IApiUserFormProps {
   isNewUser?: boolean;
   defaultName?: string;
   defaultGlobalRole?: UserRole | null;
-  defaultTeams?: ITeam[];
+  defaultFleets?: ITeam[];
   formErrors?: IUserFormErrors;
   isSubmitting?: boolean;
 }
@@ -49,7 +54,7 @@ const ApiUserForm = ({
   isNewUser = false,
   defaultName = "",
   defaultGlobalRole = "gitops",
-  defaultTeams = [],
+  defaultFleets = [],
   formErrors: ancestorErrors = {},
   isSubmitting = false,
 }: IApiUserFormProps) => {
@@ -59,8 +64,8 @@ const ApiUserForm = ({
   const [globalRole, setGlobalRole] = useState<UserRole | null>(
     defaultGlobalRole
   );
-  const [teams, setTeams] = useState<ITeam[]>(defaultTeams);
-  const [isGlobalUser, setIsGlobalUser] = useState(defaultTeams.length === 0);
+  const [fleets, setFleets] = useState<ITeam[]>(defaultFleets);
+  const [isGlobalUser, setIsGlobalUser] = useState(defaultFleets.length === 0);
   const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
     []
   );
@@ -81,11 +86,23 @@ const ApiUserForm = ({
     evt.preventDefault();
     if (!validate()) return;
 
+    // Convert endpoint keys ("METHOD /path") back to { method, path } objects
+    const apiEndpoints =
+      selectedEndpointKeys.length > 0
+        ? selectedEndpointKeys.map((key) => {
+            const spaceIndex = key.indexOf(" ");
+            return {
+              method: key.substring(0, spaceIndex),
+              path: key.substring(spaceIndex + 1),
+            };
+          })
+        : undefined;
+
     onSubmit({
       name,
       global_role: isGlobalUser ? globalRole : null,
-      teams: isGlobalUser ? [] : teams,
-      api_only: true,
+      fleets: isGlobalUser ? [] : fleets,
+      api_endpoints: apiEndpoints,
     });
   };
 
@@ -95,8 +112,8 @@ const ApiUserForm = ({
     }
   };
 
-  const handleTeamChange = (newTeams: ITeam[]) => {
-    setTeams(newTeams);
+  const handleFleetChange = (newFleets: ITeam[]) => {
+    setFleets(newFleets);
   };
 
   const handleIsGlobalUserChange = (value: string) => {
@@ -117,8 +134,8 @@ const ApiUserForm = ({
   const renderTeamsForm = () => (
     <SelectedTeamsForm
       availableTeams={availableTeams}
-      usersCurrentTeams={teams}
-      onFormChange={handleTeamChange}
+      usersCurrentTeams={fleets}
+      onFormChange={handleFleetChange}
       isApiOnly
     />
   );

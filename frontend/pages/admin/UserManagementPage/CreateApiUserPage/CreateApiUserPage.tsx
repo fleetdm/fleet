@@ -46,11 +46,11 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
     setFormErrors({});
 
     usersAPI
-      .createUserWithoutInvitation({
+      .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,
-        teams: formData.teams,
-        api_only: true,
+        fleets: formData.fleets,
+        api_endpoints: formData.api_endpoints,
       })
       .then((response) => {
         setCreatedUserName(formData.name);

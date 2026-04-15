@@ -106,10 +106,11 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
     setFormErrors({});
 
     usersAPI
-      .update(userId, {
+      .updateApiOnlyUser(userId, {
         name: formData.name,
         global_role: formData.global_role,
-        teams: formData.teams,
+        fleets: formData.fleets,
+        api_endpoints: formData.api_endpoints,
       })
       .then(() => {
         renderFlash("success", `Successfully edited ${formData.name}.`);
@@ -154,7 +155,7 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
             availableTeams={teams || []}
             defaultName={user.name}
             defaultGlobalRole={user.global_role}
-            defaultTeams={user.teams}
+            defaultFleets={user.teams}
             formErrors={formErrors}
             isSubmitting={isSubmitting}
           />
