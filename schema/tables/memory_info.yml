@@ -1,0 +1,4 @@
+name: memory_info
+platforms:
+  - linux
+  - android

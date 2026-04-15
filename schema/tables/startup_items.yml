@@ -1,4 +1,9 @@
 name: startup_items
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   List commands executed as user/logon startup items.
   

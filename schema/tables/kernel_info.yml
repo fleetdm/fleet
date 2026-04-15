@@ -1,4 +1,9 @@
 name: kernel_info
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   See the kernel version running
   

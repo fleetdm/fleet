@@ -289,6 +289,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/alf_explicit_auths.yml"
   },
   {
+    "name": "android_logcat",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Recent Android logcat entries exposed as queryable rows.",
+    "examples": "View recent error-level log messages.\n\n```\nSELECT timestamp, level, tag, message\nFROM android_logcat\nWHERE level = 'E'\nLIMIT 100;\n```",
+    "columns": [
+      {
+        "name": "timestamp",
+        "type": "text",
+        "required": false,
+        "description": "Log entry timestamp."
+      },
+      {
+        "name": "level",
+        "type": "text",
+        "required": false,
+        "description": "Log level (for example V, D, I, W, E)."
+      },
+      {
+        "name": "tag",
+        "type": "text",
+        "required": false,
+        "description": "Log tag."
+      },
+      {
+        "name": "message",
+        "type": "text",
+        "required": false,
+        "description": "Log message body."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/android_logcat",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/android_logcat.yml"
+  },
+  {
     "name": "apfs_physical_stores",
     "platforms": [
       "darwin"
@@ -502,6 +539,55 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_icons.yml"
   },
   {
+    "name": "app_permissions",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Permissions requested and granted by installed Android applications.",
+    "examples": "Show granted dangerous permissions on Android devices.\n\n```\nSELECT app_name, package_name, permission\nFROM app_permissions\nWHERE granted='true' AND protection_level='dangerous';\n```",
+    "columns": [
+      {
+        "name": "package_name",
+        "type": "text",
+        "required": false,
+        "description": "Android package name."
+      },
+      {
+        "name": "app_name",
+        "type": "text",
+        "required": false,
+        "description": "Human-readable application name."
+      },
+      {
+        "name": "permission",
+        "type": "text",
+        "required": false,
+        "description": "Android permission name."
+      },
+      {
+        "name": "protection_level",
+        "type": "text",
+        "required": false,
+        "description": "Permission protection level (for example normal or dangerous)."
+      },
+      {
+        "name": "granted",
+        "type": "text",
+        "required": false,
+        "description": "Whether the permission is granted."
+      },
+      {
+        "name": "is_system",
+        "type": "text",
+        "required": false,
+        "description": "Whether the app is a system app."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/app_permissions",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_permissions.yml"
+  },
+  {
     "name": "app_schemes",
     "description": "macOS application schemes and handlers (e.g., http, file, mailto).",
     "url": "https://fleetdm.com/tables/app_schemes",
@@ -560,6 +646,54 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_schemes.yml"
+  },
+  {
+    "name": "app_signatures",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Signing certificate information for installed Android applications.",
+    "columns": [
+      {
+        "name": "app_name",
+        "type": "text",
+        "required": false,
+        "description": "Human-readable application name."
+      },
+      {
+        "name": "package_name",
+        "type": "text",
+        "required": false,
+        "description": "Android package name."
+      },
+      {
+        "name": "sha256",
+        "type": "text",
+        "required": false,
+        "description": "SHA-256 hash of the signing certificate."
+      },
+      {
+        "name": "subject",
+        "type": "text",
+        "required": false,
+        "description": "Certificate subject (X.500 principal name)."
+      },
+      {
+        "name": "issuer",
+        "type": "text",
+        "required": false,
+        "description": "Certificate issuer (X.500 principal name)."
+      },
+      {
+        "name": "version_name",
+        "type": "text",
+        "required": false,
+        "description": "Application version name."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/app_signatures",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_signatures.yml"
   },
   {
     "name": "app_sso_platform",
@@ -2143,7 +2277,8 @@
     "url": "https://fleetdm.com/tables/battery",
     "platforms": [
       "darwin",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -3442,7 +3577,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -5085,7 +5221,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -6907,6 +7044,85 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/sleuthkit/device_hash.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdevice_hash.yml&value=name%3A%20device_hash%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "device_info",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Static Android device identity and hardware metadata.",
+    "examples": "Get device model and manufacturer details.\n\n```\nSELECT manufacturer, brand, model, device, product\nFROM device_info;\n```",
+    "columns": [
+      {
+        "name": "device",
+        "type": "text",
+        "required": false,
+        "description": "Device codename."
+      },
+      {
+        "name": "model",
+        "type": "text",
+        "required": false,
+        "description": "End-user-visible model name."
+      },
+      {
+        "name": "manufacturer",
+        "type": "text",
+        "required": false,
+        "description": "Device manufacturer."
+      },
+      {
+        "name": "brand",
+        "type": "text",
+        "required": false,
+        "description": "Device brand."
+      },
+      {
+        "name": "product",
+        "type": "text",
+        "required": false,
+        "description": "Product name."
+      },
+      {
+        "name": "hardware",
+        "type": "text",
+        "required": false,
+        "description": "Hardware name."
+      },
+      {
+        "name": "board",
+        "type": "text",
+        "required": false,
+        "description": "Underlying board name."
+      },
+      {
+        "name": "fingerprint",
+        "type": "text",
+        "required": false,
+        "description": "Build fingerprint."
+      },
+      {
+        "name": "bootloader",
+        "type": "text",
+        "required": false,
+        "description": "Bootloader version."
+      },
+      {
+        "name": "tags",
+        "type": "text",
+        "required": false,
+        "description": "Build tags."
+      },
+      {
+        "name": "type",
+        "type": "text",
+        "required": false,
+        "description": "Build type (for example user or userdebug)."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/device_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/device_info.yml"
   },
   {
     "name": "device_partitions",
@@ -12727,6 +12943,61 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ie_extensions.yml"
   },
   {
+    "name": "installed_apps",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Installed application inventory and package metadata on Android devices.",
+    "examples": "List installed apps and versions on Android hosts.\n\n```\nSELECT app_name, package_name, version_name, version_code\nFROM installed_apps\nLIMIT 50;\n```",
+    "columns": [
+      {
+        "name": "package_name",
+        "type": "text",
+        "required": false,
+        "description": "Android package name."
+      },
+      {
+        "name": "app_name",
+        "type": "text",
+        "required": false,
+        "description": "Human-readable application name."
+      },
+      {
+        "name": "version_name",
+        "type": "text",
+        "required": false,
+        "description": "Application version name."
+      },
+      {
+        "name": "version_code",
+        "type": "text",
+        "required": false,
+        "description": "Application version code."
+      },
+      {
+        "name": "first_install_time",
+        "type": "text",
+        "required": false,
+        "description": "First install time on device."
+      },
+      {
+        "name": "last_update_time",
+        "type": "text",
+        "required": false,
+        "description": "Last update time on device."
+      },
+      {
+        "name": "is_system",
+        "type": "text",
+        "required": false,
+        "description": "Whether the app is a system app."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/installed_apps",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/installed_apps.yml"
+  },
+  {
     "name": "intel_me_info",
     "description": "Intel ME/CSE Info.",
     "url": "https://fleetdm.com/tables/intel_me_info",
@@ -12758,7 +13029,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -13872,7 +14144,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -17369,6 +17642,66 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
   },
   {
+    "name": "mdm_status",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "MDM enrollment and management status for Android devices.",
+    "columns": [
+      {
+        "name": "has_device_owner",
+        "type": "text",
+        "required": false,
+        "description": "Whether the device has a device owner (1 or 0)."
+      },
+      {
+        "name": "device_owner_package",
+        "type": "text",
+        "required": false,
+        "description": "Package name of the device owner, if any."
+      },
+      {
+        "name": "has_work_profile",
+        "type": "text",
+        "required": false,
+        "description": "Whether a managed work profile exists (1 or 0)."
+      },
+      {
+        "name": "restrictions_present",
+        "type": "text",
+        "required": false,
+        "description": "Whether application restrictions are configured (1 or 0)."
+      },
+      {
+        "name": "enroll_secret_present",
+        "type": "text",
+        "required": false,
+        "description": "Whether the enroll_secret restriction is present (1 or 0)."
+      },
+      {
+        "name": "host_uuid_present",
+        "type": "text",
+        "required": false,
+        "description": "Whether the host_uuid restriction is present (1 or 0)."
+      },
+      {
+        "name": "server_url_present",
+        "type": "text",
+        "required": false,
+        "description": "Whether the server_url restriction is present (1 or 0)."
+      },
+      {
+        "name": "is_debug_build",
+        "type": "text",
+        "required": false,
+        "description": "Whether this is a debug build (1 or 0)."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/mdm_status",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_status.yml"
+  },
+  {
     "name": "memory_array_mapped_addresses",
     "description": "Data associated for address mapping of physical memory arrays.",
     "url": "https://fleetdm.com/tables/memory_array_mapped_addresses",
@@ -17886,7 +18219,8 @@
     "description": "Main memory information in bytes.",
     "url": "https://fleetdm.com/tables/memory_info",
     "platforms": [
-      "linux"
+      "linux",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -17983,8 +18317,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/memory_info.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fmemory_info.yml&value=name%3A%20memory_info%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/memory_info.yml"
   },
   {
     "name": "memory_map",
@@ -18034,7 +18367,8 @@
     "url": "https://fleetdm.com/tables/mounts",
     "platforms": [
       "darwin",
-      "linux"
+      "linux",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -18358,7 +18692,8 @@
     "name": "network_interfaces",
     "evented": false,
     "platforms": [
-      "chrome"
+      "chrome",
+      "android"
     ],
     "description": "Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.",
     "columns": [
@@ -19116,7 +19451,8 @@
       "darwin",
       "linux",
       "windows",
-      "chrome"
+      "chrome",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -19508,7 +19844,8 @@
       "darwin",
       "windows",
       "linux",
-      "chrome"
+      "chrome",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -22927,7 +23264,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -24170,7 +24508,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -27177,7 +27516,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": true,
@@ -27650,7 +27990,8 @@
       "windows",
       "darwin",
       "linux",
-      "chrome"
+      "chrome",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -27936,6 +28277,31 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_profiler.yml"
+  },
+  {
+    "name": "system_properties",
+    "evented": false,
+    "platforms": [
+      "android"
+    ],
+    "description": "Android system properties exposed as key/value pairs.",
+    "examples": "Inspect Android runtime properties.\n\n```\nSELECT key, value\nFROM system_properties\nLIMIT 50;\n```",
+    "columns": [
+      {
+        "name": "key",
+        "type": "text",
+        "required": false,
+        "description": "Property key."
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "required": false,
+        "description": "Property value."
+      }
+    ],
+    "url": "https://fleetdm.com/tables/system_properties",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_properties.yml"
   },
   {
     "name": "system_state",
@@ -28235,7 +28601,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -28774,7 +29141,8 @@
     "platforms": [
       "darwin",
       "linux",
-      "windows"
+      "windows",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -29297,7 +29665,8 @@
       "darwin",
       "windows",
       "linux",
-      "chrome"
+      "chrome",
+      "android"
     ],
     "evented": false,
     "cacheable": false,
@@ -29960,7 +30329,8 @@
     "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
     "platforms": [
-      "darwin"
+      "darwin",
+      "android"
     ],
     "evented": false,
     "cacheable": true,

@@ -1,4 +1,8 @@
 name: mounts
+platforms:
+  - darwin
+  - linux
+  - android
 examples: |-
   Returns the drive free space in gigabytes and as percentage.
 

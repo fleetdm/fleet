@@ -1,0 +1,38 @@
+name: mdm_status
+evented: false
+platforms:
+  - android
+description: MDM enrollment and management status for Android devices.
+columns:
+  - name: has_device_owner
+    type: text
+    required: false
+    description: Whether the device has a device owner (1 or 0).
+  - name: device_owner_package
+    type: text
+    required: false
+    description: Package name of the device owner, if any.
+  - name: has_work_profile
+    type: text
+    required: false
+    description: Whether a managed work profile exists (1 or 0).
+  - name: restrictions_present
+    type: text
+    required: false
+    description: Whether application restrictions are configured (1 or 0).
+  - name: enroll_secret_present
+    type: text
+    required: false
+    description: Whether the enroll_secret restriction is present (1 or 0).
+  - name: host_uuid_present
+    type: text
+    required: false
+    description: Whether the host_uuid restriction is present (1 or 0).
+  - name: server_url_present
+    type: text
+    required: false
+    description: Whether the server_url restriction is present (1 or 0).
+  - name: is_debug_build
+    type: text
+    required: false
+    description: Whether this is a debug build (1 or 0).

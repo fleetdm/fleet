@@ -1,4 +1,9 @@
 name: time
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   View the timezone a system is configured in. 
   

@@ -15,10 +15,12 @@ interface IPlatformSelectorProps {
   checkWindows: boolean;
   checkLinux: boolean;
   checkChrome: boolean;
+  checkAndroid: boolean;
   setCheckDarwin: (val: boolean) => void;
   setCheckWindows: (val: boolean) => void;
   setCheckLinux: (val: boolean) => void;
   setCheckChrome: (val: boolean) => void;
+  setCheckAndroid: (val: boolean) => void;
   disabled?: boolean;
   installSoftware?: IPolicySoftwareToInstall;
   currentTeamId?: number;
@@ -30,10 +32,12 @@ export const PlatformSelector = ({
   checkWindows,
   checkLinux,
   checkChrome,
+  checkAndroid,
   setCheckDarwin,
   setCheckWindows,
   setCheckLinux,
   setCheckChrome,
+  setCheckAndroid,
   disabled = false,
   installSoftware,
   currentTeamId,
@@ -115,6 +119,14 @@ export const PlatformSelector = ({
           disabled={disabled}
         >
           ChromeOS
+        </Checkbox>
+        <Checkbox
+          value={checkAndroid}
+          onChange={(value: boolean) => setCheckAndroid(value)}
+          wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          disabled={disabled}
+        >
+          Android
         </Checkbox>
       </span>
       {renderInstallSoftwareHelpText()}
