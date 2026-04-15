@@ -32,7 +32,7 @@ parasails.registerComponent('bubble', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
     <span>
-      <span purpose="bubble-heart" :class="rawType+' '+[[isUncertain ? 'uncertain' : '']]" class="">{{type}}</span>
+      <span purpose="bubble-heart" :class="(rawType === 'observer+' ? 'observer-plus' : rawType)+' '+[[isUncertain ? 'uncertain' : '']]" class="">{{type}}</span>
     </span>
   `,
 

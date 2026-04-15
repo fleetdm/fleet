@@ -58,6 +58,8 @@ Authorization: Bearer <your token>
 
 ### Log in
 
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+)) ((GitOps))
+
 Authenticates the user with the specified credentials. Use the token returned from this endpoint to authenticate further API requests.
 
 `POST /api/v1/fleet/login`
