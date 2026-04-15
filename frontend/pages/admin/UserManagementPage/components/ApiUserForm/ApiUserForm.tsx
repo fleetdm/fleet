@@ -1,6 +1,7 @@
 import React, { FormEvent, useState, useContext } from "react";
 
 import { AppContext } from "context/app";
+import { endpointKey } from "interfaces/api_endpoint";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 
@@ -32,7 +33,7 @@ export interface IApiUserFormData {
   name: string;
   global_role: UserRole | null;
   fleets: IFleetRef[];
-  api_endpoints?: IApiEndpointRef[];
+  api_endpoints?: IApiEndpointRef[] | null;
 }
 
 interface IApiUserFormProps {
@@ -43,6 +44,7 @@ interface IApiUserFormProps {
   defaultName?: string;
   defaultGlobalRole?: UserRole | null;
   defaultFleets?: ITeam[];
+  defaultApiEndpoints?: IApiEndpointRef[];
   formErrors?: IUserFormErrors;
   isSubmitting?: boolean;
 }
@@ -60,6 +62,7 @@ const ApiUserForm = ({
   defaultName = "",
   defaultGlobalRole = "gitops",
   defaultFleets = [],
+  defaultApiEndpoints,
   formErrors: ancestorErrors = {},
   isSubmitting = false,
 }: IApiUserFormProps) => {
@@ -72,36 +75,82 @@ const ApiUserForm = ({
   const [fleets, setFleets] = useState<ITeam[]>(defaultFleets);
   const [isGlobalUser, setIsGlobalUser] = useState(defaultFleets.length === 0);
   const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
-    []
+    () => (defaultApiEndpoints ? defaultApiEndpoints.map(endpointKey) : [])
+  );
+  const [isSpecificEndpoints, setIsSpecificEndpoints] = useState(
+    () => !!defaultApiEndpoints && defaultApiEndpoints.length > 0
   );
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
 
   const combinedErrors = { ...formErrors, ...ancestorErrors };
 
-  const validate = (): boolean => {
+  const clearEndpointError = () => {
+    if (formErrors.api_endpoints) {
+      setFormErrors((prev) => {
+        const { api_endpoints: _, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const handleEndpointSelectionChange = (keys: string[]) => {
+    setSelectedEndpointKeys(keys);
+    if (keys.length > 0) {
+      clearEndpointError();
+    }
+  };
+
+  const handleAccessTypeChange = (specific: boolean) => {
+    setIsSpecificEndpoints(specific);
+    if (!specific) {
+      clearEndpointError();
+    }
+  };
+
+  const getErrors = (): IUserFormErrors => {
     const errors: IUserFormErrors = {};
     if (!validatePresence(name)) {
       errors.name = "Name is required";
     }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+    if (isSpecificEndpoints && selectedEndpointKeys.length === 0) {
+      errors.api_endpoints = "Please select at least one API endpoint";
+    }
+    return errors;
+  };
+
+  const onInputChange = (value: string) => {
+    setName(value);
+    if (formErrors.name && validatePresence(value)) {
+      setFormErrors((prev) => {
+        const { name: _n, ...rest } = prev;
+        return rest;
+      });
+    }
+  };
+
+  const onInputBlur = () => {
+    setFormErrors(getErrors());
   };
 
   const handleSubmit = (evt: FormEvent) => {
     evt.preventDefault();
-    if (!validate()) return;
+    const errs = getErrors();
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
 
-    // Convert endpoint keys ("METHOD /path") back to { method, path } objects
-    const apiEndpoints =
-      selectedEndpointKeys.length > 0
-        ? selectedEndpointKeys.map((key) => {
-            const spaceIndex = key.indexOf(" ");
-            return {
-              method: key.substring(0, spaceIndex),
-              path: key.substring(spaceIndex + 1),
-            };
-          })
-        : undefined;
+    // Convert endpoint keys ("METHOD /path") back to { method, path } objects.
+    // When "All" is selected, send null to clear any specific endpoints (full access).
+    const apiEndpoints = isSpecificEndpoints
+      ? selectedEndpointKeys.map((key) => {
+          const spaceIndex = key.indexOf(" ");
+          return {
+            method: key.substring(0, spaceIndex),
+            path: key.substring(spaceIndex + 1),
+          };
+        })
+      : null;
 
     onSubmit({
       name,
@@ -182,7 +231,8 @@ const ApiUserForm = ({
           name="name"
           label="Name"
           value={name}
-          onChange={(value: string) => setName(value)}
+          onChange={onInputChange}
+          onBlur={onInputBlur}
           error={combinedErrors.name}
           autofocus
         />
@@ -190,7 +240,9 @@ const ApiUserForm = ({
         {isPremiumTier && (
           <ApiAccessSection
             selectedEndpointKeys={selectedEndpointKeys}
-            onEndpointSelectionChange={setSelectedEndpointKeys}
+            onEndpointSelectionChange={handleEndpointSelectionChange}
+            onAccessTypeChange={handleAccessTypeChange}
+            error={combinedErrors.api_endpoints}
           />
         )}
       </form>

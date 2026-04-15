@@ -14,11 +14,15 @@ enum ApiAccessType {
 interface IApiAccessSectionProps {
   selectedEndpointKeys: string[];
   onEndpointSelectionChange: (selectedKeys: string[]) => void;
+  onAccessTypeChange?: (isSpecific: boolean) => void;
+  error?: string | null;
 }
 
 const ApiAccessSection = ({
   selectedEndpointKeys,
   onEndpointSelectionChange,
+  onAccessTypeChange,
+  error,
 }: IApiAccessSectionProps) => {
   const [accessType, setAccessType] = useState<ApiAccessType>(
     selectedEndpointKeys.length > 0
@@ -30,11 +34,12 @@ const ApiAccessSection = ({
     (value: string) => {
       const newType = value as ApiAccessType;
       setAccessType(newType);
+      onAccessTypeChange?.(newType === ApiAccessType.SpecificEndpoints);
       if (newType === ApiAccessType.AllEndpoints) {
         onEndpointSelectionChange([]);
       }
     },
-    [onEndpointSelectionChange]
+    [onEndpointSelectionChange, onAccessTypeChange]
   );
 
   return (
@@ -73,6 +78,11 @@ const ApiAccessSection = ({
             selectedEndpointKeys={selectedEndpointKeys}
             onSelectionChange={onEndpointSelectionChange}
           />
+          {error && (
+            <div className="form-field__label form-field__label--error">
+              {error}
+            </div>
+          )}
         </div>
       )}
     </div>

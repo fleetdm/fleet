@@ -224,6 +224,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
             defaultName={entityData?.name}
             defaultGlobalRole={entityData?.global_role}
             defaultFleets={entityData?.teams}
+            defaultApiEndpoints={(entityData as IUser).api_endpoints}
             formErrors={formErrors}
             isSubmitting={isSubmitting}
           />

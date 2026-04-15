@@ -59,6 +59,7 @@ export interface IUser {
   api_only: boolean;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
+  api_endpoints?: { method: string; path: string }[];
 }
 
 /**
@@ -80,6 +81,7 @@ export interface IUserFormErrors {
   name?: string | null;
   password?: string | null;
   sso_enabled?: boolean | null;
+  api_endpoints?: string | null;
 }
 export interface IResetPasswordFormErrors {
   new_password?: string | null;

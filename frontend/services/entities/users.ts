@@ -79,7 +79,7 @@ export default {
     name: string;
     global_role?: string | null;
     fleets?: { id: number; role: string }[];
-    api_endpoints?: { method: string; path: string }[];
+    api_endpoints?: { method: string; path: string }[] | null;
   }): Promise<{ user: IUser; token?: string }> => {
     const { USERS_API_ONLY } = endpoints;
 

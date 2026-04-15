@@ -17,13 +17,10 @@ import Icon from "components/Icon/Icon";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
-import { IApiEndpoint } from "interfaces/api_endpoint";
+import { IApiEndpoint, endpointKey } from "interfaces/api_endpoint";
 import apiEndpointsAPI from "services/entities/api_endpoints";
 
 const baseClass = "endpoint-selector-table";
-
-/** Unique key for an endpoint since there's no `id` field */
-const endpointKey = (ep: IApiEndpoint) => `${ep.method} ${ep.path}`;
 
 interface IEndpointRow extends IApiEndpoint {
   id: string;
