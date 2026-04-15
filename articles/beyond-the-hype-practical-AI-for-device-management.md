@@ -21,7 +21,6 @@ As device management complexity grows, IT and platform teams are rethinking how 
 
 <meta name="category" value="webinar">
 <meta name="publishedOn" value="2026-04-15">
-<meta name="description" value="Watch the webinar">
 
 
 <meta name="webinarEmbeddedVideoUrl" value="https://player.mediadelivery.net/play/637410/cb9dd085-6316-48cb-b9d0-9a0257673ff9"> 
