@@ -11,12 +11,198 @@ import (
 	"path"
 	"testing"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/go-github/v37/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
+
+func TestWingetVersionManifestDirs(t *testing.T) {
+	dir := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("dir")}
+	}
+	file := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("file")}
+	}
+	in := []*github.RepositoryContent{
+		dir("Portable"),
+		dir("0.9.6"),
+		dir("0.20.4"),
+		file("README.md"),
+	}
+	got := wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "0.9.6", got[0].GetName())
+	assert.Equal(t, "0.20.4", got[1].GetName())
+}
+
+func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantEnabled bool
+		wantCustom  string
+		wantErr     bool
+	}{
+		{
+			name:        "boolean true",
+			input:       `{"fuzzy_match_name": true}`,
+			wantEnabled: true,
+			wantCustom:  "",
+		},
+		{
+			name:        "boolean false",
+			input:       `{"fuzzy_match_name": false}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "omitted defaults to disabled",
+			input:       `{}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "custom LIKE pattern string",
+			input:       `{"fuzzy_match_name": "Mozilla Firefox % ESR %"}`,
+			wantEnabled: true,
+			wantCustom:  "Mozilla Firefox % ESR %",
+		},
+		{
+			name:        "empty string treated as disabled",
+			input:       `{"fuzzy_match_name": ""}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:    "invalid type (number)",
+			input:   `{"fuzzy_match_name": 42}`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid type (array)",
+			input:   `{"fuzzy_match_name": [1,2]}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out struct {
+				FuzzyMatchName fuzzyMatch `json:"fuzzy_match_name"`
+			}
+			err := json.Unmarshal([]byte(tt.input), &out)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantEnabled, out.FuzzyMatchName.Enabled)
+			assert.Equal(t, tt.wantCustom, out.FuzzyMatchName.Custom)
+		})
+	}
+}
+
+func TestSetUpExistsQuery(t *testing.T) {
+	tests := []struct {
+		name      string
+		fuzzy     fuzzyMatch
+		appName   string
+		publisher string
+		want      maintained_apps.FMAQueries
+	}{
+		{
+			name:      "exact match (fuzzy disabled)",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "fuzzy enabled without custom pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "custom fuzzy pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "Mozilla Firefox % ESR %"},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "exact match escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'O''Reilly App' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "fuzzy enabled escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly App %' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "custom pattern escapes single quotes",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "O'Reilly % Edition"},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly % Edition' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "empty name and publisher exact match",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "",
+			publisher: "",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = '' AND publisher = '';",
+			},
+		},
+		{
+			name:      "custom pattern takes precedence over Enabled flag",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: "Custom Pattern %"},
+			appName:   "Ignored Name",
+			publisher: "Some Publisher",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Custom Pattern %' AND publisher = 'Some Publisher';",
+			},
+		},
+		{
+			name:      "multiple single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "It's a 'test' app",
+			publisher: "Pub",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'It''s a ''test'' app' AND publisher = 'Pub';",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setUpExistsQuery(tt.fuzzy, tt.appName, tt.publisher)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
 
 func TestBuildUpgradeCodeBasedUninstallScript(t *testing.T) {
 	tests := []struct {
@@ -245,10 +431,13 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 		switch r.URL.Path {
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
-			content := []github.RepositoryContent{{Name: ptr.String("Foo")}}
+			content := []github.RepositoryContent{{
+				Name: ptr.String("1.0"),
+				Type: ptr.String("dir"),
+			}}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.installer.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -277,7 +466,7 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			}
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
-		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/Foo/Foo.locale.en-US.yaml":
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
 			lManifest := localeManifest{
 				PackageName: "foo",
 				Publisher:   "Bar, Inc.",

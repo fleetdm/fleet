@@ -117,6 +117,13 @@
           a.appendChild(r);
       })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
     </script>
+    <% /* ActiveCampaign */ %>
+    <script>
+      (function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+      vgo('setAccount', '652899825');
+      vgo('setTrackByDefault', false);
+      vgo('process');
+    </script>
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */
@@ -286,6 +293,8 @@
                     <a purpose="mobile-dropdown-toggle" href="/customers" class="d-flex align-items-center">Customers</a>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" href="/partners" class="d-flex align-items-center">Partners</a>
                     <hr>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
                       <div><p>More</p></div>
@@ -542,6 +551,8 @@
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
 
+                <a purpose="header-nav-btn" button-text="Partners" href="/partners" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'partners' ? 'current-section' : '' %>" style="width: 85px; text-decoration: none; line-height: 23px;">Partners</a>
+
 
                 <div purpose="dropdown-button" class="btn-group" >
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
@@ -711,6 +722,7 @@
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
+              <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
@@ -732,7 +744,7 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
@@ -743,6 +755,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -849,6 +864,7 @@
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -914,6 +930,7 @@
     <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/landing-pages/linux-management.page.js"></script>
+    <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
@@ -921,6 +938,7 @@
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
+    <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
@@ -1050,6 +1068,26 @@
           $(this).children('.dropdown-menu').removeClass('show');
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
+      });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
       });
     </script>
   </body>

@@ -184,6 +184,8 @@ type GitOpsControls struct {
 	AndroidEnabledAndConfigured any `json:"android_enabled_and_configured"`
 	AndroidSettings             any `json:"android_settings"`
 
+	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
+
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
@@ -1138,6 +1140,7 @@ var defaultAllowedExtensions = map[string]bool{
 var allowedScriptExtensions = map[string]bool{
 	".sh":  true,
 	".ps1": true,
+	".py":  true,
 }
 
 // GlobExpandOptions configures how flattenBaseItems expands glob patterns.

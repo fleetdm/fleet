@@ -111,7 +111,7 @@ source ./tools/tuf/test/load_orbit_version_vars.sh
 # Compile a new version of Orbit:
 GOOS=windows GOARCH=amd64 go build \
     -o orbit-windows.exe \
-    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+    -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
     ./orbit/cmd/orbit
 

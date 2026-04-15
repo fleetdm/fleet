@@ -104,6 +104,10 @@ func BuildMSI(opt Options) (string, error) {
 	if semver.Compare(orbitVersion, "v1.28.0") >= 0 {
 		opt.EnableEndUserEmailProperty = true
 	}
+	// v1.55.0 introduced EUA_TOKEN property for MSI package: https://github.com/fleetdm/fleet/issues/41379
+	if semver.Compare(orbitVersion, "v1.55.0") >= 0 {
+		opt.EnableEUATokenProperty = true
+	}
 
 	// Write files
 

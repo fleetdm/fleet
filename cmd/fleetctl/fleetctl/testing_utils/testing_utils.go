@@ -231,6 +231,9 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.HasSuffix(r.URL.Path, ".pkg"):
+					pkgDir := getPathRelative("../testdata/gitops/lib/")
+					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))
 				default:
 					http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
 				}
@@ -337,6 +340,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return &fleet.MDMAppleBootstrapPackage{}, nil
 	}
 	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {

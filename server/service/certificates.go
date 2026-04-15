@@ -695,11 +695,9 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
-	if err := svc.ds.UpsertCertificateStatus(ctx, update); err != nil {
-		return err
-	}
 
-	// Log activity for terminal install statuses only (not removals).
+	// Log activity for install statuses (not removals). Failures are logged on every attempt
+	// (including retries) so IT admins have visibility into retry attempts.
 	if update.OperationType == fleet.MDMOperationTypeInstall {
 		var actStatus fleet.CertificateActivityStatus
 		switch update.Status {
@@ -721,7 +719,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 				Status:                string(actStatus),
 				Detail:                detail,
 			}); err != nil {
-				// Log and continue since we don't want the client to retry.
+				// Log and continue since we don't want the client to fail on this.
 				svc.logger.ErrorContext(ctx, "failed to create certificate install activity", "host.id", host.ID, "activity.status", actStatus,
 					"err", err)
 				ctxerr.Handle(ctx, err)
@@ -729,7 +727,21 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 		}
 	}
 
-	return nil
+	// For failed installs, automatically retry if under the retry limit.
+	if update.OperationType == fleet.MDMOperationTypeInstall && update.Status == fleet.MDMDeliveryFailed {
+		if record.RetryCount < fleet.MaxCertificateInstallRetries {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.ds.RetryHostCertificateTemplate(ctx, host.UUID, update.CertificateTemplateID, detail); err != nil {
+				return ctxerr.Wrap(ctx, err, "retrying certificate install")
+			}
+			return nil
+		}
+	}
+
+	return svc.ds.UpsertCertificateStatus(ctx, update)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

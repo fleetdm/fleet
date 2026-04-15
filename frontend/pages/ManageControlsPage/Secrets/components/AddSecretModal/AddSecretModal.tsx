@@ -4,7 +4,6 @@ import Button from "components/buttons/Button";
 import { ISecretPayload } from "interfaces/secrets";
 import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
 

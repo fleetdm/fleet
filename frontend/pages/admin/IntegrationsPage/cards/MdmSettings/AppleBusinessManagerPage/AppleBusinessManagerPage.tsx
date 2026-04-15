@@ -37,12 +37,12 @@ interface IAddAbmMessageProps {
 const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
     <div className={`${baseClass}__add-adm-message`}>
-      <h2>Add your ABM</h2>
+      <h2>Add your AB</h2>
       <p>
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button onClick={onAddAbm}>Add ABM</Button>
+      <Button onClick={onAddAbm}>Add AB</Button>
     </div>
   );
 };
@@ -214,11 +214,11 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         </div>
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
-            <h1>Apple Business Manager (ABM)</h1>
+            <h1>Apple Business (AB)</h1>
             {isPremiumTier &&
               abmTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button onClick={onAddAbm}>Add ABM</Button>
+                <Button onClick={onAddAbm}>Add AB</Button>
               )}
           </div>
           <>{renderContent()}</>

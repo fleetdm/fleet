@@ -6,7 +6,6 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
-import { upperFirst } from "lodash";
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
@@ -110,7 +109,11 @@ const TeamsDropdown = ({
   });
 
   const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<any, false, any>
+    props: DropdownIndicatorProps<
+      INumberDropdownOption,
+      false,
+      GroupBase<INumberDropdownOption>
+    >
   ) => {
     const { isFocused, selectProps } = props;
     const color =
@@ -201,6 +204,7 @@ const TeamsDropdown = ({
     singleValue: (baseStyles) => ({
       ...baseStyles,
       ...variableSingleValueStyles,
+      color: COLORS["core-fleet-black"],
       lineHeight: "normal",
       paddingLeft: 0,
       paddingRight: "8px",
@@ -220,7 +224,8 @@ const TeamsDropdown = ({
     }),
     menu: (baseStyles) => ({
       ...baseStyles,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",

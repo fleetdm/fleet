@@ -459,15 +459,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /deals': {
-    action: 'view-deals',
-    locals: {
-      pageTitleForMeta: 'Deal registration',
-      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
-      hideFooterLinks: true,
-    }
-  },
-
   'GET /customers': {
     action: 'view-customers',
     locals: {
@@ -618,6 +609,23 @@ module.exports.routes = {
     }
   },
 
+  'GET /replace-jamf': {
+    action: 'landing-pages/view-replace-jamf',
+    locals: {
+      currentSection: 'platform',
+      pageTitleForMeta: 'Replace Jamf with confidence',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+    }
+  },
+
+  'GET /partners': {
+    action: 'view-partners',
+    locals: {
+      pageTitleForMeta: 'Partners',
+      pageDescriptionForMeta: 'Join Fleet’s partner program. Sell, integrate, and deliver device management with open APIs, flexible deployment, and support from the Fleet team.'
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -636,6 +644,7 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
+  'GET /jamf-alternative': '/replace-jamf',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -911,16 +920,13 @@ module.exports.routes = {
   'GET /announcements/cannabis-technology-company': '/case-study/cannabis-technology-company',
   'GET /announcements/communications-services-sector-scaling-cross-platform-device-management-with-fleet': '/case-study/communications-platform',
   'GET /announcements/financial-services-platform': '/case-study/financial-services-platform',
-  'GET /announcements/financial-technology-company': '/case-study/financial-technology-company',
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
-  'GET /announcements/global-social-media-platform-switches-to-fleet': '/case-study/global-social-media-platform',
+
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
   'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
-  'GET /announcements/interactive-entertainment-company-adopts-fleet-for-mdm': '/case-study/interactive-entertainment-company',
   'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
   'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
   'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
-  'GET /announcements/open-source-software-organization': '/case-study/open-source-organization',
   'GET /announcements/robotics-company': '/case-study/robotics-company',
   'GET /announcements/modular-workspace-software-company': '/case-study/workspace-software-company',
   'GET /announcements/worldwide-security-and-authentication-platform-chooses-fleet-for-linux': '/case-study/worldwide-security-and-authentication-platform',
@@ -980,9 +986,10 @@ module.exports.routes = {
   'GET /software-catalog/grammarly-desktop': '/software-catalog/grammarly-desktop-darwin',
   'GET /software-catalog/granola': '/software-catalog/granola-darwin',
   'GET /software-catalog/google-drive': '/software-catalog/google-drive-darwin',
+  'GET /software-catalog/imazing': '/software-catalog/imazing-darwin',
+  'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-darwin',
   'GET /software-catalog/insomnia': '/software-catalog/insomnia-darwin',
   'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-ce-darwin',
-  'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-profile-editor-darwin',
   'GET /software-catalog/intellij-idea': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/little-snitch': '/software-catalog/little-snitch-darwin',
   'GET /software-catalog/intune-company-portal': '/software-catalog/intune-company-portal-darwin',
@@ -1105,6 +1112,8 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
+  'GET /deals': '/partners#deals',
+
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
   'GET /it': '/observability?utm_content=eo-it',
@@ -1153,6 +1162,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#turn-on-apple-mdm',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
@@ -1234,6 +1244,7 @@ module.exports.routes = {
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
   'GET /learn-more-about/unlock-ios-ipados': 'https://fleetdm.com/guides/lock-wipe-hosts#how-to-unlock-offline-ios-and-ipados-hosts',
+  'GET /learn-more-about/android-web-apps-chrome-required': 'https://fleetdm.com/guides/install-app-store-apps#install-android-web-app-web-clip',
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
@@ -1340,7 +1351,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
-
+  'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

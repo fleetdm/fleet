@@ -97,14 +97,15 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		switch op {
 		case fleet.MDMOperationTypeInstall:
 			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID, target.ProfileName)
 			} else {
-				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID)
+				err = commander.InstallProfile(ctx, target.EnrollmentIDs, profileContents[profUUID], target.CmdUUID, target.ProfileName)
 			}
 		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID)
+			err = commander.RemoveProfile(ctx, target.EnrollmentIDs, target.ProfileIdentifier, target.CmdUUID, target.ProfileName)
 		}
 
+		// Determine whether the command was enqueued (even if push notification failed).
 		var e *APNSDeliveryError
 		switch {
 		case errors.As(err, &e):
@@ -117,6 +118,7 @@ func ProcessAndEnqueueProfiles(ctx context.Context,
 		default:
 			ch <- remoteResult{nil, target.CmdUUID}
 		}
+
 	}
 	for profUUID, target := range installTargets {
 		wgProd.Add(1)
@@ -630,6 +632,7 @@ func preprocessProfileContents(
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,
+					ProfileName:       target.ProfileName,
 					EnrollmentIDs:     []string{enrollmentID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)

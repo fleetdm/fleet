@@ -81,7 +81,9 @@ type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
 type DeleteUserFunc func(ctx context.Context, id uint) error
 
-type CountGlobalAdminsFunc func(ctx context.Context) (int, error)
+type DeleteUserIfNotLastAdminFunc func(ctx context.Context, id uint) error
+
+type SaveUserIfNotLastAdminFunc func(ctx context.Context, user *fleet.User) error
 
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
@@ -322,6 +324,10 @@ type RemoveHostMDMCommandFunc func(ctx context.Context, command fleet.HostMDMCom
 type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
+
+type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
+
+type CleanupOrphanedNanoRefetchCommandsFunc func(ctx context.Context) error
 
 type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
@@ -775,7 +781,7 @@ type UpdateHostRefetchCriticalQueriesUntilFunc func(ctx context.Context, hostID 
 
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
-type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
+type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
 
 type RecordLabelQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
@@ -799,7 +805,7 @@ type GetConfigEnableDiskEncryptionFunc func(ctx context.Context, teamID *uint) (
 
 type SetOrUpdateHostDiskTpmPINFunc func(ctx context.Context, hostID uint, pinSet bool) error
 
-type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
+type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error)
 
@@ -828,6 +834,8 @@ type QueueEscrowFunc func(ctx context.Context, hostID uint) error
 type AssertHasNoEncryptionKeyStoredFunc func(ctx context.Context, hostID uint) error
 
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
+
+type GetDeviceInfoForACMERenewalFunc func(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error)
 
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
 
@@ -981,11 +989,15 @@ type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Hos
 
 type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
+type ClearHostEnrolledFromMigrationFunc func(ctx context.Context, hostUUID string) error
+
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]string, error)
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
+
+type GetHostDEPAssignmentsBySerialFunc func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
@@ -995,7 +1007,7 @@ type GetNanoMDMUserEnrollmentUsernameAndUUIDFunc func(ctx context.Context, devic
 
 type UpdateNanoMDMUserEnrollmentUsernameFunc func(ctx context.Context, deviceID string, userUUID string, username string) error
 
-type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1391,7 +1403,7 @@ type ValidateOrbitSoftwareInstallerAccessFunc func(ctx context.Context, hostID u
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
-type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error)
+type GetFleetMaintainedVersionsByTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error)
 
 type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
 
@@ -1519,9 +1531,11 @@ type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string)
 
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
+type GetInstallerByTeamAndURLFunc func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error)
+
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
-type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
+type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error)
 
 type UpdateSetupExperienceStatusResultFunc func(ctx context.Context, status *fleet.SetupExperienceStatusResult) error
 
@@ -1803,11 +1817,17 @@ type GetCertificateTemplateForHostFunc func(ctx context.Context, hostUUID string
 
 type GetHostCertificateTemplateRecordFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) (*fleet.HostCertificateTemplate, error)
 
+type RetryHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error
+
+type GetCertificateTemplateStatusesByNameForHostsFunc func(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error)
+
 type BulkInsertHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplatesFunc func(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error
 
 type DeleteHostCertificateTemplateFunc func(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+
+type DeleteAllHostCertificateTemplatesFunc func(ctx context.Context, hostUUID string) error
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
@@ -1931,8 +1951,11 @@ type DataStore struct {
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
 
-	CountGlobalAdminsFunc        CountGlobalAdminsFunc
-	CountGlobalAdminsFuncInvoked bool
+	DeleteUserIfNotLastAdminFunc        DeleteUserIfNotLastAdminFunc
+	DeleteUserIfNotLastAdminFuncInvoked bool
+
+	SaveUserIfNotLastAdminFunc        SaveUserIfNotLastAdminFunc
+	SaveUserIfNotLastAdminFuncInvoked bool
 
 	PendingEmailChangeFunc        PendingEmailChangeFunc
 	PendingEmailChangeFuncInvoked bool
@@ -2293,6 +2316,12 @@ type DataStore struct {
 
 	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
 	CleanupHostMDMAppleProfilesFuncInvoked bool
+
+	CleanupStaleNanoRefetchCommandsFunc        CleanupStaleNanoRefetchCommandsFunc
+	CleanupStaleNanoRefetchCommandsFuncInvoked bool
+
+	CleanupOrphanedNanoRefetchCommandsFunc        CleanupOrphanedNanoRefetchCommandsFunc
+	CleanupOrphanedNanoRefetchCommandsFuncInvoked bool
 
 	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
 	IsHostConnectedToFleetMDMFuncInvoked bool
@@ -3053,6 +3082,9 @@ type DataStore struct {
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
 
+	GetDeviceInfoForACMERenewalFunc        GetDeviceInfoForACMERenewalFunc
+	GetDeviceInfoForACMERenewalFuncInvoked bool
+
 	SetCommandForPendingSCEPRenewalFunc        SetCommandForPendingSCEPRenewalFunc
 	SetCommandForPendingSCEPRenewalFuncInvoked bool
 
@@ -3281,6 +3313,9 @@ type DataStore struct {
 	MDMResetEnrollmentFunc        MDMResetEnrollmentFunc
 	MDMResetEnrollmentFuncInvoked bool
 
+	ClearHostEnrolledFromMigrationFunc        ClearHostEnrolledFromMigrationFunc
+	ClearHostEnrolledFromMigrationFuncInvoked bool
+
 	ListMDMAppleDEPSerialsInTeamFunc        ListMDMAppleDEPSerialsInTeamFunc
 	ListMDMAppleDEPSerialsInTeamFuncInvoked bool
 
@@ -3289,6 +3324,9 @@ type DataStore struct {
 
 	GetHostDEPAssignmentFunc        GetHostDEPAssignmentFunc
 	GetHostDEPAssignmentFuncInvoked bool
+
+	GetHostDEPAssignmentsBySerialFunc        GetHostDEPAssignmentsBySerialFunc
+	GetHostDEPAssignmentsBySerialFuncInvoked bool
 
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
@@ -3302,8 +3340,8 @@ type DataStore struct {
 	UpdateNanoMDMUserEnrollmentUsernameFunc        UpdateNanoMDMUserEnrollmentUsernameFunc
 	UpdateNanoMDMUserEnrollmentUsernameFuncInvoked bool
 
-	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
-	GetNanoMDMEnrollmentTimesFuncInvoked bool
+	GetNanoMDMEnrollmentDetailsFunc        GetNanoMDMEnrollmentDetailsFunc
+	GetNanoMDMEnrollmentDetailsFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
@@ -4088,6 +4126,9 @@ type DataStore struct {
 	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
 	GetTeamsWithInstallerByHashFuncInvoked bool
 
+	GetInstallerByTeamAndURLFunc        GetInstallerByTeamAndURLFunc
+	GetInstallerByTeamAndURLFuncInvoked bool
+
 	TeamIDsWithSetupExperienceIdPEnabledFunc        TeamIDsWithSetupExperienceIdPEnabledFunc
 	TeamIDsWithSetupExperienceIdPEnabledFuncInvoked bool
 
@@ -4514,6 +4555,12 @@ type DataStore struct {
 	GetHostCertificateTemplateRecordFunc        GetHostCertificateTemplateRecordFunc
 	GetHostCertificateTemplateRecordFuncInvoked bool
 
+	RetryHostCertificateTemplateFunc        RetryHostCertificateTemplateFunc
+	RetryHostCertificateTemplateFuncInvoked bool
+
+	GetCertificateTemplateStatusesByNameForHostsFunc        GetCertificateTemplateStatusesByNameForHostsFunc
+	GetCertificateTemplateStatusesByNameForHostsFuncInvoked bool
+
 	BulkInsertHostCertificateTemplatesFunc        BulkInsertHostCertificateTemplatesFunc
 	BulkInsertHostCertificateTemplatesFuncInvoked bool
 
@@ -4522,6 +4569,9 @@ type DataStore struct {
 
 	DeleteHostCertificateTemplateFunc        DeleteHostCertificateTemplateFunc
 	DeleteHostCertificateTemplateFuncInvoked bool
+
+	DeleteAllHostCertificateTemplatesFunc        DeleteAllHostCertificateTemplatesFunc
+	DeleteAllHostCertificateTemplatesFuncInvoked bool
 
 	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
 	ResendHostCertificateTemplateFuncInvoked bool
@@ -4780,11 +4830,18 @@ func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
 	return s.DeleteUserFunc(ctx, id)
 }
 
-func (s *DataStore) CountGlobalAdmins(ctx context.Context) (int, error) {
+func (s *DataStore) DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error {
 	s.mu.Lock()
-	s.CountGlobalAdminsFuncInvoked = true
+	s.DeleteUserIfNotLastAdminFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountGlobalAdminsFunc(ctx)
+	return s.DeleteUserIfNotLastAdminFunc(ctx, id)
+}
+
+func (s *DataStore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.User) error {
+	s.mu.Lock()
+	s.SaveUserIfNotLastAdminFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveUserIfNotLastAdminFunc(ctx, user)
 }
 
 func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {
@@ -5625,6 +5682,20 @@ func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	s.CleanupHostMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupHostMDMAppleProfilesFunc(ctx)
+}
+
+func (s *DataStore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+	s.mu.Lock()
+	s.CleanupStaleNanoRefetchCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupStaleNanoRefetchCommandsFunc(ctx, enrollmentID, commandUUIDPrefix, currentCommandUUID)
+}
+
+func (s *DataStore) CleanupOrphanedNanoRefetchCommands(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupOrphanedNanoRefetchCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupOrphanedNanoRefetchCommandsFunc(ctx)
 }
 
 func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
@@ -7209,11 +7280,11 @@ func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, in
 	return s.FlippingPoliciesForHostFunc(ctx, hostID, incomingResults)
 }
 
-func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
+func (s *DataStore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
 	s.mu.Lock()
 	s.RecordPolicyQueryExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated, deferredSaveHost)
+	return s.RecordPolicyQueryExecutionsFunc(ctx, host, results, updated, deferredSaveHost, newlyPassingPolicyIDs)
 }
 
 func (s *DataStore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error {
@@ -7293,11 +7364,11 @@ func (s *DataStore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, 
 	return s.SetOrUpdateHostDiskTpmPINFunc(ctx, hostID, pinSet)
 }
 
-func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
+func (s *DataStore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksEncryptionFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted)
+	return s.SetOrUpdateHostDisksEncryptionFunc(ctx, hostID, encrypted, bitlockerProtectionStatus)
 }
 
 func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) (bool, error) {
@@ -7396,6 +7467,13 @@ func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryD
 	s.GetHostCertAssociationsToExpireFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostCertAssociationsToExpireFunc(ctx, expiryDays, limit)
+}
+
+func (s *DataStore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	s.mu.Lock()
+	s.GetDeviceInfoForACMERenewalFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceInfoForACMERenewalFunc(ctx, hostUUIDs)
 }
 
 func (s *DataStore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
@@ -7930,6 +8008,13 @@ func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string, sce
 	return s.MDMResetEnrollmentFunc(ctx, hostUUID, scepRenewalInProgress)
 }
 
+func (s *DataStore) ClearHostEnrolledFromMigration(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearHostEnrolledFromMigrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostEnrolledFromMigrationFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
 	s.mu.Lock()
 	s.ListMDMAppleDEPSerialsInTeamFuncInvoked = true
@@ -7949,6 +8034,13 @@ func (s *DataStore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fle
 	s.GetHostDEPAssignmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostDEPAssignmentFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentsBySerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentsBySerialFunc(ctx, serial)
 }
 
 func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
@@ -7979,11 +8071,11 @@ func (s *DataStore) UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, dev
 	return s.UpdateNanoMDMUserEnrollmentUsernameFunc(ctx, deviceID, userUUID, username)
 }
 
-func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+func (s *DataStore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 	s.mu.Lock()
-	s.GetNanoMDMEnrollmentTimesFuncInvoked = true
+	s.GetNanoMDMEnrollmentDetailsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetNanoMDMEnrollmentTimesFunc(ctx, hostUUID)
+	return s.GetNanoMDMEnrollmentDetailsFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -9365,11 +9457,11 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
-func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+func (s *DataStore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
 	s.mu.Lock()
 	s.GetFleetMaintainedVersionsByTitleIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID)
+	return s.GetFleetMaintainedVersionsByTitleIDFunc(ctx, teamID, titleID, byVersion)
 }
 
 func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
@@ -9813,6 +9905,13 @@ func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 stri
 	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256, url)
 }
 
+func (s *DataStore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	s.mu.Lock()
+	s.GetInstallerByTeamAndURLFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInstallerByTeamAndURLFunc(ctx, teamID, url)
+}
+
 func (s *DataStore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
 	s.mu.Lock()
 	s.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = true
@@ -9820,11 +9919,11 @@ func (s *DataStore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([
 	return s.TeamIDsWithSetupExperienceIdPEnabledFunc(ctx)
 }
 
-func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 	s.mu.Lock()
 	s.ListSetupExperienceResultsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID)
+	return s.ListSetupExperienceResultsByHostUUIDFunc(ctx, hostUUID, teamID)
 }
 
 func (s *DataStore) UpdateSetupExperienceStatusResult(ctx context.Context, status *fleet.SetupExperienceStatusResult) error {
@@ -10807,6 +10906,20 @@ func (s *DataStore) GetHostCertificateTemplateRecord(ctx context.Context, hostUU
 	return s.GetHostCertificateTemplateRecordFunc(ctx, hostUUID, certificateTemplateID)
 }
 
+func (s *DataStore) RetryHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint, detail string) error {
+	s.mu.Lock()
+	s.RetryHostCertificateTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.RetryHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID, detail)
+}
+
+func (s *DataStore) GetCertificateTemplateStatusesByNameForHosts(ctx context.Context, hostUUIDs []string) (map[string]map[string]fleet.CertificateTemplateStatus, error) {
+	s.mu.Lock()
+	s.GetCertificateTemplateStatusesByNameForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateTemplateStatusesByNameForHostsFunc(ctx, hostUUIDs)
+}
+
 func (s *DataStore) BulkInsertHostCertificateTemplates(ctx context.Context, hostCertTemplates []fleet.HostCertificateTemplate) error {
 	s.mu.Lock()
 	s.BulkInsertHostCertificateTemplatesFuncInvoked = true
@@ -10826,6 +10939,13 @@ func (s *DataStore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID 
 	s.DeleteHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostCertificateTemplateFunc(ctx, hostUUID, certificateTemplateID)
+}
+
+func (s *DataStore) DeleteAllHostCertificateTemplates(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.DeleteAllHostCertificateTemplatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAllHostCertificateTemplatesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {

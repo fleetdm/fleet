@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import PATHS from "router/paths";
-import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 
@@ -143,7 +142,7 @@ const WelcomeHost = ({
           <p>Add your personal device to assess the security of your device.</p>
           <p>
             In Fleet, laptops, workstations, and servers are referred to as
-            &quot;hosts.&quot;
+            &quot;hosts&quot;.
           </p>
           <Button
             onClick={toggleAddHostsModal}

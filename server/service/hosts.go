@@ -1685,6 +1685,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1787,7 +1788,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				if details != nil {
+					mdmLastCheckedIn = details.LastMDMSeenTime
+					mdmLastEnrollment = details.LastMDMEnrollmentTime
+					mdmHardwareAttested = details.HardwareAttested
+				}
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1859,15 +1865,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:                          *host,
+		Labels:                        labels,
+		Packs:                         packs,
+		Batteries:                     &bats,
+		MaintenanceWindow:             nextMw,
+		EndUsers:                      endUsers,
+		LastMDMEnrolledAt:             mdmLastEnrollment,
+		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
+		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
 }
 
@@ -3567,23 +3574,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 	return nil
 }
 
-type removeLabelsFromHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type removeLabelsFromHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r removeLabelsFromHostResponse) Error() error { return r.Err }
-
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*removeLabelsFromHostRequest)
+	req := request.(*fleet.RemoveLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
-		return removeLabelsFromHostResponse{Err: err}, nil
+		return fleet.RemoveLabelsFromHostResponse{Err: err}, nil
 	}
-	return removeLabelsFromHostResponse{}, nil
+	return fleet.RemoveLabelsFromHostResponse{}, nil
 }
 
 func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {

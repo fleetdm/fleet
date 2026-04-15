@@ -21,12 +21,7 @@ import hostAPI, {
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
-import {
-  IHost,
-  IMacadminsResponse,
-  IHostResponse,
-  IHostMdmData,
-} from "interfaces/host";
+import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -144,6 +139,7 @@ import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
+import ClearPasscodeModal from "./modals/ClearPasscodeModal";
 
 const baseClass = "host-details";
 
@@ -242,6 +238,7 @@ const HostDetailsPage = ({
     boolean | undefined
   >(false);
   const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
+  const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -325,19 +322,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
-    ["mdm", hostIdFromURL],
-    () => hostAPI.getMdm(hostIdFromURL),
-    {
-      enabled: !!hostIdFromURL,
-      retry: false,
-      onError: (err) => {
-        // no handling needed atm. data is simply not shown.
-        console.error(err);
-      },
-    }
-  );
-
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
@@ -382,7 +366,6 @@ const HostDetailsPage = ({
 
   const refetchExtensions = () => {
     macadmins !== null && refetchMacadmins();
-    mdm?.enrollment_status !== null && refetchMdm();
     hostCertificates && refetchHostCertificates();
   };
 
@@ -561,8 +544,12 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.mdm
     : config?.mdm;
 
+  // We must check if the host has a UUID. Not-yet-enrolled hosts synced over from ABM will have
+  // a pending MDM status but no UUID, so there are no commands and no way to fetch them
   const canGetMDMCommands =
-    !!isMacMdmEnabledAndConfigured && isAppleDevice(host?.platform);
+    !!isMacMdmEnabledAndConfigured &&
+    isAppleDevice(host?.platform) &&
+    !!host?.uuid;
 
   const {
     data: pastMDMCommands,
@@ -696,6 +683,10 @@ const HostDetailsPage = ({
   const toggleMDMStatusModal = useCallback(() => {
     setShowMDMStatusModal(!showMDMStatusModal);
   }, [showMDMStatusModal, setShowMDMStatusModal]);
+
+  const toggleClearPasscodeModal = useCallback(() => {
+    setShowClearPasscodeModal(!showClearPasscodeModal);
+  }, [showClearPasscodeModal, setShowClearPasscodeModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -975,6 +966,9 @@ const HostDetailsPage = ({
       case "wipe":
         setShowWipeModal(true);
         break;
+      case "clearPasscode":
+        setShowClearPasscodeModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -1064,6 +1058,16 @@ const HostDetailsPage = ({
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  const isMacOSHost = isMacOS(host.platform);
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isAndroidHost = isAndroid(host.platform);
+  const isWindowsHost = isWindows(host.platform);
+  const isAppleDeviceHost = isAppleDevice(host.platform);
+  const isChromeOsHost = host?.platform === "chrome";
+
+  const showReportsTab =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
+
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
@@ -1075,11 +1079,16 @@ const HostDetailsPage = ({
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
-    {
-      name: "Reports",
-      title: "reports",
-      pathname: PATHS.HOST_REPORTS(hostIdFromURL),
-    },
+    // Only include Reports for supported platforms
+    ...(showReportsTab
+      ? [
+          {
+            name: "Reports",
+            title: "reports",
+            pathname: PATHS.HOST_REPORTS(hostIdFromURL),
+          },
+        ]
+      : []),
     {
       name: "Policies",
       title: "policies",
@@ -1150,12 +1159,6 @@ const HostDetailsPage = ({
     name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
-  const isMacOSHost = isMacOS(host.platform);
-  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
-  const isAndroidHost = isAndroid(host.platform);
-  const isWindowsHost = isWindows(host.platform);
-  const isAppleDeviceHost = isAppleDevice(host.platform);
-
   const canResendProfiles =
     (isAppleDeviceHost || isWindowsHost || isAndroidHost) &&
     (isGlobalAdmin ||
@@ -1166,7 +1169,7 @@ const HostDetailsPage = ({
       isHostTeamTechnician);
 
   const showSoftwareLibraryTab = isPremiumTier;
-  const showReportsTab = mdm?.enrollment_status !== "Pending";
+  const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
@@ -1218,21 +1221,21 @@ const HostDetailsPage = ({
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
                 <EmptyTable
-                  header="Software library is currently not supported on this host."
                   info={
                     <>
                       Software install is coming soon.{" "}
                       <CustomLink
-                        newTab
                         text="Learn more"
                         url={
                           isAndroidHost
                             ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
                             : BYOD_SW_INSTALL_LEARN_MORE_LINK
                         }
+                        newTab
                       />
                     </>
                   }
+                  header="Software library is currently not supported on this host."
                 />
               ) : (
                 <SoftwareLibraryCard
@@ -1362,7 +1365,7 @@ const HostDetailsPage = ({
                   className={fullWidthCardClass}
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
-                  mdm={mdm}
+                  mdm={host?.mdm}
                   osVersionRequirement={getOSVersionRequirementFromMDMConfig(
                     host.platform
                   )}
@@ -1494,20 +1497,20 @@ const HostDetailsPage = ({
                   </Tabs>
                 </TabNav>
               </TabPanel>
-
-              <TabPanel>
-                <HostReportsTab
-                  hostId={host.id}
-                  hostName={host.display_name}
-                  router={router}
-                  location={location}
-                  saveReportsDisabledInConfig={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                  showReportsTab={showReportsTab}
-                />
-              </TabPanel>
-
+              {showReportsTab && (
+                <TabPanel>
+                  <HostReportsTab
+                    hostId={host.id}
+                    hostName={host.display_name}
+                    router={router}
+                    location={location}
+                    saveReportsDisabledInConfig={
+                      config?.server_settings?.query_reports_disabled
+                    }
+                    showReportsEmptyState={showReportsEmptyState}
+                  />
+                </TabPanel>
+              )}
               <TabPanel>
                 <PoliciesCard
                   policies={host?.policies || []}
@@ -1759,12 +1762,16 @@ const HostDetailsPage = ({
           <MDMStatusModal
             fleetId={currentTeam?.id}
             hostId={host.id}
+            depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}
             isPremiumTier={isPremiumTier}
-            isMacOSHost={isMacOSHost}
+            isAppleDevice={isAppleDeviceHost}
             router={router}
             onExit={toggleMDMStatusModal}
           />
+        )}
+        {showClearPasscodeModal && (
+          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
         )}
       </>
     );

@@ -124,8 +124,12 @@ export default {
     `${URL_PREFIX}/reports/${queryId || "new"}/live`,
   REPORT_DETAILS: (queryId: number): string =>
     `${URL_PREFIX}/reports/${queryId}`,
-  EDIT_POLICY: (policyId: number): string =>
+  POLICY_DETAILS: (policyId: number): string =>
     `${URL_PREFIX}/policies/${policyId}`,
+  EDIT_POLICY: (policyId: number): string =>
+    `${URL_PREFIX}/policies/${policyId}/edit`,
+  LIVE_POLICY: (policyId: number | null): string =>
+    `${URL_PREFIX}/policies/${policyId || "new"}/live`,
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,

@@ -87,6 +87,8 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_CLEAR_PASSCODE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
@@ -137,7 +139,7 @@ export default {
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
-  // Apple Business Manager (ABM) endpoints
+  // Apple Business (AB) endpoints
   MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
   MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
   MDM_ABM_TOKEN_RENEW: (id: number) =>
