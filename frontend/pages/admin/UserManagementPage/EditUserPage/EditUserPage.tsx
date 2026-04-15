@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -36,6 +36,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   const { config, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  const queryClient = useQueryClient();
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -134,6 +135,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     usersAPI
       .update(entityId, requestData)
       .then(() => {
+        queryClient.invalidateQueries(["user", entityId]);
         renderFlash("success", successMessage);
         router.push(PATHS.ADMIN_USERS);
       })
@@ -173,6 +175,7 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         api_endpoints: formData.api_endpoints,
       })
       .then(() => {
+        queryClient.invalidateQueries(["user", entityId]);
         renderFlash("success", `Successfully edited ${formData.name}.`);
         router.push(PATHS.ADMIN_USERS);
       })

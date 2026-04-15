@@ -8,20 +8,19 @@ const baseClass = "api-key-display";
 
 interface IApiKeyDisplayProps {
   apiKey: string;
-  userName: string;
   onDone: () => void;
 }
 
-const ApiKeyDisplay = ({ apiKey, userName, onDone }: IApiKeyDisplayProps) => {
+const ApiKeyDisplay = ({ apiKey, onDone }: IApiKeyDisplayProps) => {
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__success-message`}>
-        <b>{userName}</b> has been created.
-      </p>
+      <div className={`${baseClass}__api-key-label`}>
+        <b>API key</b>
+      </div>
       <InputFieldHiddenContent value={apiKey} name="api-key" />
-      <InfoBanner>
-        Copy this API key now. You won&apos;t be able to see it again. If you
-        lose it, you&apos;ll need to create a new API-only user.
+      <InfoBanner color="yellow">
+        Please make a note of this API key since it is the only time you will be
+        able to view it.
       </InfoBanner>
       <div className={`${baseClass}__done-button`}>
         <Button onClick={onDone}>Done</Button>

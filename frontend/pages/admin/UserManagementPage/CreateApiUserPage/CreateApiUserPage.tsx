@@ -86,11 +86,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
         <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
         <h1>New user</h1>
         {apiKey ? (
-          <ApiKeyDisplay
-            apiKey={apiKey}
-            userName={createdUserName}
-            onDone={handleDone}
-          />
+          <ApiKeyDisplay apiKey={apiKey} onDone={handleDone} />
         ) : (
           <ApiUserForm
             isNewUser

@@ -131,6 +131,23 @@
   }
 }
 
+.api-key-display {
+  display: flex;
+  flex-direction: column;
+
+  &__api-key-label {
+    margin-bottom: $pad-large;
+  }
+
+  .input-field-hidden-content {
+    margin-bottom: $pad-medium;
+  }
+
+  .info-banner {
+    margin-bottom: $pad-medium;
+  }
+}
+
 .api-access-section {
   @include vertical-page-layout;
 
