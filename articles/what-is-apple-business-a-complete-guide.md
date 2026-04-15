@@ -34,22 +34,6 @@ AB can be integrated with all major MDM solutions, including [Fleet](http://flee
 
 If your current MDM fails to meet your needs, you can switch MDM vendors without having to create a new AB instance. At WWDC 2025 Apple introduced [Managed Device Migration](https://fleetdm.com/announcements/mdm-just-got-better) making the move from your current MDM vendor to any other easier than ever.
 
-### What is Apple Business Essentials?
-
-Apple Business Essentials (ABE) is Apple's MDM solution for small businesses that bundles enrollment and settings enforcement into a single paid subscription ($2.99 to $24.99 per device per month). Unlike AB which requires a separate MDM, ABE packages AB functionality with built-in MDM, 24/7 support, and iCloud storage in a simplified offering.
-
-ABE works best for organizations with specific characteristics and constraints:
-
-- Organizations with fewer than 500 employees
-- US-based operations that don't require multi-region deployment
-- Apple-only device fleets without Windows, Linux, or cross-platform management needs
-- Limited IT staff who benefit from simplified administration and built-in support
-- Basic security requirements that don't demand advanced compliance
-
-ABE lacks advanced controls like conditional access, dynamic grouping, and sophisticated automation, while app deployment is via App Store software distribution custom package installation capabilities.
-
-Complex organizations with strict management requirements should consider using AB paired with a a third-party MDM solution for greater flexibility and capabilities.
-
 ## What are the key features of Apple Business?
 
 AB has three core capabilities that work together to automate device provisioning at scale: Automated Device Enrollment (ADE), volume purchasing for Apps and Books, and identity management through Managed Apple Accounts
@@ -96,7 +80,7 @@ AB eliminates manual device setup, reduces administrative overhead through autom
 
 Small US-only teams with fewer than 500 employees and basic security needs might be able to use ABE. Organizations managing Apple devices at scale should use AB paired with a third-party MDM solution, such as [Fleet](https://fleetdm.com/device-management).
 
-Value emerges for enterprises with distributed teams, international operations, or those planning to exceed 500 employees. Large enterprises with multi-location operations will appreciate AB's global availability and unlimited scale since Apple Business Essentials has strict size and geographic limits.
+Value emerges for enterprises with distributed teams, international operations, or those planning to exceed 500 employees. Large enterprises with multi-location operations will appreciate AB's global availability and unlimited scale.
 
 Fleet pairs well with AB. Fleet's MDM features are built on top of [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems), Fleet provides deep endpoint visibility through 300+ queryable data tables and delivers device reporting in under 30 seconds. Its cross-platform support extends beyond the Apple ecosystem to Windows, Linux, Chromebooks and Android devices. For organizations with data residency requirements, Fleet offers both hosted, cloud-managed and self-hosted server deployment options, while native GitOps and API-first design integrate with the modern, infrastructure-as-code practices large enterprises are adopting to thrive.
 
