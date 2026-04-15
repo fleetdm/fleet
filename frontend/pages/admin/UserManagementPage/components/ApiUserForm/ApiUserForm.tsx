@@ -242,7 +242,7 @@ const ApiUserForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={Object.keys(combinedErrors).length > 0}
+            disabled={isSubmitting || Object.keys(combinedErrors).length > 0}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>
