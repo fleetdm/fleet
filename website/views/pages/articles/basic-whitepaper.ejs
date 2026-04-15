@@ -22,7 +22,7 @@
         <div purpose="right-sidebar" class="d-flex flex-column">
           <div purpose="form-container">
             <div id="download-form" purpose="whitepaper-download-form">
-              <h4>Learn how GitOps transforms device management</h4>
+              <h4><%- thisPage.meta.formCallToAction %></h4>
               <ajax-form class="w-100" action="deliverWhitepaperDownloadRequest" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedDownloadForm()" v-if="!cloudSuccess">
                 <div class="form-group">
                   <label for="first-name">First name *</label>

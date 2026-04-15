@@ -58,6 +58,7 @@ You will also see how treating device management as a software discipline helps 
 
 <meta name="articleImageUrl" value="../website/assets/images/articles/modern-endpoint-management-managing-devices-as-code-cover-image-504x336@2x.png">
 
+<meta name="formCallToAction" value="Learn how GitOps transforms device management">
 <meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
 <meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
 <meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">

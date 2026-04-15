@@ -158,6 +158,7 @@ Whitepaper articles use a separate article template that requires additional `<m
 
 - Required `<meta>` tags:
   - `whitepaperFilename`: The filename of the whitepaper PDF in the `website/assets/pdfs/` folder. Used to download the whitepaper after a user fills out the form on the whitepaper template page.
+  - `formCallToAction`: The heading displayed above the form to download the whitepaper. It should describe what users will get out of downloading a particular whitepaper. Example: "Learn how GitOps transforms device management"
   - `introductionTextBlockOne`: The introduction paragraph for the comparison. This is a required meta tag because the article title and introduction are displayed above the Markdown content of whitepaper articles.
   - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
 - Optional `<meta>` tags:
@@ -176,6 +177,7 @@ Whitepaper articles use a separate article template that requires additional `<m
 <meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
 <meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
 <meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">
+<meta name="formCallToAction" value="Learn how GitOps transforms device management">
 ```
 
 
