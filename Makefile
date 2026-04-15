@@ -680,12 +680,62 @@ restore: $(SNAPSHOT_BINARY)
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
 # Usage:
+# To generate an osquery bundle for a released version of osquery:
 # make osqueryd-app-tar-gz version=5.1.0 out-path=.
+#
+# To generate an osquery bundle for a unreleased change in osquery in a pull request
+# (e.g. https://github.com/osquery/osquery/pull/8815):
+# make osqueryd-app-tar-gz pr=8815 out-path=.
 osqueryd-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target osqueryd-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
+ifdef pr
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@echo "Fetching macos_unsigned_tgz_universal artifact from osquery/osquery PR $(pr)..."
+	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
+		echo "PR head SHA: $$PR_SHA" && \
+		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
+			-q '[.workflow_runs[] | select(.conclusion == "success") | .id] | .[]') && \
+		if [ -z "$$RUN_IDS" ]; then \
+			echo "Error: no successful workflow runs found for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		DOWNLOADED=false && \
+		for run_id in $$RUN_IDS; do \
+			if gh run download -R osquery/osquery $$run_id -n macos_unsigned_tgz_universal -D $(TMP_DIR)/artifact 2>/dev/null; then \
+				DOWNLOADED=true; \
+				echo "Downloaded artifact from run $$run_id"; \
+				break; \
+			fi; \
+		done && \
+		if [ "$$DOWNLOADED" != "true" ]; then \
+			echo "Error: macos_unsigned_tgz_universal artifact not found in any successful run for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi
+	@INNER_TGZ=$$(find $(TMP_DIR)/artifact -name '*.tar.gz' -o -name '*.tgz' | head -1) && \
+		if [ -z "$$INNER_TGZ" ]; then \
+			echo "Error: no tarball found inside downloaded artifact"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		mkdir -p $(TMP_DIR)/extracted && \
+		tar xf "$$INNER_TGZ" -C $(TMP_DIR)/extracted
+	@OSQUERY_APP=$$(find $(TMP_DIR)/extracted -type d -name 'osquery.app' | head -1) && \
+		if [ -z "$$OSQUERY_APP" ]; then \
+			echo "Error: osquery.app not found in extracted artifact. Contents:"; \
+			find $(TMP_DIR)/extracted -type f; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		OSQUERY_APP_DIR=$$(dirname "$$OSQUERY_APP") && \
+		"$$OSQUERY_APP/Contents/MacOS/osqueryd" --version && \
+		tar czf $(out-path)/osqueryd.app.tar.gz -C "$$OSQUERY_APP_DIR" osquery.app
+	rm -rf $(TMP_DIR)
+else
 	$(eval TMP_DIR := $(shell mktemp -d))
 	curl -L https://github.com/osquery/osquery/releases/download/$(version)/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/osquery-$(version).pkg $(TMP_DIR)/osquery_pkg_expanded
@@ -695,6 +745,7 @@ endif
 	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
+endif
 
 # Generate nudge.app.tar.gz bundle from nudge repo.
 #
