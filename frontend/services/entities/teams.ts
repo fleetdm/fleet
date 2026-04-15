@@ -218,4 +218,8 @@ export default {
 
     return sendRequest("PATCH", path, { secrets: payload });
   },
+  downloadFleetdPkg: (teamId: number): Promise<Blob> => {
+    const { TEAMS_FLEETD_PKG } = endpoints;
+    return sendRequest("GET", TEAMS_FLEETD_PKG(teamId), undefined, "blob");
+  },
 };

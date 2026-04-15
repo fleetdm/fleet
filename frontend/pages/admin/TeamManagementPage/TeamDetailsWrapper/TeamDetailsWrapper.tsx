@@ -481,6 +481,7 @@ const TeamDetailsWrapper = ({
             isLoading={isLoadingTeams}
             onCancel={toggleAddHostsModal}
             openEnrollSecretModal={toggleManageEnrollSecretsModal}
+            teamId={teamIdForApi}
           />
         )}
         {showManageEnrollSecretsModal && (

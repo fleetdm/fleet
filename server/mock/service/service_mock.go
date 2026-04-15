@@ -394,6 +394,8 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type ModifyTeamEnrollSecretsFunc func(ctx context.Context, teamID uint, secrets []fleet.EnrollSecret) ([]*fleet.EnrollSecret, error)
 
+type GetFleetdInstallerPkgFunc func(ctx context.Context, teamID uint) (*fleet.DownloadFleetdInstallerPayload, error)
+
 type ApplyTeamSpecsFunc func(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error)
 
 type SetActivityServiceFunc func(activitySvc fleet.ActivityWriteService)
@@ -1471,6 +1473,9 @@ type Service struct {
 
 	ModifyTeamEnrollSecretsFunc        ModifyTeamEnrollSecretsFunc
 	ModifyTeamEnrollSecretsFuncInvoked bool
+
+	GetFleetdInstallerPkgFunc        GetFleetdInstallerPkgFunc
+	GetFleetdInstallerPkgFuncInvoked bool
 
 	ApplyTeamSpecsFunc        ApplyTeamSpecsFunc
 	ApplyTeamSpecsFuncInvoked bool
@@ -3556,6 +3561,13 @@ func (s *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secr
 	s.ModifyTeamEnrollSecretsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyTeamEnrollSecretsFunc(ctx, teamID, secrets)
+}
+
+func (s *Service) GetFleetdInstallerPkg(ctx context.Context, teamID uint) (*fleet.DownloadFleetdInstallerPayload, error) {
+	s.mu.Lock()
+	s.GetFleetdInstallerPkgFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFleetdInstallerPkgFunc(ctx, teamID)
 }
 
 func (s *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {

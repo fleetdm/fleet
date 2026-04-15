@@ -273,6 +273,9 @@ export default {
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/secrets`;
   },
+  TEAMS_FLEETD_PKG: (teamId: number): string => {
+    return `/${API_VERSION}/fleet/fleets/${teamId}/fleetd/pkg`;
+  },
   TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/users`;
   },

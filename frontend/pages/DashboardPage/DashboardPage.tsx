@@ -830,6 +830,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         onCancel={toggleAddHostsModal}
+        teamId={teamIdForApi}
       />
     );
   };

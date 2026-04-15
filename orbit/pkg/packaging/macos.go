@@ -200,6 +200,7 @@ func BuildPkg(opt Options) (string, error) {
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
+	fmt.Printf("WTF: %s, %s\n", generatedPath, filename)
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("rename pkg: %w", err)
 	}

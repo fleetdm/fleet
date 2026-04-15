@@ -127,6 +127,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil, // fleetdInstallerStore
 	)
 	if err != nil {
 		panic(err)

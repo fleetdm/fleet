@@ -315,6 +315,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/fleets/{id:[0-9]+}/users", addTeamUsersEndpoint, modifyTeamUsersRequest{})
 	ue.DELETE("/api/_version_/fleet/fleets/{id:[0-9]+}/users", deleteTeamUsersEndpoint, modifyTeamUsersRequest{})
 	ue.GET("/api/_version_/fleet/fleets/{id:[0-9]+}/secrets", teamEnrollSecretsEndpoint, teamEnrollSecretsRequest{})
+	ue.GET("/api/_version_/fleet/fleets/{team_id:[0-9]+}/fleetd/pkg", getFleetdInstallerEndpoint, fleet.GetFleetdInstallerRequest{})
 
 	ue.GET("/api/_version_/fleet/users", listUsersEndpoint, listUsersRequest{})
 	ue.POST("/api/_version_/fleet/users/admin", createUserEndpoint, createUserRequest{})

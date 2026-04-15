@@ -5,6 +5,7 @@ import FileSaver from "file-saver";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import teamsAPI from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -64,6 +65,7 @@ interface IPlatformWrapperProps {
   isFetchingCertificate: boolean;
   fetchCertificateError: any;
   config: IConfig | null;
+  teamId?: number;
 }
 
 const baseClass = "platform-wrapper";
@@ -75,6 +77,7 @@ const PlatformWrapper = ({
   isFetchingCertificate,
   fetchCertificateError,
   config,
+  teamId,
 }: IPlatformWrapperProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -83,6 +86,7 @@ const PlatformWrapper = ({
   );
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
+  const [isDownloadingPkg, setIsDownloadingPkg] = useState(false);
 
   let tlsHostname = config?.server_settings.server_url || "";
 
@@ -165,6 +169,28 @@ const PlatformWrapper = ({
       );
     }
     return false;
+  };
+
+  const onDownloadFleetdPkg = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
+    if (teamId === undefined || teamId < 0) {
+      return;
+    }
+    setIsDownloadingPkg(true);
+    try {
+      const blob = await teamsAPI.downloadFleetdPkg(teamId);
+      const file = new File([blob], "fleet-osquery.pkg", {
+        type: "application/octet-stream",
+      });
+      FileSaver.saveAs(file);
+    } catch (e) {
+      renderFlash(
+        "error",
+        "The installer could not be downloaded. Please try again."
+      );
+    } finally {
+      setIsDownloadingPkg(false);
+    }
   };
 
   const renderFleetCertificateBlock = (type: "plain" | "tooltip") => {
@@ -529,6 +555,18 @@ const PlatformWrapper = ({
         </Tabs>
       </TabNav>
       <div className="modal-cta-wrap">
+        {platformSubNav[selectedTabIndex]?.type === "pkg" &&
+          teamId !== undefined &&
+          teamId >= 0 && (
+            <Button
+              onClick={onDownloadFleetdPkg}
+              isLoading={isDownloadingPkg}
+              variant="inverse"
+            >
+              Download installer
+              <Icon name="download" size="small" />
+            </Button>
+          )}
         <Button onClick={onCancel}>Close</Button>
       </div>
     </div>

@@ -19,6 +19,7 @@ interface IAddHostsModal {
   isLoading: boolean;
   onCancel: () => void;
   openEnrollSecretModal?: () => void;
+  teamId?: number;
 }
 
 const AddHostsModal = ({
@@ -28,6 +29,7 @@ const AddHostsModal = ({
   isLoading,
   onCancel,
   openEnrollSecretModal,
+  teamId,
 }: IAddHostsModal): JSX.Element => {
   const { isPreviewMode, config } = useContext(AppContext);
   const teamDisplayName = (isAnyTeamSelected && currentTeamName) || "Fleet";
@@ -80,6 +82,7 @@ const AddHostsModal = ({
         isFetchingCertificate={isFetchingCertificate}
         fetchCertificateError={fetchCertificateError}
         config={config}
+        teamId={teamId}
       />
     );
   };

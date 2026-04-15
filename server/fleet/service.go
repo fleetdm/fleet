@@ -644,6 +644,9 @@ type Service interface {
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
 	ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, secrets []EnrollSecret) ([]*EnrollSecret, error)
+	// GetFleetdInstallerPkg generates (or retrieves from cache) a fleetd .pkg
+	// macOS installer for the specified team.
+	GetFleetdInstallerPkg(ctx context.Context, teamID uint) (*DownloadFleetdInstallerPayload, error)
 	// ApplyTeamSpecs applies the changes for each team as defined in the specs.
 	// On success, it returns the mapping of team names to team ids.
 	ApplyTeamSpecs(ctx context.Context, specs []*TeamSpec, applyOpts ApplyTeamSpecOptions) (map[string]uint, error)

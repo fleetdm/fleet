@@ -1504,6 +1504,7 @@ const ManageHostsPage = ({
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         onCancel={toggleAddHostsModal}
         openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
+        teamId={teamIdForApi}
       />
     );
   };

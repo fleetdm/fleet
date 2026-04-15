@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -37,6 +38,8 @@ type Service struct {
 	digiCertService        fleet.DigiCertService
 	androidModule          android.Service
 	estService             fleet.ESTService
+	fleetdInstallerStore   fleet.FleetdInstallerStore
+	fleetdBuildMutexes     sync.Map
 }
 
 func NewService(
@@ -59,6 +62,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	fleetdInstallerStore fleet.FleetdInstallerStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,6 +90,7 @@ func NewService(
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
+		fleetdInstallerStore:   fleetdInstallerStore,
 	}
 
 	// Override methods that can't be easily overriden via

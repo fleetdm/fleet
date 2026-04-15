@@ -991,6 +991,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var softwareInstallStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 	var softwareTitleIconStore fleet.SoftwareTitleIconStore
+	var fleetdInstallerStore fleet.FleetdInstallerStore
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
@@ -1036,6 +1037,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				initFatal(err, "initializing S3 software title icon store")
 			}
 			logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+
+			fstore, err := s3.NewFleetdInstallerStore(config.S3)
+			if err != nil {
+				initFatal(err, "initializing S3 fleetd installer store")
+			}
+			fleetdInstallerStore = fstore
+			logger.InfoContext(ctx, "using S3 fleetd installer store", "bucket", config.S3.SoftwareInstallersBucket)
 		} else {
 			installerDir := os.TempDir()
 			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -1066,6 +1074,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 					"using local filesystem software title icon store, this is not suitable for production use", "directory",
 					iconDir)
 			}
+
+			fleetdDir := os.TempDir()
+			if dir := os.Getenv("FLEET_FLEETD_INSTALLER_STORE_DIR"); dir != "" {
+				fleetdDir = dir
+			}
+			fleetdStore, err := filesystem.NewFleetdInstallerStore(fleetdDir)
+			if err != nil {
+				logger.ErrorContext(ctx, "failed to configure local filesystem fleetd installer store", "err", err)
+				fleetdInstallerStore = failing.NewFailingFleetdInstallerStore()
+			} else {
+				fleetdInstallerStore = fleetdStore
+				logger.WarnContext(ctx,
+					"using local filesystem fleetd installer store, this is not suitable for production use", "directory",
+					fleetdDir)
+			}
 		}
 
 		distributedLock = redis_lock.NewLock(redisPool)
@@ -1089,6 +1112,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			fleetdInstallerStore,
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
