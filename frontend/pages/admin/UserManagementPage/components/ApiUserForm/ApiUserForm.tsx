@@ -48,7 +48,7 @@ const ApiUserForm = ({
   availableTeams,
   isNewUser = false,
   defaultName = "",
-  defaultGlobalRole = "gitops",
+  defaultGlobalRole,
   defaultFleets = [],
   defaultApiEndpoints,
   formErrors: ancestorErrors = {},
@@ -56,10 +56,11 @@ const ApiUserForm = ({
 }: IApiUserFormProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
+  const defaultRole =
+    defaultGlobalRole ?? (isPremiumTier ? "gitops" : "observer");
+
   const [name, setName] = useState(defaultName);
-  const [globalRole, setGlobalRole] = useState<UserRole | null>(
-    defaultGlobalRole
-  );
+  const [globalRole, setGlobalRole] = useState<UserRole | null>(defaultRole);
   const [fleets, setFleets] = useState<ITeam[]>(defaultFleets);
   const [isGlobalUser, setIsGlobalUser] = useState(defaultFleets.length === 0);
   const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
@@ -171,7 +172,7 @@ const ApiUserForm = ({
     <DropdownWrapper
       name="Role"
       label="Role"
-      value={globalRole ?? "gitops"}
+      value={globalRole ?? defaultRole}
       options={roleOptions({ isPremiumTier, isApiOnly: true })}
       onChange={handleRoleChange}
       isSearchable={false}
@@ -215,7 +216,7 @@ const ApiUserForm = ({
 
   return (
     <div>
-      <form autoComplete="off">
+      <form autoComplete="off" onSubmit={handleSubmit}>
         <InputField
           name="name"
           label="Name"
@@ -234,20 +235,19 @@ const ApiUserForm = ({
             error={combinedErrors.api_endpoints}
           />
         )}
+        <div className="user-management-form__footer">
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            isLoading={isSubmitting}
+            disabled={Object.keys(combinedErrors).length > 0}
+          >
+            {isNewUser ? "Add" : "Save"}
+          </Button>
+        </div>
       </form>
-      <div className="user-management-form__footer">
-        <Button onClick={onCancel} variant="inverse">
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          onClick={handleSubmit}
-          isLoading={isSubmitting}
-          disabled={Object.keys(combinedErrors).length > 0}
-        >
-          {isNewUser ? "Add" : "Save"}
-        </Button>
-      </div>
     </div>
   );
 };
