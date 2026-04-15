@@ -1,0 +1,226 @@
+// ==========================================================================
+// ToastNotification — Sonner headless toast UI.
+//
+// Every toast (success, error, expandable error) is rendered via
+// `toast.custom()` with our own `<ToastCard />` JSX, so Sonner ships NO
+// default chrome for us to fight. The rules below style the card from
+// scratch to match the Figma: white surface, 16px radius, soft shadow,
+// 16px inside padding, and a collapsible JSON panel for error details.
+//
+// Scoped under `.toast-notification` so nothing bleeds into the existing
+// `.flash-message` component.
+// ==========================================================================
+
+$toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
+$toast-notification-action-size: 36px;
+$toast-notification-width: 500px;
+
+.toast-notification {
+  // Override Sonner's default toast width (356px). Sonner reads `--width`
+  // from the toaster wrapper to size each `<li>`.
+  --width: #{$toast-notification-width};
+
+  // ------------------------------------------------------------------
+  // Override Sonner's explicit height on the toast `<li>` so it auto-sizes
+  // to its content. Sonner measures height at mount time and stores it as
+  // an inline `style.height`; it does NOT re-measure when our internal
+  // state (e.g. `isOpen`) changes the card's rendered height. Forcing
+  // `height: auto` lets the card grow naturally, and because toasts at
+  // `position: bottom-right` are anchored with `bottom: 0`, extra height
+  // pushes the top edge UP — so expanded toasts never go off the bottom
+  // of the viewport.
+  [data-sonner-toast] {
+    height: auto !important;
+  }
+
+  // ------------------------------------------------------------------
+  // Card surface (the outer white rectangle)
+  // ------------------------------------------------------------------
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: $toast-notification-width;
+    padding: $pad-smedium; // 12px (rem-based)
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-xxlarge; // 16px
+    box-shadow: $toast-notification-shadow;
+    box-sizing: border-box;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      Helvetica, Arial, sans-serif;
+    font-size: $x-small; // 14px
+    line-height: $line-height;
+
+    // 12px gap between header and JSON panel when the detail panel is open.
+    gap: 0;
+    &--open {
+      gap: $pad-smedium;
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Header row — [icon][message] ........ [chevron][close]
+  // ------------------------------------------------------------------
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-small;
+    width: 100%;
+  }
+
+  &__icon-message {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0; // allow the message to shrink / wrap if narrow
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+
+    // Fleet's <Icon> wraps SVG in a <div class="icon"> — normalise sizing.
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+    }
+  }
+
+  &__message {
+    margin: 0;
+    font-size: $x-small;
+    font-weight: $regular;
+    line-height: $line-height;
+    color: $core-fleet-black;
+    word-break: break-word;
+  }
+
+  // ------------------------------------------------------------------
+  // Actions (chevron + close) — 36px ghost icon buttons
+  // ------------------------------------------------------------------
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    flex-shrink: 0;
+  }
+
+  &__action-button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    margin: 0;
+    padding: $pad-small;
+    width: $toast-notification-action-size;
+    height: $toast-notification-action-size;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $border-radius;
+    transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $ui-fleet-black-5;
+      color: $core-fleet-black;
+      outline: none;
+    }
+  }
+
+  &__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 200ms ease-in-out;
+
+    &--open {
+      transform: rotate(180deg);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // JSON detail panel — "Raw response" label + copy button + dark `<pre>`.
+  // The pre inherits its dark surface / token colours from the global
+  // `pre` styles in `styles/global/_global.scss` (matching the "Manage
+  // activity automations" modal on the Dashboard).
+  // ------------------------------------------------------------------
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
+    // Thin divider between the header row and the payload section.
+    // Padding above the label keeps the space above/below the line symmetric
+    // with the card's `--open` gap (12px from the header → 1px line → 12px).
+    border-top: 1px solid $ui-fleet-black-10;
+    padding-top: $pad-smedium;
+  }
+
+  &__panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-small;
+  }
+
+  &__panel-label {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__copy-button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: $pad-xsmall;
+    margin: 0;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    border-radius: $border-radius;
+    transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $ui-fleet-black-5;
+      color: $core-fleet-black;
+      outline: none;
+    }
+  }
+
+  &__copy-confirmation {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+  }
+
+  // Per-instance tweaks on top of the global `pre` rules — cap the height
+  // and allow scrolling so large payloads stay contained inside the toast.
+  &__json-block {
+    margin: 0;
+    max-height: 200px;
+    overflow: auto;
+    box-sizing: border-box;
+    font-size: $xx-small;
+
+    code {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      color: inherit;
+    }
+  }
+}

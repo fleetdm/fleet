@@ -37,6 +37,7 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 import BackButton from "components/BackButton";
 import InfoBanner from "components/InfoBanner";
+import ToastNotification, { notify } from "components/ToastNotification";
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
@@ -316,19 +317,28 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Report updated.");
+      notify.success("Report updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
+      // Fleet's `sendRequest` (frontend/services/index.ts) rejects with the
+      // raw AxiosResponse, so `updateError` IS the response. Pass it as
+      // `response` and the toast auto-populates:
+      //   detail      = updateError.data
+      //   detailLabel = "Status: {status} {statusText}"
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A report with this name already exists.");
+        notify.error("A report with this name already exists.", {
+          response: updateError,
+        });
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
-        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
+        notify.error(INVALID_PLATFORMS_FLASH_MESSAGE, {
+          response: updateError,
+        });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong updating your report. Please try again."
+        notify.error(
+          "Something went wrong updating your report. Please try again.",
+          { response: updateError }
         );
       }
     }
@@ -414,6 +424,8 @@ const EditQueryPage = ({
   return (
     <SidePanelPage>
       <>
+        {/* Sonner toaster — receives dispatches from `notify.*` calls in this page. */}
+        <ToastNotification />
         <MainContent className={baseClass}>
           <>
             <div className={`${baseClass}__header-links`}>

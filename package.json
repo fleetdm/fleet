@@ -59,6 +59,7 @@
     "sass": "1.83.4",
     "select": "1.1.2",
     "sockjs-client": "1.6.1",
+    "sonner": "2.0.7",
     "use-debounce": "9.0.4",
     "uuid": "8.3.2",
     "validator": "13.15.22",
