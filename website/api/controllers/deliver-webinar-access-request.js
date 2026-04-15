@@ -16,7 +16,7 @@ module.exports = {
 
 
   exits: {
-    success: {description: 'A users whitepaper download request was successfully submitted.'},
+    success: {description: 'A users webinar access request was successfully submitted.'},
     invalidEmailDomain: {
       description: 'This email address is on a denylist of domains and was not delivered.',
       responseType: 'badRequest'
@@ -56,7 +56,7 @@ module.exports = {
         salesforceAccountId: recordIds.salesforceAccountId,
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
-        intentSignal: 'Requested webinar access',
+        intentSignal: 'Requested webinar recording',
         eventContent: webinarName,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
