@@ -15,7 +15,7 @@ func Up_20260415200000(tx *sql.Tx) error {
 	// via the osquery protocol are automatically added to the label.
 	_, err := tx.Exec(`
 		UPDATE labels
-		SET query = 'select 1 from os_version where platform = ''android'';',
+		SET query = 'select * from os_version where platform = ''android'';',
 		    label_membership_type = 0
 		WHERE name = 'Android' AND label_type = 1
 	`)
