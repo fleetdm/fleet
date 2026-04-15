@@ -7,9 +7,11 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
+import { IInvite, IEditInviteFormData } from "interfaces/invite";
 import { IUser, IUserFormErrors } from "interfaces/user";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
+import invitesAPI from "services/entities/invites";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
@@ -25,20 +27,39 @@ const baseClass = "edit-user-page";
 interface IEditUserPageProps {
   router: InjectedRouter;
   params: { user_id: string };
+  location: any; // no type in react-router v3
 }
 
-const EditUserPage = ({ router, params }: IEditUserPageProps) => {
-  const userId = parseInt(params.user_id, 10);
+const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
+  const entityId = parseInt(params.user_id, 10);
+  const isInvite = location.query?.type === "invite";
   const { config, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch user (when not an invite)
   const { data: user, isLoading: isLoadingUser, error: userError } = useQuery<
     IUser,
     Error
-  >(["user", userId], () => usersAPI.getUserById(userId));
+  >(["user", entityId], () => usersAPI.getUserById(entityId), {
+    enabled: !isInvite,
+  });
+
+  // Fetch invite (when editing an invite)
+  const {
+    data: invite,
+    isLoading: isLoadingInvite,
+    error: inviteError,
+  } = useQuery<IInvite[], Error, IInvite | undefined>(
+    ["invites", entityId],
+    () => invitesAPI.loadAll({ globalFilter: "" }),
+    {
+      enabled: isInvite,
+      select: (invites) => invites.find((i) => i.id === entityId),
+    }
+  );
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -49,30 +70,69 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
     }
   );
 
+  const isLoading = isInvite ? isLoadingInvite : isLoadingUser;
+  const hasError = isInvite ? inviteError || !invite : userError || !user;
+  const entityData = isInvite ? invite : user;
+
   const handleHumanUserSubmit = (formData: IUserFormData) => {
-    if (!user) return;
+    if (!entityData) return;
     setIsSubmitting(true);
     setFormErrors({});
 
+    if (isInvite) {
+      invitesAPI
+        .update(entityId, (formData as unknown) as IEditInviteFormData)
+        .then(() => {
+          let msg = `Successfully edited ${formData.name}`;
+          if (entityData.email !== formData.email) {
+            msg += `. A confirmation email was sent to ${formData.email}.`;
+          }
+          renderFlash("success", msg);
+          router.push(PATHS.ADMIN_USERS);
+        })
+        .catch((inviteErrors: { data: IApiError }) => {
+          if (inviteErrors.data.errors[0].reason.includes("already exists")) {
+            setFormErrors({
+              email: "A user with this email address already exists",
+            });
+          } else {
+            renderFlash(
+              "error",
+              `Could not edit ${entityData.name}. Please try again.`
+            );
+          }
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
+      return;
+    }
+
+    // Do not update password to empty string
+    if (formData.new_password === "") {
+      formData.new_password = null;
+    }
+
+    // Editing a regular user
     const requestData: Record<string, unknown> = {};
-    if (formData.name !== user.name) requestData.name = formData.name;
-    if (formData.email !== user.email) requestData.email = formData.email;
-    if (formData.sso_enabled !== user.sso_enabled)
+    if (formData.name !== entityData.name) requestData.name = formData.name;
+    if (formData.email !== entityData.email) requestData.email = formData.email;
+    if (formData.sso_enabled !== (entityData as IUser).sso_enabled)
       requestData.sso_enabled = formData.sso_enabled;
-    if (formData.mfa_enabled !== user.mfa_enabled)
+    if (formData.mfa_enabled !== (entityData as IUser).mfa_enabled)
       requestData.mfa_enabled = formData.mfa_enabled;
-    if (formData.global_role !== user.global_role)
+    if (formData.global_role !== entityData.global_role)
       requestData.global_role = formData.global_role;
     if (formData.teams) requestData.teams = formData.teams;
     if (formData.new_password) requestData.new_password = formData.new_password;
 
     let successMessage = `Successfully edited ${formData.name}`;
-    if (user.email !== formData.email) {
+    if (entityData.email !== formData.email) {
       successMessage += `. A confirmation email was sent to ${formData.email}.`;
     }
 
     usersAPI
-      .update(userId, requestData)
+      .update(entityId, requestData)
       .then(() => {
         renderFlash("success", successMessage);
         router.push(PATHS.ADMIN_USERS);
@@ -91,7 +151,7 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
         } else {
           renderFlash(
             "error",
-            `Could not edit ${user.name}. Please try again.`
+            `Could not edit ${entityData.name}. Please try again.`
           );
         }
       })
@@ -101,12 +161,12 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
   };
 
   const handleApiUserSubmit = (formData: IApiUserFormData) => {
-    if (!user) return;
+    if (!entityData) return;
     setIsSubmitting(true);
     setFormErrors({});
 
     usersAPI
-      .updateApiOnlyUser(userId, {
+      .updateApiOnlyUser(entityId, {
         name: formData.name,
         global_role: formData.global_role,
         fleets: formData.fleets,
@@ -117,14 +177,17 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
         router.push(PATHS.ADMIN_USERS);
       })
       .catch(() => {
-        renderFlash("error", `Could not edit ${user.name}. Please try again.`);
+        renderFlash(
+          "error",
+          `Could not edit ${entityData.name}. Please try again.`
+        );
       })
       .finally(() => {
         setIsSubmitting(false);
       });
   };
 
-  if (isLoadingUser) {
+  if (isLoading) {
     return (
       <MainContent className={baseClass}>
         <Spinner />
@@ -132,7 +195,7 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
     );
   }
 
-  if (userError || !user) {
+  if (hasError) {
     return (
       <MainContent className={baseClass}>
         <>
@@ -143,19 +206,21 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
     );
   }
 
+  const showApiForm = !isInvite && (entityData as IUser).api_only;
+
   return (
     <MainContent className={baseClass}>
       <>
         <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
         <h1>Edit user</h1>
-        {user.api_only ? (
+        {showApiForm ? (
           <ApiUserForm
             onCancel={() => router.push(PATHS.ADMIN_USERS)}
             onSubmit={handleApiUserSubmit}
             availableTeams={teams || []}
-            defaultName={user.name}
-            defaultGlobalRole={user.global_role}
-            defaultFleets={user.teams}
+            defaultName={entityData?.name}
+            defaultGlobalRole={entityData?.global_role}
+            defaultFleets={entityData?.teams}
             formErrors={formErrors}
             isSubmitting={isSubmitting}
           />
@@ -168,14 +233,15 @@ const EditUserPage = ({ router, params }: IEditUserPageProps) => {
             smtpConfigured={config?.smtp_settings?.configured || false}
             sesConfigured={config?.email?.backend === "ses" || false}
             canUseSso={config?.sso_settings?.enable_sso || false}
-            isSsoEnabled={user.sso_enabled}
-            isMfaEnabled={user.mfa_enabled}
-            isApiOnly={user.api_only}
+            isSsoEnabled={entityData?.sso_enabled}
+            isMfaEnabled={(entityData as IUser).mfa_enabled}
+            isApiOnly={false}
+            isInvitePending={isInvite}
             isModifiedByGlobalAdmin
-            defaultName={user.name}
-            defaultEmail={user.email}
-            defaultGlobalRole={user.global_role}
-            defaultTeams={user.teams}
+            defaultName={entityData?.name}
+            defaultEmail={entityData?.email}
+            defaultGlobalRole={entityData?.global_role}
+            defaultTeams={entityData?.teams}
             ancestorErrors={formErrors}
             isUpdatingUsers={isSubmitting}
           />

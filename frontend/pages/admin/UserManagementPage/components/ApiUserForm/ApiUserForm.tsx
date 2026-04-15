@@ -23,10 +23,15 @@ export interface IApiEndpointRef {
   path: string;
 }
 
+export interface IFleetRef {
+  id: number;
+  role: string;
+}
+
 export interface IApiUserFormData {
   name: string;
   global_role: UserRole | null;
-  fleets: ITeam[];
+  fleets: IFleetRef[];
   api_endpoints?: IApiEndpointRef[];
 }
 
@@ -101,7 +106,9 @@ const ApiUserForm = ({
     onSubmit({
       name,
       global_role: isGlobalUser ? globalRole : null,
-      fleets: isGlobalUser ? [] : fleets,
+      fleets: isGlobalUser
+        ? []
+        : fleets.map((f) => ({ id: f.id, role: f.role || "observer" })),
       api_endpoints: apiEndpoints,
     });
   };

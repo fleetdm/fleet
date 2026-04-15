@@ -123,9 +123,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const onActionSelect = useCallback(
     (value: string, user: IUserTableData) => {
       switch (value) {
-        case "edit":
-          router.push(PATHS.ADMIN_USERS_EDIT(user.apiId));
+        case "edit": {
+          const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+          router.push(
+            user.type === "invite" ? `${editPath}?type=invite` : editPath
+          );
           break;
+        }
         case "delete":
           toggleDeleteUserModal(user);
           break;
