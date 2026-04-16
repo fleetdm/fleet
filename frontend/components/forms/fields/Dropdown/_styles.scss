@@ -227,11 +227,6 @@
     background-color: $core-fleet-white;
     box-shadow: 0 0 0 1px $ui-fleet-black-10;
     z-index: 6;
-
-    // body.dark-mode & {
-    //   background-color: $ui-fleet-black-5;
-    //   box-shadow: 0 0 0 1px $ui-fleet-black-25;
-    // }
     overflow: hidden;
     max-height: 198px; // Fits 4 options without scrolling
     border: 0;
