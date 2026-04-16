@@ -60,10 +60,9 @@ const RenewCertModal = ({
   }, [certFile, renderFlash, onCancel, onRenew]);
 
   const onDownloadError = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("Email domain is not permitted")) {
+      if ((e as any)?.response?.headers?.['invalidEmailDomain']) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
