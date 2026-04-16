@@ -1161,7 +1161,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
-  'GET /learn-more-about/add-vpp': '/guides/apple-mdm-setup#add-vpp',
+  'GET /learn-more-about/add-vpp': '/guides/apple-mdm-setup#volume-purchasing-program-vpp',
   'GET /learn-more-about/renew-vpp': '/guides/apple-mdm-setup#renew-vpp',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
