@@ -58,25 +58,14 @@
   }
   [purpose='button-row'] {
     flex-direction: row;
-    [purpose='contact-button'] {
-      display: flex;
-      height: 36px;
-      padding: 16px;
-      justify-content: center;
-      align-items: center;
-      gap: 4px;
-      border-radius: 8px;
-      background: @core-vibrant-green;
-      color: #FFF;
-      text-align: center;
-      font-size: 16px;
-      font-weight: 700;
-      line-height: @text-lineheight;
-      margin-right: 24px;
-      &:hover {
-        text-decoration: none;
-      }
-    }
+  }
+  [purpose='contact-button'] {
+    .cta-button();
+    display: flex;
+    height: 36px;
+    padding: 16px;
+    font-size: 16px;
+    line-height: @text-lineheight;
   }
   [purpose='hero-slides'] {
     padding-top: 64px;
