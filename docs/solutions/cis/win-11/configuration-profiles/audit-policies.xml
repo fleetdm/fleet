@@ -78,7 +78,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditAccountLockout</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditAccountLockout</LocURI>
     </Target>
     <Data>2</Data>
   </Item>
@@ -90,7 +90,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditGroupMembership</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditGroupMembership</LocURI>
     </Target>
     <Data>1</Data>
   </Item>
@@ -102,7 +102,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogoff</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditLogoff</LocURI>
     </Target>
     <Data>1</Data>
   </Item>
@@ -114,7 +114,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogon</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditLogon</LocURI>
     </Target>
     <Data>3</Data>
   </Item>
@@ -126,7 +126,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditOtherLogonLogoffEvents</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditOtherLogonLogoffEvents</LocURI>
     </Target>
     <Data>3</Data>
   </Item>
@@ -138,7 +138,7 @@
       <Format xmlns="syncml:metinf">int</Format>
     </Meta>
     <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditSpecialLogon</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogonLogoff_AuditSpecialLogon</LocURI>
     </Target>
     <Data>1</Data>
   </Item>
