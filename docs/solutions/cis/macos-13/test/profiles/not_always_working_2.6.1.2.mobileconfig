@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.locationmenu</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.1.2.check</string>
+			<key>PayloadUUID</key>
+			<string>25D6B210-E8BB-465F-94D7-474073F4A892</string>
+			<key>ShowSystemServices</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Location Services Is Enabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.6.1.2</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>8FC698D7-9EF8-427E-8E52-4B928A7437B0</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
