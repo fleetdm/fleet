@@ -135,7 +135,7 @@ Users in Fleet either have global access or access to specific fleets.
 
 Users with access to specific fleets only have access to data (e.g. [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies)) for their fleet.
 
-Users with global access have access to data for all fleets. Check out [the user permissions
+Global users can access data for all fleets. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
 Users can be assigned to multiple fleets, and can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
