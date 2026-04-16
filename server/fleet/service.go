@@ -122,7 +122,7 @@ type Service interface {
 	//
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
-	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
+	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string, euaToken string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -194,6 +194,9 @@ type Service interface {
 
 	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
+
+	// ModifyAPIOnlyUser updates an API-only user
+	ModifyAPIOnlyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) (*User, error)

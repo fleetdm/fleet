@@ -275,10 +275,6 @@ software:
         - Apple Silicon macOS hosts
       categories:
         - Developer tools
-    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
-      self_service: true
-      categories:
-        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -310,6 +306,78 @@ software:
       setup_experience: true
       categories:
         - Productivity
+    - slug: github/darwin # GitHub Desktop for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: utm/darwin # UTM for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: postman/darwin # Postman for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: sublime-text/darwin # Sublime Text for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: parallels/darwin # Parallels Desktop for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: loom/darwin # Loom for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: spotify/darwin # Spotify for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: rectangle/darwin # Rectangle for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: logi-options+/darwin # Logi Options+ for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: figma/darwin # Figma for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+      categories:
+        - Communication
+    - slug: android-studio/darwin # Android Studio for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: zed/darwin # Zed for macOS
+      self_service: true
+      categories:
+        - Developer tools
+    - slug: obsidian/darwin # Obsidian for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: google-drive/darwin # Google Drive for macOS
+      self_service: true
+      categories:
+        - Productivity
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+      categories:
+        - Developer tools
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
@@ -345,10 +413,6 @@ software:
         - Communication
       labels_include_any:
         - "x86-based Windows hosts"
-    - slug: brave-browser/windows # Brave for Windows
-      self_service: true
-      categories:
-        - Browsers
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
       categories:

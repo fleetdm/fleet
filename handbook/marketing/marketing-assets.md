@@ -15,6 +15,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Format | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Pitch: Fleet for IT engineers & admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d465263e50_2_189#slide=id.g3d465263e50_2_189) | Slides | The official pitch deck | <nobr>Apr-10-2026</nobr> |
 | [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb‑18‑2026</nobr> |
 | [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Slides | Customizable slides for tailored prospect presentations. | <nobr>Feb‑18‑2026</nobr> |
 | [Fleet in 3 Minutes (VIDEO)](https://www.youtube.com/watch?v=q1Tm3IBcx24) | Video | A short 3-minute demo of how Fleet works. | <nobr>May‑13‑2026</nobr> |
@@ -52,6 +53,15 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | — | Financial value justification and ROI calculator for deals. | <nobr>Aug‑14‑2023</nobr> |
 | [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | — | Future development vision for open roadmap conversations. | <nobr>Jan‑20‑2021</nobr> |
 | [Gartner IT Symposium 2025 Presentation](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Outcomes and value achieved via GitOps. (by Allen Houchins) | <nobr>Oct‑21‑2024</nobr> |
+
+
+## Webinar Recordings
+
+| Asset | Description | Author | Date updated |
+| --- | --- | --- | --- |
+| [Device management that actually works for IT](https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e) | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> |
+| [Beyond the Hype: Practical AI for Device Management](https://player.mediadelivery.net/play/637410/cb9dd085-6316-48cb-b9d0-9a0257673ff9) | Moving from manual MDM engineering workflows to AI | Allen Houchins - Fleet, Harley Williams and Mike Meyer - Foursquare | <nobr>2026-04-02</nobr>|
+
 
 
 ## 🔵 Editorial & thought leadership

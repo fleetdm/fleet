@@ -61,8 +61,6 @@ const PolicyResults = ({
   const { hosts: hostResponses, uiHostCounts, serverHostCounts, errors } =
     campaign || {};
 
-  const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
-
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState(false);
 
