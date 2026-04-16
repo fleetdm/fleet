@@ -138,7 +138,7 @@ Users with access to specific fleets only have access to data (e.g. [hosts](http
 Global users can access data for all fleets. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
-Users can be assigned to multiple fleets, and can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
+Users can be assigned to multiple fleets, and can have different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
 | **Action**                                                                                                                       | Observer | Observer+ | Technician | Maintainer | Admin | GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :-------------: | :--------: | :---------: |
