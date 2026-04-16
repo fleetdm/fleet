@@ -572,6 +572,16 @@ data class OrbitConfig(
 )
 
 @Serializable
+data class AndroidScheduledQueryConfig(
+    @SerialName("query")
+    val query: String,
+    @SerialName("interval")
+    val interval: Int,
+    @SerialName("description")
+    val description: String = "",
+)
+
+@Serializable
 data class AndroidOrbitConfig(
     @SerialName("distributed_read_interval_seconds")
     val distributedReadIntervalSeconds: Int = 60,
@@ -587,6 +597,9 @@ data class AndroidOrbitConfig(
 
     @SerialName("battery_saver_interval_seconds")
     val batterySaverIntervalSeconds: Int = 1800,
+
+    @SerialName("scheduled_queries")
+    val scheduledQueries: Map<String, AndroidScheduledQueryConfig> = emptyMap(),
 )
 
 @Serializable

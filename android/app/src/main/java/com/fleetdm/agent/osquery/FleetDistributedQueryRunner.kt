@@ -52,6 +52,8 @@ object FleetDistributedQueryRunner {
         Log.i(tag, "runOnce handled=$handled wrote=${resultsToWrite.size} tookMs=$took")
     }
 
+    suspend fun executeSql(sql: String): List<Map<String, String>> = executeSqlViaTables(sql)
+
     private suspend fun executeSqlViaTables(sql: String): List<Map<String, String>> {
         val parsed = parseSelectSql(sql)
 
