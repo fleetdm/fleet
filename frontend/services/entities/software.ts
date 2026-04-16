@@ -587,6 +587,32 @@ export default {
     });
   },
 
+  addHomebrewPackage: ({
+    token,
+    uniqueIdentifier,
+    teamId,
+  }: {
+    token: string;
+    uniqueIdentifier: string;
+    teamId: number;
+  }) => {
+    const { SOFTWARE_PACKAGE_ADD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("software", new Blob(), "empty");
+    formData.append("from_homebrew", token);
+    formData.append("unique_identifier", uniqueIdentifier);
+    formData.append("team_id", teamId.toString());
+
+    return sendRequestWithProgressAndHeaders({
+      method: "POST",
+      path: SOFTWARE_PACKAGE_ADD,
+      data: formData,
+      timeout: 120000,
+      skipParseError: true,
+    });
+  },
+
   editSoftwarePackage: ({
     data,
     orignalPackage,

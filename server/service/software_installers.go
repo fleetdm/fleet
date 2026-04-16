@@ -36,8 +36,9 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
-	AutomaticInstall  bool
-	FromHomebrew      string `form:"from_homebrew" json:"from_homebrew"`
+	AutomaticInstall    bool
+	FromHomebrew             string `form:"from_homebrew" json:"from_homebrew"`
+	HomebrewUniqueIdentifier string `form:"unique_identifier" json:"unique_identifier"`
 }
 
 type updateSoftwareInstallerRequest struct {
@@ -373,6 +374,11 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.FromHomebrew = val[0]
 	}
 
+	val, ok = r.MultipartForm.Value["unique_identifier"]
+	if ok && len(val) > 0 {
+		decoded.HomebrewUniqueIdentifier = val[0]
+	}
+
 	// decode labels
 	var inclAny, exclAny, inclAll []string
 	var existsInclAny, existsExclAny, existsInclAll bool
@@ -465,7 +471,8 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		LabelsIncludeAll:  req.LabelsIncludeAll,
 		AutomaticInstall:  req.AutomaticInstall,
-		FromHomebrew:      req.FromHomebrew,
+		FromHomebrew:             req.FromHomebrew,
+		HomebrewUniqueIdentifier: req.HomebrewUniqueIdentifier,
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)

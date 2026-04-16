@@ -1925,7 +1925,7 @@ func newHelloWorldSchedule(
 			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
 			for _, si := range installers {
 				var input homebrew.InputApp
-				input.Token = si.SoftwareTitle
+				input.Token = strings.ToLower(si.SoftwareTitle)
 
 				fma, err := ingester.IngestOne(ctx, input)
 				if err != nil {

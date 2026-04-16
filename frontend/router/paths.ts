@@ -102,6 +102,7 @@ export default {
     `${URL_PREFIX}/software/add/fleet-maintained/${id}`,
   SOFTWARE_ADD_PACKAGE: `${URL_PREFIX}/software/add/package`,
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
+  SOFTWARE_ADD_HOMEBREW: `${URL_PREFIX}/software/add/homebrew`,
 
   // Label pages
   MANAGE_LABELS: `${URL_PREFIX}/labels/manage`,

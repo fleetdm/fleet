@@ -85,6 +85,7 @@ import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
+import SoftwareHomebrew from "pages/SoftwarePage/SoftwareAddPage/SoftwareHomebrew";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
@@ -349,6 +350,7 @@ const routes = (
                 />
                 <Route path="app-store" component={SoftwareAppStore} />
                 <Route path="package" component={SoftwareCustomPackage} />
+                <Route path="homebrew" component={SoftwareHomebrew} />
               </Route>
               <Route
                 path="add/fleet-maintained/:id"

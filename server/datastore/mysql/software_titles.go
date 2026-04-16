@@ -184,6 +184,7 @@ type softwareTitleWithInstallerFields struct {
 	VPPAppPlatform            *string `db:"vpp_app_platform"`
 	VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 	VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
+	PackageFromHomebrew       *bool   `db:"package_from_homebrew"`
 	FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
 	InHouseAppName            *string `db:"in_house_app_name"`
 	InHouseAppVersion         *string `db:"in_house_app_version"`
@@ -373,6 +374,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 				PackageURL:           title.PackageURL,
 				InstallDuringSetup:   title.PackageInstallDuringSetup,
 				FleetMaintainedAppID: title.FleetMaintainedAppID,
+				FromHomebrew:         title.PackageFromHomebrew,
 			}
 		}
 
@@ -596,6 +598,7 @@ SELECT
 		,si.url AS package_url
 		,si.install_during_setup as package_install_during_setup
 		,si.storage_id as package_storage_id
+		,si.from_homebrew as package_from_homebrew
 		,si.fleet_maintained_app_id
 		,vat.self_service as vpp_app_self_service
 		,vat.adam_id as vpp_app_adam_id
@@ -687,6 +690,7 @@ GROUP BY
 		,package_url
 		,package_install_during_setup
 		,package_storage_id
+		,package_from_homebrew
 		,fleet_maintained_app_id
 		,vpp_app_self_service
 		,vpp_app_adam_id
@@ -884,6 +888,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			si.url AS package_url,
 			si.install_during_setup AS package_install_during_setup,
 			si.storage_id AS package_storage_id,
+			si.from_homebrew AS package_from_homebrew,
 			si.fleet_maintained_app_id,
 			vat.self_service AS vpp_app_self_service,
 			vat.adam_id AS vpp_app_adam_id,

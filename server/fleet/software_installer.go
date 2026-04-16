@@ -547,9 +547,10 @@ type UploadSoftwareInstallerPayload struct {
 	AlwaysDownload bool
 	// HTTPETag stores the ETag from the last download response, used for
 	// conditional GET requests when AlwaysDownload is false.
-	HTTPETag     *string
-	PatchQuery   string
-	FromHomebrew string
+	HTTPETag                 *string
+	PatchQuery               string
+	FromHomebrew             string
+	HomebrewUniqueIdentifier string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -776,6 +777,7 @@ type SoftwarePackageOrApp struct {
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
 	Categories              []string                 `json:"categories,omitempty"`
+	FromHomebrew            *bool                    `json:"from_homebrew,omitempty"`
 }
 
 func (s *SoftwarePackageOrApp) GetPlatform() string {

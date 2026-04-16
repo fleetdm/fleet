@@ -163,6 +163,8 @@ interface ISoftwareNameCellProps {
   isAndroidPlayStoreApp?: boolean;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;
+  /** Additional suffix element rendered after the install icon (e.g. Homebrew pill) */
+  extraSuffix?: JSX.Element;
 }
 
 const SoftwareNameCell = ({
@@ -179,6 +181,7 @@ const SoftwareNameCell = ({
   isIosOrIpadosApp = false,
   isAndroidPlayStoreApp = false,
   previewIcon,
+  extraSuffix,
 }: ISoftwareNameCellProps) => {
   const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
   const icon = previewIcon || (
@@ -219,14 +222,19 @@ const SoftwareNameCell = ({
       prefix={icon}
       value={softwareDisplayName}
       suffix={
-        hasInstaller ? (
-          <InstallIconWithTooltip
-            isSelfService={isSelfService}
-            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
-            pageContext={pageContext}
-            isIosOrIpadosApp={isIosOrIpadosApp}
-            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-          />
+        hasInstaller || extraSuffix ? (
+          <>
+            {hasInstaller && (
+              <InstallIconWithTooltip
+                isSelfService={isSelfService}
+                automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+                pageContext={pageContext}
+                isIosOrIpadosApp={isIosOrIpadosApp}
+                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+              />
+            )}
+            {extraSuffix}
+          </>
         ) : undefined
       }
     />

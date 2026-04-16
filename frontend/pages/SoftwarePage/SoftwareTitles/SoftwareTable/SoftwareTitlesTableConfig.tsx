@@ -18,6 +18,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import PillBadge from "components/PillBadge";
 
 import VersionCell from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
@@ -53,11 +54,13 @@ const getSoftwareNameCellData = (
   const { software_package, app_store_app } = softwareTitle;
   let hasInstaller = false;
   let isSelfService = false;
+  let isFromHomebrew = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
   if (software_package) {
     hasInstaller = true;
     isSelfService = software_package.self_service;
+    isFromHomebrew = !!software_package.from_homebrew;
     installType =
       software_package.automatic_install_policies &&
       software_package.automatic_install_policies.length > 0
@@ -90,6 +93,7 @@ const getSoftwareNameCellData = (
     path: softwareTitleDetailsPath,
     hasInstaller: hasInstaller && !isAllTeams,
     isSelfService,
+    isFromHomebrew,
     installType,
     iconUrl,
     automaticInstallPoliciesCount,
@@ -131,6 +135,13 @@ const generateTableHeaders = (
             }
             isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(nameCellData.source)}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            extraSuffix={
+              nameCellData.isFromHomebrew ? (
+                <PillBadge tipContent="Added via Homebrew">
+                  Homebrew
+                </PillBadge>
+              ) : undefined
+            }
           />
         );
       },

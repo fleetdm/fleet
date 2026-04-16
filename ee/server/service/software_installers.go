@@ -61,8 +61,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			Logger:  slog.New(slog.DiscardHandler),
 			Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 		}
+		// We must supply the unique_identifier (bundle ID) because the server runs on Linux
+		// and cannot extract it from dmg/zip installers (dmg requires macOS hdiutil to mount).
+		// For zip installers, it would be possible to unzip and read .app/Contents/Info.plist
+		// to get CFBundleIdentifier. For dmg, we'd need to parse brew cask artifacts (quit/zap)
+		// or require the user to provide it.
 		var input homebrew.InputApp
 		input.Token = payload.FromHomebrew
+		input.UniqueIdentifier = payload.HomebrewUniqueIdentifier
 
 		fma, err := ingester.IngestOne(ctx, input)
 		if err != nil {
@@ -75,8 +81,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.Version = fma.Version
 		payload.UninstallScript = fma.UninstallScript
 		payload.Title = payload.FromHomebrew // hack
-		payload.Extension = filepath.Base(payload.URL)
+		payload.Extension = strings.TrimPrefix(filepath.Ext(payload.URL), ".")
 		payload.Platform = "darwin"
+		payload.Source = "apps"
 
 		fmt.Printf("%#v\n", payload)
 
@@ -134,6 +141,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 		}
 	}
+
+
 
 	// Validate install/post-install/uninstall script contents for non-script
 	// packages. Script packages (.sh/.ps1) are already validated in

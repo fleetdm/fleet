@@ -43,6 +43,10 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     name: "Custom package",
     pathname: PATHS.SOFTWARE_ADD_PACKAGE,
   },
+  {
+    name: "Homebrew",
+    pathname: PATHS.SOFTWARE_ADD_HOMEBREW,
+  },
 ];
 
 const getTabIndex = (path: string): number => {
