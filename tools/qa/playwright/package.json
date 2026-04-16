@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test:e2e":             "playwright test --project=e2e",
-    "test:e2e:headed":      "playwright test --project=e2e --headed",
-    "test:e2e:ui":          "playwright test --project=e2e --ui",
-    "test:loadtest":        "SUITE=loadtest playwright test --project=loadtest",
+    "test:e2e": "playwright test --project=e2e",
+    "test:e2e:headed": "playwright test --project=e2e --headed",
+    "test:e2e:ui": "playwright test --project=e2e --ui",
+    "test:loadtest": "SUITE=loadtest playwright test --project=loadtest",
     "test:loadtest:headed": "SUITE=loadtest playwright test --project=loadtest --headed",
-    "test:loadtest:ui":     "SUITE=loadtest playwright test --project=loadtest --ui"
+    "test:loadtest:ui": "SUITE=loadtest playwright test --project=loadtest --ui"
   },
   "keywords": [],
   "author": "",
@@ -16,7 +16,7 @@
   "description": "",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "@types/node": "^25.5.0"
+    "@types/node": "^25.6.0"
   },
   "dependencies": {
     "dotenv": "^17.3.1"
