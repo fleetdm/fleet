@@ -133,16 +133,12 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have global access or access to specific fleets.
 
-Users with access to specific fleets only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
-their fleet.
+Users with access to specific fleets only have access to data (e.g. [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies)) for their fleet.
 
-Users with global access have access to all
-[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
+Users with global access have access to data for all fleets. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
-Users can be assigned to multiple fleets in Fleet.
-
-Users with access to multiple fleets can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
+Users can be assigned to multiple fleets, and can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
 | **Action**                                                                                                                       | Observer | Observer+ | Technician | Maintainer | Admin | GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :-------------: | :--------: | :---------: |
