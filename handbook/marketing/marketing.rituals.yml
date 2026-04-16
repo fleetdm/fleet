@@ -170,3 +170,13 @@
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential"
+-
+  task: "Publish quarterly roadmap preview blog"
+  startedOn: "2026-03-16"
+  frequency: "Quarterly"
+  description: "Once a quarter, engage with Noah to create a roadmap preview blog for the upcoming quarter, and own publishing it in beginning of the quarter it is for."
+  moreInfoUrl: "https://fleetdm.com/announcements/roadmap-preview-january-2026"
+  dri: "danbgordon"
+  autoIssue:  
+    labels: [ ":help-marketing" ] 
+    repo: "confidential"
