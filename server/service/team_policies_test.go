@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -199,6 +200,74 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 		SoftwareTitleID: ptr.Uint(123),
 	})
 	require.ErrorContains(t, err, "is associated to an iOS or iPadOS VPP app")
+}
+
+func TestPopulatePolicyPatchSoftwareFallback(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	titleID := uint(42)
+
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		return []*fleet.Policy{
+			{
+				PolicyData: fleet.PolicyData{
+					ID:                   1,
+					TeamID:               ptr.Uint(1),
+					PatchSoftwareTitleID: &titleID,
+				},
+			},
+		}, nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 1}, nil
+	}
+	ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{}, nil
+	}
+
+	t.Run("installer not found falls back to title", func(t *testing.T) {
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, tid uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return nil, &notFoundError{}
+		}
+		ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, string, error) {
+			return "", "Zoom Workplace", nil
+		}
+
+		teamPolicies, _, err := svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		require.NoError(t, err)
+		require.Len(t, teamPolicies, 1)
+		require.NotNil(t, teamPolicies[0].PatchSoftware)
+		require.Equal(t, titleID, teamPolicies[0].PatchSoftware.SoftwareTitleID)
+		require.Equal(t, "Zoom Workplace", teamPolicies[0].PatchSoftware.DisplayName)
+	})
+
+	t.Run("installer not found and title lookup DB error propagates", func(t *testing.T) {
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, tid uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return nil, &notFoundError{}
+		}
+		ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, string, error) {
+			return "", "", errors.New("connection refused")
+		}
+
+		_, _, err := svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		require.Error(t, err)
+	})
+
+	t.Run("both installer and title not found", func(t *testing.T) {
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, tid uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return nil, &notFoundError{}
+		}
+		ds.SoftwareTitleNameForHostFilterFunc = func(ctx context.Context, id uint) (string, string, error) {
+			return "", "", &notFoundError{}
+		}
+
+		teamPolicies, _, err := svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		require.NoError(t, err)
+		require.Len(t, teamPolicies, 1)
+		require.Nil(t, teamPolicies[0].PatchSoftware)
+	})
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

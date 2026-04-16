@@ -174,7 +174,27 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 	if p.PatchSoftwareTitleID != nil {
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, p.TeamID, *p.PatchSoftwareTitleID, false)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "get software installer metadata by title id")
+			}
+			// Software installer not found — this can happen when the
+			// installer was removed (e.g. by a GitOps software sync)
+			// while a patch policy still references the title. Fall
+			// back to the software_titles table for display info.
+			name, displayName, titleErr := svc.ds.SoftwareTitleNameForHostFilter(ctx, *p.PatchSoftwareTitleID)
+			if titleErr != nil {
+				if !fleet.IsNotFound(titleErr) {
+					return ctxerr.Wrap(ctx, titleErr, "get software title name for patch software fallback")
+				}
+				// Title is also gone; leave PatchSoftware nil.
+				return nil
+			}
+			p.PatchSoftware = &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: *p.PatchSoftwareTitleID,
+				Name:            name,
+				DisplayName:     displayName,
+			}
+			return nil
 		}
 		p.PatchSoftware = &fleet.PolicySoftwareTitle{
 			SoftwareTitleID: *installerMetadata.TitleID,
