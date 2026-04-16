@@ -98,12 +98,20 @@ const (
 	DefaultAndroidBatterySaverIntervalSeconds    = 1800
 )
 
+// AndroidScheduledQuery defines a query that the Android agent runs on a schedule.
+type AndroidScheduledQuery struct {
+	Query       string `json:"query"`
+	Interval    int    `json:"interval"`
+	Description string `json:"description,omitempty"`
+}
+
 type AndroidOrbitConfig struct {
-	DistributedReadIntervalSeconds int `json:"distributed_read_interval_seconds"`
-	ScreenOffIntervalSeconds       int `json:"screen_off_interval_seconds"`
-	IdleIntervalSeconds            int `json:"idle_interval_seconds"`
-	ChargingIntervalSeconds        int `json:"charging_interval_seconds"`
-	BatterySaverIntervalSeconds    int `json:"battery_saver_interval_seconds"`
+	DistributedReadIntervalSeconds int                                `json:"distributed_read_interval_seconds"`
+	ScreenOffIntervalSeconds       int                                `json:"screen_off_interval_seconds"`
+	IdleIntervalSeconds            int                                `json:"idle_interval_seconds"`
+	ChargingIntervalSeconds        int                                `json:"charging_interval_seconds"`
+	BatterySaverIntervalSeconds    int                                `json:"battery_saver_interval_seconds"`
+	ScheduledQueries               map[string]AndroidScheduledQuery   `json:"scheduled_queries,omitempty"`
 }
 
 // OrbitSoftwareInventoryItem represents an installed app reported by an Android agent.
@@ -120,6 +128,23 @@ func DefaultAndroidOrbitConfig() AndroidOrbitConfig {
 		IdleIntervalSeconds:            DefaultAndroidIdleIntervalSeconds,
 		ChargingIntervalSeconds:        DefaultAndroidChargingIntervalSeconds,
 		BatterySaverIntervalSeconds:    DefaultAndroidBatterySaverIntervalSeconds,
+		ScheduledQueries: map[string]AndroidScheduledQuery{
+			"device_security_check": {
+				Query:       "SELECT is_device_secure FROM device_info",
+				Interval:    300,
+				Description: "Check device lock screen status",
+			},
+			"os_version_check": {
+				Query:       "SELECT name, version, security_patch FROM os_version",
+				Interval:    600,
+				Description: "Collect OS version info",
+			},
+			"battery_status": {
+				Query:       "SELECT * FROM battery",
+				Interval:    900,
+				Description: "Monitor battery health",
+			},
+		},
 	}
 }
 
