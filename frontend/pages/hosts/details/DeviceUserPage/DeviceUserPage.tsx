@@ -88,9 +88,37 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
 import BypassModal from "./BypassModal";
-import PetCard from "./PetCard";
+import PetCard, { MOOD_EMOJI, PET_QUERY_KEY } from "./PetCard";
 
 const baseClass = "device-user";
+
+// Small emoji-only indicator that mirrors the pet's current mood in the page
+// header so users always see their pet's state while navigating My device,
+// regardless of which tab is active. Hidden on the Pet tab itself (redundant
+// there). Uses the same React Query key as PetCard so the data is shared.
+const PetHeaderIndicator = ({ token }: { token: string }) => {
+  const { data } = useQuery(
+    PET_QUERY_KEY(token),
+    () => deviceUserAPI.getDevicePet(token),
+    {
+      enabled: !!token,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      retry: false,
+    }
+  );
+  const pet = data?.pet;
+  if (!pet) return null;
+  return (
+    <span
+      className={`${baseClass}__pet-header-indicator`}
+      title={`${pet.name} is ${pet.mood}`}
+      aria-label={`${pet.name} is ${pet.mood}`}
+    >
+      {MOOD_EMOJI[pet.mood]}
+    </span>
+  );
+};
 
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
@@ -718,6 +746,13 @@ const DeviceUserPage = ({
             onRefetchHost={onRefetchHost}
             renderActionsDropdown={renderActionButtons}
             deviceUser
+            headerExtras={
+              !location.pathname.startsWith(
+                PATHS.DEVICE_USER_DETAILS_PET(deviceAuthToken)
+              ) ? (
+                <PetHeaderIndicator token={deviceAuthToken} />
+              ) : null
+            }
           />
           <TabNav className={`${baseClass}__tab-nav`}>
             <Tabs

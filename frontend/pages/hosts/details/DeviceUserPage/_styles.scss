@@ -93,6 +93,15 @@
   cursor: default;
 }
 
+.device-user__pet-header-indicator {
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  cursor: default;
+  user-select: none;
+}
+
 .device-user-mobile {
   @include vertical-page-layout;
 }

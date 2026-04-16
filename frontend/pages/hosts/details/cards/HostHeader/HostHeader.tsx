@@ -75,6 +75,7 @@ interface IHostSummaryProps {
   deviceUser?: boolean;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  headerExtras?: React.ReactNode;
 }
 
 const HostHeader = ({
@@ -85,6 +86,7 @@ const HostHeader = ({
   deviceUser,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
+  headerExtras,
 }: IHostSummaryProps) => {
   const { platform } = summaryData;
 
@@ -209,6 +211,7 @@ const HostHeader = ({
         </div>
       </div>
       <div className="title__actions">
+        {headerExtras}
         {renderRefetch()}
         {renderActionsDropdown()}
       </div>

@@ -11,11 +11,11 @@ import Spinner from "components/Spinner";
 
 const baseClass = "pet-card";
 
-const PET_QUERY_KEY = (token: string) => ["device-pet", token] as const;
+export const PET_QUERY_KEY = (token: string) => ["device-pet", token] as const;
 
 // Emoji for a given mood + species. Keeping species == "cat" only for now; easy
 // to extend later by keying on species.
-const MOOD_EMOJI: Record<HostPetMood, string> = {
+export const MOOD_EMOJI: Record<HostPetMood, string> = {
   happy: "😺",
   content: "🐱",
   sad: "😿",

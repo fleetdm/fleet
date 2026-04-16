@@ -54,8 +54,9 @@ func (ds *Datastore) UpsertNotification(ctx context.Context, u fleet.Notificatio
 	// a reliable LAST_INSERT_ID for updates).
 	var n fleet.Notification
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &n,
-		`SELECT id, type, severity, title, body, cta_url, cta_label, metadata, dedupe_key, audience,
-		        resolved_at, created_at, updated_at
+		`SELECT id, type, severity, title, body, cta_url, cta_label,
+		        COALESCE(metadata, CAST('null' AS JSON)) AS metadata,
+		        dedupe_key, audience, resolved_at, created_at, updated_at
 		   FROM notifications WHERE dedupe_key = ?`,
 		u.DedupeKey,
 	); err != nil {
@@ -110,7 +111,8 @@ func (ds *Datastore) ListNotificationsForUser(
 
 	query := `
 		SELECT n.id, n.type, n.severity, n.title, n.body, n.cta_url, n.cta_label,
-		       n.metadata, n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
+		       COALESCE(n.metadata, CAST('null' AS JSON)) AS metadata,
+		       n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
 		       uns.read_at, uns.dismissed_at
 		  FROM notifications n
 		  LEFT JOIN user_notification_state uns
@@ -160,7 +162,8 @@ func (ds *Datastore) NotificationByIDForUser(
 
 	query := `
 		SELECT n.id, n.type, n.severity, n.title, n.body, n.cta_url, n.cta_label,
-		       n.metadata, n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
+		       COALESCE(n.metadata, CAST('null' AS JSON)) AS metadata,
+		       n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
 		       uns.read_at, uns.dismissed_at
 		  FROM notifications n
 		  LEFT JOIN user_notification_state uns
