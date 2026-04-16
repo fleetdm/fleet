@@ -7,6 +7,11 @@ export function tableRow(page: Page): Locator {
   return page.getByRole('table').locator('tbody').getByRole('row').first();
 }
 
+/** First data row that contains a link — confirms actual content has rendered, not just the table shell. */
+export function tableRowWithContent(page: Page): Locator {
+  return page.getByRole('table').locator('tbody').getByRole('row').filter({ has: page.getByRole('link') }).first();
+}
+
 /** First data row OR empty state container */
 export function tableOrEmpty(page: Page): Locator {
   return tableRow(page).or(page.locator('.empty-table__container'));

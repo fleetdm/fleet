@@ -11,7 +11,7 @@ high-scale instances.
 **1. Install dependencies**
 
 ```bash
-cd qa/playwright
+cd tools/qa/playwright
 npm install
 npx playwright install --with-deps
 ```
@@ -30,7 +30,7 @@ files are gitignored and never committed.
 
 ## Running tests
 
-From `qa/playwright/`:
+From `tools/qa/playwright/`:
 
 | Command | What it runs |
 |---|---|
@@ -46,22 +46,31 @@ From `qa/playwright/`:
 ## Structure
 
 ```
-qa/playwright/
-├── tests/                        # All test specs — single source of truth
-│   ├── auth/                     # Authentication tests
+tools/qa/playwright/
+├── tests/
+│   ├── auth/                     # Login, logout, forgot-password tests
 │   ├── hosts/                    # Hosts page tests
+│   ├── smoke/                    # End-to-end smoke tests by area
+│   │   ├── security-and-compliance/  # Vulnerability smoke tests
+│   │   ├── mdm/
+│   │   ├── orchestration/
+│   │   └── software/
 │   └── performance/              # Page load timing tests (one file per section)
 ├── setup/
 │   ├── e2e.setup.ts              # Logs into e2e instance, saves session
 │   └── loadtest.setup.ts         # Logs into loadtest instance, saves session
 ├── helpers/
 │   ├── auth.ts                   # Shared login helper
+│   ├── nav.ts                    # Table locators, dropdown interactions
+│   ├── vuln.ts                   # Vulnerability test helpers (API, filters, assertions)
 │   ├── perf.ts                   # Timing measurement and result writing
-│   └── perf-teardown.ts          # Aggregates timing files into final summary table
+│   └── perf-teardown.ts          # Aggregates timing files into summary table with history
 ├── .env                          # e2e credentials (gitignored)
 ├── .env.loadtest                 # loadtest credentials (gitignored)
 ├── .env.example                  # Template for .env
-└── .env.loadtest.example         # Template for .env.loadtest
+├── .env.loadtest.example         # Template for .env.loadtest
+├── .perf-history/                # Stored performance run history (gitignored)
+└── playwright.config.ts
 ```
 
 ---
@@ -74,6 +83,7 @@ qa/playwright/
 | Tests | All tests not tagged `@loadtest` or `@perf` | Tests tagged `@loadtest` |
 | Includes perf tests | No | Yes (`@perf` implies `@loadtest`) |
 | Retries on failure | Yes (in CI) | No — a slow run is a slow run |
+| Timeouts | 30s test / 5s expect | 60s test / 30s expect |
 | Auth state | `.auth/e2e-admin.json` | `.auth/loadtest-admin.json` |
 
 ---
@@ -93,29 +103,39 @@ test('my test', { tag: '@loadtest' }, async ({ page }) => { ... });
 Add `{ tag: ['@loadtest', '@perf'] }` and use `measureNav` from `helpers/perf.ts`.
 The result is automatically included in the summary table at the end of the loadtest run.
 
+**New smoke test:**
+Add a spec to the appropriate `tests/smoke/<area>/` directory. Smoke tests
+run in the e2e suite and follow real user flows (click-through navigation,
+no direct URL access for internal pages).
+
 ---
 
 ## Performance summary
 
-At the end of every loadtest run, a timing table is printed:
+At the end of every loadtest run, a timing table is printed comparing the
+current run against up to 3 previous runs:
 
 ```
-─────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────
  Performance Summary
-─────────────────────────────────────────
- Section    Page              Load Time
-─────────────────────────────────────────
- Dashboard  Dashboard         1.878s
- Hosts      Hosts list        1.611s
-            Specific host     1.378s
- Controls   OS Updates        1.865s
+───────────────────────────────────────────────────────────────────────
+ Section    Page              Current       prev-1      prev-2      prev-3
+───────────────────────────────────────────────────────────────────────
+ Dashboard  Platform cards    1.539s        1.655s      1.602s      1.580s
+            Software block    0.873s        0.881s      0.884s      0.880s
+            Activity block    1.400s        0.367s      0.370s      0.365s
+ Hosts      Hosts list        1.436s        1.420s      1.415s      1.430s
             ...
-─────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────
+ 3 previous run(s) | green = current faster | yellow = current slower
 ```
 
-Load times are color-coded in terminal output:
-- **Orange** — over 5s
-- **Red** — over 15s
+- Previous times in **green** where the current run is faster
+- Previous times in **yellow** where the current run is slower
+- Previous times in **gray** when the difference is negligible (<200ms)
+- Current times in **yellow** when over 5s, **red** when over 15s
+
+Run history is stored in `.perf-history/` (max 10 runs, oldest pruned automatically).
 
 ---
 

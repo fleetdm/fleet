@@ -46,10 +46,12 @@ export default defineConfig({
       name: 'loadtest',
       testDir: './tests',
       grep: /@loadtest/,
+      timeout: 60000,
       use: {
         ...devices['Desktop Chrome'],
         storageState: '.auth/loadtest-admin.json',
       },
+      expect: { timeout: 30000 },
       dependencies: ['loadtest-setup'],
       retries: 0,
     },

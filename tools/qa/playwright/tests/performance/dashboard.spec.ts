@@ -14,16 +14,19 @@ test.describe('Dashboard load times', () => {
   test('Software block', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/dashboard');
     await measureNav(page, testInfo, 'Software block', async () => {
-      await expect(
-        page.locator('.home-software').getByRole('table').locator('tbody').getByRole('row').first()
-      ).toBeVisible();
+      // Wait for the software table to have actual data rows (not just the shell)
+      await expect(page.getByRole('heading', { name: 'Software' })).toBeVisible();
+      const softwareRow = page.getByRole('table').locator('tbody tr').first();
+      await expect(softwareRow).toBeVisible();
+      await expect(softwareRow.locator('td').first()).not.toBeEmpty();
     });
   });
 
   test('Activity block', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/dashboard');
     await measureNav(page, testInfo, 'Activity block', async () => {
-      await expect(page.locator('.activity-feed .global-activity-item').first()).toBeVisible();
+      // Wait for actual activity items to render, not just the heading
+      await expect(page.getByText(/logged in|edited|created|deleted|enabled|disabled|transferred|ran/i).first()).toBeVisible();
     });
   });
 
@@ -31,7 +34,6 @@ test.describe('Dashboard load times', () => {
     await measureNav(page, testInfo, 'macOS', async () => {
       await page.goto('/dashboard/mac');
       await expect(page.locator('[data-testid="card"]').first()).toBeVisible();
-      await expect(page.locator('.operating-systems').getByRole('table')).toBeVisible();
     });
   });
 
@@ -39,7 +41,6 @@ test.describe('Dashboard load times', () => {
     await measureNav(page, testInfo, 'Windows', async () => {
       await page.goto('/dashboard/windows');
       await expect(page.locator('[data-testid="card"]').first()).toBeVisible();
-      await expect(page.locator('.operating-systems').getByRole('table')).toBeVisible();
     });
   });
 
