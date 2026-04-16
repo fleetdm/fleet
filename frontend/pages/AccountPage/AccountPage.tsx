@@ -27,6 +27,7 @@ import CustomLink from "components/CustomLink";
 
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
+import NotificationSettings from "./NotificationSettings";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "account-page";
@@ -235,6 +236,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
                 serverErrors={errors}
                 smtpConfigured={config?.smtp_settings?.configured || false}
               />
+              <NotificationSettings />
             </div>
             {renderEmailModal()}
             {renderPasswordModal()}

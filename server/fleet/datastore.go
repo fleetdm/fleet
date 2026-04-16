@@ -147,6 +147,37 @@ type Datastore interface {
 	// only active (non-dismissed, non-resolved) notifications.
 	CountActiveNotificationsForUser(ctx context.Context, userID uint) (unread int, active int, err error)
 
+	// ListUserNotificationPreferences returns the set of (category, channel)
+	// opt-out rows for the given user. Absence of a row means "enabled". The
+	// list is not filled out against AllNotificationCategories here — callers
+	// that need a complete grid synthesize the defaults.
+	ListUserNotificationPreferences(ctx context.Context, userID uint) ([]UserNotificationPreference, error)
+
+	// UpsertUserNotificationPreferences writes the given preferences for the
+	// user in a single transaction. Rows whose Enabled is true are deleted (the
+	// default is enabled, so an explicit row would just add clutter); rows
+	// whose Enabled is false are inserted or updated.
+	UpsertUserNotificationPreferences(ctx context.Context, userID uint, prefs []UserNotificationPreference) error
+
+	// EnqueueNotificationDelivery inserts a pending delivery row for the given
+	// (notification, channel, target). Safe to call repeatedly — the unique
+	// index on (notification_id, channel, target) makes the insert a no-op if
+	// a row already exists, which is what lets the fanout run every producer
+	// tick without double-sending.
+	EnqueueNotificationDelivery(ctx context.Context, notificationID uint, channel NotificationChannel, target string) error
+
+	// ClaimPendingDeliveries returns up to `limit` pending delivery rows for
+	// the given channel along with the corresponding notification payload the
+	// worker needs to send. Each claim marks rows as "sending" internally so
+	// parallel workers don't grab the same row; the caller must subsequently
+	// mark each row via MarkDeliveryResult.
+	ClaimPendingDeliveries(ctx context.Context, channel NotificationChannel, limit int) ([]*NotificationDelivery, map[uint]*Notification, error)
+
+	// MarkDeliveryResult writes the result of a send attempt — either sent
+	// (err == nil) or failed (err != nil, message preserved). Idempotent:
+	// calling again with the same status is harmless.
+	MarkDeliveryResult(ctx context.Context, deliveryID uint, status NotificationDeliveryStatus, errMsg string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryStore
 

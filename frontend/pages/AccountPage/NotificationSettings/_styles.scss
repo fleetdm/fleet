@@ -1,0 +1,69 @@
+.notification-settings {
+  // Establish the page baseline so any descendant without an explicit
+  // font-size (e.g. list markup, inline spans) stays at 14px rather than
+  // inheriting the global 16px body size.
+  font-size: $x-small;
+  line-height: 16px;
+  margin-top: $pad-large;
+
+  h2 {
+    font-size: $x-small;
+    font-weight: $bold;
+    line-height: 16px;
+    margin: 0 0 $pad-xsmall;
+  }
+
+  &__description {
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+    line-height: 16px;
+    margin: 0 0 $pad-small;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 6px;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    // FormField wraps the Slider and the global `.form-field` rule sets
+    // `width: 100%`, which stretches it across the row and pushes the text
+    // to the far right. Pin the slider column to the button+label width so
+    // titles line up in a single column and the text block gets the rest.
+    .form-field--slider {
+      flex: 0 0 65px;
+      width: 65px;
+    }
+  }
+
+  &__item-text {
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__item-title {
+    font-size: $x-small;
+    font-weight: $bold;
+    line-height: 16px;
+  }
+
+  &__item-description {
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+    line-height: 16px;
+    margin-top: 2px;
+  }
+}

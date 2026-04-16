@@ -481,6 +481,68 @@ type Integrations struct {
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
+	// SlackNotifications routes in-app notifications to Slack channels by
+	// category. Unlike the per-user in-app prefs, these are admin-configured
+	// and broadcast — everyone subscribed to the channel sees the alert.
+	SlackNotifications SlackNotificationsConfig `json:"slack_notifications"`
+}
+
+// SlackNotificationsConfig holds one entry per (category, webhook) route an
+// admin wants Fleet to deliver to. Multiple routes for the same category are
+// supported (e.g. a noisy "policies" category could mirror to a firehose
+// channel and a filtered exec-only channel).
+type SlackNotificationsConfig struct {
+	Routes []SlackNotificationRoute `json:"routes"`
+}
+
+// SlackNotificationRoute is one (category → webhook URL) mapping. The URL
+// must be an https://hooks.slack.com/ incoming-webhook URL; we don't try to
+// federate across providers in v1.
+type SlackNotificationRoute struct {
+	Category   NotificationCategory `json:"category"`
+	WebhookURL string               `json:"webhook_url"`
+}
+
+// ValidateSlackNotificationsConfig validates the Slack notification routes
+// admins submitted via ModifyAppConfig. Rules:
+//   - Every route's category must be in AllNotificationCategories.
+//   - Every route's webhook URL must look like a Slack incoming webhook
+//     (https://hooks.slack.com/...) — this catches typos and blocks arbitrary
+//     URLs from being persisted before the cron worker ever tries them.
+//   - Exact duplicates (same category + same URL) are rejected so the admin
+//     doesn't accidentally double-post to the same channel.
+//
+// Returns a joined error describing every problem so the admin sees the whole
+// list in a single round-trip.
+func ValidateSlackNotificationsConfig(cfg SlackNotificationsConfig) error {
+	valid := make(map[NotificationCategory]struct{}, len(AllNotificationCategories)+1)
+	for _, c := range AllNotificationCategories {
+		valid[c] = struct{}{}
+	}
+	// "all" is a route-only wildcard; accept it here even though it is not in
+	// AllNotificationCategories (which lists the concrete categories the UI
+	// renders in the per-user preferences grid).
+	valid[NotificationCategoryAll] = struct{}{}
+	var errs []string
+	seen := make(map[string]struct{}, len(cfg.Routes))
+	for i, r := range cfg.Routes {
+		if _, ok := valid[r.Category]; !ok {
+			errs = append(errs, fmt.Sprintf("route %d: unknown category %q", i, r.Category))
+		}
+		u := strings.TrimSpace(r.WebhookURL)
+		if u == "" || !strings.HasPrefix(u, "https://hooks.slack.com/") {
+			errs = append(errs, fmt.Sprintf("route %d: webhook_url must start with https://hooks.slack.com/", i))
+		}
+		key := string(r.Category) + "|" + u
+		if _, dup := seen[key]; dup {
+			errs = append(errs, fmt.Sprintf("route %d: duplicate (category, webhook_url)", i))
+		}
+		seen[key] = struct{}{}
+	}
+	if len(errs) > 0 {
+		return errors.New("invalid slack_notifications: " + strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".

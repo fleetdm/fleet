@@ -86,6 +86,16 @@ export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   // whether or not conditional access is enabled for "No team"
   conditional_access_enabled?: boolean;
+  slack_notifications?: ISlackNotificationsConfig;
+}
+
+export interface ISlackNotificationRoute {
+  category: string;
+  webhook_url: string;
+}
+
+export interface ISlackNotificationsConfig {
+  routes: ISlackNotificationRoute[];
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {

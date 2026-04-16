@@ -131,6 +131,7 @@ export default {
   NOTIFICATION_READ: (id: number) =>
     `/${API_VERSION}/fleet/notifications/${id}/read`,
   NOTIFICATIONS_READ_ALL: `/${API_VERSION}/fleet/notifications/read_all`,
+  NOTIFICATION_PREFERENCES: `/${API_VERSION}/fleet/notifications/preferences`,
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,

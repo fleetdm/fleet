@@ -932,6 +932,10 @@ type MarkAllNotificationsReadFunc func(ctx context.Context) error
 
 type CreateDemoNotificationFunc func(ctx context.Context) (*fleet.Notification, error)
 
+type ListNotificationPreferencesFunc func(ctx context.Context) ([]fleet.UserNotificationPreference, error)
+
+type UpdateNotificationPreferencesFunc func(ctx context.Context, prefs []fleet.UserNotificationPreference) ([]fleet.UserNotificationPreference, error)
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2300,6 +2304,12 @@ type Service struct {
 
 	CreateDemoNotificationFunc        CreateDemoNotificationFunc
 	CreateDemoNotificationFuncInvoked bool
+
+	ListNotificationPreferencesFunc        ListNotificationPreferencesFunc
+	ListNotificationPreferencesFuncInvoked bool
+
+	UpdateNotificationPreferencesFunc        UpdateNotificationPreferencesFunc
+	UpdateNotificationPreferencesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5494,4 +5504,18 @@ func (s *Service) CreateDemoNotification(ctx context.Context) (*fleet.Notificati
 	s.CreateDemoNotificationFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateDemoNotificationFunc(ctx)
+}
+
+func (s *Service) ListNotificationPreferences(ctx context.Context) ([]fleet.UserNotificationPreference, error) {
+	s.mu.Lock()
+	s.ListNotificationPreferencesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListNotificationPreferencesFunc(ctx)
+}
+
+func (s *Service) UpdateNotificationPreferences(ctx context.Context, prefs []fleet.UserNotificationPreference) ([]fleet.UserNotificationPreference, error) {
+	s.mu.Lock()
+	s.UpdateNotificationPreferencesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateNotificationPreferencesFunc(ctx, prefs)
 }

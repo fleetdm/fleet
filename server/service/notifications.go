@@ -316,9 +316,118 @@ func (svc *Service) CreateDemoNotification(ctx context.Context) (*fleet.Notifica
 	sample := demoNotifications[rand.IntN(len(demoNotifications))]
 	sample.DedupeKey = fmt.Sprintf("demo_%s_%d", sample.Type, rand.IntN(100000))
 
-	n, err := svc.ds.UpsertNotification(ctx, sample)
+	n, err := svc.upsertNotification(ctx, sample)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create demo notification")
 	}
 	return n, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Per-user notification preferences
+////////////////////////////////////////////////////////////////////////////////
+
+func listNotificationPreferencesEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	prefs, err := svc.ListNotificationPreferences(ctx)
+	if err != nil {
+		return fleet.ListNotificationPreferencesResponse{Err: err}, nil
+	}
+	return fleet.ListNotificationPreferencesResponse{Preferences: prefs}, nil
+}
+
+func updateNotificationPreferencesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.UpdateNotificationPreferencesRequest)
+	prefs, err := svc.UpdateNotificationPreferences(ctx, req.Preferences)
+	if err != nil {
+		return fleet.UpdateNotificationPreferencesResponse{Err: err}, nil
+	}
+	return fleet.UpdateNotificationPreferencesResponse{Preferences: prefs}, nil
+}
+
+// fullPreferenceGrid expands a sparse set of opt-out rows into the complete
+// (category, channel) grid, filling defaults (enabled=true) for combinations
+// the user hasn't explicitly toggled. This is what the UI wants: a complete
+// matrix to drive its toggles.
+func fullPreferenceGrid(userID uint, stored []fleet.UserNotificationPreference) []fleet.UserNotificationPreference {
+	byKey := make(map[string]fleet.UserNotificationPreference, len(stored))
+	for _, p := range stored {
+		byKey[string(p.Category)+"|"+string(p.Channel)] = p
+	}
+	grid := make([]fleet.UserNotificationPreference, 0, len(fleet.AllNotificationCategories)*len(fleet.AllNotificationChannels))
+	for _, c := range fleet.AllNotificationCategories {
+		for _, ch := range fleet.AllNotificationChannels {
+			if p, ok := byKey[string(c)+"|"+string(ch)]; ok {
+				grid = append(grid, p)
+				continue
+			}
+			grid = append(grid, fleet.UserNotificationPreference{
+				UserID:   userID,
+				Category: c,
+				Channel:  ch,
+				Enabled:  true,
+			})
+		}
+	}
+	return grid
+}
+
+func (svc *Service) ListNotificationPreferences(
+	ctx context.Context,
+) ([]fleet.UserNotificationPreference, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Notification{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	stored, err := svc.ds.ListUserNotificationPreferences(ctx, vc.UserID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load user notification preferences")
+	}
+	return fullPreferenceGrid(vc.UserID(), stored), nil
+}
+
+func (svc *Service) UpdateNotificationPreferences(
+	ctx context.Context, prefs []fleet.UserNotificationPreference,
+) ([]fleet.UserNotificationPreference, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Notification{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// Validate against the known enums. Accumulate all errors so the caller
+	// sees every bad row at once.
+	validCategory := make(map[fleet.NotificationCategory]struct{}, len(fleet.AllNotificationCategories))
+	for _, c := range fleet.AllNotificationCategories {
+		validCategory[c] = struct{}{}
+	}
+	validChannel := make(map[fleet.NotificationChannel]struct{}, len(fleet.AllNotificationChannels))
+	for _, ch := range fleet.AllNotificationChannels {
+		validChannel[ch] = struct{}{}
+	}
+	invalid := fleet.NewInvalidArgumentError("preferences", "")
+	for i, p := range prefs {
+		if _, ok := validCategory[p.Category]; !ok {
+			invalid.Append("preferences", fmt.Sprintf("row %d: unknown category %q", i, p.Category))
+		}
+		if _, ok := validChannel[p.Channel]; !ok {
+			invalid.Append("preferences", fmt.Sprintf("row %d: unknown channel %q", i, p.Channel))
+		}
+	}
+	if invalid.HasErrors() {
+		return nil, invalid
+	}
+
+	if err := svc.ds.UpsertUserNotificationPreferences(ctx, vc.UserID(), prefs); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "upsert user notification preferences")
+	}
+	stored, err := svc.ds.ListUserNotificationPreferences(ctx, vc.UserID())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reload user notification preferences")
+	}
+	return fullPreferenceGrid(vc.UserID(), stored), nil
 }

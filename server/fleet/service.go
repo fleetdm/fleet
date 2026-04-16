@@ -1531,6 +1531,16 @@ type Service interface {
 	// CreateDemoNotification creates a random test notification.
 	// Admin-only, intended for demo/debug purposes only.
 	CreateDemoNotification(ctx context.Context) (*Notification, error)
+
+	// ListNotificationPreferences returns the complete preference grid for
+	// the current user — every category × every channel, filled in with
+	// defaults where the user has not explicitly opted out.
+	ListNotificationPreferences(ctx context.Context) ([]UserNotificationPreference, error)
+
+	// UpdateNotificationPreferences replaces the current user's preferences
+	// with the provided grid. The service validates categories/channels
+	// against the registered enums.
+	UpdateNotificationPreferences(ctx context.Context, prefs []UserNotificationPreference) ([]UserNotificationPreference, error)
 }
 
 type KeyValueStore interface {

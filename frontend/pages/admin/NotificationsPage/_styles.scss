@@ -3,18 +3,21 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
   }
 
   &__description {
     color: $ui-fleet-black-75;
+    font-size: $x-small;
+    line-height: 16px;
     margin: 0;
   }
 
   &__empty {
-    padding: 48px 16px;
+    padding: $pad-xlarge $pad-medium;
     text-align: center;
     color: $ui-fleet-black-75;
+    font-size: $x-small;
   }
 
   &__list {
@@ -28,10 +31,12 @@
 
   &__item {
     display: flex;
-    gap: 12px;
-    padding: 16px;
+    gap: $pad-small;
+    padding: $pad-small $pad-medium;
     border-bottom: 1px solid $ui-fleet-black-10;
     align-items: flex-start;
+    font-size: $x-small;
+    line-height: 16px;
 
     &:last-child {
       border-bottom: none;
@@ -56,7 +61,9 @@
 
   &__item-icon {
     flex-shrink: 0;
-    padding-top: 2px;
+    padding-top: 1px;
+    display: flex;
+    align-items: center;
   }
 
   &__item-content {
@@ -65,18 +72,22 @@
   }
 
   &__item-title {
+    font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: 4px;
+    line-height: 16px;
+    margin-bottom: 2px;
   }
 
   &__item-body {
     color: $ui-fleet-black-75;
-    margin-bottom: 8px;
-    line-height: 1.4;
+    font-size: $x-small;
+    line-height: 16px;
+    margin-bottom: $pad-xsmall;
   }
 
   &__item-actions {
     display: flex;
-    gap: 16px;
+    gap: $pad-medium;
+    font-size: $x-small;
   }
 }

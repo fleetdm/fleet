@@ -1,0 +1,39 @@
+.slack-notifications {
+  &__empty {
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+    line-height: 16px;
+    margin: 0 0 $pad-medium;
+  }
+
+  &__routes {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    margin-bottom: $pad-medium;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: $pad-medium;
+    align-items: end;
+  }
+
+  &__category {
+    min-width: 0;
+  }
+
+  &__remove {
+    // Align remove button with the input baseline when the first row shows
+    // field labels above it.
+    padding-bottom: $pad-xsmall;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: $pad-medium;
+  }
+}
