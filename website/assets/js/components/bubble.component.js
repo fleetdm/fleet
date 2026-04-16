@@ -22,6 +22,9 @@ parasails.registerComponent('bubble', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     let rawType = this.type ? this.type.toLowerCase() : '';
+    if (rawType.includes('token') || rawType.includes('public')) {
+      rawType = 'public';
+    }
     let roleLink = '';
 
     switch (rawType) {
