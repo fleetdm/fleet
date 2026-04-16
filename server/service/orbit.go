@@ -391,8 +391,14 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	// out-of-band value snuck in, still cap here.
 	duration := min(opts.Orbit.DebugLoggingOnEnrollDuration.Duration, fleet.MaxOrbitDebugLoggingOnEnrollDuration)
 
+	// ExtendHostOrbitDebugUntil ensures a short rollout window cannot shorten
+	// a longer admin-set host override — the conditional UPDATE is a no-op
+	// when the existing value is already later. Necessary because the `host`
+	// returned by svc.ds.EnrollOrbit does not populate orbit_debug_until, so
+	// we can't make the decision in Go without a refetch, and a refetch would
+	// be racy against concurrent admin writes.
 	until := time.Now().Add(duration).UTC().Truncate(time.Second)
-	if err := svc.ds.UpdateHostOrbitDebugUntil(ctx, host.ID, &until); err != nil {
+	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {
 		return ctxerr.Wrap(ctx, err, "set orbit_debug_until on enroll")
 	}
 	svc.logger.InfoContext(ctx, "stamped orbit debug logging on enroll",

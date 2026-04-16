@@ -4244,7 +4244,9 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 ### Set host orbit debug logging
 
-Enables or disables orbit (and osqueryd) verbose logging for a single host at runtime. Orbit picks up the new state on its next config poll (up to 30 seconds) with no restart required. When enabling, the override auto-expires after the supplied duration (default 24 hours, maximum 7 days) and reverts the host to the team-level setting.
+Enables or disables orbit (and osqueryd) verbose logging for a single host at runtime. Orbit picks up the new state on its next config poll (up to 30 seconds) with no restart required. When enabling, the override auto-expires after the supplied duration (minimum 1 minute, default 24 hours, maximum 7 days) and reverts the host to the team-level setting.
+
+Natural expiry is silent — no corresponding activity is written when the override lapses. The `expires_at` field on the `enabled_host_orbit_debug_logging` activity is the authoritative end time. Only explicit disables (via this endpoint) produce a `disabled_host_orbit_debug_logging` activity.
 
 This endpoint can only be called by a user with the **admin** or **maintainer** role on the host's team. See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design.
 
@@ -4256,7 +4258,7 @@ This endpoint can only be called by a user with the **admin** or **maintainer** 
 | -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | id       | integer | path | **Required**. The host's id.                                                                                                                                                                                                                                 |
 | enabled  | boolean | body | **Required**. `true` to enable debug logging on the host, `false` to clear any active host-level override.                                                                                                                                                   |
-| duration | string  | body | Only used when `enabled` is `true`. A Go-style duration string (e.g. `"15m"`, `"1h"`, `"24h"`). Defaults to `"24h"` if omitted. Values above 7 days return a 422.                                                                                             |
+| duration | string  | body | Only used when `enabled` is `true`. A Go-style duration string (e.g. `"15m"`, `"1h"`, `"24h"`). Defaults to `"24h"` if omitted. Values below 1 minute or above 7 days return a 422.                                                                           |
 
 #### Example — enable for 1 hour
 

@@ -199,8 +199,9 @@ Response (disable): {}
 Endpoint behavior:
 
 - A single `POST` endpoint handles both enable and disable based on the `enabled` field. No `DELETE` variant.
-- `duration` is a Go-parseable duration string (e.g. `"1h"`, `"30m"`). Default **24h** when omitted. Maximum **7d**; unparseable, negative, or over-cap values return 422 with a `fleet.InvalidArgumentError`.
+- `duration` is a Go-parseable duration string (e.g. `"1h"`, `"30m"`). Default **24h** when omitted. Minimum **1m** (values below the orbit config-poll cadence would expire before ever taking effect). Maximum **7d**. Unparseable, negative, sub-minimum, or over-cap values return 422 with a `fleet.InvalidArgumentError`.
 - Authorization: admin or maintainer on the host's team. The service method calls `svc.authz.Authorize(ctx, host, fleet.ActionWrite)`, which is stricter than the refetch endpoint (refetch uses `ActionRead` to allow observers).
+  - The method uses the two-phase authz pattern that's standard across `server/service/hosts.go`: first a cheap `svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList)` as an entry gate (passes only for users who can enumerate hosts at all), then `HostLite` to load the entity, then the real team-scoped `ActionWrite` check on the loaded host. The entry gate keeps unauthenticated or observer-less callers from probing the endpoint with arbitrary IDs and using response timing or error text to enumerate hosts. 23+ other host-mutating methods in the same file use this sequence; follow it rather than reinventing a one-phase check.
 - Emits an activity log entry for audit (see [Activities](#activities) below).
 
 Registered via the standard endpoint pattern in `server/service/handler.go`, service method in `server/service/hosts.go`, datastore method in `server/datastore/mysql/hosts.go`. Duration is parsed inside the service method (after authz) so probing with bad input can't short-circuit the auth check.
@@ -235,6 +236,8 @@ func (a ActivityTypeDisabledHostOrbitDebugLogging) HostIDs() []uint {
 ```
 
 Documented in `docs/Contributing/reference/audit-logs.md` alongside the existing entries. The frontend maps each activity to a dedicated component under `frontend/pages/hosts/details/cards/Activity/ActivityItems/` — host activities must be present in `pastActivityComponentMap` or the host details activity tab will crash when the activity is rendered.
+
+**Natural expiry is intentionally silent.** Only explicit enable/disable through the API writes an activity row. When `orbit_debug_until` lapses on its own, the host reverts to the team default without an audit entry. The `expires_at` field on the `enabled_host_orbit_debug_logging` activity is the authoritative "when will this turn off" for the audit log — consumers should treat it as the canonical end time rather than waiting for a matching disable activity. Rationale: (1) expiry is deterministic from the enable event, so duplicating it as a separate log line adds noise without information, and (2) emitting it would require a sweeper or hook on config-poll, which we deliberately didn't build — expiry is enforced at read time in `GetOrbitConfig`, not at a discrete "expires now" moment. If this turns out to matter for compliance later, the cleanest place to add it is the optional cleanup cron referenced in [Auto-expiry](#auto-expiry).
 
 #### fleetctl
 
@@ -368,3 +371,11 @@ These decisions should be revisited before productionizing. They're acceptable t
 3. ~~**Startup-flag precedence.**~~ **Resolved: startup flag is a floor.** `--debug` / `ORBIT_DEBUG=1` at launch can no longer be silently silenced by the server. See [Precedence rules](#precedence-rules) for the details.
 4. **Per-host "force off" override.** We picked one-way (force-on only) for simplicity. If customers ask for a way to exclude a single host from a team-wide debug sweep, revisit.
 5. **Category/component filtering.** Orbit has several subsystems (TUF updater, MDM migrator, Fleet Desktop, extensions); a single global level is coarse. A future enhancement could scope debug to a subsystem.
+6. **`resolveOrbitDebugLogging` re-decodes admin flags on every config poll when debug is on.** The current implementation in `server/service/orbit.go` does `json.Unmarshal` → map merge → `json.Marshal` per host per poll (roughly every 30s). For the common case (debug off), we short-circuit before any decode, so this is free. For the pathological case (team-wide debug on at scale, e.g. 10k hosts), it's ~333 merges/sec at a few microseconds each — measurable but tiny, and only paid when an admin is actively debugging.
+
+   Possible improvements if a profile ever flags this as a hotspot:
+   - **Identity-keyed cache.** `sync.Map[*fleet.OrbitAgentOptions, json.RawMessage]` keyed on the agent-options pointer returned by `teamConfigFromHost`. Pointer stays stable per team until the next config reload, so one decode+merge covers every host in the team for that config generation. Invalidation is implicit: a new pointer on reload means a new cache entry.
+   - **Precompute at save time.** Store the merged flags blob alongside the raw admin flags when agent options are written, read both on the hot path. Zero runtime cost but adds a derived column and a backfill step.
+   - **Byte-level merge.** Skip the full unmarshal/marshal round trip — splice `"verbose":true,"tls_dump":true` directly into the flags JSON after a substring check. Brittle (has to handle trailing commas, duplicate keys, whitespace) and not worth the risk until there's actual pressure.
+
+   Neither is a ship-blocker. Option 1 is the right first move if we ever need one; it's a ~30-line change localized to `resolveOrbitDebugLogging`.

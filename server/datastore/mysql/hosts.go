@@ -5432,6 +5432,19 @@ func (ds *Datastore) UpdateHostOrbitDebugUntil(ctx context.Context, id uint, unt
 	return ctxerr.Wrapf(ctx, err, "update host %d orbit_debug_until", id)
 }
 
+// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+// current value (or the current value is NULL). The conditional WHERE keeps
+// the read-and-compare atomic, so the enroll-stamp path can never shorten an
+// admin-set override via a lost-update race.
+func (ds *Datastore) ExtendHostOrbitDebugUntil(ctx context.Context, id uint, until time.Time) error {
+	const stmt = `
+		UPDATE hosts
+		SET orbit_debug_until = ?
+		WHERE id = ? AND (orbit_debug_until IS NULL OR orbit_debug_until < ?)`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, until, id, until)
+	return ctxerr.Wrapf(ctx, err, "extend host %d orbit_debug_until", id)
+}
+
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until *time.Time) error {
 	debugLogs := []any{"host_id", id}

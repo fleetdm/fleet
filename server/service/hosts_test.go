@@ -2287,6 +2287,13 @@ func TestSetHostOrbitDebugLogging(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &iae)
 
+	// Sub-minimum duration is rejected — otherwise the endpoint would 200 OK
+	// but the override would expire before orbit's next config poll and debug
+	// would never actually turn on.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "500ms")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &iae)
+
 	// Disable clears the override and emits the disable activity.
 	emitted = emitted[:0]
 	lastUntil = nil

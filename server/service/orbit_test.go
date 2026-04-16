@@ -197,7 +197,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
 		require.NoError(t, err)
-		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
 	})
 
 	t.Run("zero duration -> no stamp", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
 		require.NoError(t, err)
-		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
 	})
 
 	t.Run("global option set, no team -> stamps from app config", func(t *testing.T) {
@@ -222,8 +222,8 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		}
 
 		var gotID uint
-		var gotUntil *time.Time
-		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
 			gotID = hostID
 			gotUntil = until
 			return nil
@@ -232,10 +232,9 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		before := time.Now()
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
 		require.NoError(t, err)
-		require.True(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
 		require.Equal(t, host.ID, gotID)
-		require.NotNil(t, gotUntil)
-		require.WithinDuration(t, before.Add(time.Hour), *gotUntil, time.Minute)
+		require.WithinDuration(t, before.Add(time.Hour), gotUntil, time.Minute)
 	})
 
 	t.Run("team option set -> stamps from team agent options, ignores global", func(t *testing.T) {
@@ -253,8 +252,8 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 			require.Equal(t, teamID, id)
 			return new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "30m"}}`)), nil
 		}
-		var gotUntil *time.Time
-		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
 			gotUntil = until
 			return nil
 		}
@@ -263,10 +262,9 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
 		require.NoError(t, err)
 		require.True(t, ds.TeamAgentOptionsFuncInvoked)
-		require.True(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
-		require.NotNil(t, gotUntil)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
 		// 30m, not 24h
-		require.WithinDuration(t, before.Add(30*time.Minute), *gotUntil, time.Minute)
+		require.WithinDuration(t, before.Add(30*time.Minute), gotUntil, time.Minute)
 	})
 
 	t.Run("team has no agent options row -> no stamp, no fallback to global", func(t *testing.T) {
@@ -285,7 +283,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.TeamAgentOptionsFuncInvoked)
 		// Fallback option (a) — no global fallback when host is in a team.
-		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
 	})
 
 	t.Run("over-cap value defensively clamped at 24h", func(t *testing.T) {
@@ -297,8 +295,8 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		appCfg := &fleet.AppConfig{
 			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "100h"}}`)),
 		}
-		var gotUntil *time.Time
-		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
 			gotUntil = until
 			return nil
 		}
@@ -306,8 +304,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		before := time.Now()
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
 		require.NoError(t, err)
-		require.NotNil(t, gotUntil)
-		require.WithinDuration(t, before.Add(fleet.MaxOrbitDebugLoggingOnEnrollDuration), *gotUntil, time.Minute)
+		require.WithinDuration(t, before.Add(fleet.MaxOrbitDebugLoggingOnEnrollDuration), gotUntil, time.Minute)
 	})
 }
 

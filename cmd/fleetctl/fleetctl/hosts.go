@@ -47,8 +47,9 @@ func hostDebugLoggingCommand() *cli.Command {
 				Usage: "Disable debug logging and clear any active host override",
 			},
 			&cli.DurationFlag{
-				Name:  "duration",
-				Usage: "How long debug logging stays on (default 24h, max 7d). Only valid with --enable.",
+				Name:        "duration",
+				Usage:       "How long debug logging stays on (min 1m, max 7d). Only valid with --enable.",
+				DefaultText: "24h",
 			},
 			configFlag(),
 			contextFlag(),

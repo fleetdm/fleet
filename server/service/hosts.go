@@ -1595,6 +1595,12 @@ const (
 	// defaultOrbitDebugLoggingDuration is the fallback TTL for a host-level
 	// orbit debug-logging override when the caller doesn't specify one.
 	defaultOrbitDebugLoggingDuration = 24 * time.Hour
+	// minOrbitDebugLoggingDuration floors the per-host override so a caller
+	// sending something like "500ms" can't pass validation only to have the
+	// override expire before the host's next config poll — the endpoint would
+	// otherwise 200 OK with debug never actually activating. One minute leaves
+	// comfortable headroom over the ~30s orbit poll cadence.
+	minOrbitDebugLoggingDuration = time.Minute
 	// maxOrbitDebugLoggingDuration caps how long a host-level override can be
 	// active for. Forces re-enablement on long investigations.
 	maxOrbitDebugLoggingDuration = 7 * 24 * time.Hour
@@ -1683,6 +1689,12 @@ func (svc *Service) SetHostOrbitDebugLogging(ctx context.Context, hostID uint, e
 	}
 	if duration == 0 {
 		duration = defaultOrbitDebugLoggingDuration
+	}
+	if duration < minOrbitDebugLoggingDuration {
+		return nil, fleet.NewInvalidArgumentError(
+			"duration",
+			fmt.Sprintf("must be at least %s", minOrbitDebugLoggingDuration),
+		)
 	}
 	if duration > maxOrbitDebugLoggingDuration {
 		return nil, fleet.NewInvalidArgumentError(
