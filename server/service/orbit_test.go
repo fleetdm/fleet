@@ -178,6 +178,139 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 	})
 }
 
+// TestMaybeStampOrbitDebugFromAgentOptions covers the helper that EnrollOrbit
+// calls right after the host row is written. It verifies the source-of-truth
+// for the duration value (team agent options when host has a team, otherwise
+// global app config), the no-op case (option absent or zero), the
+// defensive-cap case, and the precedence host.TeamID has over secret.TeamID
+// (we always trust the persisted host's team after enrollment).
+func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
+	getInternal := func(svc fleet.Service) *Service {
+		return ((svc.(validationMiddleware)).Service).(*Service)
+	}
+
+	t.Run("no agent options -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("zero duration -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "0s"}}`)),
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("global option set, no team -> stamps from app config", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 42}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`)),
+		}
+
+		var gotID uint
+		var gotUntil *time.Time
+		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+			gotID = hostID
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.Equal(t, host.ID, gotID)
+		require.NotNil(t, gotUntil)
+		require.WithinDuration(t, before.Add(time.Hour), *gotUntil, time.Minute)
+	})
+
+	t.Run("team option set -> stamps from team agent options, ignores global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			// Global says 24h; the host belongs to a team so global must be
+			// ignored — only the team's agent options matter for this host.
+			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "24h"}}`)),
+		}
+
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			require.Equal(t, teamID, id)
+			return new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "30m"}}`)), nil
+		}
+		var gotUntil *time.Time
+		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		require.True(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+		require.NotNil(t, gotUntil)
+		// 30m, not 24h
+		require.WithinDuration(t, before.Add(30*time.Minute), *gotUntil, time.Minute)
+	})
+
+	t.Run("team has no agent options row -> no stamp, no fallback to global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`)),
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return nil, nil
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		// Fallback option (a) — no global fallback when host is in a team.
+		require.False(t, ds.UpdateHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("over-cap value defensively clamped at 24h", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		// Bypass the validator by stuffing a too-large value directly into
+		// the raw JSON the helper consumes.
+		appCfg := &fleet.AppConfig{
+			AgentOptions: new(json.RawMessage(`{"orbit": {"debug_logging_on_enroll_duration": "100h"}}`)),
+		}
+		var gotUntil *time.Time
+		ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until *time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.NotNil(t, gotUntil)
+		require.WithinDuration(t, before.Add(fleet.MaxOrbitDebugLoggingOnEnrollDuration), *gotUntil, time.Minute)
+	})
+}
+
 func TestOrbitLUKSDataSave(t *testing.T) {
 	t.Run("when private key is set", func(t *testing.T) {
 		ds := new(mock.Store)

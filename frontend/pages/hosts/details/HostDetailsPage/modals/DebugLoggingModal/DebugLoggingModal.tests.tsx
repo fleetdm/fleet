@@ -24,7 +24,7 @@ describe("DebugLoggingModal", () => {
 
       expect(screen.getByText(/Enable debug logging/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/Turn on orbit debug logging for/i)
+        screen.getByText(/Turn on orbit and osquery debug logging for/i)
       ).toBeInTheDocument();
       expect(screen.getByText(/macos-host-1/i)).toBeInTheDocument();
       // Default duration is 24h.
@@ -55,7 +55,7 @@ describe("DebugLoggingModal", () => {
 
       expect(screen.getByText(/Disable debug logging/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/Turn off orbit debug logging on/i)
+        screen.getByText(/Turn off orbit and osquery debug logging on/i)
       ).toBeInTheDocument();
       expect(screen.getByText(/macos-host-1/i)).toBeInTheDocument();
       expect(

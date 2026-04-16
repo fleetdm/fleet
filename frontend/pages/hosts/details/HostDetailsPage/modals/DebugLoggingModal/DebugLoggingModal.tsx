@@ -6,17 +6,11 @@ import hostAPI from "services/entities/hosts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 const baseClass = "debug-logging-modal";
 
-interface IDurationOption {
-  label: string;
-  value: string; // Go-duration string
-}
-
-const DURATION_OPTIONS: IDurationOption[] = [
+const DURATION_OPTIONS = [
   { label: "15 minutes", value: "15m" },
   { label: "1 hour", value: "1h" },
   { label: "4 hours", value: "4h" },
@@ -87,25 +81,23 @@ const DebugLoggingModal = ({
       <div className={`${baseClass}__modal-content`}>
         {isCurrentlyActive ? (
           <p>
-            Turn off orbit debug logging on <b>{hostName}</b>. Orbit will revert
-            to the team-level setting on its next check-in (up to 30 seconds).
+            Turn off orbit and osquery debug logging on <b>{hostName}</b>. Orbit
+            will revert the setting on its next check-in.
           </p>
         ) : (
           <>
             <p>
-              Turn on orbit debug logging for <b>{hostName}</b>. Orbit and
-              osqueryd will produce verbose logs until the duration elapses. The
-              change applies on the next check-in (up to 30 seconds) with no
-              restart required.
+              Turn on orbit and osquery debug logging for <b>{hostName}</b>.
+              Orbit and osquery will produce verbose logs until the duration
+              change applies on the next check-in.
             </p>
-            <Dropdown
+            <DropdownWrapper
               label="Duration"
               name="debug-logging-duration"
               options={DURATION_OPTIONS}
               value={duration}
-              onChange={(value: string) => setDuration(value)}
-              searchable={false}
-              wrapperClassName={`${baseClass}__duration-dropdown`}
+              onChange={(opt) => opt && setDuration(opt.value)}
+              wrapperClassname={`${baseClass}__duration-dropdown`}
             />
           </>
         )}

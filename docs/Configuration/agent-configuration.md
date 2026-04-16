@@ -326,5 +326,21 @@ agent_options:
     debug_logging: true
 ```
 
+### debug_logging_on_enroll_duration
+
+A Go duration string (e.g. `"1h"`, `"30m"`). When greater than zero, every host that orbit-enrolls (or re-enrolls) into this team — or no-team for global agent options — is automatically put into debug mode for the configured duration after *its* enrollment. The host then reverts to the team default. Default: unset (no auto-stamp). Maximum: `24h`.
+
+Use this during a rollout to capture verbose Setup Experience logs from new hosts without having to flip debug per host afterward. Each host's debug expires `duration` after its own enrollment moment, not at a shared wall-clock time.
+
+There is **no global fallback**: a host that enrolls into a team uses that team's setting, regardless of what's on global agent options. To apply this option broadly, set it on each team (typically via gitops).
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging_on_enroll_duration: 1h
+```
+
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">

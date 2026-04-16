@@ -16490,3 +16490,81 @@ func (s *integrationTestSuite) TestHostOrbitDebugLogging() {
 		http.StatusForbidden, &forbiddenResp,
 	)
 }
+
+// TestOrbitDebugLoggingOnEnroll exercises the new global agent option
+// `orbit.debug_logging_on_enroll_duration`. When set, every host that orbit-
+// enrolls into the matching scope (no-team in this test) should be stamped
+// with an `orbit_debug_until` of `now() + duration`, so the existing
+// debug-logging machinery picks it up on the host's first /orbit/config poll
+// without any per-host action by the admin. Covers: stamp on enroll, reject
+// over-cap (>24h), reject negative, and clearing the option stops stamping
+// future enrollments.
+//
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
+	t := s.T()
+	ctx := context.Background()
+
+	// ---- Reject duration above 24h cap ----
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "25h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// ---- Reject negative duration ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "-1h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// ---- Set a valid 1h window in global agent options ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "1h"} }
+	}`), http.StatusOK, &acResp)
+
+	// Create an enroll secret in no-team.
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// ---- Enroll a host. The stamp happens server-side after enroll. ----
+	beforeEnroll := time.Now()
+	var enrollResp enrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey)
+
+	stampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, stampedHost.OrbitDebugUntil, "host should be stamped with orbit_debug_until")
+	// Expiry is ~1h from the enroll moment.
+	require.WithinDuration(t, beforeEnroll.Add(time.Hour), *stampedHost.OrbitDebugUntil, time.Minute)
+
+	// ---- Clearing the option (zero duration) stops stamping future enrolls ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "0s"} }
+	}`), http.StatusOK, &acResp)
+
+	var enrollResp2 enrollOrbitResponse
+	hostUUID2 := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID2,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-not-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp2)
+
+	unstampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp2.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Nil(t, unstampedHost.OrbitDebugUntil, "host should not be stamped when option is zero")
+}

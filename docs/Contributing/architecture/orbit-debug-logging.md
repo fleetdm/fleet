@@ -122,11 +122,24 @@ type AgentOptions struct {
 }
 
 type OrbitAgentOptions struct {
-    DebugLogging bool `json:"debug_logging,omitempty"`
+    DebugLogging                 bool     `json:"debug_logging,omitempty"`
+    DebugLoggingOnEnrollDuration Duration `json:"debug_logging_on_enroll_duration,omitempty"`
 }
 ```
 
 Validated by `ValidateJSONAgentOptions` at `server/fleet/agent_options.go:72` — the existing `JSONStrictDecode` will automatically reject unknown subkeys under `orbit`.
+
+#### Per-enrollment debug stamp
+
+`DebugLoggingOnEnrollDuration` is a separate, time-bounded lever for capturing debug logs from *new* hosts as they roll in (e.g. during a Setup Experience pilot) without having to flip per-host debug after the fact. Semantics:
+
+- **Trigger**: every successful orbit enrollment (fresh or re-enrollment) into the team — or no-team for global agent options.
+- **Effect**: the server stamps the host's `orbit_debug_until` with `now() + DebugLoggingOnEnrollDuration` immediately after `EnrollOrbit` succeeds.
+- **Pickup**: the existing per-host `orbit_debug_until` machinery (resolver + receiver) takes over from there — debug turns on within ~30s on the host's first config poll, and reverts automatically when the timestamp lapses.
+- **Scope (intentional)**: no global fallback. A host in a team uses *that team's* setting; a no-team host uses the global setting. Setting it on global does NOT affect hosts that enroll into a team. To apply it broadly, set it per-team via gitops.
+- **Validator cap**: 24h. The team-wide `debug_logging` toggle is the lever for indefinite verbose logging; this is for time-boxed rollout windows.
+
+Implementation: `maybeStampOrbitDebugFromAgentOptions` in `server/service/orbit.go` is called at the end of `EnrollOrbit`. Failure to stamp is non-fatal (logged); enrollment must succeed regardless.
 
 #### Host tier — new column
 
