@@ -1,7 +1,7 @@
 # Roadmap preview, April 2026
 
 <div purpose="embedded-content">
-   <iframe src="TODO: YouTube embed URL" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/k-S4wYIyrlc?si=qZwXLFEfiGvzr1mu" allowfullscreen></iframe>
 </div>
 
 The Fleet roadmap is set for spring 2026. Watch the video above for a walkthrough, or continue reading for the highlights.
@@ -37,6 +37,6 @@ Any feedback or questions? Contributions welcome! You can find us [where we hang
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="TODO">
+<meta name="publishedOn" value="2026-04-16">
 <meta name="articleTitle" value="Roadmap preview, April 2026">
 <meta name="description" value="The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future.">
