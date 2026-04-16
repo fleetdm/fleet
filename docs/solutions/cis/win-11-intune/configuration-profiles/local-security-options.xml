@@ -1,449 +1,318 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  CIS Windows 11 Intune Benchmark - Local Security Options Configuration Profile
-  Applies Local Policies Security Options via MDM/Intune SyncML
-
-  This profile is more comprehensive than the standard win-10/win-11 version because
-  the Intune benchmark (l1_win11_intune.yml) checks many additional security options.
-
-  Covered CIS Controls (extracted from l1_win11_intune.yml LocalPoliciesSecurityOptions):
-  - Accounts: Guest account status                                  -> Disabled (0)
-  - Accounts: Rename administrator account                          -> (non-default name)
-  - Accounts: Rename guest account                                  -> (non-default name)
-  - Interactive logon: Do not display last signed-in                -> Enabled (1)
-  - Interactive logon: Do not require CTRL+ALT+DEL                 -> Disabled (0)
-  - Interactive logon: Machine inactivity limit                     -> 900 seconds or fewer
-  - Interactive logon: Smart card removal behavior                  -> Lock Workstation (1)
-  - Interactive logon: Message text for users attempting to log on  -> (org-defined)
-  - Interactive logon: Message title for users attempting to log on -> (org-defined)
-  - Microsoft network client: Digitally sign communications (always)    -> Enabled (1)
-  - Microsoft network client: Digitally sign communications (if server agrees) -> Enabled (1)
-  - Microsoft network server: Digitally sign communications (always)    -> Enabled (1)
-  - Microsoft network server: Digitally sign communications (if client agrees) -> Enabled (1)
-  - Network access: Do not allow anonymous enumeration of SAM accounts  -> Enabled (1)
-  - Network access: Do not allow anonymous enumeration of SAM accounts and shares -> Enabled (1)
-  - Network access: Restrict anonymous access to Named Pipes and Shares -> Enabled (1)
-  - Network access: Restrict clients allowed to make remote calls to SAM -> (Administrators only)
-  - Network security: Allow Local System to use computer identity for NTLM -> Enabled (1)
-  - Network security: Allow PKU2U authentication requests            -> Disabled (0)
-  - Network security: Do not store LAN Manager hash value on next password change -> Enabled (1)
-  - Network security: LAN Manager authentication level               -> NTLMv2 only (5)
-  - Network security: Minimum session security for NTLM SSP clients  -> 537395200
-  - Network security: Minimum session security for NTLM SSP servers  -> 537395200
-  - Network security: Restrict NTLM: Audit incoming NTLM traffic     -> Enable auditing (2)
-  - UAC: Behavior of elevation prompt for administrators             -> Prompt for credentials (2)
-  - UAC: Behavior of elevation prompt for standard users             -> Automatically deny (0)
-
-  Note: Update the account rename and logon message values before deployment.
--->
-<SyncML xmlns="SYNCML:SYNCML1.2">
-  <SyncBody>
-
-    <!-- Accounts: Guest account status = Disabled -->
-    <Replace>
-      <CmdID>1</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>0</Data>
-      </Item>
-    </Replace>
-
-    <!--
-      Accounts: Rename administrator account
-      Update "AdminAcct" to your organization's preferred name (must not be "Administrator").
-    -->
-    <Replace>
-      <CmdID>2</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>AdminAcct</Data>
-      </Item>
-    </Replace>
-
-    <!--
-      Accounts: Rename guest account
-      Update "GuestAcct" to your organization's preferred name (must not be "Guest").
-    -->
-    <Replace>
-      <CmdID>3</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameGuestAccount</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>GuestAcct</Data>
-      </Item>
-    </Replace>
-
-    <!-- Interactive logon: Do not display last signed-in = Enabled -->
-    <Replace>
-      <CmdID>4</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_DoNotDisplayLastSignedIn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Interactive logon: Do not require CTRL+ALT+DEL = Disabled (0 = CTRL+ALT+DEL required) -->
-    <Replace>
-      <CmdID>5</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_DoNotRequireCTRLALTDEL</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>0</Data>
-      </Item>
-    </Replace>
-
-    <!-- Interactive logon: Machine inactivity limit = 900 seconds (15 minutes) -->
-    <Replace>
-      <CmdID>6</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>900</Data>
-      </Item>
-    </Replace>
-
-    <!-- Interactive logon: Smart card removal behavior = Lock Workstation (1) -->
-    <Replace>
-      <CmdID>7</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_SmartCardRemovalBehavior</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!--
-      Interactive logon: Message text for users attempting to log on
-      Update with your organization's legal notice text.
-    -->
-    <Replace>
-      <CmdID>8</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>This system is for authorized users only. All activity may be monitored and reported.</Data>
-      </Item>
-    </Replace>
-
-    <!--
-      Interactive logon: Message title for users attempting to log on
-      Update with your organization's preferred title.
-    -->
-    <Replace>
-      <CmdID>9</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MessageTitleForUsersAttemptingToLogOn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>Authorized Use Only</Data>
-      </Item>
-    </Replace>
-
-    <!-- Microsoft network client: Digitally sign communications (always) = Enabled -->
-    <Replace>
-      <CmdID>10</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkClient_DigitallySignCommunicationsAlways</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Microsoft network client: Digitally sign communications (if server agrees) = Enabled -->
-    <Replace>
-      <CmdID>11</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkClient_DigitallySignCommunicationsIfServerAgrees</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Microsoft network server: Digitally sign communications (always) = Enabled -->
-    <Replace>
-      <CmdID>12</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkServer_DigitallySignCommunicationsAlways</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Microsoft network server: Digitally sign communications (if client agrees) = Enabled -->
-    <Replace>
-      <CmdID>13</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkServer_DigitallySignCommunicationsIfClientAgrees</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network access: Do not allow anonymous enumeration of SAM accounts = Enabled -->
-    <Replace>
-      <CmdID>14</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_DoNotAllowAnonymousEnumerationOfSAMAccounts</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network access: Do not allow anonymous enumeration of SAM accounts and shares = Enabled -->
-    <Replace>
-      <CmdID>15</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_DoNotAllowAnonymousEnumerationOfSamAccountsAndShares</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network access: Restrict anonymous access to Named Pipes and Shares = Enabled -->
-    <Replace>
-      <CmdID>16</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_RestrictAnonymousAccessToNamedPipesAndShares</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!--
-      Network access: Restrict clients allowed to make remote calls to SAM
-      Value: O:BAG:BAD:(A;;RC;;;BA) = Administrators only (SDDL format)
-    -->
-    <Replace>
-      <CmdID>17</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_RestrictClientsAllowedToMakeRemoteCallsToSAM</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>O:BAG:BAD:(A;;RC;;;BA)</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Allow Local System to use computer identity for NTLM = Enabled -->
-    <Replace>
-      <CmdID>18</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_AllowLocalSystemToUseComputerIdentityForNTLM</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Allow PKU2U authentication requests = Disabled -->
-    <Replace>
-      <CmdID>19</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_AllowPKU2UAuthenticationRequests</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>0</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Do not store LAN Manager hash value = Enabled -->
-    <Replace>
-      <CmdID>20</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_DoNotStoreLANManagerHashValueOnNextPasswordChange</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>1</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: LAN Manager authentication level = Send NTLMv2 response only. Refuse LM & NTLM (5) -->
-    <Replace>
-      <CmdID>21</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_LANManagerAuthenticationLevel</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>5</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Minimum session security for NTLM SSP based clients = 537395200 (require NTLMv2 + 128-bit encryption) -->
-    <Replace>
-      <CmdID>22</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_MinimumSessionSecurityForNTLMSSPBasedClients</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>537395200</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Minimum session security for NTLM SSP based servers = 537395200 (require NTLMv2 + 128-bit encryption) -->
-    <Replace>
-      <CmdID>23</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_MinimumSessionSecurityForNTLMSSPBasedServers</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>537395200</Data>
-      </Item>
-    </Replace>
-
-    <!-- Network security: Restrict NTLM: Audit incoming NTLM traffic = Enable auditing (2) -->
-    <Replace>
-      <CmdID>24</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_RestrictNTLM_AuditIncomingNTLMTraffic</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>2</Data>
-      </Item>
-    </Replace>
-
-    <!-- UAC: Behavior of elevation prompt for administrators = Prompt for credentials on secure desktop (2) -->
-    <Replace>
-      <CmdID>25</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/UserAccountControl_BehaviorOfTheElevationPromptForAdministrators</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>2</Data>
-      </Item>
-    </Replace>
-
-    <!-- UAC: Behavior of elevation prompt for standard users = Automatically deny elevation requests (0) -->
-    <Replace>
-      <CmdID>26</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/UserAccountControl_BehaviorOfTheElevationPromptForStandardUsers</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">int</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>0</Data>
-      </Item>
-    </Replace>
-
-    <Final/>
-  </SyncBody>
-</SyncML>
+<!-- CIS Windows 11 Intune v8.1 – Local Security Options (Section 2.3) -->
+<Replace>
+  <!-- Accounts: Guest account status = Disabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Accounts: Rename administrator account
+      Update "AdminAcct" to your organization's preferred name (must not be "Administrator"). -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI>
+    </Target>
+    <Data>AdminAcct</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Accounts: Rename guest account
+      Update "GuestAcct" to your organization's preferred name (must not be "Guest"). -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameGuestAccount</LocURI>
+    </Target>
+    <Data>GuestAcct</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Do not display last signed-in = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_DoNotDisplayLastSignedIn</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Do not require CTRL+ALT+DEL = Disabled (0 = CTRL+ALT+DEL required) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_DoNotRequireCTRLALTDEL</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Machine inactivity limit = 900 seconds (15 minutes) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit</LocURI>
+    </Target>
+    <Data>900</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Smart card removal behavior = Lock Workstation (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_SmartCardRemovalBehavior</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Message text for users attempting to log on
+      Update with your organization's legal notice text. -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MessageTextForUsersAttemptingToLogOn</LocURI>
+    </Target>
+    <Data>This system is for authorized users only. All activity may be monitored and reported.</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Interactive logon: Message title for users attempting to log on
+      Update with your organization's preferred title. -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MessageTitleForUsersAttemptingToLogOn</LocURI>
+    </Target>
+    <Data>Authorized Use Only</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Microsoft network client: Digitally sign communications (always) = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkClient_DigitallySignCommunicationsAlways</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Microsoft network client: Digitally sign communications (if server agrees) = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkClient_DigitallySignCommunicationsIfServerAgrees</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Microsoft network server: Digitally sign communications (always) = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkServer_DigitallySignCommunicationsAlways</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Microsoft network server: Digitally sign communications (if client agrees) = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/MicrosoftNetworkServer_DigitallySignCommunicationsIfClientAgrees</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network access: Do not allow anonymous enumeration of SAM accounts = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_DoNotAllowAnonymousEnumerationOfSAMAccounts</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network access: Do not allow anonymous enumeration of SAM accounts and shares = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_DoNotAllowAnonymousEnumerationOfSamAccountsAndShares</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network access: Restrict anonymous access to Named Pipes and Shares = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_RestrictAnonymousAccessToNamedPipesAndShares</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network access: Restrict clients allowed to make remote calls to SAM
+      Value: O:BAG:BAD:(A;;RC;;;BA) = Administrators only (SDDL format) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkAccess_RestrictClientsAllowedToMakeRemoteCallsToSAM</LocURI>
+    </Target>
+    <Data>O:BAG:BAD:(A;;RC;;;BA)</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Allow Local System to use computer identity for NTLM = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_AllowLocalSystemToUseComputerIdentityForNTLM</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Allow PKU2U authentication requests = Disabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_AllowPKU2UAuthenticationRequests</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Do not store LAN Manager hash value = Enabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_DoNotStoreLANManagerHashValueOnNextPasswordChange</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: LAN Manager authentication level = Send NTLMv2 response only. Refuse LM & NTLM (5) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_LANManagerAuthenticationLevel</LocURI>
+    </Target>
+    <Data>5</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Minimum session security for NTLM SSP based clients = 537395200 (require NTLMv2 + 128-bit encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_MinimumSessionSecurityForNTLMSSPBasedClients</LocURI>
+    </Target>
+    <Data>537395200</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Minimum session security for NTLM SSP based servers = 537395200 (require NTLMv2 + 128-bit encryption) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_MinimumSessionSecurityForNTLMSSPBasedServers</LocURI>
+    </Target>
+    <Data>537395200</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Network security: Restrict NTLM: Audit incoming NTLM traffic = Enable auditing (2) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/NetworkSecurity_RestrictNTLM_AuditIncomingNTLMTraffic</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- UAC: Behavior of elevation prompt for administrators = Prompt for credentials on secure desktop (2) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/UserAccountControl_BehaviorOfTheElevationPromptForAdministrators</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- UAC: Behavior of elevation prompt for standard users = Automatically deny elevation requests (0) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/UserAccountControl_BehaviorOfTheElevationPromptForStandardUsers</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>

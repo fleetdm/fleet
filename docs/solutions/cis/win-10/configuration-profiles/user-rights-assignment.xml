@@ -1,455 +1,328 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  CIS Windows 10 Enterprise Benchmark v3.0.0 - User Rights Assignment Configuration Profile
-  Applies user rights assignments via MDM/Intune SyncML
-
-  Covered CIS Controls (Section 2.2):
-  - 2.2.1  Access Credential Manager as a trusted caller -> No One (empty)
-  - 2.2.2  Access this computer from the network        -> Administrators, Remote Desktop Users
-  - 2.2.3  Act as part of the operating system         -> No One (empty)
-  - 2.2.5  Allow log on locally                        -> Administrators, Users
-  - 2.2.7  Back up files and directories               -> Administrators
-  - 2.2.8  Change the system time                      -> Administrators, LOCAL SERVICE
-  - 2.2.11 Create a token object                       -> No One (empty)
-  - 2.2.12 Create global objects                       -> Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE
-  - 2.2.13 Create permanent shared objects             -> No One (empty)
-  - 2.2.14 Create symbolic links                       -> Administrators
-  - 2.2.15 Debug programs                              -> Administrators
-  - 2.2.16 Deny access this computer from the network  -> Guests
-  - 2.2.19 Deny log on locally                         -> Guests
-  - 2.2.20 Deny log on through Remote Desktop Services -> Guests
-  - 2.2.21 Enable computer and user accounts for delegation -> No One (empty)
-  - 2.2.22 Force shutdown from a remote system         -> Administrators
-  - 2.2.23 Generate security audits                    -> LOCAL SERVICE, NETWORK SERVICE
-  - 2.2.24 Impersonate a client after authentication   -> Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE
-  - 2.2.25 Increase scheduling priority                -> Administrators
-  - 2.2.26 Load and unload device drivers              -> Administrators
-  - 2.2.27 Lock pages in memory                        -> No One (empty)
-  - 2.2.30 Manage auditing and security log            -> Administrators
-  - 2.2.31 Modify an object label                      -> No One (empty)
-  - 2.2.32 Modify firmware environment values          -> Administrators
-  - 2.2.34 Profile single process                      -> Administrators
-  - 2.2.37 Restore files and directories               -> Administrators
-  - 2.2.39 Take ownership of files or other objects    -> Administrators
-
-  SID Reference:
-  - S-1-5-6    = SERVICE
-  - S-1-5-19   = LOCAL SERVICE
-  - S-1-5-20   = NETWORK SERVICE
-  - S-1-5-32-544 = Administrators
-  - S-1-5-32-545 = Users
-  - S-1-5-32-546 = Guests
-  - S-1-5-32-555 = Remote Desktop Users
-  Delimiter: &#xF000; (Unicode F000, null separator between SIDs/names)
--->
-<SyncML xmlns="SYNCML:SYNCML1.2">
-  <SyncBody>
-
-    <!-- 2.2.1: Access Credential Manager as a trusted caller = No One -->
-    <Replace>
-      <CmdID>1</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.2: Access this computer from the network = Administrators, Remote Desktop Users -->
-    <Replace>
-      <CmdID>2</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544&#xF000;*S-1-5-32-555</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.3: Act as part of the operating system = No One -->
-    <Replace>
-      <CmdID>3</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.5: Allow log on locally = Administrators, Users -->
-    <Replace>
-      <CmdID>4</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544&#xF000;*S-1-5-32-545</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.7: Back up files and directories = Administrators -->
-    <Replace>
-      <CmdID>5</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.8: Change the system time = Administrators, LOCAL SERVICE -->
-    <Replace>
-      <CmdID>6</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeSystemTime</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544&#xF000;*S-1-5-19</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.11: Create a token object = No One -->
-    <Replace>
-      <CmdID>7</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.12: Create global objects = Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE -->
-    <Replace>
-      <CmdID>8</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateGlobalObjects</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.13: Create permanent shared objects = No One -->
-    <Replace>
-      <CmdID>9</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreatePermanentSharedObjects</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.14: Create symbolic links = Administrators (+ Virtual Machines if Hyper-V host) -->
-    <Replace>
-      <CmdID>10</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateSymbolicLinks</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.15: Debug programs = Administrators -->
-    <Replace>
-      <CmdID>11</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DebugPrograms</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.16: Deny access this computer from the network = Guests -->
-    <Replace>
-      <CmdID>12</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyAccessFromNetwork</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-546</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.19: Deny log on locally = Guests -->
-    <Replace>
-      <CmdID>13</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyLocalLogOn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-546</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.20: Deny log on through Remote Desktop Services = Guests -->
-    <Replace>
-      <CmdID>14</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyRemoteDesktopServicesLogOn</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-546</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.21: Enable computer and user accounts to be trusted for delegation = No One -->
-    <Replace>
-      <CmdID>15</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/EnableDelegation</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.22: Force shutdown from a remote system = Administrators -->
-    <Replace>
-      <CmdID>16</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RemoteShutdown</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.23: Generate security audits = LOCAL SERVICE, NETWORK SERVICE -->
-    <Replace>
-      <CmdID>17</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/GenerateSecurityAudits</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-19&#xF000;*S-1-5-20</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.24: Impersonate a client after authentication = Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE -->
-    <Replace>
-      <CmdID>18</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ImpersonateClient</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.25: Increase scheduling priority = Administrators -->
-    <Replace>
-      <CmdID>19</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/IncreaseSchedulingPriority</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.26: Load and unload device drivers = Administrators -->
-    <Replace>
-      <CmdID>20</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LoadUnloadDeviceDrivers</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.27: Lock pages in memory = No One -->
-    <Replace>
-      <CmdID>21</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LockMemory</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.30: Manage auditing and security log = Administrators -->
-    <Replace>
-      <CmdID>22</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ManageAuditingAndSecurityLog</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.31: Modify an object label = No One -->
-    <Replace>
-      <CmdID>23</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyObjectLabel</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data></Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.32: Modify firmware environment values = Administrators -->
-    <Replace>
-      <CmdID>24</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyFirmwareEnvironment</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.34: Profile single process = Administrators -->
-    <Replace>
-      <CmdID>25</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ProfileSingleProcess</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.37: Restore files and directories = Administrators -->
-    <Replace>
-      <CmdID>26</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RestoreFilesAndDirectories</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <!-- 2.2.39: Take ownership of files or other objects = Administrators -->
-    <Replace>
-      <CmdID>27</CmdID>
-      <Item>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/TakeOwnership</LocURI>
-        </Target>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-          <Type xmlns="syncml:metinf">text/plain</Type>
-        </Meta>
-        <Data>*S-1-5-32-544</Data>
-      </Item>
-    </Replace>
-
-    <Final/>
-  </SyncBody>
-</SyncML>
+<!-- CIS Windows 10 Enterprise v3.0.0 – User Rights Assignment (Section 2.2) -->
+<!-- SID Reference: S-1-5-6=SERVICE, S-1-5-19=LOCAL SERVICE, S-1-5-20=NETWORK SERVICE,
+     S-1-5-32-544=Administrators, S-1-5-32-545=Users, S-1-5-32-546=Guests,
+     S-1-5-32-555=Remote Desktop Users, S-1-5-113=Local account -->
+<Replace>
+  <!-- 2.2.1: Access Credential Manager as a trusted caller = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.2: Access this computer from the network = Administrators, Remote Desktop Users -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AccessFromNetwork</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-555</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.3: Act as part of the operating system = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ActAsPartOfTheOperatingSystem</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.5: Allow log on locally = Administrators, Users -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/AllowLocalLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-32-545</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.7: Back up files and directories = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/BackupFilesAndDirectories</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.8: Change the system time = Administrators, LOCAL SERVICE -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ChangeSystemTime</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.11: Create a token object = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateToken</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.12: Create global objects = Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateGlobalObjects</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.13: Create permanent shared objects = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreatePermanentSharedObjects</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.14: Create symbolic links = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/CreateSymbolicLinks</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.15: Debug programs = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DebugPrograms</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.16: Deny access this computer from the network = Guests, Local account -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyAccessFromNetwork</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546&#xF000;*S-1-5-113</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.19: Deny log on locally = Guests -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyLocalLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.20: Deny log on through Remote Desktop Services = Guests, Local account -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/DenyRemoteDesktopServicesLogOn</LocURI>
+    </Target>
+    <Data>*S-1-5-32-546&#xF000;*S-1-5-113</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.21: Enable computer and user accounts for delegation = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/EnableDelegation</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.22: Force shutdown from a remote system = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RemoteShutdown</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.23: Generate security audits = LOCAL SERVICE, NETWORK SERVICE -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/GenerateSecurityAudits</LocURI>
+    </Target>
+    <Data>*S-1-5-19&#xF000;*S-1-5-20</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.24: Impersonate a client after authentication = Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ImpersonateClient</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544&#xF000;*S-1-5-19&#xF000;*S-1-5-20&#xF000;*S-1-5-6</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.25: Increase scheduling priority = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/IncreaseSchedulingPriority</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.26: Load and unload device drivers = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LoadUnloadDeviceDrivers</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.27: Lock pages in memory = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/LockMemory</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.30: Manage auditing and security log = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ManageAuditingAndSecurityLog</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.31: Modify an object label = No One -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyObjectLabel</LocURI>
+    </Target>
+    <Data></Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.32: Modify firmware environment values = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ModifyFirmwareEnvironment</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.34: Profile single process = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/ProfileSingleProcess</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.37: Restore files and directories = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/RestoreFilesAndDirectories</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.2.39: Take ownership of files or other objects = Administrators -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/UserRights/TakeOwnership</LocURI>
+    </Target>
+    <Data>*S-1-5-32-544</Data>
+  </Item>
+</Replace>
