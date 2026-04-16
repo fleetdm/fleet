@@ -12,7 +12,8 @@ data class ParsedSql(
     val tableName: String,
     val selectedColumns: List<String>,
     val selectAll: Boolean,
-    val where: List<WhereCond> = emptyList()
+    val where: List<WhereCond> = emptyList(),
+    val limit: Int? = null
 )
 
 /**
@@ -21,6 +22,7 @@ data class ParsedSql(
  *   SELECT a,b FROM table
  *   SELECT ... FROM table WHERE col = 'x'
  *   SELECT ... FROM table WHERE col LIKE '%x%' AND other = "y"
+ *   SELECT ... FROM table LIMIT 10
  *
  * Notes:
  * - Only WHERE with AND is supported.
@@ -34,14 +36,16 @@ fun parseSelectSql(sql: String): ParsedSql {
     // 1) columns part
     // 2) table name
     // 3) optional where clause
+    // 4) optional limit
     val re = Regex(
-        pattern = """(?is)^\s*select\s+(.+?)\s+from\s+([a-zA-Z0-9_]+)(?:\s+where\s+(.+?))?\s*$"""
+        pattern = """(?is)^\s*select\s+(.+?)\s+from\s+([a-zA-Z0-9_]+)(?:\s+where\s+(.+?))?(?:\s+limit\s+(\d+))?\s*$"""
     )
-    val m = re.find(s) ?: throw IllegalArgumentException("Bad SQL. Expected: SELECT <cols> FROM <table> [WHERE ...]")
+    val m = re.find(s) ?: throw IllegalArgumentException("Bad SQL. Expected: SELECT <cols> FROM <table> [WHERE ...] [LIMIT n]")
 
     val colsPart = m.groupValues[1].trim()
     val table = m.groupValues[2].trim()
     val wherePart = m.groupValues.getOrNull(3)?.trim().orEmpty()
+    val limitPart = m.groupValues.getOrNull(4)?.trim().orEmpty()
 
     val (selectAll, cols) = if (colsPart == "*") {
         true to emptyList()
@@ -52,12 +56,14 @@ fun parseSelectSql(sql: String): ParsedSql {
     }
 
     val where = if (wherePart.isBlank()) emptyList() else parseWhere(wherePart)
+    val limit = limitPart.toIntOrNull()
 
     return ParsedSql(
         tableName = table,
         selectedColumns = cols,
         selectAll = selectAll,
-        where = where
+        where = where,
+        limit = limit
     )
 }
 

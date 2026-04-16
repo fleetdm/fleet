@@ -63,7 +63,9 @@ object FleetDistributedQueryRunner {
             if (parsed.where.isEmpty()) fullRows
             else fullRows.filter { row -> matchesWhere(row, parsed.where) }
 
-        if (parsed.selectAll) return filteredRows
+        val limitedRows = if (parsed.limit != null) filteredRows.take(parsed.limit) else filteredRows
+
+        if (parsed.selectAll) return limitedRows
 
         val schemaCols = TableRegistry.getColumns(parsed.tableName).map { it.name }
         val schemaLowerToReal = schemaCols.associateBy { it.lowercase() }
@@ -81,7 +83,7 @@ object FleetDistributedQueryRunner {
             )
         }
 
-        return TableRegistry.projectRows(filteredRows, selectedRealCols)
+        return TableRegistry.projectRows(limitedRows, selectedRealCols)
     }
 
     private fun matchesWhere(row: Map<String, String>, where: List<WhereCond>): Boolean {

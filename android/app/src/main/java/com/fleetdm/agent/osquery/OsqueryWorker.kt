@@ -92,12 +92,12 @@ class OsqueryWorker(
                 Log.w(TAG, "Failed to collect software inventory: ${e.message}")
             }
 
-            // Run scheduled queries (prefer server config, fall back to local)
-            try {
-                ScheduledQueryExecutor.runDueQueries(applicationContext, androidConfig)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to run scheduled queries: ${e.message}")
-            }
+            // TODO: ScheduledQueryExecutor not yet implemented
+            // try {
+            //     ScheduledQueryExecutor.runDueQueries(applicationContext, androidConfig)
+            // } catch (e: Exception) {
+            //     Log.w(TAG, "Failed to run scheduled queries: ${e.message}")
+            // }
 
             scheduleNext(androidConfig)
             return Result.success()
