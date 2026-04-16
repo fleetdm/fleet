@@ -24,25 +24,6 @@
       ]
     },
     {
-      "vendor": "5ire",
-      "product": "5ire",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22792",
-          "cvss_score": 9.6,
-          "version_end_excluding": "0.15.3",
-          "published_date": "2026-01-21T21:16Z"
-        },
-        {
-          "id": "CVE-2026-22793",
-          "cvss_score": 9.6,
-          "version_end_excluding": "0.15.3",
-          "published_date": "2026-01-21T21:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "a54552239",
       "product": "pearprojectapi",
       "target_sw_hints": [],
@@ -617,25 +598,6 @@
       ]
     },
     {
-      "vendor": "anysphere",
-      "product": "cursor",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22708",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.3",
-          "published_date": "2026-01-14T17:16Z"
-        },
-        {
-          "id": "CVE-2026-26268",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2.5",
-          "published_date": "2026-02-13T17:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "apache",
       "product": "activemq_artemis",
       "target_sw_hints": [],
@@ -675,19 +637,6 @@
     },
     {
       "vendor": "apache",
-      "product": "druid",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-23906",
-          "cvss_score": 9.8,
-          "version_end_excluding": "36.0.0",
-          "published_date": "2026-02-10T10:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "apache",
       "product": "iotdb",
       "target_sw_hints": [],
       "related_cves": [
@@ -702,19 +651,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "1.3.7",
           "published_date": "2026-03-09T09:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "apache",
-      "product": "tomcat",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-29145",
-          "cvss_score": 9.1,
-          "version_end_excluding": "9.0.116",
-          "published_date": "2026-04-09T20:16Z"
         }
       ]
     },
@@ -925,73 +861,6 @@
           "cvss_score": 9.8,
           "version_end_including": "4.0.0",
           "published_date": "2026-01-27T09:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "b3log",
-      "product": "siyuan",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-23852",
-          "cvss_score": 9.6,
-          "version_end_excluding": "3.5.4",
-          "published_date": "2026-01-19T20:15Z"
-        },
-        {
-          "id": "CVE-2026-30869",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.5.10",
-          "published_date": "2026-03-10T17:40Z"
-        },
-        {
-          "id": "CVE-2026-32749",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.6.1",
-          "published_date": "2026-03-19T21:17Z"
-        },
-        {
-          "id": "CVE-2026-32751",
-          "cvss_score": 9,
-          "version_end_excluding": "3.6.1",
-          "published_date": "2026-03-19T22:16Z"
-        },
-        {
-          "id": "CVE-2026-32767",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.6.1",
-          "published_date": "2026-03-20T01:15Z"
-        },
-        {
-          "id": "CVE-2026-33066",
-          "cvss_score": 9,
-          "version_end_excluding": "3.6.1",
-          "published_date": "2026-03-20T09:16Z"
-        },
-        {
-          "id": "CVE-2026-33067",
-          "cvss_score": 9,
-          "version_end_excluding": "3.6.1",
-          "published_date": "2026-03-20T09:16Z"
-        },
-        {
-          "id": "CVE-2026-34448",
-          "cvss_score": 9,
-          "version_end_excluding": "3.6.2",
-          "published_date": "2026-03-31T22:16Z"
-        },
-        {
-          "id": "CVE-2026-34449",
-          "cvss_score": 9.6,
-          "version_end_excluding": "3.6.2",
-          "published_date": "2026-03-31T22:16Z"
-        },
-        {
-          "id": "CVE-2026-39846",
-          "cvss_score": 9,
-          "version_end_excluding": "3.6.4",
-          "published_date": "2026-04-07T22:16Z"
         }
       ]
     },
@@ -1226,50 +1095,6 @@
       ]
     },
     {
-      "vendor": "caddyserver",
-      "product": "caddy",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27586",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2.11.1",
-          "published_date": "2026-02-24T17:29Z"
-        },
-        {
-          "id": "CVE-2026-27587",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2.11.1",
-          "published_date": "2026-02-24T17:29Z"
-        },
-        {
-          "id": "CVE-2026-27588",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2.11.1",
-          "published_date": "2026-02-24T17:29Z"
-        },
-        {
-          "id": "CVE-2026-27590",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.11.1",
-          "published_date": "2026-02-24T17:29Z"
-        }
-      ]
-    },
-    {
-      "vendor": "caido",
-      "product": "caido",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24853",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.55.0",
-          "published_date": "2026-02-13T23:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "cal",
       "product": "cal.com",
       "target_sw_hints": [],
@@ -1310,25 +1135,6 @@
           "id": "CVE-2026-0597",
           "cvss_score": 9.8,
           "published_date": "2026-01-05T15:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "canonical",
-      "product": "juju",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-4370",
-          "cvss_score": 10,
-          "version_end_excluding": "3.6.20",
-          "published_date": "2026-04-01T09:16Z"
-        },
-        {
-          "id": "CVE-2026-5412",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2.9.57",
-          "published_date": "2026-04-10T13:16Z"
         }
       ]
     },
@@ -1542,19 +1348,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "24.04.24",
           "published_date": "2026-02-27T16:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "centrifugal",
-      "product": "centrifugo",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-32301",
-          "cvss_score": 9.3,
-          "version_end_excluding": "6.7.0",
-          "published_date": "2026-03-13T19:54Z"
         }
       ]
     },
@@ -1884,19 +1677,6 @@
       ]
     },
     {
-      "vendor": "cline",
-      "product": "cline",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-30313",
-          "cvss_score": 9.8,
-          "version_end_including": "1.1.2",
-          "published_date": "2026-03-30T21:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "clive_21",
       "product": "directory_management_system",
       "target_sw_hints": [],
@@ -2158,25 +1938,6 @@
       ]
     },
     {
-      "vendor": "color",
-      "product": "iccdev",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-21675",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.3.1.1",
-          "published_date": "2026-01-06T02:15Z"
-        },
-        {
-          "id": "CVE-2026-21679",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.3.1.2",
-          "published_date": "2026-01-07T18:15Z"
-        }
-      ]
-    },
-    {
       "vendor": "connectwise",
       "product": "screenconnect",
       "target_sw_hints": [],
@@ -2284,21 +2045,6 @@
           "cvss_score": 9.9,
           "version_end_including": "3.5.6.1",
           "published_date": "2026-03-25T17:17Z"
-        }
-      ]
-    },
-    {
-      "vendor": "cryptography.io",
-      "product": "cryptography",
-      "target_sw_hints": [
-        "python"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-39892",
-          "cvss_score": 9.8,
-          "version_end_excluding": "46.0.7",
-          "published_date": "2026-04-08T21:17Z"
         }
       ]
     },
@@ -2621,19 +2367,6 @@
       ]
     },
     {
-      "vendor": "devtoys",
-      "product": "devtoys",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22685",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.0.9.0",
-          "published_date": "2026-01-10T06:15Z"
-        }
-      ]
-    },
-    {
       "vendor": "dgraph",
       "product": "dgraph",
       "target_sw_hints": [],
@@ -2828,19 +2561,6 @@
           "id": "CVE-2026-26725",
           "cvss_score": 9.8,
           "published_date": "2026-02-20T17:25Z"
-        }
-      ]
-    },
-    {
-      "vendor": "eigent",
-      "product": "eigent",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22869",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.0.78",
-          "published_date": "2026-01-13T21:15Z"
         }
       ]
     },
@@ -3277,31 +2997,6 @@
       ]
     },
     {
-      "vendor": "filebrowser",
-      "product": "filebrowser",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-32760",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.62.0",
-          "published_date": "2026-03-20T00:16Z"
-        },
-        {
-          "id": "CVE-2026-34528",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.62.2",
-          "published_date": "2026-04-01T21:17Z"
-        },
-        {
-          "id": "CVE-2026-34529",
-          "cvss_score": 9,
-          "version_end_excluding": "2.62.2",
-          "published_date": "2026-04-01T21:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "fleetdm",
       "product": "fleet",
       "target_sw_hints": [],
@@ -3579,163 +3274,6 @@
       ]
     },
     {
-      "vendor": "freerdp",
-      "product": "freerdp",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22852",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22853",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22854",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22855",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22857",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22858",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-22859",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.20.1",
-          "published_date": "2026-01-14T18:16Z"
-        },
-        {
-          "id": "CVE-2026-23530",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T17:15Z"
-        },
-        {
-          "id": "CVE-2026-23531",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T17:15Z"
-        },
-        {
-          "id": "CVE-2026-23532",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T17:15Z"
-        },
-        {
-          "id": "CVE-2026-23533",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T18:16Z"
-        },
-        {
-          "id": "CVE-2026-23534",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T18:16Z"
-        },
-        {
-          "id": "CVE-2026-23883",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T18:16Z"
-        },
-        {
-          "id": "CVE-2026-23884",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.21.0",
-          "published_date": "2026-01-19T18:16Z"
-        },
-        {
-          "id": "CVE-2026-24677",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.22.0",
-          "published_date": "2026-02-09T19:15Z"
-        },
-        {
-          "id": "CVE-2026-24679",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.22.0",
-          "published_date": "2026-02-09T19:15Z"
-        },
-        {
-          "id": "CVE-2026-25952",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.23.0",
-          "published_date": "2026-02-25T21:16Z"
-        },
-        {
-          "id": "CVE-2026-25953",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.23.0",
-          "published_date": "2026-02-25T21:16Z"
-        },
-        {
-          "id": "CVE-2026-25955",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.23.0",
-          "published_date": "2026-02-25T21:16Z"
-        },
-        {
-          "id": "CVE-2026-25959",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.23.0",
-          "published_date": "2026-02-25T21:16Z"
-        },
-        {
-          "id": "CVE-2026-25997",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.23.0",
-          "published_date": "2026-02-25T21:16Z"
-        },
-        {
-          "id": "CVE-2026-31806",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.24.0",
-          "published_date": "2026-03-13T19:54Z"
-        },
-        {
-          "id": "CVE-2026-31883",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.24.0",
-          "published_date": "2026-03-13T19:54Z"
-        },
-        {
-          "id": "CVE-2026-31885",
-          "cvss_score": 9.4,
-          "version_end_excluding": "3.24.0",
-          "published_date": "2026-03-13T19:54Z"
-        },
-        {
-          "id": "CVE-2026-31897",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.24.0",
-          "published_date": "2026-03-13T19:54Z"
-        }
-      ]
-    },
-    {
       "vendor": "freescout",
       "product": "freescout",
       "target_sw_hints": [],
@@ -3819,19 +3357,6 @@
       ]
     },
     {
-      "vendor": "gematik",
-      "product": "authenticator",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33875",
-          "cvss_score": 9.3,
-          "version_end_excluding": "4.16.0",
-          "published_date": "2026-03-27T21:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "getgrist",
       "product": "grist-core",
       "target_sw_hints": [],
@@ -3841,19 +3366,6 @@
           "cvss_score": 9.6,
           "version_end_excluding": "1.7.9",
           "published_date": "2026-01-22T03:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "getoutline",
-      "product": "outline",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33640",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.6.0",
-          "published_date": "2026-03-26T21:17Z"
         }
       ]
     },
@@ -3871,23 +3383,6 @@
           "id": "CVE-2026-2039",
           "cvss_score": 9.8,
           "published_date": "2026-02-20T23:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "ggml",
-      "product": "llama.cpp",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-21869",
-          "cvss_score": 9.8,
-          "published_date": "2026-01-08T00:16Z"
-        },
-        {
-          "id": "CVE-2026-34159",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-01T18:16Z"
         }
       ]
     },
@@ -3935,33 +3430,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "25.12.10.01",
           "published_date": "2026-03-30T08:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "gitea",
-      "product": "gitea",
-      "target_sw_hints": [
-        "-"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-20750",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.25.4",
-          "published_date": "2026-01-22T22:16Z"
-        },
-        {
-          "id": "CVE-2026-20897",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.25.4",
-          "published_date": "2026-01-22T22:16Z"
-        },
-        {
-          "id": "CVE-2026-20912",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.25.4",
-          "published_date": "2026-01-22T22:16Z"
         }
       ]
     },
@@ -4019,136 +3487,6 @@
           "id": "CVE-2026-4631",
           "cvss_score": 9.8,
           "published_date": "2026-04-07T17:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "gnu",
-      "product": "inetutils",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24061",
-          "cvss_score": 9.8,
-          "version_end_including": "2.7",
-          "published_date": "2026-01-21T07:16Z"
-        },
-        {
-          "id": "CVE-2026-32746",
-          "cvss_score": 9.8,
-          "version_end_including": "2.7",
-          "published_date": "2026-03-13T19:55Z"
-        }
-      ]
-    },
-    {
-      "vendor": "gnupg",
-      "product": "gnupg",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24881",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.5.17",
-          "published_date": "2026-01-27T19:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "gogs",
-      "product": "gogs",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-25242",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.14.1",
-          "published_date": "2026-02-19T07:17Z"
-        },
-        {
-          "id": "CVE-2026-25921",
-          "cvss_score": 9.3,
-          "version_end_excluding": "0.14.2",
-          "published_date": "2026-03-05T19:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "google",
-      "product": "chrome",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-0905",
-          "cvss_score": 9.8,
-          "version_end_excluding": "144.0.7559.59",
-          "published_date": "2026-01-20T05:16Z"
-        },
-        {
-          "id": "CVE-2026-0906",
-          "cvss_score": 9.8,
-          "version_end_excluding": "144.0.7559.59",
-          "published_date": "2026-01-20T05:16Z"
-        },
-        {
-          "id": "CVE-2026-0907",
-          "cvss_score": 9.8,
-          "version_end_excluding": "144.0.7559.59",
-          "published_date": "2026-01-20T05:16Z"
-        },
-        {
-          "id": "CVE-2026-3061",
-          "cvss_score": 9.1,
-          "version_end_excluding": "145.0.7632.116",
-          "published_date": "2026-02-23T23:16Z"
-        },
-        {
-          "id": "CVE-2026-3062",
-          "cvss_score": 9.8,
-          "version_end_excluding": "145.0.7632.116",
-          "published_date": "2026-02-23T23:16Z"
-        },
-        {
-          "id": "CVE-2026-3545",
-          "cvss_score": 9.6,
-          "version_end_excluding": "145.0.7632.159",
-          "published_date": "2026-03-04T20:16Z"
-        },
-        {
-          "id": "CVE-2026-3916",
-          "cvss_score": 9.6,
-          "version_end_excluding": "146.0.7680.71",
-          "published_date": "2026-03-11T22:16Z"
-        },
-        {
-          "id": "CVE-2026-5288",
-          "cvss_score": 9.6,
-          "version_end_excluding": "146.0.7680.177",
-          "published_date": "2026-04-01T05:16Z"
-        },
-        {
-          "id": "CVE-2026-5289",
-          "cvss_score": 9.6,
-          "version_end_excluding": "146.0.7680.177",
-          "published_date": "2026-04-01T05:16Z"
-        },
-        {
-          "id": "CVE-2026-5290",
-          "cvss_score": 9.6,
-          "version_end_excluding": "146.0.7680.177",
-          "published_date": "2026-04-01T05:16Z"
-        },
-        {
-          "id": "CVE-2026-5874",
-          "cvss_score": 9.6,
-          "version_end_excluding": "147.0.7727.55",
-          "published_date": "2026-04-08T22:16Z"
-        },
-        {
-          "id": "CVE-2026-5902",
-          "cvss_score": 9.8,
-          "version_end_excluding": "147.0.7727.55",
-          "published_date": "2026-04-08T22:16Z"
         }
       ]
     },
@@ -4211,19 +3549,6 @@
       ]
     },
     {
-      "vendor": "grafana",
-      "product": "grafana",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27876",
-          "cvss_score": 9.1,
-          "version_end_excluding": "11.6.0",
-          "published_date": "2026-03-27T15:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "graylog",
       "product": "graylog",
       "target_sw_hints": [],
@@ -4251,32 +3576,6 @@
           "cvss_score": 9.8,
           "version_end_including": "2017-10-16",
           "published_date": "2026-02-08T21:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "h3",
-      "product": "h3",
-      "target_sw_hints": [
-        "node.js"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-23527",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.15.5",
-          "published_date": "2026-01-15T20:16Z"
-        },
-        {
-          "id": "CVE-2026-33128",
-          "cvss_score": 10,
-          "version_end_excluding": "1.15.6",
-          "published_date": "2026-03-20T10:16Z"
-        },
-        {
-          "id": "CVE-2026-33131",
-          "cvss_score": 9.1,
-          "published_date": "2026-03-20T11:18Z"
         }
       ]
     },
@@ -4445,19 +3744,6 @@
       ]
     },
     {
-      "vendor": "home-assistant",
-      "product": "home-assistant",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-34205",
-          "cvss_score": 9.6,
-          "version_end_including": "17.1",
-          "published_date": "2026-03-27T20:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "hono",
       "product": "hono",
       "target_sw_hints": [
@@ -4469,31 +3755,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "4.12.4",
           "published_date": "2026-03-04T23:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "hoppscotch",
-      "product": "hoppscotch",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-28215",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.0",
-          "published_date": "2026-02-26T23:16Z"
-        },
-        {
-          "id": "CVE-2026-34931",
-          "cvss_score": 9.6,
-          "version_end_excluding": "2026.3.0",
-          "published_date": "2026-04-02T20:16Z"
-        },
-        {
-          "id": "CVE-2026-34932",
-          "cvss_score": 9.3,
-          "version_end_excluding": "2026.3.0",
-          "published_date": "2026-04-02T20:16Z"
         }
       ]
     },
@@ -4524,25 +3785,6 @@
           "id": "CVE-2026-3795",
           "cvss_score": 9.8,
           "published_date": "2026-03-09T03:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "htslib",
-      "product": "htslib",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-31966",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.21.1",
-          "published_date": "2026-03-18T20:16Z"
-        },
-        {
-          "id": "CVE-2026-31967",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.21.1",
-          "published_date": "2026-03-18T20:16Z"
         }
       ]
     },
@@ -4717,73 +3959,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "1.15.20",
           "published_date": "2026-03-06T07:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "imagemagick",
-      "product": "imagemagick",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22770",
-          "cvss_score": 9.8,
-          "version_end_excluding": "7.1.2-13",
-          "published_date": "2026-01-20T01:15Z"
-        },
-        {
-          "id": "CVE-2026-23876",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-38",
-          "published_date": "2026-01-20T01:15Z"
-        },
-        {
-          "id": "CVE-2026-25897",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25898",
-          "cvss_score": 9.1,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25968",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25971",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25983",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25986",
-          "cvss_score": 9.8,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-25987",
-          "cvss_score": 9.1,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T02:16Z"
-        },
-        {
-          "id": "CVE-2026-26284",
-          "cvss_score": 9.1,
-          "version_end_excluding": "6.9.13-40",
-          "published_date": "2026-02-24T03:16Z"
         }
       ]
     },
@@ -5040,24 +4215,6 @@
       ]
     },
     {
-      "vendor": "jellyfin",
-      "product": "jellyfin",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-31852",
-          "cvss_score": 9.8,
-          "published_date": "2026-03-11T17:16Z"
-        },
-        {
-          "id": "CVE-2026-35031",
-          "cvss_score": 9.9,
-          "version_end_excluding": "10.11.7",
-          "published_date": "2026-04-14T23:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "jetbrains",
       "product": "hub",
       "target_sw_hints": [],
@@ -5080,19 +4237,6 @@
           "cvss_score": 9.8,
           "version_end_including": "3.6",
           "published_date": "2026-01-28T22:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "jlowin",
-      "product": "fastmcp",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-32871",
-          "cvss_score": 10,
-          "version_end_excluding": "3.2.0",
-          "published_date": "2026-04-02T15:16Z"
         }
       ]
     },
@@ -5324,83 +4468,6 @@
       ]
     },
     {
-      "vendor": "kyverno",
-      "product": "kyverno",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22039",
-          "cvss_score": 9.9,
-          "version_end_excluding": "1.15.3",
-          "published_date": "2026-01-27T17:16Z"
-        },
-        {
-          "id": "CVE-2026-4789",
-          "cvss_score": 9.8,
-          "version_end_including": "1.17.1",
-          "published_date": "2026-03-30T21:17Z"
-        }
-      ]
-    },
-    {
-      "vendor": "langflow",
-      "product": "langflow",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-0768",
-          "cvss_score": 9.8,
-          "published_date": "2026-01-23T04:16Z"
-        },
-        {
-          "id": "CVE-2026-0769",
-          "cvss_score": 9.8,
-          "published_date": "2026-01-23T04:16Z"
-        },
-        {
-          "id": "CVE-2026-0770",
-          "cvss_score": 9.8,
-          "published_date": "2026-01-23T04:16Z"
-        },
-        {
-          "id": "CVE-2026-21445",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.7.1",
-          "published_date": "2026-01-02T20:16Z"
-        },
-        {
-          "id": "CVE-2026-27966",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.8.0",
-          "published_date": "2026-02-26T02:16Z"
-        },
-        {
-          "id": "CVE-2026-33017",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.8.2",
-          "published_date": "2026-03-20T05:16Z"
-        },
-        {
-          "id": "CVE-2026-33309",
-          "cvss_score": 9.9,
-          "version_end_excluding": "1.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-33475",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-33873",
-          "cvss_score": 9.9,
-          "version_end_excluding": "1.9.0",
-          "published_date": "2026-03-27T21:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "langroid",
       "product": "langroid",
       "target_sw_hints": [],
@@ -5470,43 +4537,6 @@
       ]
     },
     {
-      "vendor": "libraw",
-      "product": "libraw",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-20884",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        },
-        {
-          "id": "CVE-2026-20889",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        },
-        {
-          "id": "CVE-2026-20911",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        },
-        {
-          "id": "CVE-2026-21413",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        },
-        {
-          "id": "CVE-2026-24450",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        },
-        {
-          "id": "CVE-2026-24660",
-          "cvss_score": 9.8,
-          "published_date": "2026-04-07T15:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "librechat",
       "product": "librechat",
       "target_sw_hints": [],
@@ -5546,25 +4576,6 @@
           "cvss_score": 9.8,
           "version_end_including": "3.0.3",
           "published_date": "2026-02-16T04:15Z"
-        }
-      ]
-    },
-    {
-      "vendor": "linuxcontainers",
-      "product": "incus",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33897",
-          "cvss_score": 9.9,
-          "version_end_excluding": "6.23.0",
-          "published_date": "2026-03-26T23:16Z"
-        },
-        {
-          "id": "CVE-2026-33945",
-          "cvss_score": 9.6,
-          "version_end_excluding": "6.23.0",
-          "published_date": "2026-03-27T00:16Z"
         }
       ]
     },
@@ -5624,19 +4635,6 @@
     },
     {
       "vendor": "linuxfoundation",
-      "product": "onnx",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-28500",
-          "cvss_score": 9.1,
-          "version_end_including": "1.20.1",
-          "published_date": "2026-03-18T02:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "linuxfoundation",
       "product": "opentelemetry_instrumentation_for_java",
       "target_sw_hints": [],
       "related_cves": [
@@ -5645,19 +4643,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "2.26.1",
           "published_date": "2026-03-27T01:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "linuxfoundation",
-      "product": "vitess",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27965",
-          "cvss_score": 9.9,
-          "version_end_excluding": "22.0.4",
-          "published_date": "2026-02-26T02:16Z"
         }
       ]
     },
@@ -5870,19 +4855,6 @@
       ]
     },
     {
-      "vendor": "mariadb",
-      "product": "mariadb",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-32710",
-          "cvss_score": 9.9,
-          "version_end_excluding": "11.4.10",
-          "published_date": "2026-03-20T19:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "markusproject",
       "product": "markus",
       "target_sw_hints": [],
@@ -6002,21 +4974,6 @@
           "cvss_score": 9.1,
           "version_end_excluding": "3.3.3",
           "published_date": "2026-03-05T06:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "mesa_project",
-      "product": "mesa",
-      "target_sw_hints": [
-        "python"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-29075",
-          "cvss_score": 9.8,
-          "version_end_including": "3.5.0",
-          "published_date": "2026-03-06T17:16Z"
         }
       ]
     },
@@ -6369,38 +5326,6 @@
       ]
     },
     {
-      "vendor": "minio",
-      "product": "minio",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33322",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026-03-17t21-25-16z",
-          "published_date": "2026-03-24T20:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "mintplexlabs",
-      "product": "anythingllm",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-32626",
-          "cvss_score": 9.6,
-          "version_end_including": "1.11.1",
-          "published_date": "2026-03-16T14:19Z"
-        },
-        {
-          "id": "CVE-2026-5627",
-          "cvss_score": 9.1,
-          "version_end_excluding": "1.12.1",
-          "published_date": "2026-04-07T14:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "mjdm",
       "product": "majordomo",
       "target_sw_hints": [],
@@ -6465,19 +5390,6 @@
       ]
     },
     {
-      "vendor": "mobyproject",
-      "product": "buildkit",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33747",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.28.1",
-          "published_date": "2026-03-27T01:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "molotovcherry",
       "product": "android-imagemagick7",
       "target_sw_hints": [],
@@ -6530,355 +5442,6 @@
           "id": "CVE-2026-5731",
           "cvss_score": 9.8,
           "version_end_excluding": "115.34.1",
-          "published_date": "2026-04-07T13:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "mozilla",
-      "product": "thunderbird",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-0879",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.7.0",
-          "published_date": "2026-01-13T14:16Z"
-        },
-        {
-          "id": "CVE-2026-0881",
-          "cvss_score": 10,
-          "version_end_excluding": "147.0",
-          "published_date": "2026-01-13T14:16Z"
-        },
-        {
-          "id": "CVE-2026-0884",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.7.0",
-          "published_date": "2026-01-13T14:16Z"
-        },
-        {
-          "id": "CVE-2026-0892",
-          "cvss_score": 9.8,
-          "version_end_excluding": "147.0",
-          "published_date": "2026-01-13T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2757",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2758",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2759",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2760",
-          "cvss_score": 10,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2761",
-          "cvss_score": 10,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2762",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2763",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2764",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2765",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2766",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2767",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2768",
-          "cvss_score": 10,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2770",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2771",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2772",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2773",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2774",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2775",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2776",
-          "cvss_score": 10,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2777",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2778",
-          "cvss_score": 10,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2779",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2780",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2781",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2782",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2784",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2785",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2786",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2787",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2788",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2789",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2790",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2791",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2792",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2793",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.8.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2795",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2796",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2797",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2799",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2800",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2805",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2806",
-          "cvss_score": 9.1,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-2807",
-          "cvss_score": 9.8,
-          "version_end_excluding": "148.0",
-          "published_date": "2026-02-24T14:16Z"
-        },
-        {
-          "id": "CVE-2026-4689",
-          "cvss_score": 10,
-          "version_end_excluding": "140.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4692",
-          "cvss_score": 10,
-          "version_end_excluding": "140.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4710",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4720",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4721",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.9.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4724",
-          "cvss_score": 9.1,
-          "version_end_excluding": "149.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-4729",
-          "cvss_score": 9.8,
-          "version_end_excluding": "149.0",
-          "published_date": "2026-03-24T13:16Z"
-        },
-        {
-          "id": "CVE-2026-5731",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.9.1",
-          "published_date": "2026-04-07T13:16Z"
-        },
-        {
-          "id": "CVE-2026-5734",
-          "cvss_score": 9.8,
-          "version_end_excluding": "140.9.1",
-          "published_date": "2026-04-07T13:16Z"
-        },
-        {
-          "id": "CVE-2026-5735",
-          "cvss_score": 9.8,
-          "version_end_excluding": "149.0.2",
           "published_date": "2026-04-07T13:16Z"
         }
       ]
@@ -7008,21 +5571,6 @@
       ]
     },
     {
-      "vendor": "nanobot",
-      "product": "nanobot",
-      "target_sw_hints": [
-        "python"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33654",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.1.4",
-          "published_date": "2026-03-27T20:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "naturalintelligence",
       "product": "fast-xml-parser",
       "target_sw_hints": [],
@@ -7053,19 +5601,6 @@
           "cvss_score": 9.1,
           "version_end_excluding": "6.2.0",
           "published_date": "2026-04-06T17:17Z"
-        }
-      ]
-    },
-    {
-      "vendor": "nektos",
-      "product": "act",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-34041",
-          "cvss_score": 9.8,
-          "version_end_excluding": "0.2.86",
-          "published_date": "2026-03-31T03:15Z"
         }
       ]
     },
@@ -7147,31 +5682,6 @@
       ]
     },
     {
-      "vendor": "nicolargo",
-      "product": "glances",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-30930",
-          "cvss_score": 9.8,
-          "version_end_excluding": "4.5.1",
-          "published_date": "2026-03-10T18:18Z"
-        },
-        {
-          "id": "CVE-2026-32611",
-          "cvss_score": 9.1,
-          "version_end_excluding": "4.5.2",
-          "published_date": "2026-03-18T18:16Z"
-        },
-        {
-          "id": "CVE-2026-32633",
-          "cvss_score": 9.1,
-          "version_end_excluding": "4.5.2",
-          "published_date": "2026-03-18T18:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "njzjz",
       "product": "wenxian",
       "target_sw_hints": [
@@ -7208,19 +5718,6 @@
           "cvss_score": 9.9,
           "version_end_excluding": "2.0.28",
           "published_date": "2026-03-31T14:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "nocodb",
-      "product": "nocodb",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24769",
-          "cvss_score": 9,
-          "version_end_excluding": "0.301.0",
-          "published_date": "2026-01-28T21:16Z"
         }
       ]
     },
@@ -7373,19 +5870,6 @@
       ]
     },
     {
-      "vendor": "oauth2_proxy_project",
-      "product": "oauth2_proxy",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-34457",
-          "cvss_score": 9.1,
-          "version_end_excluding": "7.15.2",
-          "published_date": "2026-04-14T23:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "octopus",
       "product": "octopus_server",
       "target_sw_hints": [],
@@ -7395,25 +5879,6 @@
           "cvss_score": 9.1,
           "version_end_excluding": "2025.3.14715",
           "published_date": "2026-02-25T13:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "oisf",
-      "product": "suricata",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22262",
-          "cvss_score": 9.8,
-          "version_end_excluding": "7.0.14",
-          "published_date": "2026-01-27T19:16Z"
-        },
-        {
-          "id": "CVE-2026-22264",
-          "cvss_score": 9.1,
-          "version_end_excluding": "7.0.14",
-          "published_date": "2026-01-27T19:16Z"
         }
       ]
     },
@@ -7518,237 +5983,6 @@
       ]
     },
     {
-      "vendor": "openclaw",
-      "product": "openclaw",
-      "target_sw_hints": [
-        "node.js"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-22171",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.19",
-          "published_date": "2026-03-18T02:16Z"
-        },
-        {
-          "id": "CVE-2026-22172",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2026.3.12",
-          "published_date": "2026-03-20T15:16Z"
-        },
-        {
-          "id": "CVE-2026-27002",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.15",
-          "published_date": "2026-02-20T00:16Z"
-        },
-        {
-          "id": "CVE-2026-28391",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28392",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.14",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28393",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.14",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28395",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.12",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28446",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28448",
-          "cvss_score": 9.4,
-          "version_end_excluding": "2026.2.1",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28451",
-          "cvss_score": 9.3,
-          "version_end_excluding": "2026.2.14",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28453",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.14",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28454",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28462",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.13",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28466",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2026.2.14",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28470",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28472",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28474",
-          "cvss_score": 9.8,
-          "version_end_including": "2026.2.2",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-28479",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.15",
-          "published_date": "2026-03-05T22:16Z"
-        },
-        {
-          "id": "CVE-2026-30741",
-          "cvss_score": 9.8,
-          "version_end_including": "2026.2.6",
-          "published_date": "2026-03-11T16:16Z"
-        },
-        {
-          "id": "CVE-2026-32038",
-          "cvss_score": 9,
-          "version_end_excluding": "2026.2.24",
-          "published_date": "2026-03-19T22:16Z"
-        },
-        {
-          "id": "CVE-2026-32045",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.21",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32046",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.21",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32048",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2026.3.1",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32052",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.24",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32056",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.2.22",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32064",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.2.21",
-          "published_date": "2026-03-21T01:17Z"
-        },
-        {
-          "id": "CVE-2026-32913",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.3.7",
-          "published_date": "2026-03-23T22:16Z"
-        },
-        {
-          "id": "CVE-2026-32916",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.11",
-          "published_date": "2026-03-31T12:16Z"
-        },
-        {
-          "id": "CVE-2026-32917",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.13",
-          "published_date": "2026-03-31T12:16Z"
-        },
-        {
-          "id": "CVE-2026-32922",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2026.3.11",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-32924",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.12",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-32973",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.11",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-32974",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.12",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-32975",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.12",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-32987",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2026.3.13",
-          "published_date": "2026-03-29T13:17Z"
-        },
-        {
-          "id": "CVE-2026-33579",
-          "cvss_score": 9.9,
-          "version_end_excluding": "2026.3.28",
-          "published_date": "2026-03-31T15:16Z"
-        },
-        {
-          "id": "CVE-2026-35652",
-          "cvss_score": 9.1,
-          "version_end_excluding": "2026.3.22",
-          "published_date": "2026-04-10T17:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "opendcim",
       "product": "opendcim",
       "target_sw_hints": [],
@@ -7757,19 +5991,6 @@
           "id": "CVE-2026-28517",
           "cvss_score": 9.8,
           "published_date": "2026-02-27T23:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "openfga",
-      "product": "openfga",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33729",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.13.1",
-          "published_date": "2026-03-27T01:16Z"
         }
       ]
     },
@@ -7895,19 +6116,6 @@
           "id": "CVE-2026-23796",
           "cvss_score": 9.8,
           "published_date": "2026-02-05T12:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "openssl",
-      "product": "openssl",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-28386",
-          "cvss_score": 9.1,
-          "version_end_excluding": "3.6.2",
-          "published_date": "2026-04-07T22:16Z"
         }
       ]
     },
@@ -8227,19 +6435,6 @@
       ]
     },
     {
-      "vendor": "ory",
-      "product": "oathkeeper",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-33494",
-          "cvss_score": 10,
-          "version_end_excluding": "26.2.0",
-          "published_date": "2026-03-26T18:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "osc",
       "product": "open_ondemand",
       "target_sw_hints": [],
@@ -8467,19 +6662,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "1.33.0",
           "published_date": "2026-02-03T19:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "perl",
-      "product": "perl",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-4176",
-          "cvss_score": 9.8,
-          "version_end_excluding": "5.42.2-rc1",
-          "published_date": "2026-03-29T21:16Z"
         }
       ]
     },
@@ -8883,19 +7065,6 @@
       ]
     },
     {
-      "vendor": "python",
-      "product": "black",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-31900",
-          "cvss_score": 9.8,
-          "version_end_excluding": "26.3.0",
-          "published_date": "2026-03-11T20:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "qnap",
       "product": "qunetswitch",
       "target_sw_hints": [],
@@ -9225,40 +7394,6 @@
       ]
     },
     {
-      "vendor": "rocket.chat",
-      "product": "rocket.chat",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-28514",
-          "cvss_score": 9.8,
-          "version_end_excluding": "7.8.6",
-          "published_date": "2026-03-06T18:16Z"
-        },
-        {
-          "id": "CVE-2026-30831",
-          "cvss_score": 9.8,
-          "version_end_excluding": "7.10.8",
-          "published_date": "2026-03-06T18:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "rollupjs",
-      "product": "rollup",
-      "target_sw_hints": [
-        "node.js"
-      ],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27606",
-          "cvss_score": 9.8,
-          "version_end_excluding": "2.80.0",
-          "published_date": "2026-02-25T03:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "roocode",
       "product": "roo_code",
       "target_sw_hints": [],
@@ -9268,19 +7403,6 @@
           "cvss_score": 9.8,
           "version_end_including": "3.46.1",
           "published_date": "2026-03-30T20:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "root",
-      "product": "root",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24811",
-          "cvss_score": 9.8,
-          "version_end_including": "6.34.08",
-          "published_date": "2026-01-27T09:15Z"
         }
       ]
     },
@@ -9318,31 +7440,6 @@
     },
     {
       "vendor": "rustdesk",
-      "product": "rustdesk",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-30783",
-          "cvss_score": 9.8,
-          "version_end_including": "1.4.5",
-          "published_date": "2026-03-05T16:16Z"
-        },
-        {
-          "id": "CVE-2026-30789",
-          "cvss_score": 9.8,
-          "version_end_including": "1.4.5",
-          "published_date": "2026-03-05T16:16Z"
-        },
-        {
-          "id": "CVE-2026-30793",
-          "cvss_score": 9.8,
-          "version_end_including": "1.4.5",
-          "published_date": "2026-03-05T16:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "rustdesk",
       "product": "rustdesk_server",
       "target_sw_hints": [],
       "related_cves": [
@@ -9357,19 +7454,6 @@
           "cvss_score": 9.8,
           "version_end_including": "1.7.5",
           "published_date": "2026-03-05T16:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "sail",
-      "product": "sail",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27168",
-          "cvss_score": 9.8,
-          "version_end_including": "0.9.10",
-          "published_date": "2026-02-21T00:16Z"
         }
       ]
     },
@@ -9476,19 +7560,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "3.7.69.15",
           "published_date": "2026-03-16T14:18Z"
-        }
-      ]
-    },
-    {
-      "vendor": "samtools",
-      "product": "samtools",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-31972",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.21.1",
-          "published_date": "2026-03-18T21:16Z"
         }
       ]
     },
@@ -9792,18 +7863,6 @@
       ]
     },
     {
-      "vendor": "simsong",
-      "product": "bulk_extractor",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-24857",
-          "cvss_score": 9.8,
-          "published_date": "2026-01-28T22:15Z"
-        }
-      ]
-    },
-    {
       "vendor": "sixapart",
       "product": "movable_type",
       "target_sw_hints": [],
@@ -9846,19 +7905,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "100.0.9511",
           "published_date": "2026-01-23T17:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "sonarr",
-      "product": "sonarr",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-30975",
-          "cvss_score": 9.8,
-          "version_end_excluding": "4.0.16.2942",
-          "published_date": "2026-03-25T21:16Z"
         }
       ]
     },
@@ -10199,19 +8245,6 @@
       ]
     },
     {
-      "vendor": "tigervnc",
-      "product": "tigervnc",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-34352",
-          "cvss_score": 9.8,
-          "version_end_excluding": "1.16.2",
-          "published_date": "2026-03-26T23:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "tosei-corporation",
       "product": "online_store_management_system",
       "target_sw_hints": [],
@@ -10361,19 +8394,6 @@
       ]
     },
     {
-      "vendor": "unitycatalog",
-      "product": "unitycatalog",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-27478",
-          "cvss_score": 9.1,
-          "version_end_including": "0.4.0",
-          "published_date": "2026-03-11T20:16Z"
-        }
-      ]
-    },
-    {
       "vendor": "upsonic",
       "product": "upsonic",
       "target_sw_hints": [],
@@ -10382,19 +8402,6 @@
           "id": "CVE-2026-0773",
           "cvss_score": 9.8,
           "published_date": "2026-01-23T04:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "usebruno",
-      "product": "bruno",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-34841",
-          "cvss_score": 9.8,
-          "version_end_excluding": "3.2.0",
-          "published_date": "2026-04-06T17:17Z"
         }
       ]
     },
@@ -10838,31 +8845,6 @@
       ]
     },
     {
-      "vendor": "wolfssl",
-      "product": "wolfssl",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-3549",
-          "cvss_score": 9.8,
-          "version_end_excluding": "5.9.0",
-          "published_date": "2026-03-19T21:17Z"
-        },
-        {
-          "id": "CVE-2026-3849",
-          "cvss_score": 9.8,
-          "version_end_excluding": "5.9.0",
-          "published_date": "2026-03-19T21:17Z"
-        },
-        {
-          "id": "CVE-2026-4395",
-          "cvss_score": 9.8,
-          "version_end_excluding": "5.9.0",
-          "published_date": "2026-03-19T21:17Z"
-        }
-      ]
-    },
-    {
       "vendor": "wpjam_basic_project",
       "product": "wpjam_basic",
       "target_sw_hints": [],
@@ -11120,25 +9102,6 @@
           "cvss_score": 9.8,
           "version_end_excluding": "0.2.2",
           "published_date": "2026-03-06T07:16Z"
-        }
-      ]
-    },
-    {
-      "vendor": "zitadel",
-      "product": "zitadel",
-      "target_sw_hints": [],
-      "related_cves": [
-        {
-          "id": "CVE-2026-29067",
-          "cvss_score": 9.3,
-          "version_end_excluding": "4.7.1",
-          "published_date": "2026-03-07T15:15Z"
-        },
-        {
-          "id": "CVE-2026-29191",
-          "cvss_score": 9.3,
-          "version_end_excluding": "4.12.0",
-          "published_date": "2026-03-07T15:15Z"
         }
       ]
     }
