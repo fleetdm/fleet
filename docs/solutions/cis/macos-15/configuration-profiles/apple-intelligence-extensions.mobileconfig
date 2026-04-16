@@ -13,7 +13,7 @@
 			<string>com.fleetdm.cis-apple-intelligence-extensions.check</string>
 			<key>PayloadUUID</key>
 			<string>A1B2C3D4-E5F6-7890-ABCD-EF1234567801</string>
-			<key>allowIntelligenceExtensions</key>
+			<key>allowExternalIntelligenceIntegrations</key>
 			<false/>
 		</dict>
 	</array>

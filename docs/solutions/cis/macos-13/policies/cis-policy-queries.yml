@@ -464,7 +464,8 @@
 - name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)
   # platforms: macOS
   platform: darwin
-  description: 
+  description: |
+    Ensure that the system is configured to set the date and time automatically from a network time server. Accurate time is critical for log correlation, certificate validation, and Kerberos authentication.
   resolution: |
       The administrator should configure this via MDM profile.
       Create or edit a configuration profile with the following information:
