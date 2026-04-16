@@ -1,5 +1,5 @@
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -131,7 +131,7 @@ const HQRTable = ({
   const renderEmptyState = useCallback(() => {
     if (reportClipped) {
       return (
-        <EmptyTable
+        <EmptyState
           className={`${baseClass}__report-clipped`}
           graphicName="empty-software"
           header="Report clipped"
@@ -142,7 +142,7 @@ const HQRTable = ({
     if (!lastFetched) {
       // collecting results
       return (
-        <EmptyTable
+        <EmptyState
           className={`${baseClass}__collecting-results`}
           graphicName="collecting-results"
           header="Collecting results..."
@@ -152,7 +152,7 @@ const HQRTable = ({
     }
     return (
       // nothing to report
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__nothing-to-report`}
         graphicName="empty-software"
         header="Nothing to report"

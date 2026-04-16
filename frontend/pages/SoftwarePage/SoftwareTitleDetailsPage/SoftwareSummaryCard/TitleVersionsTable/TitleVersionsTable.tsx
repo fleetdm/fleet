@@ -11,7 +11,7 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import Card from "components/Card";
@@ -44,7 +44,7 @@ export const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
     <Card borderRadiusSize="medium">
-      <EmptyTable
+      <EmptyState
         header={
           isAvailableForInstall
             ? "No versions detected."

@@ -1,6 +1,6 @@
 import React from "react";
 
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Card from "components/Card";
 
 const baseClass = "os-versions-empty-state";
@@ -8,7 +8,7 @@ const baseClass = "os-versions-empty-state";
 const OSVersionsEmptyState = () => {
   return (
     <Card>
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__empty-table`}
         header="No OS versions detected"
         info={

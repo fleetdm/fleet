@@ -13,7 +13,7 @@ import {
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import {
   FmaStatusFilter,
@@ -27,7 +27,7 @@ import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 const baseClass = "fleet-maintained-apps-table";
 
 const EmptyFleetAppsTable = () => (
-  <EmptyTable
+  <EmptyState
     graphicName="empty-search-question"
     header="No items match the current search criteria"
     info={

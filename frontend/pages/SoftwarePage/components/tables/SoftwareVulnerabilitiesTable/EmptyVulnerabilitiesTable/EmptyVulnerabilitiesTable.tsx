@@ -1,6 +1,6 @@
 import React from "react";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { IVulnerabilitiesEmptyStateReason } from "services/entities/vulnerabilities";
 
@@ -63,7 +63,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
 }) => {
   if (isSoftwareDisabled) {
     return (
-      <EmptyTable
+      <EmptyState
         graphicName="empty-search-question"
         header="Software inventory disabled"
         info={
@@ -105,7 +105,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
       "Try removing the exploited vulnerabilities filter to expand your search.";
   }
 
-  return <EmptyTable {...emptyState} />;
+  return <EmptyState {...emptyState} />;
 };
 
 export default EmptyVulnerabilitiesTable;

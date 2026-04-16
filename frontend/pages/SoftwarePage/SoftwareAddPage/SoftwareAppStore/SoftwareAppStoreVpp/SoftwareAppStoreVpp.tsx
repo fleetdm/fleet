@@ -17,7 +17,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -54,7 +54,7 @@ interface IAddTeamToVppMessage {
 }
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <EmptyTable
+  <EmptyState variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
     info="To add App Store apps, first add this fleet to VPP."
     primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}

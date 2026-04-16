@@ -6,7 +6,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
@@ -84,10 +84,10 @@ const PackQueriesTable = ({
           onQueryChange={onTableQueryChange}
           resultsTitle="queries"
           emptyComponent={() =>
-            EmptyTable({
-              header: "No queries match your search criteria",
-              info: "Try a different search.",
-            })
+            <EmptyState
+              header="No queries match your search criteria"
+              info="Try a different search."
+            />
           }
           showMarkAllPages={false}
           actionButton={{

@@ -6,7 +6,7 @@ import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import {
   DEFAULT_SORT_COLUMN,
@@ -145,15 +145,15 @@ const PoliciesTable = ({
           variant: "inverse",
           onClick: onDeletePoliciesClick,
         }}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState.graphicName,
-            header: emptyState.header,
-            info: emptyState.info,
-            additionalInfo: emptyState.additionalInfo,
-            primaryButton: emptyState.primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            graphicName={emptyState.graphicName}
+            header={emptyState.header}
+            info={emptyState.info}
+            additionalInfo={emptyState.additionalInfo}
+            primaryButton={emptyState.primaryButton}
+          />
+        )}
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"

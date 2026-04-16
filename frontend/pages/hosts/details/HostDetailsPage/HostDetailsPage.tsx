@@ -69,7 +69,7 @@ import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
 import BackButton from "components/BackButton";
 import CustomLink from "components/CustomLink/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import {
@@ -1250,7 +1250,7 @@ const HostDetailsPage = ({
                when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
               {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
               isAndroidHost ? (
-                <EmptyTable
+                <EmptyState
                   info={
                     <>
                       Software install is coming soon.{" "}

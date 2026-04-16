@@ -132,6 +132,20 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   }
 
   // ----------------------------------------------------------
+  // List variants — single ghost column (non-table contexts)
+  // ----------------------------------------------------------
+  &--list {
+    .empty-state__ghost-col {
+      flex: 1 1 100%;
+      border-right: none;
+
+      &--first {
+        flex: 1 1 100%;
+      }
+    }
+  }
+
+  // ----------------------------------------------------------
   // Small variant — 2 ghost columns instead of 3 (modal use)
   // ----------------------------------------------------------
   &--small {

@@ -1,12 +1,12 @@
 import React from "react";
 
-import EmptyTable from "components/EmptyTable/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 const baseClass = "awaiting-results";
 
 const AwaitingResults = () => {
   return (
-    <EmptyTable
+    <EmptyState
       graphicName="collecting-results"
       header="Phoning home..."
       info=" There are currently no results to your report. Please wait while we talk

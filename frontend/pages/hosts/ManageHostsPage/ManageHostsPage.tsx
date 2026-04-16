@@ -97,8 +97,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import EmptyTable from "components/EmptyTable";
-import EmptyState from "components/EmptyState/EmptyState";
+import EmptyState from "components/EmptyState";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1902,12 +1901,12 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
-        emptyComponent={() =>
-          EmptyTable({
-            header: emptyState().header,
-            info: emptyState().info,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            header={emptyState().header}
+            info={emptyState().info}
+          />
+        )}
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}

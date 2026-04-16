@@ -4,7 +4,7 @@ import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
 import Card from "components/Card";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -95,7 +95,7 @@ const EnrollSecretModal = ({
         </div>
       ) : (
         <Card color="grey" paddingSize="small">
-          <EmptyTable
+          <EmptyState variant="list"
             header="You have no enroll secrets."
             info={
               <>

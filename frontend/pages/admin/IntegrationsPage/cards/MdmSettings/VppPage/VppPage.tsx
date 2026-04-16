@@ -18,7 +18,7 @@ import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PageDescription from "components/PageDescription";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -34,7 +34,7 @@ interface IAddVppMessageProps {
 
 const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
-    <EmptyTable
+    <EmptyState variant="list"
       header="Add your VPP"
       info="Install Apple App Store apps purchased through Apple Business."
       primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}

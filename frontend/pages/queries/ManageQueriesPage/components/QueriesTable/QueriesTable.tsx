@@ -19,7 +19,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -294,7 +294,7 @@ const QueriesTable = ({
             variant: "inverse",
             onClick: onDeleteQueryClick,
           }}
-          emptyComponent={() => EmptyTable(emptyParams)}
+          emptyComponent={() => <EmptyState {...emptyParams} />}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
               <TableCount name="reports" count={totalQueriesCount} />

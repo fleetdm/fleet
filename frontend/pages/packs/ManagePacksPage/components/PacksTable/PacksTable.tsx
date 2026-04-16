@@ -7,7 +7,7 @@ import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
@@ -131,12 +131,12 @@ const PacksTable = ({
         renderCount={renderPackCount}
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            primaryButton: emptyState().primaryButton,
-          })
+          <EmptyState
+            graphicName={emptyState().graphicName}
+            header={emptyState().header}
+            info={emptyState().info}
+            primaryButton={emptyState().primaryButton}
+          />
         }
       />
     </div>
