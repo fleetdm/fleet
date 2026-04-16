@@ -563,32 +563,7 @@
       height: 17px;
     }
     [purpose='checklist'] {
-      margin-bottom: 32px;
-      p {
-        font-size: 16px;
-        line-height: 150%;
-        font-style: normal;
-        font-weight: 400;
-        padding-left: 40px;
-        text-indent: -40px;
-        margin-bottom: 16px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        &:last-of-type {
-          margin-bottom: 0px;
-        }
-      }
-      p::before {
-        content: ' ';
-        background-image: url('/images/icon-checkbox-checked-24x24@2x.png');
-        background-size: 24px 24px;
-        display: inline-block;
-        position: relative;
-        top: 7px;
-        margin-right: 16px;
-        width: 24px;
-        height: 24px;
-      }
+      .article-checklist();
     }
     [purpose='tip'] {
       .tip-block();
