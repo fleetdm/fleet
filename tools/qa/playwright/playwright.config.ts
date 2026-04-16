@@ -15,6 +15,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.FLEET_URL,
     trace: 'on-first-retry',
+    ignoreHTTPSErrors: true,
   },
 
   projects: [
