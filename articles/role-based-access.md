@@ -52,8 +52,7 @@ Users in Fleet either have global access or access to specific fleets.
 
 Users with access to specific fleets only have access to data for their assigned fleet.
 
-Global users can access data for all fleets. Check out [the user permissions
-table](#user-permissions) above for global user permissions.
+Global users can access data for all fleets.
 
 Users can be assigned to multiple fleets, and can have different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
