@@ -4,6 +4,14 @@ Fleet's policies have been written against v8.1 of the CIS benchmark for Windows
 
 For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
 
+### Contents
+
+| Folder | Description |
+|--------|-------------|
+| `policies/` | GitOps-compatible policy YAML (bl/l1/l2) — import via `fleetctl apply` or reference with `- path:` in `fleet.yml` |
+| `configuration-profiles/` | SyncML XML profiles — upload via Fleet UI or `fleetctl apply` to enforce the settings checked by the policies _(coming soon)_ |
+| `scripts/` | PowerShell scripts — upload via Fleet UI or `fleetctl apply` and link as `run_script` remediation in the corresponding policy _(coming soon)_ |
+
 ### Policy files
 
 Policies are split by CIS level:

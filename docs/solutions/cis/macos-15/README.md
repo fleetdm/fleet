@@ -4,6 +4,14 @@ Fleet's policies have been written against v1.1.0 of the benchmark. You can refe
 
 For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
 
+### Contents
+
+| Folder | Description |
+|--------|-------------|
+| `policies/` | GitOps-compatible policy YAML — import via `fleetctl apply` or reference with `- path:` in `fleet.yml` |
+| `configuration-profiles/` | Apple `.mobileconfig` profiles — upload via Fleet UI or `fleetctl apply` to enforce the settings checked by the policies _(coming soon)_ |
+| `scripts/` | Shell scripts — upload via Fleet UI or `fleetctl apply` and link as `run_script` remediation in the corresponding policy _(coming soon)_ |
+
 ### Limitations
 
 The following CIS benchmarks cannot be checked with a policy in Fleet:
