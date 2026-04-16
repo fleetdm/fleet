@@ -21,10 +21,10 @@ parasails.registerComponent('bubble', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
-    let rawType = this.type ? this.type.replace(/\?$/, '').toLowerCase() : '';
+    let rawType = this.type ? this.type.toLowerCase() : '';
     let roleLink = '';
 
-    switch (this.type.toLowerCase()) {
+    switch (rawType) {
       case 'admin':
         roleLink = '/guides/role-based-access#admin';
         break;
@@ -48,7 +48,6 @@ parasails.registerComponent('bubble', {
 
     return {
       rawType: rawType,
-      isUncertain: this.type ? this.type.match(/\?$/g) ? true : false : '',
       roleLink: roleLink
     };
   },
@@ -58,10 +57,10 @@ parasails.registerComponent('bubble', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
     <a v-if="roleLink" class="role-link" :href="roleLink">
-      <span purpose="bubble-heart" :class="rawType+' '+[[isUncertain ? 'uncertain' : '']]" class="">{{type}}</span>
+      <span purpose="bubble-heart" :class="rawType">{{type}}</span>
     </a>
     <span v-else>
-      <span purpose="bubble-heart" :class="rawType+' '+[[isUncertain ? 'uncertain' : '']]" class="">{{type}}</span>
+      <span purpose="bubble-heart" :class="rawType">{{type}}</span>
     </span>
   `,
 
