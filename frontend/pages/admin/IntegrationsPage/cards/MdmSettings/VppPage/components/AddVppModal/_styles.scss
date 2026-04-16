@@ -1,5 +1,9 @@
 .add-vpp-modal {
 
+  &__description {
+    margin: 0;
+  }
+
   &__request-button {
     display: flex;
     gap: $pad-small;

@@ -65,7 +65,7 @@ const RenewVppModal = ({
       isContentDisabled={isRenewing}
       width="large"
     >
-      <p>
+      <p className={`${baseClass}__description`}>
         Follow the step-by-step guide to renew.{" "}
         <CustomLink
           url="https://fleetdm.com/learn-more-about/renew-vpp"

@@ -57,7 +57,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       onExit={onCancel}
       width="large"
     >
-      <p>
+      <p className={`${baseClass}__description`}>
         Follow the step-by-step guide to add VPP.{" "}
         <CustomLink
           url="https://fleetdm.com/learn-more-about/add-vpp"
