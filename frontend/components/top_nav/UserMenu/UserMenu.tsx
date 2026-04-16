@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -11,6 +12,8 @@ import { NotificationContext } from "context/notification";
 import { IUser } from "interfaces/user";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { INotificationSummaryResponse } from "interfaces/notification_center";
+import notificationsAPI from "services/entities/notifications";
 import PATHS from "router/paths";
 import { getSortedTeamOptions } from "utilities/helpers";
 
@@ -18,6 +21,9 @@ import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
 
 import Icon from "components/Icon";
+import NotificationsModal, {
+  NOTIFICATIONS_SUMMARY_QUERY_KEY,
+} from "components/NotificationsModal";
 import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
@@ -93,6 +99,28 @@ const UserMenu = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+
+  // Only global admins see notifications for v1 (matches backend audience
+  // gate). Avoids polling the endpoint for users who would always get empty.
+  const canSeeNotifications = Boolean(isGlobalAdmin);
+
+  const { data: summary } = useQuery<INotificationSummaryResponse, Error>(
+    [NOTIFICATIONS_SUMMARY_QUERY_KEY],
+    () => notificationsAPI.summary(),
+    {
+      enabled: canSeeNotifications,
+      // Poll every 60s so the badge reflects newly-emitted notifications
+      // without requiring a full page reload.
+      refetchInterval: 60_000,
+      refetchOnWindowFocus: true,
+      // Producers run server-side on every /notifications hit; treat
+      // transient errors as "no badge" rather than spamming flash messages.
+      onError: () => undefined,
+    }
+  );
+  const unreadCount = summary?.unread_count ?? 0;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Tab") {
@@ -132,6 +160,15 @@ const UserMenu = ({
       onClick: onLogout,
     },
   ];
+
+  if (canSeeNotifications) {
+    dropdownItems.unshift({
+      label:
+        unreadCount > 0 ? `Notifications (${unreadCount})` : "Notifications",
+      value: "notifications",
+      onClick: () => setShowNotificationsModal(true),
+    });
+  }
 
   if (isGlobalAdmin) {
     const manageUserNavItem = {
@@ -264,16 +301,32 @@ const UserMenu = ({
 
   const renderPlaceholder = () => {
     return (
-      <AvatarTopNav
-        className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url: currentUser.gravatar_url }}
-        size="small"
-      />
+      <div className={`${baseClass}__avatar-wrapper`}>
+        <AvatarTopNav
+          className={`${baseClass}__avatar-image`}
+          user={{ gravatar_url: currentUser.gravatar_url }}
+          size="small"
+        />
+        {canSeeNotifications && unreadCount > 0 && (
+          <span
+            className={`${baseClass}__notification-badge`}
+            aria-label={`${unreadCount} unread notifications`}
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </div>
     );
   };
 
   return (
     <div className={baseClass} data-testid="user-menu">
+      {showNotificationsModal && (
+        <NotificationsModal
+          onExit={() => setShowNotificationsModal(false)}
+          onNavigate={onUserMenuItemClick}
+        />
+      )}
       <Select<IDropdownOption, false>
         options={dropdownItems}
         placeholder={renderPlaceholder()}

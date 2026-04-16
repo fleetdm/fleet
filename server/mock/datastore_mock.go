@@ -91,6 +91,24 @@ type ConfirmPendingEmailChangeFunc func(ctx context.Context, userID uint, token 
 
 type UserSettingsFunc func(ctx context.Context, userID uint) (*fleet.UserSettings, error)
 
+type UpsertNotificationFunc func(ctx context.Context, u fleet.NotificationUpsert) (*fleet.Notification, error)
+
+type ResolveNotificationFunc func(ctx context.Context, dedupeKey string) error
+
+type ListNotificationsForUserFunc func(ctx context.Context, userID uint, filter fleet.NotificationListFilter) ([]*fleet.Notification, error)
+
+type NotificationByIDForUserFunc func(ctx context.Context, notificationID uint, userID uint) (*fleet.Notification, error)
+
+type DismissNotificationFunc func(ctx context.Context, notificationID uint, userID uint) error
+
+type RestoreNotificationFunc func(ctx context.Context, notificationID uint, userID uint) error
+
+type MarkNotificationReadFunc func(ctx context.Context, notificationID uint, userID uint) error
+
+type MarkAllNotificationsReadFunc func(ctx context.Context, userID uint) error
+
+type CountActiveNotificationsForUserFunc func(ctx context.Context, userID uint) (unread int, active int, err error)
+
 type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
 type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
@@ -1965,6 +1983,33 @@ type DataStore struct {
 
 	UserSettingsFunc        UserSettingsFunc
 	UserSettingsFuncInvoked bool
+
+	UpsertNotificationFunc        UpsertNotificationFunc
+	UpsertNotificationFuncInvoked bool
+
+	ResolveNotificationFunc        ResolveNotificationFunc
+	ResolveNotificationFuncInvoked bool
+
+	ListNotificationsForUserFunc        ListNotificationsForUserFunc
+	ListNotificationsForUserFuncInvoked bool
+
+	NotificationByIDForUserFunc        NotificationByIDForUserFunc
+	NotificationByIDForUserFuncInvoked bool
+
+	DismissNotificationFunc        DismissNotificationFunc
+	DismissNotificationFuncInvoked bool
+
+	RestoreNotificationFunc        RestoreNotificationFunc
+	RestoreNotificationFuncInvoked bool
+
+	MarkNotificationReadFunc        MarkNotificationReadFunc
+	MarkNotificationReadFuncInvoked bool
+
+	MarkAllNotificationsReadFunc        MarkAllNotificationsReadFunc
+	MarkAllNotificationsReadFuncInvoked bool
+
+	CountActiveNotificationsForUserFunc        CountActiveNotificationsForUserFunc
+	CountActiveNotificationsForUserFuncInvoked bool
 
 	ApplyQueriesFunc        ApplyQueriesFunc
 	ApplyQueriesFuncInvoked bool
@@ -4863,6 +4908,69 @@ func (s *DataStore) UserSettings(ctx context.Context, userID uint) (*fleet.UserS
 	s.UserSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UserSettingsFunc(ctx, userID)
+}
+
+func (s *DataStore) UpsertNotification(ctx context.Context, u fleet.NotificationUpsert) (*fleet.Notification, error) {
+	s.mu.Lock()
+	s.UpsertNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertNotificationFunc(ctx, u)
+}
+
+func (s *DataStore) ResolveNotification(ctx context.Context, dedupeKey string) error {
+	s.mu.Lock()
+	s.ResolveNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResolveNotificationFunc(ctx, dedupeKey)
+}
+
+func (s *DataStore) ListNotificationsForUser(ctx context.Context, userID uint, filter fleet.NotificationListFilter) ([]*fleet.Notification, error) {
+	s.mu.Lock()
+	s.ListNotificationsForUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListNotificationsForUserFunc(ctx, userID, filter)
+}
+
+func (s *DataStore) NotificationByIDForUser(ctx context.Context, notificationID uint, userID uint) (*fleet.Notification, error) {
+	s.mu.Lock()
+	s.NotificationByIDForUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.NotificationByIDForUserFunc(ctx, notificationID, userID)
+}
+
+func (s *DataStore) DismissNotification(ctx context.Context, notificationID uint, userID uint) error {
+	s.mu.Lock()
+	s.DismissNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DismissNotificationFunc(ctx, notificationID, userID)
+}
+
+func (s *DataStore) RestoreNotification(ctx context.Context, notificationID uint, userID uint) error {
+	s.mu.Lock()
+	s.RestoreNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreNotificationFunc(ctx, notificationID, userID)
+}
+
+func (s *DataStore) MarkNotificationRead(ctx context.Context, notificationID uint, userID uint) error {
+	s.mu.Lock()
+	s.MarkNotificationReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkNotificationReadFunc(ctx, notificationID, userID)
+}
+
+func (s *DataStore) MarkAllNotificationsRead(ctx context.Context, userID uint) error {
+	s.mu.Lock()
+	s.MarkAllNotificationsReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllNotificationsReadFunc(ctx, userID)
+}
+
+func (s *DataStore) CountActiveNotificationsForUser(ctx context.Context, userID uint) (unread int, active int, err error) {
+	s.mu.Lock()
+	s.CountActiveNotificationsForUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountActiveNotificationsForUserFunc(ctx, userID)
 }
 
 func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {

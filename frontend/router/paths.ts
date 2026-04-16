@@ -216,5 +216,6 @@ export default {
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   ACCOUNT: `${URL_PREFIX}/account`,
+  NOTIFICATIONS: `${URL_PREFIX}/settings/notifications`,
   URL_PREFIX,
 };

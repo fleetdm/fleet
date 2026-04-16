@@ -98,6 +98,56 @@ type Datastore interface {
 	UserSettings(ctx context.Context, userID uint) (*UserSettings, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// NotificationStore
+	//
+	// Admin-facing in-app notifications (license expiring, MDM token expiring,
+	// etc.). Notifications are system-generated (no create endpoint), so the
+	// producer surface is UpsertNotification — idempotent by dedupe_key.
+
+	// UpsertNotification creates a notification or updates the existing row
+	// matching u.DedupeKey in place. It clears ResolvedAt so a re-triggered
+	// condition resurfaces. Returns the resulting row (with ID populated).
+	UpsertNotification(ctx context.Context, u NotificationUpsert) (*Notification, error)
+
+	// ResolveNotification marks the notification with the given dedupe_key as
+	// resolved (setting resolved_at = NOW). Idempotent — no error if no row
+	// exists. Producers call this when the underlying condition clears.
+	ResolveNotification(ctx context.Context, dedupeKey string) error
+
+	// ListNotificationsForUser returns notifications targeted at the given
+	// user, joined with that user's per-user state (read/dismissed). Default
+	// filter (zero value) returns active, non-dismissed, non-resolved
+	// notifications.
+	ListNotificationsForUser(ctx context.Context, userID uint, filter NotificationListFilter) ([]*Notification, error)
+
+	// NotificationByIDForUser returns a single notification joined with the
+	// user's per-user state. Returns a notFoundError if no matching row
+	// exists or the user's audience does not match.
+	NotificationByIDForUser(ctx context.Context, notificationID, userID uint) (*Notification, error)
+
+	// DismissNotification sets dismissed_at = NOW for the given (user,
+	// notification) pair, creating the per-user state row if missing.
+	DismissNotification(ctx context.Context, notificationID, userID uint) error
+
+	// RestoreNotification clears dismissed_at for the given (user,
+	// notification) pair so it re-appears in active lists.
+	RestoreNotification(ctx context.Context, notificationID, userID uint) error
+
+	// MarkNotificationRead sets read_at = NOW for the given (user,
+	// notification) pair, creating the per-user state row if missing.
+	MarkNotificationRead(ctx context.Context, notificationID, userID uint) error
+
+	// MarkAllNotificationsRead sets read_at = NOW for all active,
+	// non-dismissed notifications visible to the user that have not already
+	// been read. Used by the "mark all read" action on the dropdown modal.
+	MarkAllNotificationsRead(ctx context.Context, userID uint) error
+
+	// CountActiveNotificationsForUser returns (unreadCount, activeCount) for
+	// the given user — cheap query to drive the profile-avatar badge. Counts
+	// only active (non-dismissed, non-resolved) notifications.
+	CountActiveNotificationsForUser(ctx context.Context, userID uint) (unread int, active int, err error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// QueryStore
 
 	// ApplyQueries applies a list of queries (likely from a yaml file) to the datastore. Existing queries are updated,

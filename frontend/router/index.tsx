@@ -18,6 +18,7 @@ import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
+import NotificationsPage from "pages/admin/NotificationsPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
@@ -217,6 +218,7 @@ const routes = (
                   <Redirect from="teams" to="fleets" />
                   <Route path="fleets" component={AdminTeamManagementPage} />
                 </Route>
+                <Route path="notifications" component={NotificationsPage} />
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />

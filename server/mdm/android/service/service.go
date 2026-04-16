@@ -818,6 +818,21 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	if err := svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx); err != nil {
 		svc.logger.ErrorContext(ctx, "failed to mark pending Android VPP installs as failed after enterprise deletion", "err", err)
 	}
+
+	// Emit an in-app notification so admins see the deletion in their
+	// notification center (profile avatar badge + dropdown).
+	if _, notifErr := svc.fleetDS.UpsertNotification(ctx, fleet.NotificationUpsert{
+		Type:      fleet.NotificationTypeAndroidEnterpriseDeleted,
+		Severity:  fleet.NotificationSeverityError,
+		Title:     "Android Enterprise binding deleted",
+		Body:      "Your Android Enterprise binding was deleted externally. Android device management will not work until a new binding is set up.",
+		CTAURL:    new("/settings/integrations/mdm/android"),
+		CTALabel:  new("Set up Android"),
+		DedupeKey: string(fleet.NotificationTypeAndroidEnterpriseDeleted),
+		Audience:  fleet.NotificationAudienceAdmin,
+	}); notifErr != nil {
+		svc.logger.WarnContext(ctx, "failed to emit android enterprise deleted notification", "err", notifErr)
+	}
 }
 
 // UnenrollAndroidHost calls AMAPI to delete the device (work profile).

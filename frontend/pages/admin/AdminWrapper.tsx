@@ -53,6 +53,10 @@ const AdminWrapper = ({
       pathname: PATHS.ADMIN_FLEETS,
       exclude: !isPremiumTier,
     },
+    {
+      name: "Notifications",
+      pathname: PATHS.NOTIFICATIONS,
+    },
   ];
 
   const filteredSettingsSubNav = settingsSubNav.filter((navItem) => {

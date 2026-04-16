@@ -910,6 +910,20 @@ type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecre
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
+type ListNotificationsFunc func(ctx context.Context, filter fleet.NotificationListFilter) (notifications []*fleet.Notification, unreadCount int, err error)
+
+type NotificationSummaryFunc func(ctx context.Context) (unread int, active int, err error)
+
+type DismissNotificationFunc func(ctx context.Context, notificationID uint) error
+
+type RestoreNotificationFunc func(ctx context.Context, notificationID uint) error
+
+type MarkNotificationReadFunc func(ctx context.Context, notificationID uint) error
+
+type MarkAllNotificationsReadFunc func(ctx context.Context) error
+
+type CreateDemoNotificationFunc func(ctx context.Context) (*fleet.Notification, error)
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2245,6 +2259,27 @@ type Service struct {
 
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
+
+	ListNotificationsFunc        ListNotificationsFunc
+	ListNotificationsFuncInvoked bool
+
+	NotificationSummaryFunc        NotificationSummaryFunc
+	NotificationSummaryFuncInvoked bool
+
+	DismissNotificationFunc        DismissNotificationFunc
+	DismissNotificationFuncInvoked bool
+
+	RestoreNotificationFunc        RestoreNotificationFunc
+	RestoreNotificationFuncInvoked bool
+
+	MarkNotificationReadFunc        MarkNotificationReadFunc
+	MarkNotificationReadFuncInvoked bool
+
+	MarkAllNotificationsReadFunc        MarkAllNotificationsReadFunc
+	MarkAllNotificationsReadFuncInvoked bool
+
+	CreateDemoNotificationFunc        CreateDemoNotificationFunc
+	CreateDemoNotificationFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5362,4 +5397,53 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
+}
+
+func (s *Service) ListNotifications(ctx context.Context, filter fleet.NotificationListFilter) (notifications []*fleet.Notification, unreadCount int, err error) {
+	s.mu.Lock()
+	s.ListNotificationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListNotificationsFunc(ctx, filter)
+}
+
+func (s *Service) NotificationSummary(ctx context.Context) (unread int, active int, err error) {
+	s.mu.Lock()
+	s.NotificationSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.NotificationSummaryFunc(ctx)
+}
+
+func (s *Service) DismissNotification(ctx context.Context, notificationID uint) error {
+	s.mu.Lock()
+	s.DismissNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DismissNotificationFunc(ctx, notificationID)
+}
+
+func (s *Service) RestoreNotification(ctx context.Context, notificationID uint) error {
+	s.mu.Lock()
+	s.RestoreNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.RestoreNotificationFunc(ctx, notificationID)
+}
+
+func (s *Service) MarkNotificationRead(ctx context.Context, notificationID uint) error {
+	s.mu.Lock()
+	s.MarkNotificationReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkNotificationReadFunc(ctx, notificationID)
+}
+
+func (s *Service) MarkAllNotificationsRead(ctx context.Context) error {
+	s.mu.Lock()
+	s.MarkAllNotificationsReadFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAllNotificationsReadFunc(ctx)
+}
+
+func (s *Service) CreateDemoNotification(ctx context.Context) (*fleet.Notification, error) {
+	s.mu.Lock()
+	s.CreateDemoNotificationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateDemoNotificationFunc(ctx)
 }

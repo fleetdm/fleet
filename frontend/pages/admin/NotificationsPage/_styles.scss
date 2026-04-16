@@ -1,0 +1,82 @@
+.notifications-page {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  &__description {
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
+  &__empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: $ui-fleet-black-75;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 6px;
+  }
+
+  &__item {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    align-items: flex-start;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &--error {
+      border-left: 3px solid $ui-error;
+    }
+
+    &--warning {
+      border-left: 3px solid $ui-warning;
+    }
+
+    &--info {
+      border-left: 3px solid $core-vibrant-blue;
+    }
+
+    &--dismissed {
+      opacity: 0.6;
+    }
+  }
+
+  &__item-icon {
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  &__item-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__item-title {
+    font-weight: $bold;
+    margin-bottom: 4px;
+  }
+
+  &__item-body {
+    color: $ui-fleet-black-75;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  &__item-actions {
+    display: flex;
+    gap: 16px;
+  }
+}

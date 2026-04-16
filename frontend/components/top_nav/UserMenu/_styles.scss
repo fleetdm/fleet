@@ -1,1 +1,30 @@
-// Styles for user-menu are defined inline via react-select's `styles` prop.
+// Most user-menu styling is defined inline via react-select's `styles` prop.
+// The rules below are for the avatar notification badge overlay, which can't
+// be expressed through react-select's styling API since it sits on top of
+// the placeholder element.
+
+.user-menu {
+  &__avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+  }
+
+  &__notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background-color: $ui-error;
+    color: $core-fleet-white;
+    font-size: 11px;
+    font-weight: $bold;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px $core-fleet-white;
+    pointer-events: none;
+  }
+}

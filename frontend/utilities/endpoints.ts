@@ -121,6 +121,17 @@ export default {
     return `/${API_VERSION}/fleet/spec/labels/${labelName}`;
   },
 
+  // notifications (in-app notification center)
+  NOTIFICATIONS: `/${API_VERSION}/fleet/notifications`,
+  NOTIFICATIONS_SUMMARY: `/${API_VERSION}/fleet/notifications/summary`,
+  NOTIFICATION_DISMISS: (id: number) =>
+    `/${API_VERSION}/fleet/notifications/${id}/dismiss`,
+  NOTIFICATION_RESTORE: (id: number) =>
+    `/${API_VERSION}/fleet/notifications/${id}/restore`,
+  NOTIFICATION_READ: (id: number) =>
+    `/${API_VERSION}/fleet/notifications/${id}/read`,
+  NOTIFICATIONS_READ_ALL: `/${API_VERSION}/fleet/notifications/read_all`,
+
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,

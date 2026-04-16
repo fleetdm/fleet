@@ -1480,6 +1480,41 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Notifications
+	//
+	// In-app notification center. Admin-only for v1. See
+	// server/fleet/notification.go for the type catalog.
+
+	// ListNotifications returns notifications visible to the current user
+	// along with an unread count. Filter defaults (zero value) = active,
+	// non-dismissed, non-resolved.
+	ListNotifications(ctx context.Context, filter NotificationListFilter) (notifications []*Notification, unreadCount int, err error)
+
+	// NotificationSummary returns a cheap (unread, active) pair for driving
+	// the profile-avatar badge without fetching full notification rows.
+	NotificationSummary(ctx context.Context) (unread int, active int, err error)
+
+	// DismissNotification hides a notification from the current user's
+	// active list without resolving the underlying condition.
+	DismissNotification(ctx context.Context, notificationID uint) error
+
+	// RestoreNotification un-dismisses a previously-dismissed notification
+	// for the current user.
+	RestoreNotification(ctx context.Context, notificationID uint) error
+
+	// MarkNotificationRead records that the current user has seen the given
+	// notification. Independent from dismissal.
+	MarkNotificationRead(ctx context.Context, notificationID uint) error
+
+	// MarkAllNotificationsRead marks every active, non-dismissed
+	// notification visible to the current user as read.
+	MarkAllNotificationsRead(ctx context.Context) error
+
+	// CreateDemoNotification creates a random test notification.
+	// Admin-only, intended for demo/debug purposes only.
+	CreateDemoNotification(ctx context.Context) (*Notification, error)
 }
 
 type KeyValueStore interface {

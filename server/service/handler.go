@@ -486,6 +486,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/dep_assignment", getHostDEPAssignmentEndpoint, getHostDEPAssignmentRequest{})
 
+	// Notifications (in-app notification center, admin-only for v1)
+	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/notifications", listNotificationsEndpoint, fleet.ListNotificationsRequest{})
+	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/notifications/summary", notificationSummaryEndpoint, nil)
+	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/notifications/{id:[0-9]+}/dismiss", dismissNotificationEndpoint, fleet.DismissNotificationRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/{id:[0-9]+}/restore", restoreNotificationEndpoint, fleet.RestoreNotificationRequest{})
+	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/notifications/{id:[0-9]+}/read", markNotificationReadEndpoint, fleet.MarkNotificationReadRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/read_all", markAllNotificationsReadEndpoint, nil)
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/notifications/demo", createDemoNotificationEndpoint, nil)
+
 	ue.POST("/api/_version_/fleet/labels", createLabelEndpoint, fleet.CreateLabelRequest{})
 	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, fleet.ModifyLabelRequest{})
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}", getLabelEndpoint, fleet.GetLabelRequest{})

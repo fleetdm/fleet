@@ -438,6 +438,19 @@ allow {
 }
 
 ##
+# Notifications (in-app notification center)
+#
+# Notifications are system-generated and admin-only for v1. Only global
+# admins can list, read, or mutate (dismiss/restore/mark-read) notifications.
+##
+
+allow {
+  object.type == "notification"
+  subject.global_role == admin
+  action == [read, list, write][_]
+}
+
+##
 # Queries
 ##
 
