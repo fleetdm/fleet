@@ -1922,19 +1922,29 @@ func newHelloWorldSchedule(
 				Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 			}
 
-			logger.InfoContext(ctx, "\n\n------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
 			for _, si := range installers {
 				var input homebrew.InputApp
 				input.Token = strings.ToLower(si.SoftwareTitle)
 
 				fma, err := ingester.IngestOne(ctx, input)
 				if err != nil {
-					logger.ErrorContext(ctx, "\n  failed to ingest homebrew app", "name", si.SoftwareTitle, "current", si.Version, "err", err)
+					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "current", si.Version, "err", err)
 					continue
 				}
-				logger.InfoContext(ctx, "\n  homebrew installer status", "name", si.SoftwareTitle, "current", si.Version, "latest", fma.Version)
+				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "current", si.Version, "latest", fma.Version)
 			}
-			logger.InfoContext(ctx, "\n--------------------------------------------------------------\n")
+			logger.InfoContext(ctx, "--------------------------------------------------------------")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
+			logger.InfoContext(ctx, "")
 			return nil
 		}),
 	)
