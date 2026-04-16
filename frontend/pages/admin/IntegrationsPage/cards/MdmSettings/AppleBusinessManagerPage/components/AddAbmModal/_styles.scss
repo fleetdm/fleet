@@ -1,5 +1,9 @@
 .add-abm-modal {
 
+  p {
+    margin: 0;
+  }
+
   &__request-button {
     display: flex;
     gap: $pad-small;
