@@ -5,6 +5,7 @@
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
+            <certificates src="@raw/fleet_dev_cert" />
         </trust-anchors>
     </base-config>
 </network-security-config>

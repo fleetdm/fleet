@@ -307,6 +307,41 @@ object ApiClient : CertificateApiClient {
         return resp
     }
 
+    suspend fun submitResultLogs(logs: List<ScheduledQueryResultLog>): Result<Unit> {
+        val nodeKey = getApiKey() ?: return Result.failure(Exception("Node key not set"))
+
+        val request = SubmitLogsRequest(
+            nodeKey = nodeKey,
+            logType = "result",
+            data = logs,
+        )
+
+        return makeRequest(
+            endpoint = "/api/v1/osquery/log",
+            method = "POST",
+            body = request,
+            bodySerializer = SubmitLogsRequest.serializer(),
+            responseSerializer = JsonElement.serializer(),
+            authorized = false,
+        ).fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
+    }
+
+    suspend fun getOsqueryConfig(): Result<OsqueryConfigResponse> {
+        val nodeKey = getApiKey() ?: return Result.failure(Exception("Node key not set"))
+
+        return makeRequest(
+            endpoint = "/api/v1/osquery/config",
+            method = "POST",
+            body = OsqueryConfigRequest(nodeKey = nodeKey),
+            bodySerializer = OsqueryConfigRequest.serializer(),
+            responseSerializer = OsqueryConfigResponse.serializer(),
+            authorized = false,
+        )
+    }
+
     suspend fun getOrbitConfig(): Result<OrbitConfig> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
 
@@ -520,6 +555,60 @@ data class DistributedWriteRequest(
 )
 
 
+
+@Serializable
+data class ScheduledQueryResultLog(
+    @SerialName("name")
+    val name: String,
+    @SerialName("hostIdentifier")
+    val hostIdentifier: String,
+    @SerialName("snapshot")
+    val snapshot: List<Map<String, String>>,
+    @SerialName("unixTime")
+    val unixTime: Long,
+    @SerialName("action")
+    val action: String = "snapshot",
+)
+
+@Serializable
+data class SubmitLogsRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+    @SerialName("log_type")
+    val logType: String,
+    @SerialName("data")
+    val data: List<ScheduledQueryResultLog>,
+)
+
+@Serializable
+data class OsqueryConfigRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+)
+
+@Serializable
+data class OsqueryQueryContent(
+    @SerialName("query")
+    val query: String,
+    @SerialName("interval")
+    val interval: Int = 0,
+    @SerialName("platform")
+    val platform: String? = null,
+    @SerialName("snapshot")
+    val snapshot: Boolean? = null,
+)
+
+@Serializable
+data class OsqueryPackContent(
+    @SerialName("queries")
+    val queries: Map<String, OsqueryQueryContent> = emptyMap(),
+)
+
+@Serializable
+data class OsqueryConfigResponse(
+    @SerialName("packs")
+    val packs: Map<String, OsqueryPackContent> = emptyMap(),
+)
 
 @Serializable
 data class EnrollRequest(
