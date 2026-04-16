@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CIS Windows 10 Enterprise Benchmark v3.0.0 - Audit Policies Configuration Profile
+  Applies Advanced Audit Policy settings via MDM/Intune SyncML
+
+  Audit policy values:
+  - 0 = Not configured
+  - 1 = Success only
+  - 2 = Failure only
+  - 3 = Success and Failure
+
+  Covered CIS Controls (Section 17):
+  - 17.1.1  Audit Credential Validation             -> Success and Failure (3)
+  - 17.2.1  Audit Application Group Management      -> Success and Failure (3)
+  - 17.2.4  Audit Security Group Management         -> Success (1)
+  - 17.2.6  Audit User Account Management           -> Success and Failure (3)
+  - 17.3.1  Audit PNP Activity                      -> Success (1)
+  - 17.3.2  Audit Process Creation                  -> Success (1)
+  - 17.6.1  Audit Detailed File Share               -> Failure (2)
+  - 17.6.2  Audit File Share                        -> Success and Failure (3)
+  - 17.6.3  Audit Other Object Access Events        -> Success and Failure (3)
+  - 17.6.4  Audit Removable Storage                 -> Success and Failure (3)
+  - 17.7.1  Audit Audit Policy Change               -> Success (1)
+  - 17.7.2  Audit Authentication Policy Change      -> Success (1)
+  - 17.7.3  Audit Authorization Policy Change       -> Success (1)
+  - 17.7.4  Audit MPSSVC Rule-Level Policy Change   -> Success and Failure (3)
+  - 17.8.1  Audit Sensitive Privilege Use           -> Success and Failure (3)
+  - 17.9.1  Audit IPsec Driver                      -> Success and Failure (3)
+  - 17.9.2  Audit Other System Events               -> Success and Failure (3)
+  - 17.9.3  Audit Security State Change             -> Success (1)
+  - 17.9.4  Audit Security System Extension         -> Success (1)
+  - 17.9.5  Audit System Integrity                  -> Success and Failure (3)
+-->
+<SyncML xmlns="SYNCML:SYNCML1.2">
+  <SyncBody>
+
+    <!-- 17.1.1: Audit Credential Validation = Success and Failure -->
+    <Replace>
+      <CmdID>1</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountLogon_AuditCredentialValidation</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.2.1: Audit Application Group Management = Success and Failure -->
+    <Replace>
+      <CmdID>2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditApplicationGroupManagement</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.2.4: Audit Security Group Management = Success -->
+    <Replace>
+      <CmdID>3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditSecurityGroupManagement</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.2.6: Audit User Account Management = Success and Failure -->
+    <Replace>
+      <CmdID>4</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/AccountManagement_AuditUserAccountManagement</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.3.1: Audit PNP Activity = Success -->
+    <Replace>
+      <CmdID>5</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditPNPActivity</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.3.2: Audit Process Creation = Success -->
+    <Replace>
+      <CmdID>6</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/DetailedTracking_AuditProcessCreation</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.6.1: Audit Detailed File Share = Failure -->
+    <Replace>
+      <CmdID>7</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditDetailedFileShare</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>2</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.6.2: Audit File Share = Success and Failure -->
+    <Replace>
+      <CmdID>8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditFileShare</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.6.3: Audit Other Object Access Events = Success and Failure -->
+    <Replace>
+      <CmdID>9</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditOtherObjectAccessEvents</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.6.4: Audit Removable Storage = Success and Failure -->
+    <Replace>
+      <CmdID>10</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditRemovableStorage</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.7.1: Audit Audit Policy Change = Success -->
+    <Replace>
+      <CmdID>11</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditPolicyChange</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.7.2: Audit Authentication Policy Change = Success -->
+    <Replace>
+      <CmdID>12</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthenticationPolicyChange</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.7.3: Audit Authorization Policy Change = Success -->
+    <Replace>
+      <CmdID>13</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthorizationPolicyChange</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.7.4: Audit MPSSVC Rule-Level Policy Change = Success and Failure -->
+    <Replace>
+      <CmdID>14</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditMPSSVCRuleLevelPolicyChange</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.7.5: Audit Other Policy Change Events = Failure -->
+    <Replace>
+      <CmdID>15</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditOtherPolicyChangeEvents</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>2</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.8.1: Audit Sensitive Privilege Use = Success and Failure -->
+    <Replace>
+      <CmdID>16</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.9.1: Audit IPsec Driver = Success and Failure -->
+    <Replace>
+      <CmdID>17</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditIPsecDriver</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.9.2: Audit Other System Events = Success and Failure -->
+    <Replace>
+      <CmdID>18</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditOtherSystemEvents</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.9.3: Audit Security State Change = Success -->
+    <Replace>
+      <CmdID>19</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecurityStateChange</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.9.4: Audit Security System Extension = Success -->
+    <Replace>
+      <CmdID>20</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecuritySystemExtension</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.9.5: Audit System Integrity = Success and Failure -->
+    <Replace>
+      <CmdID>21</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSystemIntegrity</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <Final/>
+  </SyncBody>
+</SyncML>

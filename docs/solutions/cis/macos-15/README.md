@@ -9,8 +9,8 @@ For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com
 | Folder | Description |
 |--------|-------------|
 | `policies/` | GitOps-compatible policy YAML — import via `fleetctl apply` or reference with `- path:` in `fleet.yml` |
-| `configuration-profiles/` | Apple `.mobileconfig` profiles — upload via Fleet UI or `fleetctl apply` to enforce the settings checked by the policies _(coming soon)_ |
-| `scripts/` | Shell scripts — upload via Fleet UI or `fleetctl apply` and link as `run_script` remediation in the corresponding policy _(coming soon)_ |
+| `configuration-profiles/` | Apple `.mobileconfig` profiles — upload via Fleet UI or `fleetctl apply` to enforce the settings checked by the policies |
+| `scripts/` | Shell scripts — upload via Fleet UI or `fleetctl apply` and link as `run_script` remediation in the corresponding policy |
 
 ### Limitations
 

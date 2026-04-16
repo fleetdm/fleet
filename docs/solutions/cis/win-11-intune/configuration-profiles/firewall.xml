@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CIS Windows 11 Enterprise Benchmark (Intune) v8.1 - Windows Firewall Configuration Profile
+  Applies Windows Firewall settings for all three profiles (Domain, Private, Public) via MDM SyncML
+
+  Covered CIS Controls (Section 9):
+  Domain Profile:
+  - 9.1.1  Windows Firewall: Domain: Firewall state: On
+  - 9.1.2  Windows Firewall: Domain: Inbound connections: Block
+  - 9.1.5  Windows Firewall: Domain: Logging: Log dropped packets: Yes
+  - 9.1.6  Windows Firewall: Domain: Logging: Log max size: 16,384 KB or greater
+
+  Private Profile:
+  - 9.2.1  Windows Firewall: Private: Firewall state: On
+  - 9.2.2  Windows Firewall: Private: Inbound connections: Block
+  - 9.2.5  Windows Firewall: Private: Logging: Log dropped packets: Yes
+  - 9.2.6  Windows Firewall: Private: Logging: Log max size: 16,384 KB or greater
+
+  Public Profile:
+  - 9.3.1  Windows Firewall: Public: Firewall state: On
+  - 9.3.2  Windows Firewall: Public: Inbound connections: Block
+  - 9.3.4  Windows Firewall: Public: Local policy merge: No
+  - 9.3.5  Windows Firewall: Public: Local IPsec policy merge: No
+  - 9.3.8  Windows Firewall: Public: Logging: Log dropped packets: Yes
+  - 9.3.9  Windows Firewall: Public: Logging: Log max size: 16,384 KB or greater
+
+  Note: DefaultInboundAction=1 means Block, EnableLogDroppedPackets=true enables packet logging
+-->
+<SyncML xmlns="SYNCML:SYNCML1.2">
+  <SyncBody>
+
+    <!-- === Domain Profile === -->
+
+    <!-- Domain: Firewall state: On -->
+    <Replace>
+      <CmdID>1</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Domain: Inbound connections: Block -->
+    <Replace>
+      <CmdID>2</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/DefaultInboundAction</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- Domain: Log dropped packets -->
+    <Replace>
+      <CmdID>3</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableLogDroppedPackets</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Domain: Log file path -->
+    <Replace>
+      <CmdID>4</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/LogFilePath</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>%systemroot%\system32\logfiles\firewall\domainfw.log</Data>
+      </Item>
+    </Replace>
+
+    <!-- Domain: Log max file size: 16,384 KB -->
+    <Replace>
+      <CmdID>5</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/LogMaxFileSize</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>16384</Data>
+      </Item>
+    </Replace>
+
+    <!-- === Private Profile === -->
+
+    <!-- Private: Firewall state: On -->
+    <Replace>
+      <CmdID>6</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Private: Inbound connections: Block -->
+    <Replace>
+      <CmdID>7</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/DefaultInboundAction</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- Private: Log dropped packets -->
+    <Replace>
+      <CmdID>8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableLogDroppedPackets</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Private: Log file path -->
+    <Replace>
+      <CmdID>9</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/LogFilePath</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>%systemroot%\system32\logfiles\firewall\privatefw.log</Data>
+      </Item>
+    </Replace>
+
+    <!-- Private: Log max file size: 16,384 KB -->
+    <Replace>
+      <CmdID>10</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/LogMaxFileSize</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>16384</Data>
+      </Item>
+    </Replace>
+
+    <!-- === Public Profile === -->
+
+    <!-- Public: Firewall state: On -->
+    <Replace>
+      <CmdID>11</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Inbound connections: Block -->
+    <Replace>
+      <CmdID>12</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/DefaultInboundAction</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Disable local policy merge -->
+    <Replace>
+      <CmdID>13</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>false</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Disable local IPsec policy merge -->
+    <Replace>
+      <CmdID>14</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalIpsecPolicyMerge</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>false</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Log dropped packets -->
+    <Replace>
+      <CmdID>15</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableLogDroppedPackets</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">bool</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>true</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Log file path -->
+    <Replace>
+      <CmdID>16</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/LogFilePath</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">chr</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>%systemroot%\system32\logfiles\firewall\publicfw.log</Data>
+      </Item>
+    </Replace>
+
+    <!-- Public: Log max file size: 16,384 KB -->
+    <Replace>
+      <CmdID>17</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/LogMaxFileSize</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>16384</Data>
+      </Item>
+    </Replace>
+
+    <Final/>
+  </SyncBody>
+</SyncML>
