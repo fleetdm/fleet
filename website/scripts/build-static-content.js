@@ -666,7 +666,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -764,6 +764,22 @@ module.exports = {
                     }
                   }
                 }
+                // If this is a webinar article, we'll check to make sure it has a webinarEmbeddedVideoUrl meta tag.
+                if(embeddedMetadata.category === 'webinar') {
+                  if(!embeddedMetadata.webinarEmbeddedVideoUrl){
+                    throw new Error(`Failed compiling markdown content: A webinar article is missing a 'webinarEmbeddedVideoUrl' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a webinarEmbeddedVideoUrl meta tag with a value that is the URL of the webinar this article is presenting, and try running this script again.`);
+                  } else {
+                    let parsedVideoUrl;
+                    try {
+                      parsedVideoUrl = URL.parse(embeddedMetadata.webinarEmbeddedVideoUrl);
+                    } catch(err) {
+                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err);
+                    }
+                    if(parsedVideoUrl.search) {
+                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
+                    }
+                  }
+                }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
                   if(!embeddedMetadata.articleSlugInCategory){
@@ -780,7 +796,7 @@ module.exports = {
                   // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }
