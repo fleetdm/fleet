@@ -2,7 +2,7 @@
 # They are preserved for reference and for use by other tooling.
 # Affected fields: purpose, tags, contributors, platforms
 
-- name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -20,7 +20,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Download New Updates When Available Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks that the system is configured via MDM to automatically download updates.
@@ -43,7 +43,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Install of macOS Updates Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Ensure that macOS updates are installed after they are available from Apple.
@@ -66,7 +66,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Install Application Updates from the App Store Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Ensure that application updates are installed after they are available from Apple.
@@ -89,7 +89,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure XProtect Is Running and Updated
+- name: "[macOS 15] CIS - Ensure XProtect Is Running and Updated"
   # platforms: macOS
   platform: darwin
   description: |
@@ -113,7 +113,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: defensivedepth, getvictor
 
-- name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -140,7 +140,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)
+- name: "[macOS 15] CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -169,7 +169,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure iCloud Drive storage solution is disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure iCloud Drive storage solution is disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -202,7 +202,7 @@
   # tags: compliance, CIS, CIS_Level2, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure iCloud Drive storage solution is enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -235,7 +235,7 @@
   # tags: compliance, CIS, CIS_Level2, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)
+- name: "[macOS 15] CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -269,7 +269,7 @@
   # tags: compliance, CIS, CIS_Level2, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)
+- name: "[macOS 15] CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -303,7 +303,7 @@
   # tags: compliance, CIS, CIS_Level2, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure iCloud Drive Document and Desktop Sync Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Automated Document synchronization should be planned and controlled to approved storage.
@@ -331,7 +331,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: zwass
 
-- name: CIS - Ensure Firewall Is Enabled
+- name: "[macOS 15] CIS - Ensure Firewall Is Enabled"
   # platforms: macOS
   platform: darwin
   description: A firewall minimizes the threat of unauthorized users gaining access to your system while connected to a network or the Internet.
@@ -341,7 +341,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Firewall Stealth Mode Is Enabled
+- name: "[macOS 15] CIS - Ensure Firewall Stealth Mode Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -359,7 +359,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure AirDrop Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure AirDrop Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -389,7 +389,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure AirPlay Receiver Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -425,7 +425,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -454,7 +454,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure the Time Service Is Enabled
+- name: "[macOS 15] CIS - Ensure the Time Service Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -468,7 +468,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: defensivedepth
 
-- name: CIS - Ensure Screen Sharing Is Disabled 
+- name: "[macOS 15] CIS - Ensure Screen Sharing Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -498,7 +498,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure File Sharing Is Disabled
+- name: "[macOS 15] CIS - Ensure File Sharing Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -525,7 +525,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Printer Sharing is Disabled
+- name: "[macOS 15] CIS - Ensure Printer Sharing is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -550,7 +550,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Remote Login Is Disabled
+- name: "[macOS 15] CIS - Ensure Remote Login Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -580,7 +580,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Remote Management is Disabled
+- name: "[macOS 15] CIS - Ensure Remote Management is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -605,7 +605,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Remote Apple Events is Disabled
+- name: "[macOS 15] CIS - Ensure Remote Apple Events is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -633,7 +633,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Internet Sharing Is Disabled
+- name: "[macOS 15] CIS - Ensure Internet Sharing Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -658,7 +658,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Content Caching Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Content Caching Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -693,7 +693,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Bluetooth Sharing Is Disabled
+- name: "[macOS 15] CIS - Ensure Bluetooth Sharing Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -726,7 +726,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Media Sharing Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Media Sharing Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -769,7 +769,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: getvictor
 
-- name: CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)
+- name: "[macOS 15] CIS - Ensure Backup Automatically is Enabled If Time Machine Is Enabled (FDA Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -797,7 +797,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: lucasmrod
 
-- name: CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled (FDA Required)
+- name: "[macOS 15] CIS - Ensure Time Machine Volumes Are Encrypted If Time Machine Is Enabled (FDA Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -831,7 +831,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -864,7 +864,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -896,7 +896,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure Siri is disabled (MDM required)
+- name: "[macOS 15] CIS - Ensure Siri is disabled (MDM required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -927,7 +927,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm, getvictor
 
-- name: CIS - Ensure Siri field TypeToSiriEnabled is true (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field TypeToSiriEnabled is true (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -953,7 +953,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field TypeToSiriEnabled is false (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field TypeToSiriEnabled is false (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -979,7 +979,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field StatusMenuVisible is true (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field StatusMenuVisible is true (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1005,7 +1005,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field StatusMenuVisible is false (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field StatusMenuVisible is false (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1031,7 +1031,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field VoiceTriggerUserEnabled is true (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field VoiceTriggerUserEnabled is true (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1057,7 +1057,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field VoiceTriggerUserEnabled is false (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field VoiceTriggerUserEnabled is false (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1083,7 +1083,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field LockscreenEnabled is true (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field LockscreenEnabled is true (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1109,7 +1109,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Siri field LockscreenEnabled is false (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Siri field LockscreenEnabled is false (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1135,7 +1135,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Location Services Is Enabled
+- name: "[macOS 15] CIS - Ensure Location Services Is Enabled"
   # platforms: macOS
   platform: darwin
   description: Checks that Location Services option is enabled.
@@ -1153,7 +1153,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled
+- name: "[macOS 15] CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled"
   # platforms: macOS
   platform: darwin
   description: This setting provides the user an understanding of the current status of Location Services and which applications are using it.
@@ -1173,7 +1173,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Location Services Is Disabled to all applications (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Location Services Is Disabled to all applications (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1195,7 +1195,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure Location Services Is Enabled for a specific list of applications (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1259,7 +1259,7 @@
   # tags: compliance, CIS, CIS_Level2, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Limit Ad Tracking Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks that Ensure Limit Ad Tracking Is Enabled.
@@ -1289,7 +1289,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd required)
+- name: "[macOS 15] CIS - Ensure an Administrator Password Is Required to Access System-Wide Preferences (Fleetd required)"
   # platforms: macOS
   platform: darwin
   description: Checks that an Administrator Password Is Required to Access System-Wide Preferences
@@ -1305,7 +1305,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+- name: "[macOS 15] CIS - Ensure Screen Saver Corners Are Secure (FDA Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1338,7 +1338,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: lucasmrod
 
-- name: CIS - Ensure Universal Control is enabled (Based on organization's policy) (MDM Required)
+- name: "[macOS 15] CIS - Ensure Universal Control is enabled (Based on organization's policy) (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1371,7 +1371,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)
+- name: "[macOS 15] CIS - Ensure Universal Control is disabled (Based on organization's policy) (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1404,7 +1404,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure Power Nap Is Disabled for Intel Macs (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1433,7 +1433,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure sleep and display sleep is enabled on Apple Silicon devices (Fleetd required)
+- name: "[macOS 15] CIS - Ensure sleep and display sleep is enabled on Apple Silicon devices (Fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1483,7 +1483,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: getvictor
 
-- name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1511,7 +1511,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure the OS is not Active When Resuming from Sleep (Fleetd, FDA Required)
+- name: "[macOS 15] CIS - Ensure the OS is not Active When Resuming from Sleep (Fleetd, FDA Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1584,7 +1584,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: lucasmrod
 
-- name: CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure a Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks that Password is Required to Wake the Computer From Sleep or Screen Saver Is Enabled.
@@ -1627,7 +1627,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Gatekeeper Is Enabled
+- name: "[macOS 15] CIS - Ensure Gatekeeper Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1645,7 +1645,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
@@ -1709,7 +1709,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 20 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 20 minutes is the default for new accounts.
@@ -1739,7 +1739,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure a Custom Message for the Login Screen Is Enabled
+- name: "[macOS 15] CIS - Ensure a Custom Message for the Login Screen Is Enabled"
   # platforms: macOS
   platform: darwin
   description: An access warning informs the user that the system is reserved for authorized use only, and that the use of the system may be monitored
@@ -1756,7 +1756,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure FileVault Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure FileVault Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks that FileVault Is Enabled. FileVault secures a system's data by automatically encrypting its boot volume and requiring a password or recovery key to access it. This policy checks that filevault is enabled on the device and that the user is not allowed to disable it.
@@ -1794,7 +1794,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Login Window Displays as Name and Password Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks Login Window Displays as Name and Password Is Enabled.
@@ -1824,7 +1824,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Show Password Hints Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Show Password Hints Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: Checks Show Password Hints Is Disabled.
@@ -1854,7 +1854,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure Users' Accounts Do Not Have a Password Hint (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1873,7 +1873,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Guest Account Is Disabled
+- name: "[macOS 15] CIS - Ensure Guest Account Is Disabled"
   # platforms: macOS
   platform: darwin
   description: Checks that Guest Account Is Disabled.
@@ -1892,7 +1892,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Guest Access to Shared Folders Is Disabled
+- name: "[macOS 15] CIS - Ensure Guest Access to Shared Folders Is Disabled"
   # platforms: macOS
   platform: darwin
   description: Allowing guests to connect to shared folders enables users to access selected shared folders and their contents from different computers on a network
@@ -1911,7 +1911,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Automatic Login Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Automatic Login Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1947,7 +1947,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure On-Device Dictation Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure On-Device Dictation Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -1972,7 +1972,7 @@
   # tags: compliance, CIS, CIS_Level1, CIS-macos-2-18.1, NEEDS_TESTING
   # contributors: DefensiveDepth
 
-- name: CIS - Ensure Security Auditing Is Enabled
+- name: "[macOS 15] CIS - Ensure Security Auditing Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2000,7 +2000,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements
+- name: "[macOS 15] CIS - Ensure Security Auditing Flags For User-Attributable Events Are Configured Per Local Organizational Requirements"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2052,7 +2052,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size
+- name: "[macOS 15] CIS - Ensure install.log Is Retained for 365 or More Days and No Maximum Size"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2079,7 +2079,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Security Auditing Retention Is Enabled
+- name: "[macOS 15] CIS - Ensure Security Auditing Retention Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2105,7 +2105,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Access to Audit Records Is Controlled
+- name: "[macOS 15] CIS - Ensure Access to Audit Records Is Controlled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2149,7 +2149,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Bonjour Advertising Services Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2181,7 +2181,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: lucasmrod
 
-- name: CIS - Ensure HTTP Server Is Disabled
+- name: "[macOS 15] CIS - Ensure HTTP Server Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2197,7 +2197,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure NFS Server Is Disabled
+- name: "[macOS 15] CIS - Ensure NFS Server Is Disabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2226,7 +2226,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod, getvictor
 
-- name: CIS - Ensure Home Folders Are Secure
+- name: "[macOS 15] CIS - Ensure Home Folders Are Secure"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2252,7 +2252,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure System Integrity Protection Status (SIP) Is Enabled
+- name: "[macOS 15] CIS - Ensure System Integrity Protection Status (SIP) Is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2270,7 +2270,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (fleetd required)
+- name: "[macOS 15] CIS - Ensure Apple Mobile File Integrity (AMFI) Is Enabled (fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2285,7 +2285,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Sealed System Volume (SSV) Is Enabled (fleetd required)
+- name: "[macOS 15] CIS - Ensure Sealed System Volume (SSV) Is Enabled (fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2300,7 +2300,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications
+- name: "[macOS 15] CIS - Ensure Appropriate Permissions Are Enabled for System Wide Applications"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2326,7 +2326,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure No World Writable Files Exist in the System Folder
+- name: "[macOS 15] CIS - Ensure No World Writable Files Exist in the System Folder"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2350,7 +2350,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure No World Writable Folders Exist in the Library Folder (Fleetd required)
+- name: "[macOS 15] CIS - Ensure No World Writable Folders Exist in the Library Folder (Fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2395,7 +2395,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: getvictor
 
-- name: CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)
+- name: "[macOS 15] CIS - Ensure Password Account Lockout Threshold Is Configured (Fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2413,7 +2413,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Password Minimum Length Is Configured
+- name: "[macOS 15] CIS - Ensure Password Minimum Length Is Configured"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2439,7 +2439,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)
+- name: "[macOS 15] CIS - Ensure Complex Password Must Contain Alphabetic Characters AND Numeric Characters Is Configured (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2467,7 +2467,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Complex Password Must Contain Special Character Is Configured (MDM Required)
+- name: "[macOS 15] CIS - Ensure Complex Password Must Contain Special Character Is Configured (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2492,7 +2492,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters Is Configured (Fleetd required)
+- name: "[macOS 15] CIS - Ensure Complex Password Must Contain Uppercase and Lowercase Characters Is Configured (Fleetd required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2506,7 +2506,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Password Age Is Configured (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure Password Age Is Configured (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2528,7 +2528,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure password history is set to at least 24 (MDM required)
+- name: "[macOS 15] CIS - Ensure password history is set to at least 24 (MDM required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2558,7 +2558,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm, getvictor
 
-- name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2589,7 +2589,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2608,7 +2608,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure the Sudo Timeout Period Is Set to Zero (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2633,7 +2633,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure a Separate Timestamp Is Enabled for Each User/tty (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2657,7 +2657,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure the "root" Account Is Disabled (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure the \"root\" Account Is Disabled (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2676,7 +2676,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure an Administrator Account Cannot Login to Another User's Active and Locked Session (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2706,7 +2706,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod, getvictor
 
-- name: CIS - Ensure a Login Window Banner Exists
+- name: "[macOS 15] CIS - Ensure a Login Window Banner Exists"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2728,7 +2728,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: lucasmrod
 
-- name: CIS - Ensure the Guest Home Folder Does Not Exist
+- name: "[macOS 15] CIS - Ensure the Guest Home Folder Does Not Exist"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2743,7 +2743,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure Show All Filename Extensions Setting is Enabled
+- name: "[macOS 15] CIS - Ensure Show All Filename Extensions Setting is Enabled"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2777,7 +2777,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work, getvictor
 
-- name: CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Automatic Opening of Safe Files in Safari Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2811,7 +2811,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)
+- name: "[macOS 15] CIS - Audit Safari Web Browser History and Remove History Items (organization decision needed)(MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2859,7 +2859,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2887,7 +2887,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Prevent Cross-site Tracking in Safari Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2946,7 +2946,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure the Hide IP Address in Safari is Enabled (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -2974,7 +2974,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: artemist-work
 
-- name: CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)
+- name: "[macOS 15] CIS - Ensure the Hide IP Address in Safari is Disabled (Based on organization's policy)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3004,7 +3004,7 @@
   # tags: compliance, CIS, CIS_Level1, decision-needed
   # contributors: artemist-work
 
-- name: CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)
+- name: "[macOS 15] CIS - Ensure Advertising Privacy Protection in Safari Is Enabled (FDA Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3035,7 +3035,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Show Full Website Address in Safari Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3072,7 +3072,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Show Status Bar Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Show Status Bar Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3093,7 +3093,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: defensivedepth
 
-- name: CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Secure Keyboard Entry Terminal.app Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3124,7 +3124,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure Logging Is Enabled for Sudo (Fleetd Required)
+- name: "[macOS 15] CIS - Ensure Logging Is Enabled for Sudo (Fleetd Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3161,7 +3161,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: getvictor
 
-- name: CIS - Ensure External Intelligence Extensions Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure External Intelligence Extensions Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3197,7 +3197,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: getvictor
 
-- name: CIS - Ensure Writing Tools Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Writing Tools Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3231,7 +3231,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: getvictor
 
-- name: CIS - Ensure Mail Summarization Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Mail Summarization Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
@@ -3263,7 +3263,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: getvictor
 
-- name: CIS - Ensure Notes Summarization Is Disabled (MDM Required)
+- name: "[macOS 15] CIS - Ensure Notes Summarization Is Disabled (MDM Required)"
   # platforms: macOS
   platform: darwin
   description: |
