@@ -952,6 +952,8 @@ Get details of the certificate authority.
 
 ### List certificate templates
 
+((Admin)) ((Maintainer))
+
 List certificate added to Fleet. Currently, they can only be added via GitOps.
 
 `GET /api/v1/fleet/certificates`
@@ -1036,6 +1038,8 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 
 ### Get certificate template
 
+((Admin)) ((Maintainer))
+
 Get details of the certificate added to Fleet.
 
 `GET /api/v1/fleet/certificates/:id`
@@ -1100,6 +1104,8 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
 
 ### Delete certificate authority (CA)
 
+((Admin)) ((GitOps))
+
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 When the CA is deleted, the issued certificates will remain on existing hosts.
@@ -1121,6 +1127,8 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 `Status: 204`
 
 ### Delete certificate template
+
+((Admin)) ((Maintainer)) ((GitOps))
 
 Deletes the certificate template added to Fleet. When a certificate template is deleted from Fleet, the certificate will be uninstalled from the hosts.
 
