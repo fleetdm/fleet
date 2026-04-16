@@ -4234,6 +4234,8 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 ### Delete host
 
+((Admin)) ((Maintainer))
+
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
 `DELETE /api/v1/fleet/hosts/:id`
@@ -4253,6 +4255,8 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 `Status: 200`
 
 ### Refetch host
+
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 Flags the host details, labels and policies to be refetched the next time the host checks in. Note that we cannot be certain when the host will actually check in. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
@@ -4274,6 +4278,8 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 ### Refetch host by Fleet Desktop token
 
+((Public with valid token))
+
 Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instead the host ID.
 
 `POST /api/v1/fleet/device/:token/refetch`
@@ -4293,6 +4299,8 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 `Status: 200`
 
 ### Update hosts' fleet
+
+((Admin)) ((Maintainer)) ((Technician))
 
 _Available in Fleet Premium_
 
@@ -4325,6 +4333,8 @@ _Available in Fleet Premium_
 
 
 ### Update hosts' fleet by filter
+
+((Admin)) ((Maintainer)) ((Technician))
 
 _Available in Fleet Premium_
 
