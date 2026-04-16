@@ -26,6 +26,15 @@ func GetRoutes(svc api.Service, authMiddleware endpoint.Middleware) eu.HandlerRo
 func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption) {
 	apiVersions := []string{"v1", "2022-04"}
 	ue := newChartEndpointer(svc, authMiddleware, opts, r, apiVersions...)
+	//
+	// compliance endpoints
+	// TODO: move thse to server/service/handler.go
+	//
+	ue.GET("/api/_version_/fleet/policies/compliance/most_ignored", getMostIgnoredPoliciesEndpoint, api_http.GetMostIgnoredPoliciesRequest{})
+	ue.GET("/api/_version_/fleet/policies/compliance/top_hosts", getTopNonCompliantHostsEndpoint, api_http.GetTopNonCompliantHostsRequest{})
+	//
+	// compliance endpoints
+	//
 	ue.GET("/api/_version_/fleet/charts/{metric}", getChartDataEndpoint, api_http.GetChartDataRequest{})
 }
 
@@ -53,6 +62,24 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fl
 		return api_http.GetChartDataResponse{Err: err}, nil
 	}
 	return api_http.GetChartDataResponse{Response: resp}, nil
+}
+
+func getMostIgnoredPoliciesEndpoint(ctx context.Context, request any, svc api.Service) (fleet.Errorer, error) {
+	req := request.(*api_http.GetMostIgnoredPoliciesRequest)
+	policies, err := svc.GetMostIgnoredPolicies(ctx, req.Limit)
+	if err != nil {
+		return api_http.GetMostIgnoredPoliciesResponse{Err: err}, nil
+	}
+	return api_http.GetMostIgnoredPoliciesResponse{Policies: policies}, nil
+}
+
+func getTopNonCompliantHostsEndpoint(ctx context.Context, request any, svc api.Service) (fleet.Errorer, error) {
+	req := request.(*api_http.GetTopNonCompliantHostsRequest)
+	hosts, err := svc.GetTopNonCompliantHosts(ctx, req.Limit)
+	if err != nil {
+		return api_http.GetTopNonCompliantHostsResponse{Err: err}, nil
+	}
+	return api_http.GetTopNonCompliantHostsResponse{Hosts: hosts}, nil
 }
 
 func parseUintList(s string) []uint {

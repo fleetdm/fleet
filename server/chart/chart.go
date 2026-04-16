@@ -61,6 +61,7 @@ type BlobDataPoint struct {
 // It is satisfied by the chart internal Datastore, keeping dataset implementations decoupled from internals.
 type DatasetStore interface {
 	CollectUptimeChartData(ctx context.Context, now time.Time) error
+	CollectPolicyFailingChartData(ctx context.Context, now time.Time) error
 }
 
 // Host is a minimal host type for authorization checks within the chart bounded context.
@@ -77,21 +78,27 @@ type FilterDef struct {
 	Description string `json:"description,omitempty"`
 }
 
-// DataPoint represents a single data point in the chart response.
 type DataPoint struct {
-	Timestamp time.Time `json:"timestamp"`
-	Value     int       `json:"value"`
+	Timestamp time.Time      `json:"timestamp"`
+	Values    map[string]int `json:"values"`
+}
+
+type SeriesMeta struct {
+	Key   string         `json:"key"`
+	Label string         `json:"label"`
+	Stats map[string]any `json:"stats,omitempty"`
 }
 
 // Response is the API response for chart data.
 type Response struct {
-	Metric        string    `json:"metric"`
-	Visualization string    `json:"visualization"`
-	TotalHosts    int       `json:"total_hosts"`
-	Resolution    string    `json:"resolution"`
-	Days          int       `json:"days"`
-	Filters       Filters   `json:"filters"`
-	Data          []DataPoint `json:"data"`
+	Metric        string       `json:"metric"`
+	Visualization string       `json:"visualization"`
+	TotalHosts    int          `json:"total_hosts"`
+	Resolution    string       `json:"resolution"`
+	Days          int          `json:"days"`
+	Filters       Filters      `json:"filters"`
+	Series        []SeriesMeta `json:"series"`
+	Data          []DataPoint  `json:"data"`
 }
 
 // RequestOpts captures the parsed query parameters for a chart request.

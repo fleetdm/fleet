@@ -22,3 +22,31 @@ type GetChartDataResponse struct {
 }
 
 func (r GetChartDataResponse) Error() error { return r.Err }
+
+// GetMostIgnoredPoliciesRequest is the HTTP request for the most-ignored
+// policies endpoint.
+type GetMostIgnoredPoliciesRequest struct {
+	Limit int `query:"limit,optional"`
+}
+
+// GetMostIgnoredPoliciesResponse is the HTTP response for the most-ignored
+// policies endpoint.
+type GetMostIgnoredPoliciesResponse struct {
+	Policies []chart.MostIgnoredPolicy `json:"policies"`
+	Err      error                     `json:"error,omitempty"`
+}
+
+func (r GetMostIgnoredPoliciesResponse) Error() error { return r.Err }
+
+// GetTopNonCompliantHostsRequest is the HTTP request for the ranked host list.
+type GetTopNonCompliantHostsRequest struct {
+	Limit int `query:"limit,optional"`
+}
+
+// GetTopNonCompliantHostsResponse is the HTTP response for the ranked host list.
+type GetTopNonCompliantHostsResponse struct {
+	Hosts []chart.HostFailingSummary `json:"hosts"`
+	Err   error                      `json:"error,omitempty"`
+}
+
+func (r GetTopNonCompliantHostsResponse) Error() error { return r.Err }

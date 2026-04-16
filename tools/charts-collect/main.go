@@ -87,6 +87,9 @@ func main() {
 	if err := collectCVE(api, db); err != nil {
 		log.Printf("ERROR cve collection: %v", err)
 	}
+	if err := collectPolicyFailing(api, db); err != nil {
+		log.Printf("ERROR policy_failing collection: %v", err)
+	}
 }
 
 // dsnFromEnv builds a MySQL DSN from the standard FLEET_MYSQL_* env vars used
@@ -350,7 +353,6 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 	return nil
 }
 
-
 // --- API helpers ---
 
 // fetchHostIDs pages through the hosts list endpoint. Pass extra query params
@@ -384,6 +386,176 @@ func fetchHostIDs(api *apiClient, extraParams string) ([]uint, error) {
 		}
 	}
 	return all, nil
+}
+
+// policyResponse is the minimal subset of fleet.Policy fields we need.
+type policyResponse struct {
+	ID               uint  `json:"id"`
+	FailingHostCount uint  `json:"failing_host_count"`
+	TeamID           *uint `json:"team_id"`
+}
+
+// listPoliciesResponse matches both /policies and /fleets/{id}/policies.
+type listPoliciesResponse struct {
+	Policies []policyResponse `json:"policies"`
+}
+
+// listTeamsResponse matches /fleets.
+type listTeamsResponse struct {
+	Teams []struct {
+		ID uint `json:"id"`
+	} `json:"teams"`
+}
+
+func collectPolicyFailing(api *apiClient, db *sql.DB) error {
+	log.Println("collecting policy_failing data...")
+
+	policies, err := fetchAllPolicies(api)
+	if err != nil {
+		return fmt.Errorf("fetch policies: %w", err)
+	}
+	log.Printf("  %d policies across all scopes", len(policies))
+
+	entityBitmaps := make(map[string][]byte, len(policies))
+	totalFailing := 0
+	for _, p := range policies {
+		key := fmt.Sprintf("%d", p.ID)
+		if p.FailingHostCount == 0 {
+			entityBitmaps[key] = []byte{}
+			continue
+		}
+		hostIDs, err := fetchFailingHostIDsForPolicy(api, p.ID, p.TeamID)
+		if err != nil {
+			log.Printf("  warning: policy %d: %v", p.ID, err)
+			entityBitmaps[key] = []byte{}
+			continue
+		}
+		blob := chart.HostIDsToBlob(hostIDs)
+		if blob == nil {
+			blob = []byte{}
+		}
+		entityBitmaps[key] = blob
+		totalFailing += len(hostIDs)
+	}
+	log.Printf("  %d total (policy, failing-host) pairs", totalFailing)
+
+	writeStart := time.Now()
+	today := time.Now().UTC().Format(scdDateFormat)
+	if err := reconcileSCD(db, "policy_failing", entityBitmaps, today); err != nil {
+		return fmt.Errorf("reconcile SCD: %w", err)
+	}
+	log.Printf("  reconciled %d entities in %.1fs", len(entityBitmaps), time.Since(writeStart).Seconds())
+	return nil
+}
+
+// fetchAllPolicies returns every policy across global and team scopes.
+func fetchAllPolicies(api *apiClient) ([]policyResponse, error) {
+	var all []policyResponse
+
+	globals, err := fetchPoliciesFromPath(api, "/api/v1/fleet/global/policies")
+	if err != nil {
+		return nil, fmt.Errorf("global: %w", err)
+	}
+	all = append(all, globals...)
+
+	// Team policies — iterate teams.
+	teamIDs, err := fetchTeamIDs(api)
+	if err != nil {
+		return nil, fmt.Errorf("list teams: %w", err)
+	}
+	for _, tid := range teamIDs {
+		teamPath := fmt.Sprintf("/api/v1/fleet/fleets/%d/policies", tid)
+		teamPolicies, err := fetchPoliciesFromPath(api, teamPath)
+		if err != nil {
+			log.Printf("  warning: team %d policies: %v", tid, err)
+			continue
+		}
+		all = append(all, teamPolicies...)
+	}
+	return all, nil
+}
+
+// fetchPoliciesFromPath pages through a policy list endpoint.
+func fetchPoliciesFromPath(api *apiClient, basePath string) ([]policyResponse, error) {
+	var all []policyResponse
+	sep := "?"
+	if strings.Contains(basePath, "?") {
+		sep = "&"
+	}
+	for page := 0; ; page++ {
+		path := fmt.Sprintf("%s%sper_page=%d&page=%d", basePath, sep, perPage, page)
+		resp, err := api.get(path)
+		if err != nil {
+			return nil, err
+		}
+		var result listPoliciesResponse
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("decode %s page %d: %w", basePath, page, err)
+		}
+		all = append(all, result.Policies...)
+		if len(result.Policies) < perPage {
+			break
+		}
+	}
+	return all, nil
+}
+
+// fetchTeamIDs returns all team IDs in the Fleet instance.
+func fetchTeamIDs(api *apiClient) ([]uint, error) {
+	var ids []uint
+	for page := 0; ; page++ {
+		path := fmt.Sprintf("/api/v1/fleet/fleets?per_page=%d&page=%d", perPage, page)
+		resp, err := api.get(path)
+		if err != nil {
+			return nil, err
+		}
+		var result listTeamsResponse
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("decode teams page %d: %w", page, err)
+		}
+		for _, t := range result.Teams {
+			ids = append(ids, t.ID)
+		}
+		if len(result.Teams) < perPage {
+			break
+		}
+	}
+	return ids, nil
+}
+
+// fetchFailingHostIDsForPolicy returns the IDs of hosts currently failing a policy.
+// Team-scoped policies require a team_id query param; global policies don't.
+func fetchFailingHostIDsForPolicy(api *apiClient, policyID uint, teamID *uint) ([]uint, error) {
+	var hostIDs []uint
+	for page := 0; ; page++ {
+		path := fmt.Sprintf(
+			"/api/v1/fleet/hosts?per_page=%d&page=%d&policy_id=%d&policy_response=failing",
+			perPage, page, policyID)
+		if teamID != nil {
+			path += fmt.Sprintf("&team_id=%d", *teamID)
+		}
+		resp, err := api.get(path)
+		if err != nil {
+			return nil, err
+		}
+		var result hostsResponse
+		err = json.NewDecoder(resp.Body).Decode(&result)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("decode failing hosts page %d: %w", page, err)
+		}
+		for _, h := range result.Hosts {
+			hostIDs = append(hostIDs, h.ID)
+		}
+		if len(result.Hosts) < perPage {
+			break
+		}
+	}
+	return hostIDs, nil
 }
 
 // fetchHostCVEs returns deduplicated CVE IDs for a single host.
@@ -423,4 +595,3 @@ func fetchHostCVEs(api *apiClient, hostID uint) ([]string, error) {
 	}
 	return cves, nil
 }
-

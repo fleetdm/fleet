@@ -19,38 +19,16 @@ import Icon from "components/Icon";
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
-import { IDataSet, IFormattedDataPoint } from "./types";
+import ComplianceStackedBarViz from "./ComplianceStackedBarViz";
+import { IFormattedDataPoint } from "./types";
 
 const baseClass = "chart-card";
 
-const DATASETS: IDataSet[] = [
-  {
-    name: "uptime",
-    label: "Check-in activity",
-    isPercentage: true,
-    defaultChartType: "checkerboard",
-  },
-  {
-    name: "policy",
-    label: "Policy compliance",
-    isPercentage: true,
-    defaultChartType: "line",
-  },
-  {
-    name: "cve",
-    label: "Vulnerabilities",
-    isPercentage: false,
-    defaultChartType: "line",
-  },
+const DATASETS: CustomOptionType[] = [
+  { value: "uptime", label: "Check-in activity" },
+  { value: "policy_failing", label: "Hosts failing policies" },
+  { value: "cve", label: "Vulnerabilities" },
 ];
-
-const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
-  label: ds.label,
-  value: ds.name,
-}));
-
-const getDataset = (name: string): IDataSet =>
-  DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const hasActiveFilters = (filters: IChartFilterState): boolean => {
   return (
@@ -63,7 +41,6 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
 const ChartCard = (): JSX.Element => {
   const [selectedDays] = useState(30);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
-  const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
     labelIDs: [],
@@ -71,8 +48,6 @@ const ChartCard = (): JSX.Element => {
     hostFilterMode: "none",
     selectedHosts: [],
   });
-
-  const currentDataset = getDataset(selectedMetric);
 
   const queryParams: IChartRequestParams = useMemo(() => {
     let downsample: number | undefined;
@@ -82,7 +57,6 @@ const ChartCard = (): JSX.Element => {
       downsample = 2;
     }
     return {
-      ...filterParams,
       days: selectedDays,
       downsample,
       tz_offset: new Date().getTimezoneOffset(),
@@ -94,23 +68,22 @@ const ChartCard = (): JSX.Element => {
         : undefined,
       include_host_ids:
         chartFilters.hostFilterMode === "include" &&
-        chartFilters.selectedHosts.length
+          chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
       exclude_host_ids:
         chartFilters.hostFilterMode === "exclude" &&
-        chartFilters.selectedHosts.length
+          chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
     };
-  }, [filterParams, selectedDays, chartFilters]);
+  }, [selectedDays, chartFilters]);
 
-  const { data: chartData, isFetching, error } = useQuery<
-    IChartResponse,
-    Error,
-    IChartResponse,
-    IChartQueryKey[]
-  >(
+  const {
+    data: chartData,
+    isFetching,
+    error,
+  } = useQuery<IChartResponse, Error, IChartResponse, IChartQueryKey[]>(
     [{ scope: "chart", metric: selectedMetric, params: queryParams }],
     () => chartsAPI.getChartData(selectedMetric, queryParams),
     {
@@ -120,16 +93,18 @@ const ChartCard = (): JSX.Element => {
   );
 
   const formattedData: IFormattedDataPoint[] = useMemo(() => {
-    if (!chartData?.data) return [];
+    if (!chartData?.data || !chartData?.series) return [];
     const totalHosts = chartData.total_hosts || 1;
+    const primaryKey = chartData.series[0]?.key ?? "total";
     return chartData.data.map((point) => {
       const date = parseISO(point.timestamp);
       const labelFormat = selectedDays === 1 ? "h:mm a" : "MMM d, h:mm a";
+      const value = point.values[primaryKey] ?? 0;
       return {
         timestamp: point.timestamp,
         label: format(date, labelFormat),
-        value: point.value,
-        percentage: Math.round((point.value / totalHosts) * 100),
+        value,
+        percentage: Math.round((value / totalHosts) * 100),
       };
     });
   }, [chartData, selectedDays]);
@@ -141,7 +116,7 @@ const ChartCard = (): JSX.Element => {
     if (error) {
       return <DataError />;
     }
-    if (!formattedData.length) {
+    if (!chartData?.data?.length) {
       return (
         <div className={`${baseClass}__no-data`}>
           No chart data available yet.
@@ -149,18 +124,31 @@ const ChartCard = (): JSX.Element => {
       );
     }
 
-    const vizProps = {
-      data: formattedData,
-      selectedDays,
-      isPercentage: currentDataset.isPercentage,
-    };
-
-    switch (currentDataset.defaultChartType) {
+    switch (chartData.visualization) {
+      case "stacked_bar":
+        return (
+          <ComplianceStackedBarViz
+            series={chartData.series}
+            data={chartData.data}
+          />
+        );
       case "checkerboard":
-        return <CheckerboardViz {...vizProps} />;
+        return (
+          <CheckerboardViz
+            data={formattedData}
+            selectedDays={selectedDays}
+            isPercentage
+          />
+        );
       case "line":
       default:
-        return <LineChartViz {...vizProps} />;
+        return (
+          <LineChartViz
+            data={formattedData}
+            selectedDays={selectedDays}
+            isPercentage={false}
+          />
+        );
     }
   };
 
@@ -171,7 +159,7 @@ const ChartCard = (): JSX.Element => {
           <DropdownWrapper
             name="dataset"
             value={selectedMetric}
-            options={DATASET_OPTIONS}
+            options={DATASETS}
             onChange={(option: SingleValue<CustomOptionType>) => {
               if (option) {
                 setSelectedMetric(option.value);

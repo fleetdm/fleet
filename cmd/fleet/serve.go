@@ -1948,6 +1948,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, logger)
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
+	chartSvc.RegisterDataset(&chart.PolicyFailingDataset{})
 	// Create auth middleware for chart bounded context
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return auth.AuthenticatedUser(svc, next)

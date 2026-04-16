@@ -1,0 +1,60 @@
+.top-failing-hosts-card {
+  &__header {
+    margin-bottom: $pad-medium;
+  }
+
+  &__title {
+    font-size: 18px;
+    font-weight: $bold;
+    color: $core-fleet-black;
+    margin: 0;
+  }
+
+  &__body {
+    min-height: 280px;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $x-small;
+
+    th {
+      text-align: left;
+      padding: $pad-xsmall $pad-small;
+      border-bottom: 1px solid $ui-fleet-black-10;
+      color: $ui-fleet-black-50;
+      font-weight: $bold;
+    }
+
+    td {
+      padding: $pad-small;
+      border-bottom: 1px solid $ui-fleet-black-10;
+      color: $core-fleet-black;
+    }
+  }
+
+  &__name {
+    text-align: left;
+    min-width: 200px;
+  }
+
+  &__scope {
+    text-align: left;
+    color: $ui-fleet-black-75;
+    white-space: nowrap;
+  }
+
+  &__numeric {
+    text-align: right;
+    font-weight: $bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__no-data {
+    color: $ui-fleet-black-50;
+    font-size: $x-small;
+    text-align: center;
+    padding: $pad-large;
+  }
+}

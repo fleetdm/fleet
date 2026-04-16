@@ -74,6 +74,8 @@ export default {
 
   // Chart endpoints
   CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
+  COMPLIANCE_MOST_IGNORED: `/${API_VERSION}/fleet/policies/compliance/most_ignored`,
+  COMPLIANCE_TOP_HOSTS: `/${API_VERSION}/fleet/policies/compliance/top_hosts`,
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,

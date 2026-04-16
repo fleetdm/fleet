@@ -39,6 +39,34 @@ func (m *mockDatastore) CollectUptimeChartData(ctx context.Context, now time.Tim
 	return nil
 }
 
+func (m *mockDatastore) CollectPolicyFailingChartData(_ context.Context, _ time.Time) error {
+	return nil
+}
+
+func (m *mockDatastore) GetPolicyFailingSnapshot(_ context.Context) ([]chart.PolicyFailingSnapshot, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) GetPoliciesMetadata(_ context.Context) ([]chart.PolicyMeta, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) GetTeamsMetadata(_ context.Context) ([]chart.TeamMeta, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) GetHostTeamAssignments(_ context.Context) ([]chart.HostTeam, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) GetPolicyFailingByTeamTrend(_ context.Context, _, _ time.Time) ([]chart.TeamTrendPoint, error) {
+	return nil, nil
+}
+
+func (m *mockDatastore) GetTopNonCompliantHosts(_ context.Context, _ int) ([]chart.HostFailingSummary, error) {
+	return nil, nil
+}
+
 func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 	if m.getBlobDataFunc != nil {
 		return m.getBlobDataFunc(ctx, dataset, startDate, endDate, entityIDs)

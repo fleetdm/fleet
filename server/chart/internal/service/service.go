@@ -96,6 +96,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 	}
 
 	var data []chart.DataPoint
+	var series []chart.SeriesMeta
 	var totalHosts int
 	resolution := "hourly"
 	if opts.Downsample > 0 {
@@ -108,12 +109,18 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 		if err == nil {
 			data = fillZeroValues(data, startDate, endDate, opts.Downsample, opts.TZOffsetMinutes)
 		}
+		series = []chart.SeriesMeta{{Key: "total", Label: metric}}
 	case chart.StorageTypeSCD:
 		// SCD datasets always bucket daily — the datastore fills zero-valued days itself.
 		resolution = "daily"
-		data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, hostFilter, entityIDs)
-		if err == nil {
-			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
+		if dataset.HasEntityDimension() && metric == "policy_failing" {
+			data, series, totalHosts, err = s.getPolicyFailingChartData(ctx, startDate, endDate)
+		} else {
+			data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, hostFilter, entityIDs)
+			if err == nil {
+				totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
+			}
+			series = []chart.SeriesMeta{{Key: "total", Label: metric}}
 		}
 	default:
 		return nil, ctxerr.Errorf(ctx, "unsupported storage type: %s", dataset.StorageType())
@@ -134,7 +141,8 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 			IncludeHostIDs: opts.IncludeHostIDs,
 			ExcludeHostIDs: opts.ExcludeHostIDs,
 		},
-		Data: data,
+		Series: series,
+		Data:   data,
 	}, nil
 }
 
@@ -229,7 +237,7 @@ func (s *Service) getChartDataBlob(
 			localBucket := time.Date(d.Year(), d.Month(), d.Day(), h, 0, 0, 0, loc)
 			results = append(results, chart.DataPoint{
 				Timestamp: localBucket.UTC(),
-				Value:     chart.BlobPopcount(merged),
+				Values:    map[string]int{"total": chart.BlobPopcount(merged)},
 			})
 		}
 	}
@@ -245,9 +253,9 @@ func (s *Service) CleanupData(ctx context.Context, days int) error {
 // boundaries are aligned to local time using the provided tz offset so the
 // generated timestamps match those produced by getChartDataBlob.
 func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsample, tzOffsetMinutes int) []chart.DataPoint {
-	existing := make(map[time.Time]int, len(data))
+	existing := make(map[time.Time]map[string]int, len(data))
 	for _, dp := range data {
-		existing[dp.Timestamp] = dp.Value
+		existing[dp.Timestamp] = dp.Values
 	}
 
 	step := 1
@@ -273,10 +281,13 @@ func fillZeroValues(data []chart.DataPoint, startDate, endDate time.Time, downsa
 
 	var result []chart.DataPoint
 	for t := start; !t.After(end); t = t.Add(time.Duration(step) * time.Hour) {
-		val := existing[t]
+		vals := existing[t]
+		if vals == nil {
+			vals = map[string]int{"total": 0}
+		}
 		result = append(result, chart.DataPoint{
 			Timestamp: t,
-			Value:     val,
+			Values:    vals,
 		})
 	}
 	return result

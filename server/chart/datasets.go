@@ -58,3 +58,39 @@ func (u *CVEDataset) DefaultVisualization() string {
 func (u *CVEDataset) HasEntityDimension() bool {
 	return true
 }
+
+// PolicyFailingDataset implements Dataset for per-policy host compliance tracking.
+type PolicyFailingDataset struct{}
+
+func (p *PolicyFailingDataset) Name() string             { return "policy_failing" }
+func (p *PolicyFailingDataset) StorageType() StorageType { return StorageTypeSCD }
+
+func (p *PolicyFailingDataset) Collect(ctx context.Context, store DatasetStore, now time.Time) error {
+	return store.CollectPolicyFailingChartData(ctx, now)
+}
+
+func (p *PolicyFailingDataset) ResolveFilters(_ context.Context, _ DatasetStore, params map[string]string) ([]string, error) {
+	if pid, ok := params["policy_id"]; ok && pid != "" {
+		return []string{pid}, nil
+	}
+	return nil, nil
+}
+
+func (p *PolicyFailingDataset) SupportedFilters() []FilterDef {
+	return []FilterDef{
+		{
+			Name:        "policy_id",
+			Label:       "Policy",
+			Type:        "multi_select",
+			Description: "Restrict the chart to a specific policy",
+		},
+	}
+}
+
+func (p *PolicyFailingDataset) DefaultVisualization() string {
+	return "stacked_bar"
+}
+
+func (p *PolicyFailingDataset) HasEntityDimension() bool {
+	return true
+}

@@ -18,6 +18,7 @@
   }
 
   &__dataset-dropdown {
+
     // Hide the form field label
     .form-field__label {
       display: none;
@@ -119,6 +120,96 @@
   }
 }
 
+.compliance-stacked-bar-viz {
+  &__body-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: $pad-large;
+    align-items: start;
+  }
+
+  &__chart {
+    min-width: 0; // let ResponsiveContainer shrink inside a grid cell
+  }
+
+  &__legend {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__legend-header {
+    font-size: 11px;
+    font-weight: $bold;
+    color: $ui-fleet-black-50;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+  }
+
+  &__legend-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 14px 1fr auto;
+    gap: 8px;
+    align-items: center;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    cursor: default;
+    padding: 4px 0;
+  }
+
+  &__legend-item--empty {
+    color: $ui-fleet-black-50;
+  }
+
+  &__swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  &__team-name {
+    font-weight: $bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__team-pct {
+    color: $ui-fleet-black-50;
+    font-size: $xx-small;
+    white-space: nowrap;
+  }
+
+  &__legend-tooltip {
+    position: absolute;
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: $core-fleet-black;
+    color: $core-fleet-white;
+    padding: $pad-xsmall $pad-small;
+    border-radius: $border-radius;
+    font-size: $xx-small;
+    white-space: nowrap;
+    z-index: 10;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+  }
+
+  &__no-data {
+    color: $ui-fleet-black-50;
+    font-size: $x-small;
+    text-align: center;
+    padding: $pad-large;
+  }
+}
+
 .checkerboard-viz {
   width: 100%;
 
@@ -194,33 +285,33 @@
     stroke-width: 1px;
 
     &--level-0 {
-        fill: #ebedf0;
-        background-color: #ebedf0;
+      fill: #ebedf0;
+      background-color: #ebedf0;
     }
 
     &--level-1 {
       fill: #E4F1EC;
       background-color: #E4F1EC;
     }
-  
+
     &--level-2 {
       fill: #BADECF;
       background-color: #BADECF;
     }
-  
+
     &--level-3 {
       fill: #82D2B9;
       background-color: #82D2B9;
     }
-  
+
     &--level-4 {
       fill: #009A7D;
       background-color: #009A7D;
     }
-  
+
     &--level-5 {
       fill: #005B4A;
       background-color: #005B4A;
-    }  
+    }
   }
 }

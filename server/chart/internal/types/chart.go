@@ -24,6 +24,10 @@ type Datastore interface {
 	// CollectUptimeChartData bulk-inserts uptime blob data for all recently seen hosts.
 	CollectUptimeChartData(ctx context.Context, now time.Time) error
 
+	// CollectPolicyFailingChartData builds per-policy failing-host bitmaps from
+	// policy_membership and reconciles them into the SCD table.
+	CollectPolicyFailingChartData(ctx context.Context, now time.Time) error
+
 	// CleanupBlobData deletes blob rows older than the specified number of days.
 	CleanupBlobData(ctx context.Context, days int) error
 
@@ -43,4 +47,26 @@ type Datastore interface {
 	// CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 	// retention cutoff. Open rows (valid_to = sentinel) are never deleted.
 	CleanupSCDData(ctx context.Context, days int) error
+
+	// GetPolicyFailingSnapshot returns the currently-open per-policy failing-host
+	// bitmaps from the policy_failing SCD dataset.
+	GetPolicyFailingSnapshot(ctx context.Context) ([]chart.PolicyFailingSnapshot, error)
+
+	// GetPoliciesMetadata returns id/name/team_id for every policy in the policies table.
+	GetPoliciesMetadata(ctx context.Context) ([]chart.PolicyMeta, error)
+
+	// GetTeamsMetadata returns id/name for every team in the teams table.
+	GetTeamsMetadata(ctx context.Context) ([]chart.TeamMeta, error)
+
+	// GetHostTeamAssignments returns the team assignment for every host.
+	// Hosts with NULL team_id have TeamID == nil in the returned rows.
+	GetHostTeamAssignments(ctx context.Context) ([]chart.HostTeam, error)
+
+	// GetPolicyFailingByTeamTrend returns per-day, per-team counts of hosts
+	// failing ≥1 policy over the given date range, for the stacked-bar chart.
+	GetPolicyFailingByTeamTrend(ctx context.Context, startDate, endDate time.Time) ([]chart.TeamTrendPoint, error)
+
+	// GetTopNonCompliantHosts returns the N hosts with the most currently-failing
+	// policies, hydrated with hostname / team metadata for display.
+	GetTopNonCompliantHosts(ctx context.Context, limit int) ([]chart.HostFailingSummary, error)
 }

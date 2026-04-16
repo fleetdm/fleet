@@ -191,7 +191,7 @@ func (ds *Datastore) GetSCDData(
 		}
 		results = append(results, chart.DataPoint{
 			Timestamp: d,
-			Value:     chart.BlobPopcount(merged),
+			Values:    map[string]int{"total": chart.BlobPopcount(merged)},
 		})
 	}
 	return results, nil

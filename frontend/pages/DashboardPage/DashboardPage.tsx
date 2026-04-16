@@ -78,6 +78,8 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ChartCard from "./cards/ChartCard";
+import MostIgnoredPoliciesCard from "./cards/MostIgnoredPoliciesCard";
+import TopFailingHostsCard from "./cards/TopFailingHostsCard";
 import { HostsEnrolledCard } from "./cards/HostsEnrolledCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
@@ -936,6 +938,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               ipadosCount={ipadosCount}
               androidCount={androidCount}
             />
+          </Card>
+        </div>
+        <div className={`${baseClass}__charts-row`}>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <MostIgnoredPoliciesCard />
+          </Card>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <TopFailingHostsCard />
           </Card>
         </div>
         {renderCards()}

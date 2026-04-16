@@ -23,4 +23,11 @@ type Service interface {
 
 	// CleanupData deletes chart data rows older than the specified number of days.
 	CleanupData(ctx context.Context, days int) error
+
+	// GetMostIgnoredPolicies returns policies ranked by current failing-host count.
+	GetMostIgnoredPolicies(ctx context.Context, limit int) ([]chart.MostIgnoredPolicy, error)
+
+	// GetTopNonCompliantHosts returns the N hosts with the most currently-failing
+	// policies, descending.
+	GetTopNonCompliantHosts(ctx context.Context, limit int) ([]chart.HostFailingSummary, error)
 }
