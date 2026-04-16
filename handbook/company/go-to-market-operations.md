@@ -179,7 +179,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 ## Processing intent signals
 
 Intent signals help measure an individual's/organization's current level of engagement with the Fleet brand and help us:  
-- Created/update contact and/or accounts in Fleet's CRM. 
+- Create/update contact and/or accounts in Fleet's CRM. 
 - Prioritize accounts for [research](https://fleetdm.com/handbook/marketing#research-an-account).
 - Identify accounts/contacts that would benefit from a POV conversation.
 
