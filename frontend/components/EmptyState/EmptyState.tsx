@@ -1,9 +1,6 @@
 import React from "react";
 import classnames from "classnames";
 
-import Graphic from "components/Graphic";
-import { GraphicNames } from "components/graphics";
-
 const baseClass = "empty-state";
 
 // Number of visible ghost rows (header + data rows that fill the container)
@@ -13,7 +10,6 @@ export interface IEmptyStateProps {
   header?: JSX.Element | string;
   info?: JSX.Element | string;
   additionalInfo?: JSX.Element | string;
-  graphicName?: GraphicNames;
   primaryButton?: JSX.Element;
   secondaryButton?: JSX.Element;
   /** "default" renders 3 ghost columns (page-level), "small" renders 2 (modal-level) */
@@ -65,7 +61,6 @@ const EmptyState = ({
   header,
   info,
   additionalInfo,
-  graphicName,
   primaryButton,
   secondaryButton,
   width = "default",
@@ -102,11 +97,6 @@ const EmptyState = ({
       </div>
       <div className={`${baseClass}__content-wrapper`}>
         <div className={`${baseClass}__content`}>
-          {graphicName && (
-            <div className={`${baseClass}__image-wrapper`}>
-              <Graphic name={graphicName} />
-            </div>
-          )}
           {header && <h3>{header}</h3>}
           {info && <div className={`${baseClass}__info`}>{info}</div>}
           {additionalInfo && (

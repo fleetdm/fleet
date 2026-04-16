@@ -94,8 +94,7 @@ const EnrollSecretModal = ({
           />
         </div>
       ) : (
-        <Card color="grey" paddingSize="small">
-          <EmptyState variant="list"
+        <EmptyState variant="list"
             header="You have no enroll secrets."
             info={
               <>
@@ -129,8 +128,7 @@ const EnrollSecretModal = ({
                 )}
               />
             }
-          />
-        </Card>
+        />
       )}
       <div className="modal-cta-wrap">
         <Button onClick={onReturnToApp}>Close</Button>

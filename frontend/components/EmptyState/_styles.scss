@@ -120,11 +120,6 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     margin: 0;
   }
 
-  &__image-wrapper {
-    display: flex;
-    justify-content: center;
-  }
-
   &__cta-buttons {
     display: flex;
     justify-content: center;
