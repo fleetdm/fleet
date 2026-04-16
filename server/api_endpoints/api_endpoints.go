@@ -45,7 +45,7 @@ func Init(h http.Handler) error {
 		return nil
 	})
 
-	loadedApiEndpoints, err := loadGetAPIEndpoints()
+	loadedApiEndpoints, err := loadAPIEndpoints()
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func Init(h http.Handler) error {
 	return nil
 }
 
-func loadGetAPIEndpoints() ([]fleet.APIEndpoint, error) {
+func loadAPIEndpoints() ([]fleet.APIEndpoint, error) {
 	endpoints := make([]fleet.APIEndpoint, 0)
 
 	if err := yaml.Unmarshal(apiEndpointsYAML, &endpoints); err != nil {
