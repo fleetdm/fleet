@@ -24,9 +24,9 @@ test.describe('Fleet Free', () => {
     });
 
     test('reports page is accessible', async ({ page }) => {
-      await page.goto('/queries/manage');
+      await page.goto('/reports/manage');
 
-      await expect(page).toHaveURL(/\/queries/);
+      await expect(page).toHaveURL(/\/reports/);
       await expect(
         tableRow(page).or(page.locator('.empty-table__container'))
       ).toBeVisible();
