@@ -16,6 +16,12 @@
     - 17.2.6  Account Mgmt:     Audit User Account Management        -> Success and Failure
     - 17.3.1  Detailed Tracking: Audit PNP Activity                  -> Success
     - 17.3.2  Detailed Tracking: Audit Process Creation              -> Success
+    - 17.5.1  Logon/Logoff:     Audit Account Lockout               -> Failure
+    - 17.5.2  Logon/Logoff:     Audit Group Membership              -> Success
+    - 17.5.3  Logon/Logoff:     Audit Logoff                        -> Success
+    - 17.5.4  Logon/Logoff:     Audit Logon                         -> Success and Failure
+    - 17.5.5  Logon/Logoff:     Audit Other Logon/Logoff Events     -> Success and Failure
+    - 17.5.6  Logon/Logoff:     Audit Special Logon                 -> Success
     - 17.6.1  Object Access:    Audit Detailed File Share            -> Failure
     - 17.6.2  Object Access:    Audit File Share                     -> Success and Failure
     - 17.6.3  Object Access:    Audit Other Object Access Events     -> Success and Failure
@@ -94,6 +100,15 @@ if (-not (Set-AuditPolicy -Subcategory 'User Account Management'      -Success $
 Write-Status "Configuring Detailed Tracking audit policies..."
 if (-not (Set-AuditPolicy -Subcategory 'Plug and Play Events' -Success $true -Failure $false)) { $errors++ }
 if (-not (Set-AuditPolicy -Subcategory 'Process Creation'     -Success $true -Failure $false)) { $errors++ }
+
+# Logon/Logoff
+Write-Status "Configuring Logon/Logoff audit policies..."
+if (-not (Set-AuditPolicy -Subcategory 'Account Lockout'              -Success $false -Failure $true)) { $errors++ }
+if (-not (Set-AuditPolicy -Subcategory 'Group Membership'             -Success $true  -Failure $false)) { $errors++ }
+if (-not (Set-AuditPolicy -Subcategory 'Logoff'                       -Success $true  -Failure $false)) { $errors++ }
+if (-not (Set-AuditPolicy -Subcategory 'Logon'                        -Success $true  -Failure $true)) { $errors++ }
+if (-not (Set-AuditPolicy -Subcategory 'Other Logon/Logoff Events'    -Success $true  -Failure $true)) { $errors++ }
+if (-not (Set-AuditPolicy -Subcategory 'Special Logon'                -Success $true  -Failure $false)) { $errors++ }
 
 # Object Access
 Write-Status "Configuring Object Access audit policies..."

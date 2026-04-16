@@ -16,6 +16,12 @@
   - 17.2.6  Audit User Account Management           -> Success and Failure (3)
   - 17.3.1  Audit PNP Activity                      -> Success (1)
   - 17.3.2  Audit Process Creation                  -> Success (1)
+  - 17.5.1  Audit Account Lockout                   -> Failure (2)
+  - 17.5.2  Audit Group Membership                  -> Success (1)
+  - 17.5.3  Audit Logoff                            -> Success (1)
+  - 17.5.4  Audit Logon                             -> Success and Failure (3)
+  - 17.5.5  Audit Other Logon/Logoff Events         -> Success and Failure (3)
+  - 17.5.6  Audit Special Logon                     -> Success (1)
   - 17.6.1  Audit Detailed File Share               -> Failure (2)
   - 17.6.2  Audit File Share                        -> Success and Failure (3)
   - 17.6.3  Audit Other Object Access Events        -> Success and Failure (3)
@@ -24,6 +30,7 @@
   - 17.7.2  Audit Authentication Policy Change      -> Success (1)
   - 17.7.3  Audit Authorization Policy Change       -> Success (1)
   - 17.7.4  Audit MPSSVC Rule-Level Policy Change   -> Success and Failure (3)
+  - 17.7.5  Audit Other Policy Change Events        -> Failure (2)
   - 17.8.1  Audit Sensitive Privilege Use           -> Success and Failure (3)
   - 17.9.1  Audit IPsec Driver                      -> Success and Failure (3)
   - 17.9.2  Audit Other System Events               -> Success and Failure (3)
@@ -124,9 +131,99 @@
       </Item>
     </Replace>
 
-    <!-- 17.6.1: Audit Detailed File Share = Failure -->
+    <!-- 17.5.1: Audit Account Lockout = Failure -->
     <Replace>
       <CmdID>7</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditAccountLockout</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>2</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.5.2: Audit Group Membership = Success -->
+    <Replace>
+      <CmdID>8</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditGroupMembership</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.5.3: Audit Logoff = Success -->
+    <Replace>
+      <CmdID>9</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogoff</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.5.4: Audit Logon = Success and Failure -->
+    <Replace>
+      <CmdID>10</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditLogon</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.5.5: Audit Other Logon/Logoff Events = Success and Failure -->
+    <Replace>
+      <CmdID>11</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditOtherLogonLogoffEvents</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>3</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.5.6: Audit Special Logon = Success -->
+    <Replace>
+      <CmdID>12</CmdID>
+      <Item>
+        <Target>
+          <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/LogonLogoff_AuditSpecialLogon</LocURI>
+        </Target>
+        <Meta>
+          <Format xmlns="syncml:metinf">int</Format>
+          <Type xmlns="syncml:metinf">text/plain</Type>
+        </Meta>
+        <Data>1</Data>
+      </Item>
+    </Replace>
+
+    <!-- 17.6.1: Audit Detailed File Share = Failure -->
+    <Replace>
+      <CmdID>13</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditDetailedFileShare</LocURI>
@@ -141,7 +238,7 @@
 
     <!-- 17.6.2: Audit File Share = Success and Failure -->
     <Replace>
-      <CmdID>8</CmdID>
+      <CmdID>14</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditFileShare</LocURI>
@@ -156,7 +253,7 @@
 
     <!-- 17.6.3: Audit Other Object Access Events = Success and Failure -->
     <Replace>
-      <CmdID>9</CmdID>
+      <CmdID>15</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditOtherObjectAccessEvents</LocURI>
@@ -171,7 +268,7 @@
 
     <!-- 17.6.4: Audit Removable Storage = Success and Failure -->
     <Replace>
-      <CmdID>10</CmdID>
+      <CmdID>16</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/ObjectAccess_AuditRemovableStorage</LocURI>
@@ -186,7 +283,7 @@
 
     <!-- 17.7.1: Audit Audit Policy Change = Success -->
     <Replace>
-      <CmdID>11</CmdID>
+      <CmdID>17</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditPolicyChange</LocURI>
@@ -201,7 +298,7 @@
 
     <!-- 17.7.2: Audit Authentication Policy Change = Success -->
     <Replace>
-      <CmdID>12</CmdID>
+      <CmdID>18</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthenticationPolicyChange</LocURI>
@@ -216,7 +313,7 @@
 
     <!-- 17.7.3: Audit Authorization Policy Change = Success -->
     <Replace>
-      <CmdID>13</CmdID>
+      <CmdID>19</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditAuthorizationPolicyChange</LocURI>
@@ -231,7 +328,7 @@
 
     <!-- 17.7.4: Audit MPSSVC Rule-Level Policy Change = Success and Failure -->
     <Replace>
-      <CmdID>14</CmdID>
+      <CmdID>20</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditMPSSVCRuleLevelPolicyChange</LocURI>
@@ -246,7 +343,7 @@
 
     <!-- 17.7.5: Audit Other Policy Change Events = Failure -->
     <Replace>
-      <CmdID>15</CmdID>
+      <CmdID>21</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PolicyChange_AuditOtherPolicyChangeEvents</LocURI>
@@ -261,7 +358,7 @@
 
     <!-- 17.8.1: Audit Sensitive Privilege Use = Success and Failure -->
     <Replace>
-      <CmdID>16</CmdID>
+      <CmdID>22</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/PrivilegeUse_AuditSensitivePrivilegeUse</LocURI>
@@ -276,7 +373,7 @@
 
     <!-- 17.9.1: Audit IPsec Driver = Success and Failure -->
     <Replace>
-      <CmdID>17</CmdID>
+      <CmdID>23</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditIPsecDriver</LocURI>
@@ -291,7 +388,7 @@
 
     <!-- 17.9.2: Audit Other System Events = Success and Failure -->
     <Replace>
-      <CmdID>18</CmdID>
+      <CmdID>24</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditOtherSystemEvents</LocURI>
@@ -306,7 +403,7 @@
 
     <!-- 17.9.3: Audit Security State Change = Success -->
     <Replace>
-      <CmdID>19</CmdID>
+      <CmdID>25</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecurityStateChange</LocURI>
@@ -321,7 +418,7 @@
 
     <!-- 17.9.4: Audit Security System Extension = Success -->
     <Replace>
-      <CmdID>20</CmdID>
+      <CmdID>26</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSecuritySystemExtension</LocURI>
@@ -336,7 +433,7 @@
 
     <!-- 17.9.5: Audit System Integrity = Success and Failure -->
     <Replace>
-      <CmdID>21</CmdID>
+      <CmdID>27</CmdID>
       <Item>
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/Audit/System_AuditSystemIntegrity</LocURI>

@@ -10,31 +10,35 @@
 .NOTES
     CIS Benchmark Controls Covered (registry-based, Section 2-19):
     - 2.3.1.4  Block Microsoft accounts                            -> 3
+    - 2.3.1.5  Limit blank password use to console logon only      -> 1 (Enabled)
     - 2.3.2.1  Audit: Force audit policy subcategory settings      -> 1 (Enabled)
     - 2.3.4.1  Devices: Prevent users from installing printer drivers -> 1 (Enabled)
     - 2.3.7.1  Interactive logon: Do not require CTRL+ALT+DEL     -> 0 (Disabled)
     - 2.3.7.2  Interactive logon: Don't display last username      -> 1 (Enabled)
     - 2.3.10.1 Network access: Allow anonymous SID/name translation -> 0 (Disabled)
-    - 2.3.11.1 Network security: Do not store LAN Manager hash     -> 1 (Enabled)
+    - 2.3.10.2 Network access: Do not allow anonymous enum of SAM  -> 1 (Enabled)
+    - 2.3.10.3 Network access: Do not allow anonymous enum of SAM and shares -> 1 (Enabled)
+    - 2.3.11.4 Network security: Do not store LAN Manager hash     -> 1 (Enabled)
     - 2.3.17.1 UAC: Admin approval mode for Built-in Administrator -> 1 (Enabled)
     - 2.3.17.2 UAC: Behavior of elevation prompt for admins        -> 2 (Prompt for credentials)
+    - 2.3.17.5 UAC: Behavior of elevation prompt for standard users -> 0 (Auto-deny)
     - 2.3.17.6 UAC: Run all administrators in Admin Approval Mode  -> 1 (Enabled)
+    - 18.1.1.1 Prevent enabling lock screen camera                 -> 1 (Enabled)
+    - 18.1.1.2 Prevent enabling lock screen slide show             -> 1 (Enabled)
     - 18.3.3   Configure SMB v1 client driver                      -> Disabled
     - 18.3.4   Configure SMB v1 server                             -> Disabled
-    - 18.4.1   MSS: AutoAdminLogon                                 -> 0 (Disabled)
+    - 18.4.1   MSS: AutoAdminLogon                                 -> "0" (Disabled)
     - 18.9.3   Autoplay: DisableAutoplay                           -> 1 (Enabled)
     - 18.9.4   AutoRun: NoDriveTypeAutoRun                         -> 255 (All drives)
-    - 18.9.19  Windows Search: AllowIndexingEncryptedStoresOrItems -> 0 (Disabled)
-    - 18.9.48  Windows Installer: AlwaysInstallElevated (user)     -> 0 (Disabled)
+    - 18.9.48  Windows Installer: AlwaysInstallElevated            -> 0 (Disabled)
     - 18.9.75  WinRM: AllowUnencryptedTraffic                      -> 0 (Disabled)
-    - 19.7.8   Prevent users from sharing files (network paths)    -> 0 (Disabled)
 
     Requires: Administrator privileges
     Note: Changes take effect immediately for registry settings. Some may require
     a reboot or Group Policy update to fully apply.
 #>
 
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding()]
 param()
 
 Set-StrictMode -Version Latest
@@ -86,6 +90,13 @@ Set-RegistryValue `
     -Value 3 `
     -Description '(CIS 2.3.1.4)'
 
+# 2.3.1.5: Limit blank password use to console logon only = 1 (Enabled)
+Set-RegistryValue `
+    -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
+    -Name  'LimitBlankPasswordUse' `
+    -Value 1 `
+    -Description '(CIS 2.3.1.5)'
+
 # 2.3.2.1: Audit: Force audit policy subcategory settings = 1 (Enabled)
 Set-RegistryValue `
     -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
@@ -121,19 +132,26 @@ Set-RegistryValue `
     -Value 0 `
     -Description '(CIS 2.3.10.1)'
 
-# 2.3.11.1: Network security: Do not store LAN Manager hash on next password change = 1 (Enabled)
+# 2.3.10.2: Network access: Do not allow anonymous enumeration of SAM accounts = 1 (Enabled)
+Set-RegistryValue `
+    -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
+    -Name  'RestrictAnonymousSAM' `
+    -Value 1 `
+    -Description '(CIS 2.3.10.2)'
+
+# 2.3.10.3: Network access: Do not allow anonymous enumeration of SAM accounts and shares = 1 (Enabled)
+Set-RegistryValue `
+    -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
+    -Name  'RestrictAnonymous' `
+    -Value 1 `
+    -Description '(CIS 2.3.10.3)'
+
+# 2.3.11.4: Network security: Do not store LAN Manager hash on next password change = 1 (Enabled)
 Set-RegistryValue `
     -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
     -Name  'NoLMHash' `
     -Value 1 `
-    -Description '(CIS 2.3.11.1)'
-
-# 2.3.15.1: Limit blank password use to console = 1 (Enabled)
-Set-RegistryValue `
-    -Path  'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' `
-    -Name  'LimitBlankPasswordUse' `
-    -Value 1 `
-    -Description '(CIS 2.3.1.5)'
+    -Description '(CIS 2.3.11.4)'
 
 # --- Section 2.3.17: UAC Settings ---
 
@@ -167,6 +185,20 @@ Set-RegistryValue `
 
 # --- Section 18: Administrative Templates ---
 
+# 18.1.1.1: Prevent enabling lock screen camera = 1 (Enabled)
+Set-RegistryValue `
+    -Path  'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' `
+    -Name  'NoLockScreenCamera' `
+    -Value 1 `
+    -Description '(CIS 18.1.1.1)'
+
+# 18.1.1.2: Prevent enabling lock screen slide show = 1 (Enabled)
+Set-RegistryValue `
+    -Path  'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' `
+    -Name  'NoLockScreenSlideshow' `
+    -Value 1 `
+    -Description '(CIS 18.1.1.2)'
+
 # 18.3.3: SMBv1 Client Driver = Disabled (4 = Disabled)
 Set-RegistryValue `
     -Path  'HKLM:\SYSTEM\CurrentControlSet\Services\MrxSmb10' `
@@ -181,11 +213,12 @@ Set-RegistryValue `
     -Value 0 `
     -Description '(CIS 18.3.4 - SMBv1 server disabled)'
 
-# 18.4.1: MSS: Disable AutoAdminLogon
+# 18.4.1: MSS: Disable AutoAdminLogon (REG_SZ value)
 Set-RegistryValue `
     -Path  'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' `
     -Name  'AutoAdminLogon' `
-    -Value 0 `
+    -Value '0' `
+    -Type  'String' `
     -Description '(CIS 18.4.1 - Disable AutoAdminLogon)'
 
 # 18.9.3: Disable Autoplay for all drives = 1 (Enabled)
@@ -208,13 +241,6 @@ Set-RegistryValue `
     -Name  'AlwaysInstallElevated' `
     -Value 0 `
     -Description '(CIS 18.9.48 - Disable AlwaysInstallElevated)'
-
-# Also disable for user hive (machine-level policy controls both; set HKLM as baseline)
-Set-RegistryValue `
-    -Path  'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Installer' `
-    -Name  'AlwaysInstallElevated' `
-    -Value 0 `
-    -Description '(CIS 18.9.48)'
 
 # 18.9.75: WinRM: Disallow unencrypted traffic = 0 (Disabled = encryption required)
 Set-RegistryValue `

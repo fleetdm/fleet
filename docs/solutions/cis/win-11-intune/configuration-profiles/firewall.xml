@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  CIS Windows 11 Enterprise Benchmark (Intune) v8.1 - Windows Firewall Configuration Profile
+  CIS Windows 11 Intune Benchmark v8.1 - Windows Firewall Configuration Profile
   Applies Windows Firewall settings for all three profiles (Domain, Private, Public) via MDM SyncML
 
   Covered CIS Controls (Section 9):

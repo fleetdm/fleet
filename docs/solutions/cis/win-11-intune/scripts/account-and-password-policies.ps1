@@ -1,10 +1,10 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    CIS Windows 11 Enterprise Benchmark (Intune) v8.1 - Account and Password Policy Remediation
+    CIS Windows 11 Intune Benchmark v8.1 - Account and Password Policy Remediation
 
 .DESCRIPTION
-    Configures account lockout and password policies to meet CIS Windows 11 Enterprise Benchmark (Intune) v8.1
+    Configures account lockout and password policies to meet CIS Windows 11 Intune Benchmark v8.1
     requirements using secedit. This script is idempotent - safe to run multiple times.
 
 .NOTES

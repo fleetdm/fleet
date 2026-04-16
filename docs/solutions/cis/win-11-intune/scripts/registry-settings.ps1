@@ -16,7 +16,7 @@
     Settings configured via registry apply immediately unless otherwise noted.
 #>
 
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding()]
 param()
 
 Set-StrictMode -Version Latest
@@ -201,11 +201,9 @@ Set-RegValue -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Sys
 # ============================================================
 
 # 19.1.1 Ensure 'Turn off toast notifications on the lock screen' is Enabled (HKCU)
-# Note: This applies to the current user's profile; use Group Policy for all users
-$userSID = (Get-WmiObject -Class Win32_ComputerSystem).UserName
-if ($userSID) {
-    Write-Output "INFO: Toast notification lock screen settings should be configured via Intune device configuration profile (Experience/AllowToastNotifications)"
-}
+# Note: Per-user settings (HKCU) cannot be reliably set from a SYSTEM-context script.
+# Configure this via Intune device configuration profile: Experience/AllowToastNotifications = 0
+Write-Output "INFO: Toast notification lock screen settings should be configured via Intune device configuration profile (Experience/AllowToastNotifications)"
 
 Write-Output ""
 Write-Output "CIS registry remediation complete."

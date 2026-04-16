@@ -1,18 +1,11 @@
 #!/bin/bash
 
+# CIS - Ensure install.log Is Retained for 365 or More Days
+# Removes any all_max= setting from /etc/asl/com.apple.install
 
-# For QA:
-# Open /etc/asl/com.apple.install for edit and look for a line starting with "* file"
-# If exist delete all_max=XXX
-# If not exist add ttl=365
+tmpfile=$(mktemp)
+trap 'rm -f "$tmpfile"' EXIT
 
-
-# This section will delete the all_max 
-/usr/bin/sudo sed -E 's/all_max=[0-9]+M//g' /etc/asl/com.apple.install  > ./tmp.txt
-/usr/bin/sudo cp ./tmp.txt /etc/asl/com.apple.install
-/usr/bin/sudo rm ./tmp.txt
-
-/usr/bin/sudo sed -E 's/all_max=[0-9]+G//g' /etc/asl/com.apple.install  > ./tmp.txt
-/usr/bin/sudo cp ./tmp.txt /etc/asl/com.apple.install
-/usr/bin/sudo rm ./tmp.txt
-
+# Remove all_max= entries (both M and G suffixes)
+sudo sed -E 's/all_max=[0-9]+[MG]//g' /etc/asl/com.apple.install > "$tmpfile"
+sudo cp "$tmpfile" /etc/asl/com.apple.install

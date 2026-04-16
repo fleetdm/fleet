@@ -21,6 +21,8 @@
     - 9.3.2  Windows Firewall: Public: Inbound connections         -> Block
     - 9.3.3  Windows Firewall: Public: Outbound connections        -> Allow
     - 9.3.4  Windows Firewall: Public: Settings: Display notification -> No
+    - 9.x.5  Windows Firewall: Log dropped packets                -> Yes
+    - 9.x.6  Windows Firewall: Log max file size                  -> 16384 KB
 
     Requires: Administrator privileges, Windows Firewall service running
 #>
@@ -64,7 +66,8 @@ try {
             NotifyOnListen        = $false           # Do not display notifications
             AllowUnicastResponseToMulticast = $true  # Allow unicast response (recommended)
             LogAllowed            = $false
-            LogBlocked            = $true            # Log dropped packets for troubleshooting
+            LogBlocked            = $true            # Log dropped packets (CIS 9.x.5)
+            LogMaxSizeKilobytes   = 16384            # CIS 9.x.6: minimum 16384 KB
         }
 
         # Public profile: also disable local policy merge (CIS L2 hardening)
