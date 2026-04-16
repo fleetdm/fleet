@@ -10,7 +10,8 @@
   transform: scale(0.5);
 }
 
-body.dark-mode .default-fleet-logo,
+// Only invert custom org logos that explicitly opt-in; the default Fleet logo
+// keeps its original colors in dark mode (same as light mode).
 body.dark-mode .org-logo-icon--invert-dark {
   filter: brightness(0) invert(1);
 }

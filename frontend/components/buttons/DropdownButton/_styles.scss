@@ -23,6 +23,11 @@
     background-color: $core-fleet-white;
     box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
     animation: fade-in 150ms ease-out;
+
+    body.dark-mode & {
+      background-color: $ui-fleet-black-5;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
     &--opened {
       display: inline-block;
     }
