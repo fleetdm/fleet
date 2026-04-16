@@ -1,4 +1,4 @@
-<!-- CIS Windows 11 Enterprise v4.0.0 – Local Security Options (Section 2.3.1) -->
+<!-- CIS Windows 11 Enterprise v4.0.0 – Local Security Options (Section 2.3) -->
 <Replace>
   <!-- 2.3.1.1: Accounts – Administrator account status = Disabled -->
   <Item>

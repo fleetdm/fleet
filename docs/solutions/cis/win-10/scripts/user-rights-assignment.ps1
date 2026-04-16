@@ -20,9 +20,9 @@
     - 2.2.13 Create permanent shared objects                 -> (empty)
     - 2.2.14 Create symbolic links                           -> Administrators
     - 2.2.15 Debug programs                                  -> Administrators
-    - 2.2.16 Deny access this computer from the network      -> Guests
+    - 2.2.16 Deny access this computer from the network      -> Guests, Local account
     - 2.2.19 Deny log on locally                             -> Guests
-    - 2.2.20 Deny log on through Remote Desktop Services     -> Guests
+    - 2.2.20 Deny log on through Remote Desktop Services     -> Guests, Local account
     - 2.2.21 Enable computer and user accounts for delegation -> (empty)
     - 2.2.22 Force shutdown from a remote system             -> Administrators
     - 2.2.23 Generate security audits                        -> LOCAL SERVICE, NETWORK SERVICE
@@ -92,12 +92,12 @@ $userRights = [ordered]@{
     'SeCreateSymbolicLinkPrivilege'     = '*S-1-5-32-544'
     # CIS 2.2.15: Administrators
     'SeDebugPrivilege'                  = '*S-1-5-32-544'
-    # CIS 2.2.16: Guests
-    'SeDenyNetworkLogonRight'           = '*S-1-5-32-546'
+    # CIS 2.2.16: Guests, Local account
+    'SeDenyNetworkLogonRight'           = '*S-1-5-32-546,*S-1-5-113'
     # CIS 2.2.19: Guests
     'SeDenyInteractiveLogonRight'       = '*S-1-5-32-546'
-    # CIS 2.2.20: Guests
-    'SeDenyRemoteInteractiveLogonRight' = '*S-1-5-32-546'
+    # CIS 2.2.20: Guests, Local account
+    'SeDenyRemoteInteractiveLogonRight' = '*S-1-5-32-546,*S-1-5-113'
     # CIS 2.2.21: No One
     'SeEnableDelegationPrivilege'       = ''
     # CIS 2.2.22: Administrators

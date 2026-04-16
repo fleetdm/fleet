@@ -175,7 +175,7 @@
   resolution: |
     Automatic method:
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
-    'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/AccessCredentialManagerAsTrustedCaller</LocURI></Target></Item></Get></SyncBody>" 
     AND mdm_command_output = "";
@@ -9496,7 +9496,7 @@
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'User Configuration\Policies\Administrative Templates\Windows Components\Windows Installer\Always install with elevated privileges'
-    Note: This Group Policy path is provided by the Group Policy template MSI.admx/adml thatis included with all versions of the Microsoft Windows Administrative Templates.
+    Note: This Group Policy path is provided by the Group Policy template MSI.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
   query: |
     SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated' AND data = 0);
   # purpose: Informational

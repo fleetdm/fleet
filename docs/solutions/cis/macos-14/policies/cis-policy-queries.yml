@@ -204,7 +204,7 @@
   description: |
     iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
     One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
-    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    This query will check for the existence of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
     Create or edit a configuration profile with the following information:
@@ -238,7 +238,7 @@
   description: |
     iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
     One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
-    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    This query will check for the existence of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
     Create or edit a configuration profile with the following information:
@@ -731,8 +731,8 @@
     Graphical Method:
       Perform the following steps to disable Content Caching:
         1. Open System Settings
-        2. SelectGeneral
-        3. SelectSharing
+        2. Select General
+        3. Select Sharing
         4. Set Content Caching to disabled
     Profile Method:
     Create or edit a configuration profile with the following information:
@@ -1028,7 +1028,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool true
@@ -1054,7 +1054,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool false
@@ -1080,7 +1080,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
+    Extension of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool true
@@ -1106,7 +1106,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
+    Extension of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool false
@@ -1132,7 +1132,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool true
@@ -1158,7 +1158,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool false
@@ -1184,7 +1184,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool true
@@ -1210,7 +1210,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool false
@@ -1611,7 +1611,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: lucasmrod
 
-- name: CIS - Ensure the OS is not Activate When Resuming from Sleep (Fleetd, FDA Required)
+- name: CIS - Ensure the OS is not Active When Resuming from Sleep (Fleetd, FDA Required)
   # platforms: macOS
   platform: darwin
   description: |
@@ -1934,7 +1934,7 @@
     Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
     Graphical method:
       Perform the following steps to ensure Show Password Hints Is Disabled:
-        1. OpenSystemSettings
+        1. Open System Settings
         2. Select Lock Screen
         3. Verify that Show password hints is disabled
   query: |
@@ -2190,7 +2190,7 @@
     The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
     Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
     expire-after:60d OR 5G
-    This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+    This recommendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
@@ -3012,7 +3012,7 @@
             domain='com.apple.Safari' AND 
             name='HistoryAgeInDaysLimit' AND 
               /*
-              Please replace the checked value bellow to match the one decided by your organization.
+              Please replace the checked value below to match the one decided by your organization.
               1 - After one day
               7 - After one week
               14 - After two weeks
@@ -3042,7 +3042,7 @@
     unwanted content. Warning users prior to loading the content enables better security.
   resolution: |
     Payload Method:
-    Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
+    Ask your administrator to deploy a profile which enables WarnAboutFraudulentWebsites in Safari
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -3128,7 +3128,7 @@
   platform: darwin
   description: |
     Public (Routable) IP addresses can be used to track people to their current location, including
-    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    home and business addresses. While a valid IP address is necessary to load the site the valid
     address does not need to be provided to known trackers and should be hidden.
   resolution: |
     Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
@@ -3156,7 +3156,7 @@
   platform: darwin
   description: |
     Public (Routable) IP addresses can be used to track people to their current location, including
-    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    home and business addresses. While a valid IP address is necessary to load the site the valid
     address does not need to be provided to known trackers and should be hidden.
     However, enabling this setting will proxy web information through a 3rd party service, which may
     not be allowed by your organization's policy.
