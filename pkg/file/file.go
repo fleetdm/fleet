@@ -37,6 +37,7 @@ type InstallerMetadata struct {
 	Extension        string
 	PackageIDs       []string
 	UpgradeCode      string
+	IconPNG          []byte
 }
 
 // ExtractInstallerMetadata extracts the software name and version from the

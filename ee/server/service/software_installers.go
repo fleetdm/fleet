@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -54,6 +55,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
+	var iconPNG []byte
 	fmt.Println("FromHombrew: ", payload.FromHomebrew)
 	if payload.FromHomebrew != "" {
 		ingester := homebrew.BrewIngester{
@@ -90,10 +92,13 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.InstallerFile = installerTFR
 		payload.StorageID = fma.SHA256
 
-		// Extract bundle identifier from the installer (works for zip, not dmg).
+		// Extract bundle identifier and icon from the installer (works for zip and dmg on macOS).
 		meta, err := file.ExtractInstallerMetadataWithHint(installerTFR, filename)
-		if err == nil && meta.BundleIdentifier != "" {
-			payload.BundleIdentifier = meta.BundleIdentifier
+		if err == nil {
+			if meta.BundleIdentifier != "" {
+				payload.BundleIdentifier = meta.BundleIdentifier
+			}
+			iconPNG = meta.IconPNG
 		}
 		if err := installerTFR.Rewind(); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "rewind installer after metadata extraction")
@@ -220,6 +225,31 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "matching or creating software installer")
 	}
 	svc.logger.DebugContext(ctx, "software installer uploaded", "installer_id", installerID)
+
+	// Upload extracted app icon if available (from homebrew zip/dmg extraction)
+	if payload.FromHomebrew != "" && len(iconPNG) > 0 {
+		var tmID uint
+		if payload.TeamID != nil {
+			tmID = *payload.TeamID
+		}
+		iconHash := fmt.Sprintf("%x", sha256.Sum256(iconPNG))
+		iconTFR, err := fleet.NewTempFileReader(bytes.NewReader(iconPNG), nil)
+		if err == nil {
+			defer iconTFR.Close()
+			iconPayload := &fleet.UploadSoftwareTitleIconPayload{
+				TitleID:   titleID,
+				TeamID:    tmID,
+				Filename:  "icon.png",
+				StorageID: iconHash,
+				IconFile:  iconTFR,
+			}
+			if err := svc.softwareTitleIconStore.Put(ctx, iconHash, iconTFR); err != nil {
+				svc.logger.ErrorContext(ctx, "failed to store homebrew app icon", "err", err)
+			} else if _, err := svc.ds.CreateOrUpdateSoftwareTitleIcon(ctx, iconPayload); err != nil {
+				svc.logger.ErrorContext(ctx, "failed to create homebrew app icon record", "err", err)
+			}
+		}
+	}
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {

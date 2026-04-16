@@ -64,13 +64,33 @@ func ExtractDMGMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 			continue
 		}
 
-		return &InstallerMetadata{
+		meta := &InstallerMetadata{
 			Name:             data.Name,
 			Version:          data.Version,
 			BundleIdentifier: data.BundleID,
 			SHASum:           h.Sum(nil),
 			PackageIDs:       []string{data.BundleID},
-		}, nil
+		}
+
+		// Try to extract icon
+		iconName := data.IconFile
+		if iconName == "" {
+			iconName = data.IconFileName
+		}
+		if iconName == "" {
+			iconName = "AppIcon"
+		}
+		if !strings.HasSuffix(iconName, ".icns") {
+			iconName += ".icns"
+		}
+		icnsPath := filepath.Join(mountPoint, entry.Name(), "Contents", "Resources", iconName)
+		if icnsData, err := os.ReadFile(icnsPath); err == nil {
+			if pngData, err := ExtractPNGFromICNS(icnsData); err == nil {
+				meta.IconPNG = pngData
+			}
+		}
+
+		return meta, nil
 	}
 
 	return nil, fmt.Errorf("no .app bundle with Info.plist found in DMG")
