@@ -99,7 +99,8 @@ func processPackageFromUrl(url string) (*file.InstallerMetadata, error) {
 	}
 	defer tfr.Close()
 
-	metadata, err := file.ExtractInstallerMetadata(tfr)
+	// Use the URL as the filename hint for zip/dmg detection
+	metadata, err := file.ExtractInstallerMetadataWithHint(tfr, url)
 	if err != nil {
 		return nil, fmt.Errorf("extract installer metadata: %s", err)
 	}
@@ -115,7 +116,7 @@ func processPackageFromLocal(path string) (*file.InstallerMetadata, error) {
 		File: fp,
 	}
 
-	metadata, err := file.ExtractInstallerMetadata(tfr)
+	metadata, err := file.ExtractInstallerMetadataWithHint(tfr, path)
 	if err != nil {
 		return nil, fmt.Errorf("extract installer metadata: %s", err)
 	}

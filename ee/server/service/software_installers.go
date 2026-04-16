@@ -61,34 +61,23 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			Logger:  slog.New(slog.DiscardHandler),
 			Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 		}
-		// We must supply the unique_identifier (bundle ID) because the server runs on Linux
-		// and cannot extract it from dmg/zip installers (dmg requires macOS hdiutil to mount).
-		// For zip installers, it would be possible to unzip and read .app/Contents/Info.plist
-		// to get CFBundleIdentifier. For dmg, we'd need to parse brew cask artifacts (quit/zap)
-		// or require the user to provide it.
 		var input homebrew.InputApp
 		input.Token = payload.FromHomebrew
-		input.UniqueIdentifier = payload.HomebrewUniqueIdentifier
 
+		// Download the installer first so we can extract the bundle identifier from it
+		// before calling IngestOne (which needs the bundle ID for install/uninstall scripts).
 		fma, err := ingester.IngestOne(ctx, input)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "ingest one")
 		}
 
-		payload.BundleIdentifier = fma.UniqueIdentifier
 		payload.URL = fma.InstallerURL
-		payload.InstallScript = fma.InstallScript
 		payload.Version = fma.Version
-		payload.UninstallScript = fma.UninstallScript
-		payload.Title = payload.FromHomebrew // hack
+		payload.Title = payload.FromHomebrew
 		payload.Extension = strings.TrimPrefix(filepath.Ext(payload.URL), ".")
 		payload.Platform = "darwin"
 		payload.Source = "apps"
 
-		fmt.Printf("%#v\n", payload)
-
-		// Copied from AddFleetMaintainedApp
-		// Download installer from the URL
 		timeout := maintained_apps.InstallerTimeout
 		client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
 		installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, fma.InstallerURL, client)
@@ -97,11 +86,31 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 		defer installerTFR.Close()
 
-		fmt.Println("downloaded: ", filename)
 		payload.Filename = filename
-
 		payload.InstallerFile = installerTFR
 		payload.StorageID = fma.SHA256
+
+		// Extract bundle identifier from the installer (works for zip, not dmg).
+		meta, err := file.ExtractInstallerMetadataWithHint(installerTFR, filename)
+		if err == nil && meta.BundleIdentifier != "" {
+			payload.BundleIdentifier = meta.BundleIdentifier
+		}
+		if err := installerTFR.Rewind(); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "rewind installer after metadata extraction")
+		}
+
+		// Re-run IngestOne with the extracted bundle identifier so install/uninstall
+		// scripts reference the correct bundle ID for quit/relaunch.
+		if payload.BundleIdentifier != "" {
+			input.UniqueIdentifier = payload.BundleIdentifier
+			fma, err = ingester.IngestOne(ctx, input)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "re-ingest with extracted bundle identifier")
+			}
+		}
+
+		payload.InstallScript = fma.InstallScript
+		payload.UninstallScript = fma.UninstallScript
 	}
 
 	// validate labels before we do anything else
@@ -141,8 +150,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 		}
 	}
-
-
 
 	// Validate install/post-install/uninstall script contents for non-script
 	// packages. Script packages (.sh/.ps1) are already validated in

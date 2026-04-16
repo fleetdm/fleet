@@ -82,6 +82,31 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 	return meta, err
 }
 
+// ExtractInstallerMetadataWithHint works like ExtractInstallerMetadata but accepts a filename
+// hint to disambiguate file types that share magic bytes (e.g. zip vs ipa) or that cannot
+// be detected by magic bytes alone (e.g. dmg).
+func ExtractInstallerMetadataWithHint(tfr *fleet.TempFileReader, filename string) (*InstallerMetadata, error) {
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
+
+	var meta *InstallerMetadata
+	var err error
+
+	switch ext {
+	case "zip":
+		meta, err = ExtractZipAppMetadata(tfr)
+	case "dmg":
+		meta, err = ExtractDMGMetadata(tfr)
+	default:
+		return ExtractInstallerMetadata(tfr)
+	}
+
+	if meta != nil {
+		meta.Extension = ext
+	}
+
+	return meta, err
+}
+
 // typeFromBytes deduces the type from the magic bytes.
 // See https://en.wikipedia.org/wiki/List_of_file_signatures.
 func typeFromBytes(br *bufio.Reader) (string, error) {

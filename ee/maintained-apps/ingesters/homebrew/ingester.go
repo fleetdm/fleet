@@ -131,69 +131,6 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
 	}
 
-	fmt.Println("-------------- brew cask data --------------")
-	fmt.Println("token:", cask.Token)
-	fmt.Println("name:", cask.Name)
-	fmt.Println("version:", cask.Version)
-	fmt.Println("url:", cask.URL)
-	fmt.Println("sha256:", cask.SHA256)
-	for i, artifact := range cask.Artifacts {
-		fmt.Printf("artifact[%d]:\n", i)
-		for _, app := range artifact.App {
-			if app.String != "" {
-				fmt.Println("  app:", app.String)
-			}
-			if app.Other != nil {
-				fmt.Println("  app target:", app.Other.Target)
-			}
-		}
-		for _, pkg := range artifact.Pkg {
-			if pkg.String != "" {
-				fmt.Println("  pkg:", pkg.String)
-			}
-		}
-		for _, bin := range artifact.Binary {
-			if bin.String != "" {
-				fmt.Println("  binary:", bin.String)
-			}
-		}
-		for _, u := range artifact.Uninstall {
-			if u.Quit.String != "" {
-				fmt.Println("  uninstall quit:", u.Quit.String)
-			}
-			for _, q := range u.Quit.Other {
-				fmt.Println("  uninstall quit:", q)
-			}
-			if u.PkgUtil.String != "" {
-				fmt.Println("  uninstall pkgutil:", u.PkgUtil.String)
-			}
-			for _, p := range u.PkgUtil.Other {
-				fmt.Println("  uninstall pkgutil:", p)
-			}
-			if u.LaunchCtl.String != "" {
-				fmt.Println("  uninstall launchctl:", u.LaunchCtl.String)
-			}
-			for _, l := range u.LaunchCtl.Other {
-				fmt.Println("  uninstall launchctl:", l)
-			}
-		}
-		for _, z := range artifact.Zap {
-			if z.Quit.String != "" {
-				fmt.Println("  zap quit:", z.Quit.String)
-			}
-			for _, q := range z.Quit.Other {
-				fmt.Println("  zap quit:", q)
-			}
-			if z.Trash.String != "" {
-				fmt.Println("  zap trash:", z.Trash.String)
-			}
-			for _, t := range z.Trash.Other {
-				fmt.Println("  zap trash:", t)
-			}
-		}
-	}
-	fmt.Println("--------------------------------------------")
-
 	out := &maintained_apps.FMAManifestApp{}
 
 	// validate required fields

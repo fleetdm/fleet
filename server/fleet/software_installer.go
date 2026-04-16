@@ -549,8 +549,7 @@ type UploadSoftwareInstallerPayload struct {
 	// conditional GET requests when AlwaysDownload is false.
 	HTTPETag                 *string
 	PatchQuery               string
-	FromHomebrew             string
-	HomebrewUniqueIdentifier string
+	FromHomebrew string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {

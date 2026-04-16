@@ -589,11 +589,9 @@ export default {
 
   addHomebrewPackage: ({
     token,
-    uniqueIdentifier,
     teamId,
   }: {
     token: string;
-    uniqueIdentifier: string;
     teamId: number;
   }) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
@@ -601,7 +599,6 @@ export default {
     const formData = new FormData();
     formData.append("software", new Blob(), "empty");
     formData.append("from_homebrew", token);
-    formData.append("unique_identifier", uniqueIdentifier);
     formData.append("team_id", teamId.toString());
 
     return sendRequestWithProgressAndHeaders({
