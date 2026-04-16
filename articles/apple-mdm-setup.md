@@ -104,7 +104,7 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 > Available in Fleet Premium
 
-### Add VPP
+Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts.
 
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > MDM**.
 2. Under **Apple Business (AB)**, select **Add VPP** next to **Volume Purchasing Program (VPP)**.
