@@ -24,7 +24,7 @@ Technicians have the ability to run scripts, view their results, and install/uni
 
 The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, fleets, etc.
 
-They can also run queries configured with the `observer_can_run` flag set to `true`.
+They can also run reports configured with the `observer_can_run` flag set to `true`.
 
 ### Observer+
 
