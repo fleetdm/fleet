@@ -1688,6 +1688,41 @@ func TestModifyUserLastAdminProtection(t *testing.T) {
 	})
 }
 
+func TestModifyUserAPIOnlyStatusProtection(t *testing.T) {
+	setupModifyUserMocks := func(ds *mock.Store, targetUser *fleet.User) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return targetUser, nil
+		}
+	}
+
+	t.Run("cannot promote non-API user to API-only via api_only:true", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		regularUser := newAdminTestUser(&adminTestUserOpts{id: 2, email: "regular@example.com", apiOnly: false})
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, regularUser)
+
+		_, err := svc.ModifyUser(ctx, regularUser.ID, fleet.UserPayload{APIOnly: new(true)})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+	})
+
+	t.Run("cannot demote API-only user to non-API via api_only:false", func(t *testing.T) {
+		adminUser := newAdminTestUser(nil)
+		apiUser := newAdminTestUser(&adminTestUserOpts{id: 2, email: "api@example.com", apiOnly: true})
+		ds, svc, ctx := setupAdminTestContext(t, adminUser)
+		setupModifyUserMocks(ds, apiUser)
+
+		_, err := svc.ModifyUser(ctx, apiUser.ID, fleet.UserPayload{APIOnly: new(false)})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+	})
+}
+
 func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 	t.Run("ModifyUser with new password clears reset tokens and sessions", func(t *testing.T) {
 		adminUser := newAdminTestUser(nil)
