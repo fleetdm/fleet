@@ -1,6 +1,6 @@
 package com.fleetdm.agent.osquery.core
 
-enum class WhereOp { EQ, LIKE }
+enum class WhereOp { EQ, LIKE, GT, GTE, LT, LTE, NEQ }
 
 data class WhereCond(
     val column: String,
@@ -24,7 +24,7 @@ data class ParsedSql(
  *
  * Notes:
  * - Only WHERE with AND is supported.
- * - Operators supported: = , LIKE
+ * - Operators supported: = , != , > , >= , < , <= , LIKE
  * - Values can be: 'single quoted', "double quoted", or bare tokens without spaces.
  */
 fun parseSelectSql(sql: String): ParsedSql {
@@ -67,7 +67,7 @@ private fun parseWhere(where: String): List<WhereCond> {
 
     return parts.map { term ->
         val t = term.trim()
-        val m = Regex("""(?is)^\s*([a-zA-Z0-9_]+)\s*(=|like)\s*(.+?)\s*$""").find(t)
+        val m = Regex("""(?is)^\s*([a-zA-Z0-9_]+)\s*(>=|<=|!=|>|<|=|like)\s*(.+?)\s*$""").find(t)
             ?: throw IllegalArgumentException("Bad WHERE term: $term")
 
         val col = m.groupValues[1].trim()
@@ -78,6 +78,11 @@ private fun parseWhere(where: String): List<WhereCond> {
 
         val op = when (opStr) {
             "=" -> WhereOp.EQ
+            "!=" -> WhereOp.NEQ
+            ">" -> WhereOp.GT
+            ">=" -> WhereOp.GTE
+            "<" -> WhereOp.LT
+            "<=" -> WhereOp.LTE
             "like" -> WhereOp.LIKE
             else -> throw IllegalArgumentException("Unsupported WHERE operator: $opStr")
         }

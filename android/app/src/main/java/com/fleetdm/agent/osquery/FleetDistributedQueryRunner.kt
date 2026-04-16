@@ -95,11 +95,36 @@ object FleetDistributedQueryRunner {
                 WhereOp.EQ ->
                     if (!actual.equals(cond.value, ignoreCase = true)) return false
 
+                WhereOp.NEQ ->
+                    if (actual.equals(cond.value, ignoreCase = true)) return false
+
+                WhereOp.GT, WhereOp.GTE, WhereOp.LT, WhereOp.LTE -> {
+                    val cmp = compareValues(actual, cond.value)
+                    val pass = when (cond.op) {
+                        WhereOp.GT -> cmp > 0
+                        WhereOp.GTE -> cmp >= 0
+                        WhereOp.LT -> cmp < 0
+                        WhereOp.LTE -> cmp <= 0
+                        else -> false
+                    }
+                    if (!pass) return false
+                }
+
                 WhereOp.LIKE ->
                     if (!likeMatch(actual, cond.value)) return false
             }
         }
         return true
+    }
+
+    private fun compareValues(a: String, b: String): Int {
+        val aNum = a.toLongOrNull()
+        val bNum = b.toLongOrNull()
+        return if (aNum != null && bNum != null) {
+            aNum.compareTo(bNum)
+        } else {
+            a.compareTo(b, ignoreCase = true)
+        }
     }
 
     private fun likeMatch(actual: String, pattern: String): Boolean {

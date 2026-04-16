@@ -10,7 +10,16 @@
 
 ## Requirements
 
-- **JDK 17 or later** - Set `JAVA_HOME` environment variable
+- **JDK 17** - Required by the Kotlin compiler plugin. JDK 18+ will not work.
+  - Install via Homebrew: `brew install openjdk@17`
+  - Homebrew installs to a non-standard path, so set `JAVA_HOME` explicitly when building:
+    ```bash
+    JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew assembleDebug
+    ```
+  - Or add to your `~/.zshrc` for convenience:
+    ```bash
+    export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+    ```
 - **Android SDK** - Gradle finds it via:
   - `local.properties` file with `sdk.dir` (auto-created by Android Studio) ✅ Recommended
   - OR `ANDROID_HOME` / `ANDROID_SDK_ROOT` environment variables
@@ -23,10 +32,44 @@
 ### Debug build
 
 ```bash
-./gradlew assembleDebug
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew assembleDebug
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
+
+### Debug build pointing at a Fleet server
+
+To build a debug APK that auto-enrolls against a specific Fleet server:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew assembleDebug \
+  -Pfleet.server_url=https://your-fleet-server.example.com \
+  -Pfleet.enroll_secret=YOUR_ENROLL_SECRET
+```
+
+These values are baked into `BuildConfig.DEBUG_FLEET_SERVER_URL` and `BuildConfig.DEBUG_FLEET_ENROLL_SECRET`. The app will enroll automatically on first launch.
+
+For local development, you can use [ngrok](https://ngrok.com/) to expose your local Fleet server with a valid TLS certificate:
+
+```bash
+ngrok http 8080
+# Then use the https://xxxx.ngrok.io URL as fleet.server_url
+```
+
+### Installing on an emulator
+
+1. Start an Android emulator from Android Studio (or via `emulator -avd <name>`)
+2. Install the debug APK:
+   ```bash
+   adb install app/build/outputs/apk/debug/app-debug.apk
+   ```
+3. The app auto-starts and enrolls. Open it to begin distributed query check-ins.
+4. Monitor logs:
+   ```bash
+   adb logcat -s fleet-ApiClient FleetOsquery
+   ```
+
+Debug builds check in every 5 seconds (vs 60 seconds in release).
 
 ### Release build
 
