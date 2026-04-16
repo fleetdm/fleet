@@ -133,7 +133,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have global access or access to specific fleets.
 
-Users with access to specific fleets only have access to data (e.g. [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies)) for their fleet.
+Users with access to specific fleets only have access to data for their assigned fleet.
 
 Global users can access data for all fleets. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
