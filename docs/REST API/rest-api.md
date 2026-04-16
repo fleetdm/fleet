@@ -2984,6 +2984,8 @@ the `software` table.
 
 ### List hosts
 
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+
 `GET /api/v1/fleet/hosts`
 
 #### Parameters
@@ -3293,6 +3295,8 @@ Response payload with the `munki_issue_id` filter provided:
 
 ### Count hosts
 
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+
 `GET /api/v1/fleet/hosts/count`
 
 #### Parameters
@@ -3493,6 +3497,8 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 ```
 
 ### Get host
+
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
 
 Returns the information of the specified host.
 
@@ -3786,6 +3792,8 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
+((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. 
@@ -4012,6 +4020,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 ### Get host by Fleet Desktop token
+
+((Public with valid token))
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
