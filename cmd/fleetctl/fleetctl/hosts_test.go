@@ -3,6 +3,7 @@ package fleetctl
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -274,4 +275,35 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 	assert.Equal(t, "", RunAppForTest(t,
 		[]string{"hosts", "transfer", "--fleet", "team1", "--status", "online", "--search_query", "somequery"}))
 	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+}
+
+func TestParseDurationWithDays(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    time.Duration
+		wantErr bool
+	}{
+		{in: "7d", want: 7 * 24 * time.Hour},
+		{in: "1d", want: 24 * time.Hour},
+		{in: "0.5d", want: 12 * time.Hour},
+		{in: "1d12h", want: 36 * time.Hour},
+		{in: "-1d", want: -24 * time.Hour},
+		{in: "24h", want: 24 * time.Hour},
+		{in: "1m", want: time.Minute},
+		{in: "90m", want: 90 * time.Minute},
+		{in: "", wantErr: true},
+		{in: "abc", wantErr: true},
+		{in: "d", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(t *testing.T) {
+			got, err := parseDurationWithDays(tc.in)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }

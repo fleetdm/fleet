@@ -3,6 +3,7 @@ package fleetctl
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ func hostDebugLoggingCommand() *cli.Command {
 				Name:  "disable",
 				Usage: "Disable debug logging and clear any active host override",
 			},
-			&cli.DurationFlag{
+			&cli.StringFlag{
 				Name:        "duration",
 				Usage:       "How long debug logging stays on (min 1m, max 7d). Only valid with --enable.",
 				DefaultText: "24h",
@@ -58,7 +59,16 @@ func hostDebugLoggingCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			enable := c.Bool("enable")
 			disable := c.Bool("disable")
-			duration := c.Duration("duration")
+			durationStr := c.String("duration")
+
+			var duration time.Duration
+			if durationStr != "" {
+				d, err := parseDurationWithDays(durationStr)
+				if err != nil {
+					return fmt.Errorf("invalid --duration %q: %w", durationStr, err)
+				}
+				duration = d
+			}
 
 			switch {
 			case enable == disable:
@@ -155,4 +165,43 @@ func transferCommand() *cli.Command {
 			return client.TransferHosts(hosts, label, status, searchQuery, team)
 		},
 	}
+}
+
+// parseDurationWithDays extends time.ParseDuration with a "d" (days) unit so
+// values like "7d" or "1d12h" are accepted. Each "Nd" or "N.Nd" span is
+// rewritten to the equivalent number of hours before delegating to
+// time.ParseDuration, which handles the rest of the units and signs.
+func parseDurationWithDays(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, errors.New("empty duration")
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		j := i
+		if s[j] == '+' || s[j] == '-' {
+			j++
+		}
+		start := j
+		for j < len(s) && (s[j] >= '0' && s[j] <= '9' || s[j] == '.') {
+			j++
+		}
+		if j > start && j < len(s) && s[j] == 'd' {
+			days, err := strconv.ParseFloat(s[start:j], 64)
+			if err != nil {
+				return 0, err
+			}
+			if s[i] == '-' {
+				days = -days
+			}
+			b.WriteString(strconv.FormatFloat(days*24, 'f', -1, 64))
+			b.WriteByte('h')
+			i = j + 1
+			continue
+		}
+		b.WriteByte(s[i])
+		i++
+	}
+	return time.ParseDuration(b.String())
 }
