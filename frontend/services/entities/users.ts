@@ -87,7 +87,7 @@ export default {
     const { USERS_API_ONLY } = endpoints;
 
     return sendRequest("POST", USERS_API_ONLY, formData).then((response) => ({
-      user: helpers.addGravatarUrlToResource(response.user),
+      user: response.user,
       token: response.token,
     }));
   },
@@ -98,8 +98,8 @@ export default {
     const { USERS_API_ONLY } = endpoints;
     const path = `${USERS_API_ONLY}/${userId}`;
 
-    return sendRequest("PATCH", path, formData).then((response) =>
-      helpers.addGravatarUrlToResource(response.user)
+    return sendRequest("PATCH", path, formData).then(
+      (response) => response.user
     );
   },
   getUserById: (userId: number): Promise<IUser> => {

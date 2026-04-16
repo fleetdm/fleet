@@ -15,7 +15,7 @@ const ApiKeyDisplay = ({ apiKey, onDone }: IApiKeyDisplayProps) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__api-key-label`}>
-        <b>API key</b>
+        <b>API Key</b>
       </div>
       <InputFieldHiddenContent value={apiKey} name="api-key" />
       <InfoBanner color="yellow">

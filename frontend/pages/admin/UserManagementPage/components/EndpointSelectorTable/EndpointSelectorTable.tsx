@@ -26,6 +26,11 @@ interface IEndpointRow extends IApiEndpoint {
   id: string;
 }
 
+/** Normalize path parameter names (e.g. `:id`, `:host_id` → `:_`) so search
+ * ignores parameter naming differences. */
+const normalizePath = (s: string) =>
+  s.toLowerCase().replace(/:[a-z0-9_]+/g, ":_");
+
 interface IEndpointSelectorTableProps {
   selectedEndpointKeys: string[];
   onSelectionChange: (selectedKeys: string[]) => void;
@@ -59,8 +64,8 @@ const searchResultsTableHeaders = [
     Cell: NameCell,
   },
   {
-    title: "Protocol",
-    Header: "Protocol",
+    title: "Method",
+    Header: "Method",
     accessor: "method",
     disableSortBy: true,
     Cell: (cellProps: ICellProps) => <code>{cellProps.cell.value}</code>,
@@ -114,17 +119,20 @@ const EndpointSelectorTable = ({
     [apiEndpoints]
   );
 
-  // Filter search results: match search text and exclude already-selected
+  // Filter search results: match search text and exclude already-selected.
+  // Path parameter names (e.g. `:id`, `:host_id`) are normalized so searching
+  // "/hosts/:id/report" matches "/hosts/:host_id/report".
   const searchResults: IEndpointRow[] = useMemo(() => {
     if (isEmpty(searchText)) return [];
-    const query = searchText.toLowerCase();
-    return allRows.filter(
-      (ep) =>
-        !selectedEndpointKeys.includes(ep.id) &&
-        (ep.display_name.toLowerCase().includes(query) ||
-          ep.path.toLowerCase().includes(query) ||
-          ep.method.toLowerCase().includes(query))
-    );
+    const query = normalizePath(searchText);
+    return allRows.filter((ep) => {
+      if (selectedEndpointKeys.includes(ep.id)) return false;
+      return (
+        ep.display_name.toLowerCase().includes(query) ||
+        normalizePath(ep.path).includes(query) ||
+        ep.method.toLowerCase().includes(query)
+      );
+    });
   }, [allRows, searchText, selectedEndpointKeys]);
 
   const selectedRows: IEndpointRow[] = useMemo(
