@@ -175,7 +175,6 @@ const SiteTopNav = ({
               <OrgLogoIcon
                 className="logo"
                 src={orgLogoURL}
-                invertDark={!hasDarkLogo}
               />
             </div>
           </Link>

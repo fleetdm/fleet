@@ -294,6 +294,19 @@ body.dark-mode .checkbox-unchecked-state {
   stroke: $ui-fleet-black-25;
 }
 
+// react-select v2 (DropdownWrapper) uses inline styles via COLORS proxy,
+// so !important is needed to override them in dark mode.
+body.dark-mode .react-select__control {
+  background-color: $ui-fleet-black-5 !important;
+}
+
+// Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.
+body.dark-mode .Select .Select-control,
+body.dark-mode .Select .Select-control .Select-value,
+body.dark-mode .Select .Select-value {
+  background-color: $ui-fleet-black-5;
+}
+
 hr {
   margin-top: $pad-xlarge;
   margin-bottom: $pad-xlarge;
