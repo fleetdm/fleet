@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { measureNav } from '../../helpers/perf';
-import { tableRow, tableOrEmpty, selectTeam } from '../../helpers/nav';
+import { tableRowWithContent, tableOrEmpty, selectTeam } from '../../helpers/nav';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -9,7 +9,7 @@ test.describe('Policies load times', () => {
   test('All fleets', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await measureNav(page, testInfo, 'All fleets', async () => {
       await page.goto('/policies/manage');
-      await expect(tableRow(page)).toBeVisible();
+      await expect(tableRowWithContent(page)).toBeVisible();
     });
   });
 
@@ -23,7 +23,7 @@ test.describe('Policies load times', () => {
   // ── Specific team ───────────────────────────────────────────────────────────
   test('Team page', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/policies/manage');
-    await expect(tableRow(page)).toBeVisible();
+    await expect(tableRowWithContent(page)).toBeVisible();
 
     await measureNav(page, testInfo, 'Team page', async () => {
       await selectTeam(page);
@@ -33,7 +33,7 @@ test.describe('Policies load times', () => {
 
   test('Team - Software automation filter', { tag: ['@loadtest', '@perf'] }, async ({ page }, testInfo) => {
     await page.goto('/policies/manage');
-    await expect(tableRow(page)).toBeVisible();
+    await expect(tableRowWithContent(page)).toBeVisible();
     await selectTeam(page);
     await expect(tableOrEmpty(page)).toBeVisible();
 

@@ -7,6 +7,7 @@ node_modules/
 /playwright/.cache/
 .auth/
 .perf-results/
+.perf-history/
 
 # Claude Code local settings
 .claude/
