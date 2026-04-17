@@ -111,6 +111,7 @@ labels:
 ```yaml
 labels:
   - path: ./lib/labels-name.labels.yml
+  - paths: ./lib/labels/*.yml
 ```
 
 
@@ -223,6 +224,7 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
+  - paths: ../lib/*.policies.yml
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
@@ -287,6 +289,7 @@ reports:
     labels_include_any:
       - Engineering
       - Customer Support
+  - paths: ../lib/*.reports.yml
 ```
 
 ## agent_options
@@ -393,13 +396,11 @@ controls:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
-      - path: ../lib/macos-profile2.json
-        labels_include_all: # Available in Fleet Premium
-          - Macs on Sonoma
       - path: ../lib/macos-profile3.mobileconfig
         labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
+      - paths: ../lib/configuration-profiles/*.json
   windows_settings:
     configuration_profiles:
       - path: ../lib/windows-profile.xml
