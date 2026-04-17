@@ -16,7 +16,7 @@ That shift matters because it's what makes everything else possible. When your d
 
 It's also the foundation for AI workflows at the device layer, because agents need reliable, queryable device data and auditable change mechanisms. Fleet provides both.
 
-## A genuinely cross-platform MDM
+## Cross-platform MDM
 
 For a long time, "cross-platform MDM" was marketing language for "macOS-first with varying degrees of Windows support." Fleet spent the past year making the claim real.
 
@@ -34,7 +34,7 @@ Department-based targeting is now in Fleet. Different teams can receive differen
 
 BYOD enrollment: account-based personal device enrollment for Apple, work-profile-based management for Android, is fully supported. Employees get a self-service experience. IT teams get the visibility and enforcement they need. The personal/work boundary is maintained by the platform, not by policy documents nobody reads.
 
-## Software management that actually works at scale
+## Software management that works at scale
 
 Fleet's software management capabilities crossed a threshold in the past year. The Fleet-maintained app catalog; a library of common applications that Fleet tests, packages, and keeps current, now covers Chrome, Office, Firefox, Slack, Zoom, and more, across macOS and Windows. New apps are shipping regularly.
 
@@ -50,7 +50,7 @@ The practical implication: device compliance state can be used as a condition fo
 
 ## What's coming next
 
-The [roadmap in the next 180 days](https://fleetdm.com/announcements/roadmap-preview-april-2026) includes local admin account management on macOS, patch policies, auto-install apps on iOS, android (lock, wipe, clear), and least-privilege API-only user roles, and more. Each of these addresses a specific gap that security-conscious teams have flagged.
+The [roadmap in the next 180 days](https://fleetdm.com/announcements/roadmap-preview-april-2026) includes local admin account management on macOS, patch policies, auto-install apps on iOS, Android (lock, wipe, clear), and least-privilege API-only user roles, and more. Each of these addresses a specific gap that security-conscious teams have flagged.
 
 The direction is consistent: more automation, less manual work, tighter integration with the identity and infrastructure layers that modern IT teams already run.
 
