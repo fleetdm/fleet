@@ -626,6 +626,23 @@ module.exports.routes = {
     }
   },
 
+
+  'GET /webinars/:slug': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: false,
+    }
+  },
+
+  'GET /webinars/:slug/watch': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: true,
+      disableChatbotAndIndexing: true,
+      hideFooterLinks: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -986,9 +1003,10 @@ module.exports.routes = {
   'GET /software-catalog/grammarly-desktop': '/software-catalog/grammarly-desktop-darwin',
   'GET /software-catalog/granola': '/software-catalog/granola-darwin',
   'GET /software-catalog/google-drive': '/software-catalog/google-drive-darwin',
+  'GET /software-catalog/imazing': '/software-catalog/imazing-darwin',
+  'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-darwin',
   'GET /software-catalog/insomnia': '/software-catalog/insomnia-darwin',
   'GET /software-catalog/intellij-idea-ce': '/software-catalog/intellij-idea-ce-darwin',
-  'GET /software-catalog/imazing-profile-editor': '/software-catalog/imazing-profile-editor-darwin',
   'GET /software-catalog/intellij-idea': '/software-catalog/intellij-idea-darwin',
   'GET /software-catalog/little-snitch': '/software-catalog/little-snitch-darwin',
   'GET /software-catalog/intune-company-portal': '/software-catalog/intune-company-portal-darwin',
@@ -1159,7 +1177,7 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#turn-on-apple-mdm',
+  'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
@@ -1350,6 +1368,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
+  'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
