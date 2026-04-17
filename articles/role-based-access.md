@@ -95,7 +95,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Retrieve contents from file carving                                                                                                        |          |            |            |            | ✅    |         |
 | Create Apple Push Certificates service (APNs) certificate signing request (CSR)                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete APNs certificate                                                                                                    |          |            |            |            | ✅    |         |
-| View, edit, and delete Apple Business Manager (ABM) connections                                                                            |          |            |            |            | ✅    |         |
+| View, edit, and delete Apple Business (AB) connections                                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                         |          |            |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                                                 |          |            |            |            | ✅    |         |
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                               | ✅       | ✅         | ✅         | ✅        | ✅    |         |

@@ -6,9 +6,9 @@ In Fleet, you can customize the out-of-the-box macOS, Windows, Linux, iOS, iPadO
 
 This guide covers macOS, iOS, iPadOS, and Android. Learn more about Windows and Linux in a [separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
 
-macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
+macOS setup features require [connecting Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
-> If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business Manager, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
+> If a host is marked with a [migration deadline](https://support.apple.com/en-bh/guide/apple-business-manager/axm3a49a769d/web#axmf524b36d9) in Apple Business, Fleet treats it as already set up. This means Fleet won’t install setup experience software, run scripts, or install bootstrap packages on that host.
 
 Below is the end user experience for macOS. Check out the separate videos for [iOS](https://www.youtube.com/watch?v=bPtr3Qgp1JY), [iPadOS](https://www.youtube.com/watch?v=sK3ZR2iItJY), and [Android](https://www.youtube.com/watch?v=-zB1zgtGAMs).
 
@@ -133,7 +133,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 You can install software during first time macOS, iOS, iPadOS, Android, and [Windows and Linux setup](https://fleetdm.com/guides/windows-linux-setup-experience).
 
-Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business Manager (ABM). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
+Currently, for macOS hosts, software is only installed on hosts that automatically enroll to Fleet via Apple Business (AB). For iOS and iPadOS hosts, software is only installed on hosts that enroll via ABM and hosts that manually enroll via the `/enroll` link (profile-based device enrollment).
 
 Add setup experience software:
 
@@ -239,13 +239,13 @@ To customize the Setup Assistant, we will do the following steps:
 
 ### Step 3: Test the custom Setup Assistant
 
-Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom Setup Assistant.
+Testing requires a test Mac that is present in your Apple Business (AB) account. We will wipe this Mac and use it to test the custom Setup Assistant.
 
 1. Wipe the test Mac by selecting the Apple icon in top left corner of the screen, selecting **System Settings** or **System Preference**, and searching for "Erase all content and settings." Select **Erase All Content and Settings**.
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) for more information.
+  > New Macs purchased through Apple Business appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) for more information.
 
 3. Transfer this host to a test fleet by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the test fleet and select **Transfer**.
 

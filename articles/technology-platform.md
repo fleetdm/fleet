@@ -12,7 +12,7 @@ As the fleet grows, the team needs a more scalable way to manage devices using a
 
 * **Devices managed:** ~15,000 iPads plus corporate macOS devices
 
-* **Primary requirements:** GitOps workflows, API-first management, Apple Business Manager integration
+* **Primary requirements:** GitOps workflows, API-first management, Apple Business integration
 
 * **Previous challenge:** Manual enrollment processes and limited automation
 
@@ -33,7 +33,7 @@ Fleet must meet three key requirements:
 1. **GitOps workflows**  
     Integrate with GitHub Enterprise for version-controlled device management.
 
-2. **Apple Business Manager integration**  
+2. **Apple Business integration**  
     Seamlessly manage large numbers of iPads.
 
 3. **API-first management**  
@@ -47,7 +47,7 @@ Device configurations live in version-controlled repositories. Changes go throug
 
 Fleet’s API powers several automated workflows. For example, device names synchronize automatically with the company’s inventory system, ensuring records remain accurate without manual updates.
 
-Fleet also integrates with Apple Business Manager to automate provisioning of new devices.
+Fleet also integrates with Apple Business to automate provisioning of new devices.
 
 ### A flexible migration strategy
 
