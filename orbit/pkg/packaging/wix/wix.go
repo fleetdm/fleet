@@ -79,17 +79,18 @@ func Heat(path string, native bool, localWixDir string) error {
 }
 
 func darwinWineExecutable() (string, error) {
+	wineWarning := "Is Wine installed? Building a Windows (.msi) package with --local-wix-dir on macOS requires Wine; the default path uses Docker instead."
 	cmdOut, err := exec.Command("wine", "--version").Output()
 	if err != nil {
-		return "", fmt.Errorf("running wine to get version information: %w. Is Wine installed? Building a Windows (.msi) package with --local-wix-dir on macOS requires Wine; the default path uses Docker instead", err)
+		return "", fmt.Errorf("running wine to get version information: %w. %s", err, wineWarning)
 	}
 	wineVerStr, found := strings.CutPrefix(string(cmdOut), "wine-")
 	if !found {
-		return "", fmt.Errorf("Unknown wine version: %q. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine ", string(cmdOut))
+		return "", fmt.Errorf("Unknown wine version: %q. %s", string(cmdOut), wineWarning)
 	}
 	wineVersion, err := strconv.ParseInt(strings.Split(wineVerStr, ".")[0], 10, 64)
 	if err != nil {
-		return "", fmt.Errorf("Unable to parse wine version: %q. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine ", wineVerStr)
+		return "", fmt.Errorf("Unable to parse wine version: %q. %s", wineVerStr, wineWarning)
 	}
 	if wineVersion < 10 {
 		return Wine64Cmd, nil
