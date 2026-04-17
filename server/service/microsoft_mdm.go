@@ -2121,34 +2121,43 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, nil
 	}
 
-	espCmd, err := microsoft_mdm.ESPInitialCommand(microsoft_mdm.ESPInitialCommandSpec{
-		CmdUUID:  uuid.New().String(),
-		Profiles: profileTrackingInfos,
-		Software: softwareTrackingInfos,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
-	}
-
-	// Persist the command before transitioning state. If enqueue fails, the
-	// device stays Pending so the next checkin retries the initial setup.
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, espCmd); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "enqueue ESP initial command")
-	}
-
-	// Transition to Active after enqueue succeeds. If another concurrent
-	// checkin already transitioned the state, we enqueued a duplicate command
-	// (harmless) but skip the inline return.
+	// Win the race first via CAS so only one concurrent checkin proceeds to
+	// build and enqueue the ESP command. If enqueue fails afterward, revert
+	// the state back to Pending so the next checkin retries.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
 	}
 	if !transitioned {
+		// Another checkin already handled the initial setup.
 		return nil, nil
 	}
 
-	// Return inline as well so the device receives the ESP configuration on this
+	espCmd, err := microsoft_mdm.ESPInitialCommand(microsoft_mdm.ESPInitialCommandSpec{
+		CmdUUID:  uuid.New().String(),
+		Profiles: profileTrackingInfos,
+		Software: softwareTrackingInfos,
+	})
+	if err != nil {
+		// Revert state so next checkin retries.
+		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
+			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP build error", "err", revertErr)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
+	}
+
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, espCmd); err != nil {
+		// Revert state so next checkin retries.
+		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
+			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP enqueue error", "err", revertErr)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "enqueue ESP initial command")
+	}
+
+	// Return inline so the device receives the ESP configuration on this
 	// same checkin (rather than waiting for the next poll).
 	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
 	if err != nil {
