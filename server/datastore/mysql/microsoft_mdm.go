@@ -239,7 +239,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 		// Look up host_uuid before deleting the enrollment so we can clean up profile rows.
 		var hostUUID string
 		err := sqlx.GetContext(ctx, tx,
-			&hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+			&hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`, mdmDeviceID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))

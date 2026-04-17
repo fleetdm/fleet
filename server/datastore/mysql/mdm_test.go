@@ -9219,6 +9219,10 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	assertHostProfileOpStatus(t, ds, host4.UUID)
 
 	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost1)
+
 	appleProfsHost2, err := ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
 	require.NoError(t, err)
 	require.NotEmpty(t, appleProfsHost2)
