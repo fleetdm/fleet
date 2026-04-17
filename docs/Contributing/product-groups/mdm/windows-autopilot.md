@@ -59,7 +59,7 @@ Proxmox VE is the recommended platform for Autopilot VM testing. It provides:
 
 ### Known issue: cross-tenant hash collisions
 
-Autopilot device matching is global across all Microsoft tenants. If another organization has registered a generic QEMU/Q35 VM hash in their Autopilot, your Proxmox VM may be claimed by their tenant during OOBE. To minimize this, maximize VM hardware uniqueness (see below). If collisions persist, the other tenant's registration must be deleted -- you cannot override it from your side.
+Autopilot device matching is global across all Microsoft tenants. If another organization has registered a generic QEMU/Q35 VM hash in their Autopilot, your Proxmox VM may be claimed by their tenant during OOBE. To minimize this, maximize VM hardware uniqueness (see below).
 
 ### Creating the VM
 
@@ -103,21 +103,11 @@ Note the `scsi0` disk path (e.g., `data:vm-135-disk-1`) and the `net0` bridge na
 ```bash
 qm set <VMID> -smbios1 "serial=<NAME>$(date +%s),uuid=$(cat /proc/sys/kernel/random/uuid),manufacturer=FleetDM,product=AutopilotDevVM,sku=<NAME>SKU$(date +%s),family=FleetAutopilotFamily,version=v1"
 ```
-Replace `<NAME>` with your name (e.g., `VICTOR`). The `$(date +%s)` timestamp ensures global uniqueness.
-
-**Set unique disk serial** (adjust disk path to match your config):
-```bash
-qm set <VMID> -scsi0 data:vm-<VMID>-disk-1,iothread=1,size=40G,serial=<NAME>DISK$(date +%s)
-```
-
-**Set unique MAC address** (adjust bridge to match your config):
-```bash
-qm set <VMID> -net0 e1000e=BC:24:11:FE:AA:$(printf '%02X' $((RANDOM % 256))),bridge=<BRIDGE>,firewall=1
-```
+Replace `<NAME>` with your name (e.g., `BOB`). The `$(date +%s)` timestamp ensures global uniqueness.
 
 **Verify:**
 ```bash
-qm config <VMID> | grep -E '(smbios|scsi0|net0)'
+qm config <VMID> | grep smbios
 ```
 
 ### Install Windows 11
@@ -132,12 +122,6 @@ qm config <VMID> | grep -E '(smbios|scsi0|net0)'
 8. Internet is not needed during installation
 
 ## Enrolling the device
-
-### Check for cross-tenant collision (do this BEFORE registering)
-
-When Windows reaches OOBE:
-- If you see the **region selection** screen: your VM was NOT captured by another tenant. Proceed to register.
-- If OOBE skips to **"Let's set things up for your work or school"** with an unfamiliar organization logo: your VM was captured by another tenant. Press **Ctrl+Shift+D** to see Autopilot diagnostics and identify which tenant. That tenant's admin must delete the device from their Autopilot before you can use yours.
 
 ### Register with Autopilot
 
@@ -201,17 +185,17 @@ qm rollback <VMID> clean-oobe
 qm start <VMID>
 ```
 
-2. Go through OOBE: region > keyboard > network
-3. After connecting to the network, Autopilot should kick in with your org branding
-4. Sign in with your Entra test user credentials (must have Intune + Entra P1 license assigned)
-5. Device joins Entra and enrolls in Fleet MDM
+2. OOBE starts. Autopilot skips region/keyboard/network screens and goes straight to checking for updates, then shows your org branding and the Entra sign-in screen.
+3. Sign in with your Entra test user credentials (must have Intune + Entra P1 license assigned)
+4. Device joins Entra and enrolls in Fleet MDM
 
 ### Subsequent test cycles
 
-1. In Intune: Devices > All devices > find the device > Delete
-2. In Entra: Devices > find the device > Delete
-3. Do NOT delete the Autopilot device registration
-4. Restore snapshot: `qm rollback <VMID> clean-oobe && qm start <VMID>`
+Restore the snapshot and start the VM:
+```bash
+qm rollback <VMID> clean-oobe
+qm start <VMID>
+```
 
 ## Troubleshooting
 
