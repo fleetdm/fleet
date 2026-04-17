@@ -92,12 +92,7 @@ In the Proxmox web UI, click **Create VM**:
 
 ### Make the VM uniquely identifiable
 
-SSH into the Proxmox host. First check the current config:
-```bash
-qm config <VMID>
-```
-
-Note the `scsi0` disk path (e.g., `data:vm-135-disk-1`) and the `net0` bridge name (e.g., `vnet1`). Use those in the commands below.
+SSH into the Proxmox host.
 
 **Set unique SMBIOS values** (all fields must be alphanumeric only -- no hyphens, no periods):
 ```bash
