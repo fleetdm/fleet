@@ -179,7 +179,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 ## Processing intent signals
 
 Intent signals help measure an individual's/organization's current level of engagement with the Fleet brand and help us:  
-- Created/update contact and/or accounts in Fleet's CRM. 
+- Create/update contact and/or accounts in Fleet's CRM. 
 - Prioritize accounts for [research](https://fleetdm.com/handbook/marketing#research-an-account).
 - Identify accounts/contacts that would benefit from a POV conversation.
 
@@ -265,7 +265,10 @@ Occasionally, prospective customers will ask us to complete a questionnaire. In 
 
 ## Slide decks
 
-The goal of a slide deck is not necessarily walk every customer through it. It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization. Even if you never show these decks on a screenshare use them to keep the conversation on track. 
+The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
+
+Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
+
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
 - [Fleet for CISOs](https://docs.google.com/presentation/d/17PUAqa63jTb5yFT3hGg3F5mgGyPtUmg8OlTGyxS6vLI/edit?slide=id.g3d28ee536a1_2_0#slide=id.g3d28ee536a1_2_0)
