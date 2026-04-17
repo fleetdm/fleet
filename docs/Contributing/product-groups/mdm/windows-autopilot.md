@@ -6,17 +6,45 @@
 - [Assigning Intune licenses](https://learn.microsoft.com/en-gb/intune/intune-service/fundamentals/licenses-assign)
 - [Serve locally built Fleetd during Autopilot](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#building-and-serving-your-own-fleetd-basemsi-installer-for-windows)
 
-## Assigning an Intune license to your user
-To use Autopilot, your user needs to have an Intune license assigned. If you don't already have one assigned, follow these steps:
-1. Go to [Microsoft 365 Admin Center Licenses](https://admin.cloud.microsoft/?#/licenses)
-2. Select Microsoft Intune Plan 1
-    1. Worth checking if any of the existing licenses can be unassigned (maybe from other developers)
-3. Click "Assign licenses"
-4. Select your user and click "Assign"
-    1. If it says no license is available, you are good to buy a license, which will be charged on Noah Talerman's (As of 24th February 2026) brex card.
+## License requirements
 
+Each user who enrolls a device needs **both** of the following:
+- **Microsoft Intune Plan 1** (for Autopilot device registration)
+- **Microsoft Entra ID P1** (for automatic MDM enrollment)
+
+The simplest option is **Enterprise Mobility + Security E3**, which bundles both.
+
+To assign licenses:
+1. Go to [Microsoft 365 Admin Center](https://admin.microsoft.com) > Users > Active users > select your user
+2. Click **Licenses and apps** and assign the license
+3. Make sure **Usage location** is set (e.g., United States) -- license assignment fails without it
+4. If no licenses are available, check if other developers have unused ones that can be reassigned. Purchasing new licenses will be charged on Noah Talerman's (as of 24th February 2026) Brex card
+
+**Important:** The license must be assigned to the **user who signs in during enrollment**, not just to an admin account. Without a license, the MDM URL will be empty in `dsregcmd /status` and enrollment will fail silently.
+
+## Entra tenant configuration
+
+### Verify Mobility (MDM and WIP) app settings
+
+In [entra.microsoft.com](https://entra.microsoft.com) > search "Mobility" > **Mobility (MDM and WIP)**:
+
+- **Fleet app**: MDM user scope must be **All** (or a group containing your test users). If this is set to None, Entra will not issue an MDM URL to any user and enrollment will fail.
+- **Microsoft Intune app**: MDM user scope must be **None**. If both Fleet and Intune have active scopes, devices may enroll in Intune instead of Fleet.
+
+### Verify API permissions
+
+In Entra > App registrations > your Fleet app > API permissions, confirm these are granted:
+- Microsoft Graph > Delegated: `Group.Read.All`, `Group.ReadWrite.All`
+- Microsoft Graph > Application: `Device.Read.All`, `Device.ReadWrite.All`, `Directory.Read.All`, `Group.Read.All`, `User.Read.All`
+- Admin consent granted for all
+
+### Verify Application ID URI
+
+In Entra > App registrations > your Fleet app > Expose an API:
+- Application ID URI should be `https://<your-fleet-server-domain>` (e.g., `https://dogfood.fleetdm.com`)
 
 ## Configuring Windows Autopilot for development
+
 To set up Windows Autopilot for development, follow these steps:
 1. Create a [new Intune security group](https://intune.microsoft.com/#view/Microsoft_AAD_IAM/AddGroupBlade)
     1. Name the group
@@ -30,30 +58,219 @@ To set up Windows Autopilot for development, follow these steps:
     3. The rest can be the default settings
     4. On the assignments page, click "Add group" and select the security group you created in step 1.
 
-## Adding your device to Autopilot
-To add your Windows device (VM's work as well) to Autopilot, you need to get some hardware information, like the serial and other attributes.
+## Recommended VM platform: Proxmox
 
-Follow the steps [in the autopilot add devices guide](https://learn.microsoft.com/en-us/autopilot/add-devices#directly-upload-the-hardware-hash-to-an-mdm-service), to either get the information into a .csv or upload it directly.
+Proxmox VE is the recommended platform for Autopilot VM testing. It provides:
+- Web-based console with full interactive OOBE access (critical for Autopilot testing)
+- Snapshot support (via LVM-Thin or ZFS storage)
+- x86_64 native performance via KVM
+
+### Known issue: cross-tenant hash collisions
+
+Autopilot device matching is global across all Microsoft tenants. If another organization has registered a generic QEMU/Q35 VM hash in their Autopilot, your Proxmox VM may be claimed by their tenant during OOBE. To minimize this, maximize VM hardware uniqueness (see below). If collisions persist, the other tenant's registration must be deleted -- you cannot override it from your side.
+
+### Creating the VM
+
+In the Proxmox web UI, click **Create VM**:
+
+**General:** Name your VM, note the VM ID (referred to as `<VMID>` below)
+
+**OS:**
+- ISO image: Windows 11 ISO (latest recommended -- fewer updates during OOBE)
+- Type: Microsoft Windows, Version: 11/2022/2025
+- Check "Add additional drive for VirtIO drivers" and select [VirtIO drivers ISO](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso)
+
+**System:**
+- Machine: **q35** (required for TPM)
+- BIOS: **OVMF (UEFI)**
+- Add EFI Disk: checked, storage: **LVM-Thin** (required for snapshots)
+- TPM: checked, storage: **LVM-Thin**, version: **v2.0**
+- SCSI Controller: **VirtIO SCSI single**
+- Pre-Enroll keys: **checked** (enables Secure Boot with Microsoft keys)
+- QEMU Agent: **unchecked**
+
+**Disks:**
+- Bus/Device: **SCSI**, Storage: **LVM-Thin**, Size: **40 GB**
+
+**CPU:** Cores: 4, Type: **host**
+
+**Memory:** 8192 MB
+
+**Network:** Model: **Intel E1000E** (works natively in Windows without drivers -- critical for OOBE network connectivity. Do not use VirtIO for network as it requires drivers that are not available during OOBE.)
+
+### Make the VM uniquely identifiable
+
+SSH into the Proxmox host. First check the current config:
+```bash
+qm config <VMID>
+```
+
+Note the `scsi0` disk path (e.g., `data:vm-135-disk-1`) and the `net0` bridge name (e.g., `vnet1`). Use those in the commands below.
+
+**Set unique SMBIOS values** (all fields must be alphanumeric only -- no hyphens, no periods):
+```bash
+qm set <VMID> -smbios1 "serial=<NAME>$(date +%s),uuid=$(cat /proc/sys/kernel/random/uuid),manufacturer=FleetDM,product=AutopilotDevVM,sku=<NAME>SKU$(date +%s),family=FleetAutopilotFamily,version=v1"
+```
+Replace `<NAME>` with your name (e.g., `VICTOR`). The `$(date +%s)` timestamp ensures global uniqueness.
+
+**Set unique disk serial** (adjust disk path to match your config):
+```bash
+qm set <VMID> -scsi0 data:vm-<VMID>-disk-1,iothread=1,size=40G,serial=<NAME>DISK$(date +%s)
+```
+
+**Set unique MAC address** (adjust bridge to match your config):
+```bash
+qm set <VMID> -net0 e1000e=BC:24:11:FE:AA:$(printf '%02X' $((RANDOM % 256))),bridge=<BRIDGE>,firewall=1
+```
+
+**Verify:**
+```bash
+qm config <VMID> | grep -E '(smbios|scsi0|net0)'
+```
+
+### Install Windows 11
+
+1. Start the VM, open the Console in Proxmox web UI
+2. Boot from the Windows 11 ISO
+3. At disk selection ("Where do you want to install Windows?"), the disk won't be visible because it uses VirtIO SCSI
+4. Click **Load driver** > Browse > VirtIO CD > `vioscsi\w11\amd64` > OK > select the driver > Next
+5. The disk appears. Select it and continue
+6. Choose **Windows 11 Pro**, select "I don't have a product key"
+7. Complete installation, let it reboot
+8. Internet is not needed during installation
+
+## Enrolling the device
+
+### Check for cross-tenant collision (do this BEFORE registering)
+
+When Windows reaches OOBE:
+- If you see the **region selection** screen: your VM was NOT captured by another tenant. Proceed to register.
+- If OOBE skips to **"Let's set things up for your work or school"** with an unfamiliar organization logo: your VM was captured by another tenant. Press **Ctrl+Shift+D** to see Autopilot diagnostics and identify which tenant. That tenant's admin must delete the device from their Autopilot before you can use yours.
+
+### Register with Autopilot
+
+At the OOBE screen, press **Shift+F10** to open a command prompt:
+
+1. Verify network: `ping 8.8.8.8` (if this fails, run `ipconfig /renew`)
+
+2. Register directly with Intune (preferred):
+```powershell
+powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Install-Script -Name Get-WindowsAutopilotInfo -Force
+Get-WindowsAutopilotInfo -Online
+```
+Sign in with your Entra account when prompted.
+
+3. If `-Online` fails (auth errors, script errors), fall back to CSV:
+```powershell
+Get-WindowsAutopilotInfo -OutputFile C:\AutopilotHash.csv
+```
+Transfer the CSV and import it manually in Intune at Devices > Windows > Enrollment > Windows Autopilot > Devices > Import.
 
 > **Important:** When uploading the hardware hash CSV, include the **group tag** that matches your dynamic security group query (e.g., `NameDev`). If you forget, you can edit the device in the [Autopilot devices list](https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/AutopilotDevices.ReactView/filterOnManualRemediationRequired~/false) and add it later.
 
-#### If using a VM
-If using a VM, make sure the VM is assigned a serial number. This is different on how to do for each VM provider, but for example on UTM, you can edit an instance, go to "Arguments" and add the following: `-smbios type=1,serial=<SERIAL_NUMBER>`, where <SERIAL_NUMBER> is a custom unique identifier.
+### Wait for profile assignment
 
-Once added, you should see the device with it's serial show up in [the Autopilot devices list](https://intune.microsoft.com/#view/Microsoft_Intune_Enrollment/AutopilotDevices.ReactView/filterOnManualRemediationRequired~/false), it is ready to be enrolled, once the "Profile status" is "Assigned" (which may take some minutes).
+In [intune.microsoft.com](https://intune.microsoft.com) > Devices > Windows > Enrollment > Windows Autopilot > Devices:
+- Wait until your device shows **Profile status: Assigned** (15-40 min)
+- Click on the device and verify **Assigned profile** shows your deployment profile name
+- Do not proceed until both are confirmed
+
+### Sysprep and snapshot
+
+Sysprep resets OOBE while preserving UEFI state (including the Autopilot marker). BitLocker must be off first.
+
+Back in the VM command prompt:
+
+1. Disable BitLocker (Windows may auto-enable it during install):
+```
+manage-bde -off C:
+```
+Wait for decryption to finish. Check with `manage-bde -status C:` -- look for "Conversion Status: Fully Decrypted".
+
+2. Run sysprep:
+```
+c:\windows\system32\sysprep\sysprep.exe /generalize /oobe /shutdown
+```
+
+3. After the VM shuts down, take a snapshot:
+```bash
+qm snapshot <VMID> clean-oobe
+```
+
+### Test Autopilot enrollment
+
+1. Restore snapshot and start:
+```bash
+qm rollback <VMID> clean-oobe
+qm start <VMID>
+```
+
+2. Go through OOBE: region > keyboard > network
+3. After connecting to the network, Autopilot should kick in with your org branding
+4. Sign in with your Entra test user credentials (must have Intune + Entra P1 license assigned)
+5. Device joins Entra and enrolls in Fleet MDM
+
+### Subsequent test cycles
+
+1. In Intune: Devices > All devices > find the device > Delete
+2. In Entra: Devices > find the device > Delete
+3. Do NOT delete the Autopilot device registration
+4. Restore snapshot: `qm rollback <VMID> clean-oobe && qm start <VMID>`
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| OOBE shows unfamiliar org logo | Cross-tenant hash collision: another org registered a similar QEMU VM | Delete their registration or maximize VM uniqueness |
+| "Name your device" instead of Autopilot branding | Profile not assigned, or AUTOPILOT_MARKER missing | Verify Profile status = Assigned in Intune; re-register and re-sysprep |
+| `ZtdDeviceIsNotRegistered` in diagnostics (Ctrl+Shift+D) | Device hash not registered in any tenant | Upload hash to Intune and wait for Assigned |
+| `binarySecurityToken is empty` in Fleet logs | User's Intune/Entra P1 license not assigned, or Fleet MDM user scope = None | Assign license to the enrolling user; set Fleet MDM user scope to All in Entra Mobility |
+| `0x80180024` error during enrollment | Authentication failure -- often stale state from failed attempts | Restore clean snapshot and retry |
+| MDM URL empty in `dsregcmd /status` | License not assigned or not yet propagated, or Fleet MDM user scope = None | Assign license, set scope to All, wait 15-30 min, run `dsregcmd /refreshprt` |
+| Sysprep fails with BitLocker error | BitLocker auto-enabled during Windows install | Run `manage-bde -off C:` and wait for full decryption |
+| Disk not visible during Windows install | VirtIO SCSI needs driver | Load driver from VirtIO CD: `vioscsi\w11\amd64` |
+| No network in OOBE | Wrong network adapter type | Use Intel E1000E (not VirtIO) for the network adapter |
+| Snapshots not available | Wrong storage backend | Must use LVM-Thin, ZFS, or qcow2 on directory storage (not regular LVM) |
+| `smbios1: invalid format` error | Hyphens or periods in SMBIOS fields | Use alphanumerics only for serial, sku, and version fields |
+| Scripts disabled in PowerShell | Execution policy | Run `Set-ExecutionPolicy Bypass -Scope Process -Force` |
+
+## Verification commands (inside Windows)
+
+Check SMBIOS values:
+```powershell
+Get-CimInstance Win32_ComputerSystemProduct | Select Vendor, Name, UUID, IdentifyingNumber
+```
+
+Check MDM enrollment state:
+```powershell
+dsregcmd /status
+```
+Key fields: `AzureAdJoined`, `MdmUrl`, `TenantName`
+
+Check Autopilot diagnostics during OOBE: press **Ctrl+Shift+D**
 
 ## Setting up a custom domain with ngrok
 
-Microsoft Entra requires a **verified custom domain** for the MDM application URIs. You cannot use a raw `*.ngrok.io` URL — Entra will reject it during domain verification.
+Microsoft Entra requires a **verified custom domain** for the MDM application URIs. You cannot use a raw `*.ngrok.io` URL -- Entra will reject it during domain verification.
 
-1. **Register a domain** (e.g., a cheap `.xyz` domain from Namecheap). You don't need to purchase SSL — ngrok handles TLS termination.
-2. **Add a subdomain in ngrok's dashboard** (Domains section) — e.g., `mdm.yourdomain.xyz`. ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
+1. **Register a domain** (e.g., a cheap `.xyz` domain from Namecheap). You don't need to purchase SSL -- ngrok handles TLS termination.
+2. **Add a subdomain in ngrok's dashboard** (Domains section) -- e.g., `mdm.yourdomain.xyz`. ngrok will provide a CNAME target (e.g., `xxx.ngrok-dns.com`).
 3. **Configure DNS in your domain registrar:**
    - Add a **CNAME record** for the subdomain (e.g., `mdm`) pointing to the ngrok CNAME target.
    - Add the **TXT record** that Microsoft Entra provides on the **root domain** (e.g., `yourdomain.xyz`) for domain verification.
-   - Note: DNS standards don't allow CNAME records to coexist with other record types at the same name. Using a subdomain for the CNAME avoids this conflict — the root domain stays free for the Entra TXT verification record.
+   - Note: DNS standards don't allow CNAME records to coexist with other record types at the same name. Using a subdomain for the CNAME avoids this conflict -- the root domain stays free for the Entra TXT verification record.
 4. **Verify the root domain in Entra:** go to [Entra > Domain names](https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Domains) > Add custom domain, enter your root domain (e.g., `yourdomain.xyz`), and verify it using the TXT record.
 5. **Configure the MDM application in Entra** following the [Windows MDM Setup guide](https://fleetdm.com/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id). Use your **subdomain** (e.g., `mdm.yourdomain.xyz`) for all MDM URLs (Application ID URI, discovery URL, terms of use URL).
+
+**Alternative: Caddy reverse proxy.** If you have a server with a public IP and a domain you control, you can use [Caddy](https://caddyserver.com/) as a reverse proxy with automatic Let's Encrypt TLS instead of ngrok. Point a DNS A record to your server's IP and run:
+```bash
+caddy reverse-proxy --from your-subdomain.yourdomain.com --to https://localhost:8080
+```
+Caddy auto-provisions the TLS certificate. This avoids ngrok entirely and is more stable for long-running test setups.
 
 Example ngrok config with a custom domain for the Fleet server:
 ```yaml
