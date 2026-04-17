@@ -34,6 +34,9 @@ type ESPProfileTrackingInfo struct {
 	TopLocURI string
 	// HasSCEP indicates whether this profile contains SCEP certificate settings.
 	HasSCEP bool
+	// SCEPOnly indicates this profile contains only SCEP settings and should be
+	// tracked under Certificates only, not under Security policies.
+	SCEPOnly bool
 }
 
 // ESPSoftwareTrackingInfo holds the information needed to track a software item on the ESP.
@@ -86,7 +89,16 @@ var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(templat
 <Data>true</Data>
 </Item>
 </Replace>
+<Replace>
+<CmdID>{{ .CmdUUID }}-skipuser</CmdID>
+<Item>
+<Meta><Format>bool</Format><Type>text/plain</Type></Meta>
+<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/SkipUserStatusPage</LocURI></Target>
+<Data>true</Data>
+</Item>
+</Replace>
 {{- range $i, $p := .Profiles }}
+{{- if not $p.SCEPOnly }}
 <Add>
 <CmdID>{{ $.CmdUUID }}-policy-{{ $i }}</CmdID>
 <Item>
@@ -100,6 +112,7 @@ var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(templat
 <Target><LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + providerID + `/TrackingPolicies/{{ escapeXML $p.ProfileUUID }}</LocURI></Target>
 </Item>
 </Add>
+{{- end }}
 {{- if $p.HasSCEP }}
 <Add>
 <CmdID>{{ $.CmdUUID }}-scep-{{ $i }}</CmdID>

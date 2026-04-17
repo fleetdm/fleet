@@ -25,10 +25,11 @@ func TestESPInitialCommand(t *testing.T) {
 		assert.Equal(t, "uuid-1", cmd.CommandUUID)
 
 		raw := string(cmd.RawCommand)
-		// Should have timeout and block settings
+		// Should have timeout, block, and skip-user settings
 		assert.Contains(t, raw, "TimeOutUntilSyncFailure")
 		assert.Contains(t, raw, "10800")
 		assert.Contains(t, raw, "BlockInStatusPage")
+		assert.Contains(t, raw, "SkipUserStatusPage")
 		assert.Contains(t, raw, "true")
 		// Should not have any profile or app entries
 		assert.NotContains(t, raw, "ExpectedPolicies")
@@ -48,6 +49,13 @@ func TestESPInitialCommand(t *testing.T) {
 					ProfileUUID: "prof-2",
 					TopLocURI:   "./Device/Vendor/MSFT/Policy/Config/VPN",
 					HasSCEP:     true,
+					SCEPOnly:    false, // has SCEP but also other settings
+				},
+				{
+					ProfileUUID: "prof-3",
+					TopLocURI:   "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1",
+					HasSCEP:     true,
+					SCEPOnly:    true, // SCEP-only: tracked under Certificates, not Security policies
 				},
 			},
 			Software: []ESPSoftwareTrackingInfo{
@@ -63,16 +71,19 @@ func TestESPInitialCommand(t *testing.T) {
 		assert.Contains(t, raw, "TimeOutUntilSyncFailure")
 		assert.Contains(t, raw, "BlockInStatusPage")
 
-		// Profile expected policies
+		// Profile expected policies -- prof-1 and prof-2 are tracked, prof-3 (SCEP-only) is not
 		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/Policy/Config/WiFi")
 		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/Policy/Config/VPN")
+		assert.NotContains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/ClientCertificateInstall")
 
-		// Profile tracking policies
+		// Profile tracking policies -- prof-1 and prof-2 tracked, prof-3 excluded
 		assert.Contains(t, raw, "TrackingPolicies/prof-1")
 		assert.Contains(t, raw, "TrackingPolicies/prof-2")
+		assert.NotContains(t, raw, "TrackingPolicies/prof-3")
 
-		// SCEP only for prof-2
+		// SCEP certs for prof-2 and prof-3, not prof-1
 		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-2")
+		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-3")
 		assert.NotContains(t, raw, "ExpectedSCEPCerts/prof-1")
 
 		// Software tracking

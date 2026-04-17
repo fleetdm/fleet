@@ -1252,11 +1252,11 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotNil(t, enqueuedCmd, "initial ESP command should also be persisted")
 
 		raw := string(enqueuedCmd.RawCommand)
-		// Check profile tracking
+		// prof-1 (WiFi) tracked as security policy
 		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/WiFi/Profile/MyWiFi")
 		assert.Contains(t, raw, "TrackingPolicies/prof-1")
-		assert.Contains(t, raw, "TrackingPolicies/prof-2")
-		// Check SCEP detection for prof-2
+		// prof-2 (SCEP-only) tracked under Certificates only, not Security policies
+		assert.NotContains(t, raw, "TrackingPolicies/prof-2")
 		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-2")
 		assert.NotContains(t, raw, "ExpectedSCEPCerts/prof-1")
 		// Check software tracking

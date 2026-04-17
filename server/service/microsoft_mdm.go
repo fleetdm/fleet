@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -2071,6 +2072,11 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		}
 
 		for _, p := range profiles {
+			// Skip the Windows OS Updates profile -- it's a Fleet-internal profile
+			// not shown in the UI, so it shouldn't appear on the ESP.
+			if p.ProfileName == servermdm.FleetWindowsOSUpdatesProfileName {
+				continue
+			}
 			content, ok := contents[p.ProfileUUID]
 			if !ok || len(content.SyncML) == 0 {
 				continue
@@ -2086,7 +2092,11 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 			profileTrackingInfos = append(profileTrackingInfos, microsoft_mdm.ESPProfileTrackingInfo{
 				ProfileUUID: p.ProfileUUID,
 				TopLocURI:   locURIs[0],
-				HasSCEP:     hasSCEP,
+				// SCEP-only profiles are tracked under Certificates, not Security
+				// policies. HasSCEP controls the ExpectedSCEPCerts entry, and
+				// SCEPOnly controls whether we skip ExpectedPolicies/TrackingPolicies.
+				HasSCEP:  hasSCEP,
+				SCEPOnly: hasSCEP && len(locURIs) == 1,
 			})
 		}
 	}
