@@ -1,4 +1,4 @@
-# Why AI-Powered Device Management Requires GitOps
+# Why AI-powered device management requires GitOps
 ## Device management is about to change. AI is why. GitOps is how.
 
 The slow part is gone.
