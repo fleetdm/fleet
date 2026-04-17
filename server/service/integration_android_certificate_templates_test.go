@@ -689,8 +689,18 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.Nil(t, getHostResp.Host.MDM.Profiles, "All certificate template records should be cleared on unenroll")
 
-	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
+	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true).
+	// The full re-enrollment sequence in Service.updateHost is: UpdateAndroidHost, then delete stale certificate
+	// templates (no-op here since SetAndroidHostUnenrolled already removed them), then create fresh pending ones.
 	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
+	require.NoError(t, err)
+	err = s.ds.DeleteAllHostCertificateTemplates(ctx, host.UUID)
+	require.NoError(t, err)
+	teamIDForCerts := uint(0)
+	if createdAndroidHost.Host.TeamID != nil {
+		teamIDForCerts = *createdAndroidHost.Host.TeamID
+	}
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamIDForCerts)
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled

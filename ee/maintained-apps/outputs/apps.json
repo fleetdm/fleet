@@ -842,6 +842,13 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Granola",
+      "slug": "granola/windows",
+      "platform": "windows",
+      "unique_identifier": "Granola",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
@@ -861,6 +868,13 @@
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "iMazing",
+      "slug": "imazing/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazing3Mac",
+      "description": "iMazing is an iPhone management application."
     },
     {
       "name": "Inkscape",
@@ -1714,6 +1728,13 @@
       "slug": "thunderbird/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Thunderbird is a free and open-source e-mail client."
+    },
+    {
+      "name": "Thunderbird",
+      "slug": "thunderbird/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
