@@ -50,11 +50,12 @@ The practical implication: device compliance state can be used as a condition fo
 
 ## What's coming next
 
-The roadmap in the next 180 days includes local admin account management on macOS, Recovery Lock password escrow and rotation, auto-install apps on iOS, managed mobile app configuration, and least-privilege API-only user roles. Each of these addresses a specific gap that security-conscious teams have flagged.
+The [roadmap in the next 180 days](https://fleetdm.com/announcements/roadmap-preview-april-2026) includes local admin account management on macOS, patch policies, auto-install apps on iOS, android (lock, wipe, clear), and least-privilege API-only user roles, and more. Each of these addresses a specific gap that security-conscious teams have flagged.
 
 The direction is consistent: more automation, less manual work, tighter integration with the identity and infrastructure layers that modern IT teams already run.
 
-If you're running a device management stack that feels like it was designed for a different era — one tool per OS, manual change processes, compliance as an annual exercise — a lot has changed. Fleet is worth another look.
+If you're running a device management stack that feels like it was designed for a different era — one tool per OS, manual change processes, compliance as an annual exercise — a lot has changed, and Fleet is worth a look.  
+
 
 <meta name="articleTitle" value="A lot has changed.">
 <meta name="authorFullName" value="Noah Talerman">
