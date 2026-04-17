@@ -25,12 +25,13 @@ func TestESPInitialCommand(t *testing.T) {
 		assert.Equal(t, "uuid-1", cmd.CommandUUID)
 
 		raw := string(cmd.RawCommand)
-		// Should have timeout, block, and skip-user settings
+		// Should have timeout, block, and skip-user settings (int format per DMClient CSP spec)
 		assert.Contains(t, raw, "TimeOutUntilSyncFailure")
-		assert.Contains(t, raw, "10800")
+		assert.Contains(t, raw, "<Data>10800</Data>")
 		assert.Contains(t, raw, "BlockInStatusPage")
 		assert.Contains(t, raw, "SkipUserStatusPage")
-		assert.Contains(t, raw, "true")
+		assert.Contains(t, raw, "<Format>int</Format>")
+		assert.Contains(t, raw, "<Data>1</Data>")
 		// Should not have any profile or app entries
 		assert.NotContains(t, raw, "ExpectedPolicies")
 		assert.NotContains(t, raw, "TrackingPolicies")
@@ -90,8 +91,9 @@ func TestESPInitialCommand(t *testing.T) {
 		assert.Contains(t, raw, "TrackingPolicies/Apps/Fleet osquery")
 		assert.Contains(t, raw, "TrackingPolicies/Apps/Chrome")
 
-		// InstallationState should be 1 (NotInstalled) for both
-		assert.Equal(t, 2, strings.Count(raw, "<Data>1</Data>"))
+		// InstallationState should be 1 (NotInstalled) for both software items.
+		// BlockInStatusPage and SkipUserStatusPage also use <Data>1</Data>, so total is 4.
+		assert.Equal(t, 2, strings.Count(raw, "InstallationState</LocURI></Target>\n<Data>1</Data>"))
 	})
 
 	t.Run("xml escaping in names", func(t *testing.T) {

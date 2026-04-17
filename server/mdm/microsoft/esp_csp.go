@@ -84,17 +84,17 @@ var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(templat
 <Replace>
 <CmdID>{{ .CmdUUID }}-block</CmdID>
 <Item>
-<Meta><Format>bool</Format><Type>text/plain</Type></Meta>
+<Meta><Format>int</Format><Type>text/plain</Type></Meta>
 <Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/BlockInStatusPage</LocURI></Target>
-<Data>true</Data>
+<Data>1</Data>
 </Item>
 </Replace>
 <Replace>
 <CmdID>{{ .CmdUUID }}-skipuser</CmdID>
 <Item>
-<Meta><Format>bool</Format><Type>text/plain</Type></Meta>
+<Meta><Format>int</Format><Type>text/plain</Type></Meta>
 <Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/SkipUserStatusPage</LocURI></Target>
-<Data>true</Data>
+<Data>1</Data>
 </Item>
 </Replace>
 {{- range $i, $p := .Profiles }}
