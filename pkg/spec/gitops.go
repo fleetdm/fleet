@@ -1865,16 +1865,16 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
-			// Replace $var and ${var} with env values.
-			fileBytes, err = ExpandEnvBytes(fileBytes)
-			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
-				continue
-			}
 
 			ext := strings.ToLower(filepath.Ext(resolvedPath))
 			switch ext {
 			case ".sh", ".ps1":
+				// Script files: only gather FLEET_SECRET_ variables, don't expand
+				// regular env vars (they are shell variables meant for the endpoint).
+				if err := gatherFileSecrets(result, resolvedPath); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
 				// Script file becomes the install script for a script-only package
 				scriptSpec := fleet.SoftwarePackageSpec{
 					InstallScript:      fleet.TeamSpecSoftwareAsset{Path: resolvedPath},
@@ -1888,6 +1888,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				softwarePackageSpecs = append(softwarePackageSpecs, &scriptSpec)
 
 			case ".yml", ".yaml":
+				// Replace $var and ${var} with env values in YAML files only.
+				fileBytes, err = ExpandEnvBytes(fileBytes)
+				if err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
+					continue
+				}
 				var singlePackageSpec SoftwarePackage
 				singlePackageSpec.ReferencedYamlPath = resolvedPath
 				if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
