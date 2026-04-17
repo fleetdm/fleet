@@ -109,10 +109,14 @@ const Modal = ({
   });
 
   return (
-    <div className={backgroundClasses}>
+    <div
+      className={backgroundClasses}
+      onClick={disableClosingModal ? undefined : onExit}
+    >
       <div
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
+        onClick={(e) => e.stopPropagation()}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
