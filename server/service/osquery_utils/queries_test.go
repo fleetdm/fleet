@@ -3697,7 +3697,7 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			wantCmd: true,
 		},
 		{
-			name: "policy set to optinal",
+			name: "policy set to optional - requires command to upgrade to required",
 			host: &fleet.Host{
 				UUID: "test-uuid",
 				ID:   1,
@@ -3705,9 +3705,10 @@ func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
 			rows: []map[string]string{
 				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
 			},
+			wantCmd: true,
 		},
 		{
-			name: "policy set to required",
+			name: "policy set to required - no command needed",
 			host: &fleet.Host{
 				UUID: "test-uuid",
 				ID:   1,

@@ -896,8 +896,12 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 	)
 
 	whereBitLockerPINSet := `TRUE`
+	whereBitLockerPINNotSet := `FALSE`
+	whereBitLockerPINUnknown := `FALSE`
 	if bitLockerPINRequired {
-		whereBitLockerPINSet = `(hd.tpm_pin_set = true)`
+		whereBitLockerPINSet = `(hd.tpm_pin_set = 1)`
+		whereBitLockerPINNotSet = `(hd.tpm_pin_set IS NOT NULL AND hd.tpm_pin_set = 0)`
+		whereBitLockerPINUnknown = `(hd.tpm_pin_set IS NULL)`
 	}
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
@@ -933,19 +937,21 @@ AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
 		// Action required when:
-		// 1. We _would_ be in verified/verifying but PIN is required and not set, OR
+		// 1. We _would_ be in verified/verifying but PIN is required and confirmed not set, OR
 		// 2. Disk is encrypted and key is escrowed but BitLocker protection is off
 		//    (e.g., suspended for a BIOS update, or a TPM configuration issue)
+		// Note: tpm_pin_set = NULL (not yet reported) is NOT action required -- that is "enforcing".
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
-AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
+AND (` + whereBitLockerPINNotSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
 		// - we don't have the key
 		// - we have the key and host_disks reported unencrypted before the key was updated or outside the 1-hour grace period after key was updated
+		// - disk is encrypted and key is available but PIN status not yet reported (NULL)
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND (
@@ -955,6 +961,7 @@ AND (
             AND (NOT ` + whereHostDisksUpdated + ` OR NOT ` + withinGracePeriod + `)
 		)
 	)
+    OR (` + whereKeyAvailable + ` AND ` + whereEncrypted + ` AND ` + whereBitLockerPINUnknown + `)
 )`
 
 	case fleet.DiskEncryptionFailed:
@@ -1064,7 +1071,7 @@ SELECT
 	END AS status,
 	COALESCE(client_error, '') as detail,
 	hd.bitlocker_protection_status,
-	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
+	hd.tpm_pin_set
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -1087,7 +1094,7 @@ WHERE
 		Status           fleet.DiskEncryptionStatus `db:"status"`
 		Detail           string                     `db:"detail"`
 		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
-		TpmPinSet        bool                       `db:"tpm_pin_set"`
+		TpmPinSet        *bool                      `db:"tpm_pin_set"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -1109,7 +1116,7 @@ WHERE
 	// Build a meaningful detail message for action_required when there's no client error.
 	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
 		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
-		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+		pinMissing := diskEncryptionConfig.BitLockerPINRequired && dest.TpmPinSet != nil && !*dest.TpmPinSet
 
 		switch {
 		case protectionOff && pinMissing:

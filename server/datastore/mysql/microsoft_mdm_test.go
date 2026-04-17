@@ -534,11 +534,22 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.True(t, ac.MDM.RequireBitLockerPIN.Value)
 
-			// Expect that the host that would be "verified"
-			// is now in "action required" status.
-			// This will also verify that when filtering by profile status,
-			// the "verified" host is now counted as "pending".
+			// tpm_pin_set defaults to NULL (not yet reported), so hosts[0] (which would be
+			// "verified" without PIN requirement) is now "enforcing" -- PIN status is unknown.
 			expected := hostIDsByDEStatus{
+				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+
+			checkExpected(t, nil, expected)
+
+			// Explicitly set tpm_pin_set = false (confirmed absent) -- host moves to "action required"
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = false WHERE host_id = ?`, hosts[0].ID)
+				return err
+			})
+
+			expected = hostIDsByDEStatus{
 				fleet.DiskEncryptionActionRequired: []uint{hosts[0].ID},
 				fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
 				fleet.DiskEncryptionEnforcing:      []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -546,7 +557,7 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			checkExpected(t, nil, expected)
 
-			// Set the "tpm_pin_set" to true for the host that would be "verified"
+			// Set tpm_pin_set = true (PIN present) -- host moves to "verified"
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = true WHERE host_id = ?`, hosts[0].ID)
 				return err
@@ -560,9 +571,9 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 			checkExpected(t, nil, expected)
 
-			// Reset the "tpm_pin_set" to false for the host.
+			// Reset tpm_pin_set to NULL for the host.
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = false WHERE host_id = ?`, hosts[0].ID)
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = NULL WHERE host_id = ?`, hosts[0].ID)
 				return err
 			})
 

@@ -3272,17 +3272,21 @@ var tpmPINQueries = map[string]DetailQuery{
 				)
 			}
 
-			// If no results are returned, then the policy setting is in a 'Not Configured' state.
-			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
-			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
+			// Send the MDM command whenever the registry value is not already "Required" (1).
+			// This covers: not configured (no rows), disallowed (0), or optional (2) -- upgrading
+			// hosts that previously received value 2 to the correct value 1.
+			if len(rows) == 0 || rows[0]["data"] != fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownRequired) {
 				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",
 					"host_id", host.ID)
 				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
 					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
-						CmdUUID:      uuid.NewString(),
-						Enabled:      true,
-						ConfigurePIN: ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
+						CmdUUID:                uuid.NewString(),
+						Enabled:                true,
+						ConfigurePIN:           ptr.Uint(microsoft_mdm.PolicyOptDropdownRequired),
+						ConfigureTPMStartupKey: ptr.Uint(microsoft_mdm.PolicyOptDropdownDisallowed),
+						ConfigureTPMPINKey:     ptr.Uint(microsoft_mdm.PolicyOptDropdownDisallowed),
+						ConfigureTPM:           ptr.Uint(microsoft_mdm.PolicyOptDropdownOptional),
 					},
 				)
 				if err != nil {

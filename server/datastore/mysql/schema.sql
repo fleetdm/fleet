@@ -722,7 +722,7 @@ CREATE TABLE `host_disks` (
   `updated_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `encrypted` tinyint(1) DEFAULT NULL,
   `gigs_total_disk_space` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `tpm_pin_set` tinyint(1) DEFAULT '0',
+  `tpm_pin_set` tinyint(1) DEFAULT NULL,
   `gigs_all_disk_space` decimal(10,2) DEFAULT NULL,
   `bitlocker_protection_status` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`host_id`),
