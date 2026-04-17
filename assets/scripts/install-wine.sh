@@ -5,6 +5,20 @@
 set -eo pipefail
 
 
+deprecation_notice(){
+printf "\n============================================================\n"
+printf "DEPRECATION NOTICE\n"
+printf "============================================================\n"
+printf "Wine is no longer required to build Windows (.msi) packages on macOS.\n"
+printf "fleetctl package now uses Docker by default on all macOS architectures.\n"
+printf "Install Docker Desktop instead: https://docs.docker.com/get-docker\n\n"
+printf "This script only remains for Fleet Premium users who pass\n"
+printf "--local-wix-dir to fleetctl package on macOS. If that isn't you,\n"
+printf "you can stop here.\n"
+printf "============================================================\n\n"
+}
+
+
 brew_wine(){
     # Wine reference: https://wiki.winehq.org/MacOS
     # Wine can be installed without brew via a distribution such as https://github.com/Gcenx/macOS_Wine_builds/releases/tag/10.0 or by building from source.
@@ -60,6 +74,7 @@ fi
 
 
 # install Wine
+deprecation_notice
 if [ "$mode" = 'auto' ]
 then
     printf "\n%s executed in non-interactive mode.\n\n" "$0"; brew_wine
