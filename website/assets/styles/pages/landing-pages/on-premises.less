@@ -353,7 +353,7 @@
     // Scoped here so width: 468px doesn't leak into three-column-list
     [purpose='feature-text'] {
       width: 468px;
-      gap: 0px;
+      gap: 32px;
       h3 {
         color: @core-fleet-black;
         font-size: 24px;
@@ -366,6 +366,7 @@
         font-size: 16px;
         font-weight: 400;
         line-height: @text-lineheight;
+        margin-bottom: 0px;
       }
     }
   }
@@ -414,24 +415,24 @@
 
   [purpose='terminal-filename'] {
     margin-left: 8px;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
     font-family: @code-font;
   }
 
   [purpose='terminal-body'] {
     padding: 24px;
     font-family: @code-font;
-    font-size: 12px;
-    line-height: 1.85;
-    color: rgba(255, 255, 255, 0.75);
+    font-size: 14px;
+    line-height: 2;
+    color: rgba(255, 255, 255, 0.92);
     overflow-x: auto;
     margin: 0;
     white-space: pre;
-    [purpose='tc'] { color: rgba(255, 255, 255, 0.28); }
+    [purpose='tc'] { color: #9ecfbe; }
     [purpose='tk'] { color: #a5a3ff; }
     [purpose='ts'] { color: #ffa657; }
-    [purpose='ta'] { color: @core-vibrant-green; opacity: 0.85; }
+    [purpose='ta'] { color: @core-vibrant-green; opacity: 1; }
   }
 
   // ── Feature cards (replace-jamf style) ───────────────────────────────────
