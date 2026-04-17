@@ -17,8 +17,7 @@ RECOMMENDED: install Docker Desktop
   https://docs.docker.com/get-docker
 
 If you cannot use Docker and still need to build MSIs with Wine on macOS
-(the deprecated --local-wix-dir path), see the upstream WineHQ wiki for
-installation instructions:
+see the upstream WineHQ wiki for installation instructions:
   https://gitlab.winehq.org/wine/wine/-/wikis/MacOS
 
 Automatic Wine installation via Homebrew is no longer attempted here
