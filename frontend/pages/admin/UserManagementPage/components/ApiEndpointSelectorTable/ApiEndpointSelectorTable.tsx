@@ -17,12 +17,16 @@ import Icon from "components/Icon/Icon";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
-import { IApiEndpoint, endpointKey } from "interfaces/api_endpoint";
+import {
+  IApiEndpoint,
+  IApiEndpointRef,
+  endpointKey,
+} from "interfaces/api_endpoint";
 import apiEndpointsAPI from "services/entities/api_endpoints";
 
 const baseClass = "endpoint-selector-table";
 
-interface IEndpointRow extends IApiEndpoint {
+interface IApiEndpointRow extends IApiEndpoint {
   id: string;
 }
 
@@ -31,14 +35,14 @@ interface IEndpointRow extends IApiEndpoint {
 const normalizePath = (s: string) =>
   s.toLowerCase().replace(/:[a-z0-9_]+/g, ":_");
 
-interface IEndpointSelectorTableProps {
-  selectedEndpointKeys: string[];
-  onSelectionChange: (selectedKeys: string[]) => void;
+interface IApiEndpointSelectorTableProps {
+  selectedEndpoints: IApiEndpointRef[];
+  onSelectionChange: (endpoints: IApiEndpointRef[]) => void;
 }
 
 interface ICellProps {
   cell: { value: string };
-  row: { original: IEndpointRow };
+  row: { original: IApiEndpointRow };
 }
 
 const NameCell = (cellProps: ICellProps) => {
@@ -80,13 +84,13 @@ const searchResultsTableHeaders = [
 ];
 
 const generateSelectedTableHeaders = (
-  handleRemove: (row: Row<IEndpointRow>) => void
+  handleRemove: (row: Row<IApiEndpointRow>) => void
 ) => [
   ...searchResultsTableHeaders,
   {
     id: "delete",
     Header: "",
-    Cell: (cellProps: { row: Row<IEndpointRow> }) => (
+    Cell: (cellProps: { row: Row<IApiEndpointRow> }) => (
       <Button onClick={() => handleRemove(cellProps.row)} variant="icon">
         <Icon name="close-filled" />
       </Button>
@@ -95,12 +99,11 @@ const generateSelectedTableHeaders = (
   },
 ];
 
-const EndpointSelectorTable = ({
-  selectedEndpointKeys,
+const ApiEndpointSelectorTable = ({
+  selectedEndpoints,
   onSelectionChange,
-}: IEndpointSelectorTableProps) => {
+}: IApiEndpointSelectorTableProps) => {
   const [searchText, setSearchText] = useState("");
-  const [isActiveSearch, setIsActiveSearch] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const { data: apiEndpoints, isLoading, error } = useQuery<
@@ -110,7 +113,7 @@ const EndpointSelectorTable = ({
     refetchOnWindowFocus: false,
   });
 
-  const allRows: IEndpointRow[] = useMemo(
+  const allRows: IApiEndpointRow[] = useMemo(
     () =>
       (apiEndpoints || []).map((ep) => ({
         ...ep,
@@ -122,66 +125,71 @@ const EndpointSelectorTable = ({
   // Filter search results: match search text and exclude already-selected.
   // Path parameter names (e.g. `:id`, `:host_id`) are normalized so searching
   // "/hosts/:id/report" matches "/hosts/:host_id/report".
-  const searchResults: IEndpointRow[] = useMemo(() => {
+  const searchResults: IApiEndpointRow[] = useMemo(() => {
     if (isEmpty(searchText)) return [];
     const query = normalizePath(searchText);
     return allRows.filter((ep) => {
-      if (selectedEndpointKeys.includes(ep.id)) return false;
+      if (selectedEndpoints.some((s) => endpointKey(s) === ep.id)) return false;
       return (
         ep.display_name.toLowerCase().includes(query) ||
         normalizePath(ep.path).includes(query) ||
         ep.method.toLowerCase().includes(query)
       );
     });
-  }, [allRows, searchText, selectedEndpointKeys]);
+  }, [allRows, searchText, selectedEndpoints]);
 
-  const selectedRows: IEndpointRow[] = useMemo(
-    () => allRows.filter((ep) => selectedEndpointKeys.includes(ep.id)),
-    [allRows, selectedEndpointKeys]
+  const selectedRows: IApiEndpointRow[] = useMemo(
+    () =>
+      allRows.filter((ep) =>
+        selectedEndpoints.some((s) => endpointKey(s) === ep.id)
+      ),
+    [allRows, selectedEndpoints]
   );
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
-    if (!isLoading) {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (
-          dropdownRef.current &&
-          !dropdownRef.current.contains(event.target as Node)
-        ) {
-          setIsActiveSearch(false);
-        }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }
-    return undefined;
-  }, [isLoading]);
-
-  // Show dropdown when there's search text
-  useEffect(() => {
-    setIsActiveSearch(!isEmpty(searchText) && (!error || isLoading));
-  }, [searchText, error, isLoading]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setSearchText("");
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSearchText("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const handleRowSelect = useCallback(
-    (row: Row<IEndpointRow>) => {
-      const key = row.original.id;
-      if (!selectedEndpointKeys.includes(key)) {
-        onSelectionChange([...selectedEndpointKeys, key]);
+    (row: Row<IApiEndpointRow>) => {
+      const { method, path } = row.original;
+      if (
+        !selectedEndpoints.some((s) => s.method === method && s.path === path)
+      ) {
+        onSelectionChange([...selectedEndpoints, { method, path }]);
       }
       setSearchText("");
     },
-    [selectedEndpointKeys, onSelectionChange]
+    [selectedEndpoints, onSelectionChange]
   );
 
   const handleRowRemove = useCallback(
-    (row: Row<IEndpointRow>) => {
+    (row: Row<IApiEndpointRow>) => {
+      const { method, path } = row.original;
       onSelectionChange(
-        selectedEndpointKeys.filter((k) => k !== row.original.id)
+        selectedEndpoints.filter((s) => s.method !== method || s.path !== path)
       );
     },
-    [selectedEndpointKeys, onSelectionChange]
+    [selectedEndpoints, onSelectionChange]
   );
 
   const selectedTableHeaders = useMemo(
@@ -189,7 +197,9 @@ const EndpointSelectorTable = ({
     [handleRowRemove]
   );
 
-  const isSearchError = !isEmpty(searchText) && !!error;
+  const isDropdownOpen = !isEmpty(searchText);
+  const showResults = isDropdownOpen && !error;
+  const showSearchError = isDropdownOpen && !!error;
 
   return (
     <div className={baseClass}>
@@ -208,9 +218,9 @@ const EndpointSelectorTable = ({
           newTab
         />
       </span>
-      {isActiveSearch && (
+      {showResults && (
         <div className={`${baseClass}__search-dropdown`} ref={dropdownRef}>
-          <TableContainer<Row<IEndpointRow>>
+          <TableContainer<Row<IApiEndpointRow>>
             columnConfigs={searchResultsTableHeaders}
             data={searchResults}
             isLoading={isLoading}
@@ -236,25 +246,26 @@ const EndpointSelectorTable = ({
           />
         </div>
       )}
-      {isSearchError && (
-        <div className={`${baseClass}__search-dropdown`}>
+      {showSearchError && (
+        <div className={`${baseClass}__search-dropdown`} ref={dropdownRef}>
           <DataError />
         </div>
       )}
-      <div className={`${baseClass}__selected-table`}>
-        <TableContainer
-          columnConfigs={selectedTableHeaders}
-          data={selectedRows}
-          isLoading={false}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disablePagination
-          emptyComponent={() => <></>}
-        />
-      </div>
+      {selectedRows.length > 0 && (
+        <div className={`${baseClass}__selected-table`}>
+          <TableContainer
+            columnConfigs={selectedTableHeaders}
+            data={selectedRows}
+            isLoading={false}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disablePagination
+          />
+        </div>
+      )}
     </div>
   );
 };
 
-export default EndpointSelectorTable;
+export default ApiEndpointSelectorTable;

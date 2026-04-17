@@ -1,8 +1,7 @@
-import React, { FormEvent, useState, useContext } from "react";
+import React, { FormEvent, useState } from "react";
 
-import { AppContext } from "context/app";
-import { IApiEndpointRef, endpointKey } from "interfaces/api_endpoint";
-import { ITeam, INewTeamUser } from "interfaces/team";
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 
 import { SingleValue } from "react-select-5";
@@ -10,7 +9,6 @@ import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import validatePresence from "components/forms/validators/validate_presence";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
@@ -20,7 +18,7 @@ import { roleOptions } from "../../helpers/userManagementHelpers";
 export interface IApiUserFormData {
   name: string;
   global_role: UserRole | null;
-  fleets: INewTeamUser[];
+  fleets: ITeam[];
   api_endpoints?: IApiEndpointRef[] | null;
 }
 
@@ -28,13 +26,9 @@ interface IApiUserFormProps {
   onCancel: () => void;
   onSubmit: (formData: IApiUserFormData) => void;
   availableTeams: ITeam[];
-  isNewUser?: boolean;
-  defaultName?: string;
-  defaultGlobalRole?: UserRole | null;
-  defaultFleets?: ITeam[];
-  defaultApiEndpoints?: IApiEndpointRef[];
-  formErrors?: IUserFormErrors;
+  defaultData?: IApiUserFormData;
   isSubmitting?: boolean;
+  isPremiumTier?: boolean;
 }
 
 enum UserTeamType {
@@ -43,35 +37,35 @@ enum UserTeamType {
 }
 
 const ApiUserForm = ({
+  isPremiumTier,
   onCancel,
   onSubmit,
   availableTeams,
-  isNewUser = false,
-  defaultName = "",
-  defaultGlobalRole,
-  defaultFleets = [],
-  defaultApiEndpoints,
-  formErrors: ancestorErrors = {},
+  defaultData,
   isSubmitting = false,
 }: IApiUserFormProps) => {
-  const { isPremiumTier } = useContext(AppContext);
+  const isNewUser = defaultData === undefined;
 
-  const defaultRole =
-    defaultGlobalRole ?? (isPremiumTier ? "gitops" : "observer");
-
-  const [name, setName] = useState(defaultName);
-  const [globalRole, setGlobalRole] = useState<UserRole | null>(defaultRole);
-  const [fleets, setFleets] = useState<ITeam[]>(defaultFleets);
-  const [isGlobalUser, setIsGlobalUser] = useState(defaultFleets.length === 0);
-  const [selectedEndpointKeys, setSelectedEndpointKeys] = useState<string[]>(
-    () => (defaultApiEndpoints ? defaultApiEndpoints.map(endpointKey) : [])
+  const [name, setName] = useState(defaultData?.name ?? "");
+  const [globalRole, setGlobalRole] = useState<UserRole>(
+    () =>
+      (defaultData?.global_role ??
+        (isPremiumTier ? "gitops" : "observer")) as UserRole
   );
+  const [fleets, setFleets] = useState<ITeam[]>(defaultData?.fleets ?? []);
+  const [isGlobalUser, setIsGlobalUser] = useState(
+    !defaultData?.fleets?.length
+  );
+
+  const [selectedEndpoints, setSelectedEndpoints] = useState<IApiEndpointRef[]>(
+    () => defaultData?.api_endpoints ?? []
+  );
+
+  // null (all endpoints) and undefined (field not set / free tier) are both treated as "all endpoints"
   const [isSpecificEndpoints, setIsSpecificEndpoints] = useState(
-    () => !!defaultApiEndpoints && defaultApiEndpoints.length > 0
+    () => !!defaultData?.api_endpoints && defaultData.api_endpoints.length > 0
   );
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
-
-  const combinedErrors = { ...formErrors, ...ancestorErrors };
 
   const clearEndpointError = () => {
     if (formErrors.api_endpoints) {
@@ -82,9 +76,9 @@ const ApiUserForm = ({
     }
   };
 
-  const handleEndpointSelectionChange = (keys: string[]) => {
-    setSelectedEndpointKeys(keys);
-    if (keys.length > 0) {
+  const handleEndpointSelectionChange = (endpoints: IApiEndpointRef[]) => {
+    setSelectedEndpoints(endpoints);
+    if (endpoints.length > 0) {
       clearEndpointError();
     }
   };
@@ -92,6 +86,7 @@ const ApiUserForm = ({
   const handleAccessTypeChange = (specific: boolean) => {
     setIsSpecificEndpoints(specific);
     if (!specific) {
+      setSelectedEndpoints([]);
       clearEndpointError();
     }
   };
@@ -101,7 +96,7 @@ const ApiUserForm = ({
     if (!validatePresence(name)) {
       errors.name = "Name is required";
     }
-    if (isSpecificEndpoints && selectedEndpointKeys.length === 0) {
+    if (isSpecificEndpoints && selectedEndpoints.length === 0) {
       errors.api_endpoints = "Please select at least one API endpoint";
     }
     return errors;
@@ -118,7 +113,9 @@ const ApiUserForm = ({
   };
 
   const onInputBlur = () => {
-    setFormErrors(getErrors());
+    if (!validatePresence(name)) {
+      setFormErrors((prev) => ({ ...prev, name: "Name is required" }));
+    }
   };
 
   const handleSubmit = (evt: FormEvent) => {
@@ -129,27 +126,19 @@ const ApiUserForm = ({
       return;
     }
 
-    // Convert endpoint keys ("METHOD /path") back to { method, path } objects.
-    // When "All" is selected, send null to clear any specific endpoints (full access).
-    const apiEndpoints = isSpecificEndpoints
-      ? selectedEndpointKeys.map((key) => {
-          const spaceIndex = key.indexOf(" ");
-          return {
-            method: key.substring(0, spaceIndex),
-            path: key.substring(spaceIndex + 1),
-          };
-        })
-      : null;
+    // Omit api_endpoints on free tier to avoid clearing a value set by a premium instance.
+    // When "All" is selected, send null to signal full access.
+    let apiEndpoints: IApiEndpointRef[] | null | undefined;
+    if (isPremiumTier) {
+      apiEndpoints = isSpecificEndpoints ? selectedEndpoints : null;
+    }
 
     onSubmit({
       name,
       global_role: isGlobalUser ? globalRole : null,
       fleets: isGlobalUser
         ? []
-        : fleets.map((f) => ({
-            id: f.id,
-            role: f.role || "observer",
-          })),
+        : fleets.map((f) => ({ ...f, role: f.role || "observer" })),
       api_endpoints: apiEndpoints,
     });
   };
@@ -172,7 +161,7 @@ const ApiUserForm = ({
     <DropdownWrapper
       name="Role"
       label="Role"
-      value={globalRole ?? defaultRole}
+      value={globalRole}
       options={roleOptions({ isPremiumTier, isApiOnly: true })}
       onChange={handleRoleChange}
       isSearchable={false}
@@ -223,16 +212,17 @@ const ApiUserForm = ({
           value={name}
           onChange={onInputChange}
           onBlur={onInputBlur}
-          error={combinedErrors.name}
+          error={formErrors.name}
           autofocus
         />
         {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
         {isPremiumTier && (
           <ApiAccessSection
-            selectedEndpointKeys={selectedEndpointKeys}
-            onEndpointSelectionChange={handleEndpointSelectionChange}
+            isSpecificEndpoints={isSpecificEndpoints}
             onAccessTypeChange={handleAccessTypeChange}
-            error={combinedErrors.api_endpoints}
+            selectedEndpoints={selectedEndpoints}
+            onEndpointSelectionChange={handleEndpointSelectionChange}
+            error={formErrors.api_endpoints}
           />
         )}
         <div className="user-management-form__footer">
@@ -242,7 +232,7 @@ const ApiUserForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={isSubmitting || Object.keys(combinedErrors).length > 0}
+            disabled={isSubmitting}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>

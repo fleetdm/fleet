@@ -1,8 +1,9 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback } from "react";
 
+import { IApiEndpointRef } from "interfaces/api_endpoint";
 import Radio from "components/forms/fields/Radio";
 import TooltipWrapper from "components/TooltipWrapper";
-import EndpointSelectorTable from "../EndpointSelectorTable";
+import ApiEndpointSelectorTable from "../ApiEndpointSelectorTable";
 
 const baseClass = "api-access-section";
 
@@ -12,45 +13,36 @@ enum ApiAccessType {
 }
 
 interface IApiAccessSectionProps {
-  selectedEndpointKeys: string[];
-  onEndpointSelectionChange: (selectedKeys: string[]) => void;
-  onAccessTypeChange?: (isSpecific: boolean) => void;
+  isSpecificEndpoints: boolean;
+  onAccessTypeChange: (isSpecific: boolean) => void;
+  selectedEndpoints: IApiEndpointRef[];
+  onEndpointSelectionChange: (endpoints: IApiEndpointRef[]) => void;
   error?: string | null;
 }
 
 const ApiAccessSection = ({
-  selectedEndpointKeys,
-  onEndpointSelectionChange,
+  isSpecificEndpoints,
   onAccessTypeChange,
+  selectedEndpoints,
+  onEndpointSelectionChange,
   error,
 }: IApiAccessSectionProps) => {
-  const [accessType, setAccessType] = useState<ApiAccessType>(
-    selectedEndpointKeys.length > 0
-      ? ApiAccessType.SpecificEndpoints
-      : ApiAccessType.AllEndpoints
-  );
-
   const handleAccessTypeChange = useCallback(
     (value: string) => {
-      const newType = value as ApiAccessType;
-      setAccessType(newType);
-      onAccessTypeChange?.(newType === ApiAccessType.SpecificEndpoints);
-      if (newType === ApiAccessType.AllEndpoints) {
-        onEndpointSelectionChange([]);
-      }
+      onAccessTypeChange(value === ApiAccessType.SpecificEndpoints);
     },
-    [onEndpointSelectionChange, onAccessTypeChange]
+    [onAccessTypeChange]
   );
 
   return (
     <div className={baseClass}>
-      <div className="form-field">
+      <div className={`${baseClass}__access-type-field form-field`}>
         <div className="form-field__label">API access</div>
         <Radio
           className={`${baseClass}__radio-input`}
           label="All API endpoints"
           id="all-endpoints"
-          checked={accessType === ApiAccessType.AllEndpoints}
+          checked={!isSpecificEndpoints}
           value={ApiAccessType.AllEndpoints}
           name="api-access-type"
           onChange={handleAccessTypeChange}
@@ -59,13 +51,13 @@ const ApiAccessSection = ({
           className={`${baseClass}__radio-input`}
           label="Specific API endpoints"
           id="specific-endpoints"
-          checked={accessType === ApiAccessType.SpecificEndpoints}
+          checked={isSpecificEndpoints}
           value={ApiAccessType.SpecificEndpoints}
           name="api-access-type"
           onChange={handleAccessTypeChange}
         />
       </div>
-      {accessType === ApiAccessType.SpecificEndpoints && (
+      {isSpecificEndpoints && (
         <div className={`${baseClass}__endpoint-selector`}>
           <div className="form-field">
             <div className="form-field__label">
@@ -74,8 +66,8 @@ const ApiAccessSection = ({
               </TooltipWrapper>
             </div>
           </div>
-          <EndpointSelectorTable
-            selectedEndpointKeys={selectedEndpointKeys}
+          <ApiEndpointSelectorTable
+            selectedEndpoints={selectedEndpoints}
             onSelectionChange={onEndpointSelectionChange}
           />
           {error && (

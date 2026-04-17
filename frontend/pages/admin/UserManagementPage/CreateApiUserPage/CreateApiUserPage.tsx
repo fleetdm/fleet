@@ -6,7 +6,6 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 
@@ -26,7 +25,6 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [createdUserName, setCreatedUserName] = useState("");
@@ -42,13 +40,12 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
 
   const handleSubmit = (formData: IApiUserFormData) => {
     setIsSubmitting(true);
-    setFormErrors({});
 
     usersAPI
       .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,
-        fleets: formData.fleets,
+        fleets: formData.fleets.map((f) => ({ id: f.id, role: f.role! })),
         api_endpoints: formData.api_endpoints,
       })
       .then((response) => {
@@ -56,7 +53,10 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
         if (response.token) {
           setApiKey(response.token);
         } else {
-          renderFlash("success", `${formData.name} has been created!`);
+          renderFlash(
+            "error",
+            `${formData.name} has been created, but the token could not be retrieved`
+          );
           router.push(PATHS.ADMIN_USERS);
         }
       })
@@ -75,22 +75,19 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
 
   return (
     <MainContent className={baseClass}>
-      <>
-        <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
-        <h1>New user</h1>
-        {apiKey ? (
-          <ApiKeyDisplay apiKey={apiKey} onDone={handleDone} />
-        ) : (
-          <ApiUserForm
-            isNewUser
-            onCancel={() => router.push(PATHS.ADMIN_USERS)}
-            onSubmit={handleSubmit}
-            availableTeams={teams || []}
-            formErrors={formErrors}
-            isSubmitting={isSubmitting}
-          />
-        )}
-      </>
+      <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
+      <h1>New user</h1>
+      {apiKey ? (
+        <ApiKeyDisplay apiKey={apiKey} onDone={handleDone} />
+      ) : (
+        <ApiUserForm
+          isPremiumTier={isPremiumTier}
+          onCancel={() => router.push(PATHS.ADMIN_USERS)}
+          onSubmit={handleSubmit}
+          availableTeams={teams || []}
+          isSubmitting={isSubmitting}
+        />
+      )}
     </MainContent>
   );
 };
