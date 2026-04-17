@@ -84,7 +84,7 @@ In the Proxmox web UI, click **Create VM**:
 **Disks:**
 - Bus/Device: **SCSI**, Storage: **LVM-Thin**, Size: **40 GB**
 
-**CPU:** Cores: 4, Type: **host**
+**CPU:** Cores: 2, Type: **host**
 
 **Memory:** 8192 MB
 
