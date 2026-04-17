@@ -67,10 +67,12 @@ func (spec ESPInitialCommandSpec) validate() error {
 // - DMClient FirstSyncStatus ExpectedSCEPCerts entries for profiles with SCEP
 // - EnrollmentStatusTracking DevicePreparation/PolicyProviders/.../TrackingPolicies/Apps entries for each software item
 var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(template.FuncMap{
-	"escapeXML": func(s string) string {
+	"escapeXML": func(s string) (string, error) {
 		var buf bytes.Buffer
-		_ = xml.EscapeText(&buf, []byte(s))
-		return buf.String()
+		if err := xml.EscapeText(&buf, []byte(s)); err != nil {
+			return "", err
+		}
+		return buf.String(), nil
 	},
 }).Parse(`
 <Atomic>
@@ -206,10 +208,12 @@ func (spec ESPStatusUpdateSpec) validate() error {
 }
 
 var espStatusUpdateTmpl = template.Must(template.New("esp_status").Funcs(template.FuncMap{
-	"escapeXML": func(s string) string {
+	"escapeXML": func(s string) (string, error) {
 		var buf bytes.Buffer
-		_ = xml.EscapeText(&buf, []byte(s))
-		return buf.String()
+		if err := xml.EscapeText(&buf, []byte(s)); err != nil {
+			return "", err
+		}
+		return buf.String(), nil
 	},
 }).Parse(`
 <Atomic>

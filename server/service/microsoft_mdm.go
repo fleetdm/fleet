@@ -1980,8 +1980,10 @@ const espGracePeriod = 10 * time.Minute
 // getESPCommands checks if a Windows device is in the Autopilot setup experience
 // and returns appropriate ESP SyncML commands.
 //
-// For awaiting_configuration=1 (initial): builds and enqueues ESP initialization
-// commands (profile tracking, software tracking, timeout), then transitions to status=2.
+// For awaiting_configuration=1 (initial): builds inline ESP initialization
+// commands (profile tracking, software tracking, timeout) and transitions to
+// status=2. The command is intentionally not persisted to avoid duplicate
+// delivery; if the inline response is lost, handleESPStatusUpdate takes over.
 //
 // For awaiting_configuration=2 (active): builds inline ESP status update commands
 // reflecting the current installation state of software items.
@@ -2007,9 +2009,9 @@ func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm
 
 // handleESPInitial handles the first ESP setup when awaiting_configuration=1.
 // It queries profiles and setup experience items, builds the initial ESP command,
-// persists it (enqueue for durability), transitions the device to
-// awaiting_configuration=2, and returns the command inline so it's delivered
-// on the same checkin.
+// transitions the device to awaiting_configuration=2, and returns the command
+// inline so it's delivered on the same checkin. The command is intentionally
+// NOT persisted to avoid duplicate "418 Already Exists" errors on the next checkin.
 func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		// Host UUID not yet set (orbit hasn't enrolled yet). Wait.
@@ -2154,6 +2156,11 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 	// takes over on subsequent checkins.
 	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
 	if err != nil {
+		// Revert state so next checkin retries.
+		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
+			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP parse error", "err", revertErr)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "parse ESP initial command for inline response")
 	}
 	result := make([]*mdm_types.SyncMLCmd, 0, len(parsedCmds))
