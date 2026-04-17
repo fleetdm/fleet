@@ -2111,18 +2111,6 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, nil
 	}
 
-	// Attempt to win the race to enqueue the initial ESP command. If another
-	// concurrent checkin already transitioned the state, skip enqueuing.
-	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
-	}
-	if !transitioned {
-		// Another checkin already handled the initial setup.
-		return nil, nil
-	}
-
 	espCmd, err := microsoft_mdm.ESPInitialCommand(microsoft_mdm.ESPInitialCommandSpec{
 		CmdUUID:  uuid.New().String(),
 		Profiles: profileTrackingInfos,
@@ -2132,10 +2120,22 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
 	}
 
-	// Persist the command so it's tracked (for status reporting) and available
-	// if something goes wrong delivering it inline.
+	// Persist the command before transitioning state. If enqueue fails, the
+	// device stays Pending so the next checkin retries the initial setup.
 	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, espCmd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enqueue ESP initial command")
+	}
+
+	// Transition to Active after enqueue succeeds. If another concurrent
+	// checkin already transitioned the state, we enqueued a duplicate command
+	// (harmless) but skip the inline return.
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
+	}
+	if !transitioned {
+		return nil, nil
 	}
 
 	// Return inline as well so the device receives the ESP configuration on this
