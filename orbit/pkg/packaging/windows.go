@@ -1,10 +1,13 @@
 package packaging
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,11 +20,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/josephspurrier/goversioninfo"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/mod/semver"
 )
+
+const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip"
 
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
@@ -172,10 +178,41 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	absWixDir := opt.LocalWixDir
+	wineChecked := false
+
+	// On macOS without --local-wix-dir, the default path uses Docker.
+	// For backwards compatibility with existing pipelines that rely
+	// on the legacy Wine + auto-downloaded WiX flow, fall back to that
+	// path if Docker isn't available — but warn that it's deprecated.
+	if runtime.GOOS == "darwin" && !opt.NativeTooling && absWixDir == "" {
+		if dockerErr := checkDockerAvailable(); dockerErr != nil {
+			fmt.Printf("\nWARNING: Docker is not available (%s).\n", dockerErr)
+			fmt.Println("Falling back to Wine + auto-downloaded WiX toolset. This path is deprecated")
+			fmt.Println("and will be removed in a future release. Install Docker Desktop to use the")
+			fmt.Println("supported path: https://docs.docker.com/get-docker")
+			fmt.Println()
+
+			if err = checkWine(false); err != nil {
+				return "", err
+			}
+			wineChecked = true
+
+			fmt.Printf("Downloading wix from %s\n", wixDownload)
+			client := fleethttp.NewClient()
+			absWixDir = filepath.Join(tmpDir, "wix")
+			if err = downloadAndExtractZip(client, wixDownload, absWixDir); err != nil {
+				return "", err
+			}
+		}
+	}
+
 	if absWixDir != "" {
 		absWixDir, err = filepath.Abs(absWixDir)
 		if err != nil {
 			return "", fmt.Errorf("could not get filepath from local-wix-dir %s: %w", opt.LocalWixDir, err)
+		}
+		if err = checkWine(wineChecked); err != nil {
+			return "", err
 		}
 	}
 	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
@@ -210,6 +247,31 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
+}
+
+func checkWine(wineChecked bool) error {
+	if !wineChecked && runtime.GOOS == "darwin" {
+		// Ensure wine is installed
+		cmd := exec.Command(wix.WineCmd, "--version")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf(
+				"%s failed. Is Wine installed? %w",
+				wix.WineCmd, err,
+			)
+		}
+	}
+	return nil
+}
+
+// checkDockerAvailable returns nil if the docker CLI is on PATH and the Docker
+// daemon is reachable. Otherwise it returns an error summarizing what went
+// wrong, which callers can use to decide whether to fall back to another path.
+func checkDockerAvailable() error {
+	cmd := exec.Command("docker", "version")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func writeWixFile(opt Options, rootPath string) error {
@@ -425,3 +487,100 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 	return nil
 }
 
+func downloadAndExtractZip(client *http.Client, urlPath string, destPath string) error {
+	zipFile, err := os.CreateTemp("", "file.zip")
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer zipFile.Close()
+	defer os.Remove(zipFile.Name())
+
+	req, err := http.NewRequest(http.MethodGet, urlPath, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("could not download %s: %w", urlPath, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("could not download %s: received http status code %s", urlPath, resp.Status)
+	}
+	_, err = io.Copy(zipFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("could not write %s: %w", zipFile.Name(), err)
+	}
+
+	// Open the downloaded file for reading. With zip, we cannot unzip directly from resp.Body
+	zipReader, err := zip.OpenReader(zipFile.Name())
+	if err != nil {
+		return fmt.Errorf("could not open %s: %w", zipFile.Name(), err)
+	}
+	defer zipReader.Close()
+
+	err = os.MkdirAll(filepath.Dir(destPath), 0o755)
+	if err != nil {
+		return fmt.Errorf("could not create directory %s: %w", filepath.Dir(destPath), err)
+	}
+
+	// Extract each file in the archive
+	for _, archiveReader := range zipReader.File {
+		err = extractZipFile(archiveReader, destPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func extractZipFile(archiveReader *zip.File, destPath string) error {
+	if archiveReader.FileInfo().Mode()&os.ModeSymlink != 0 {
+		// Skip symlinks for security reasons
+		return nil
+	}
+
+	// Open the file in the archive
+	archiveFile, err := archiveReader.Open()
+	if err != nil {
+		return fmt.Errorf("could not open archive %s: %w", archiveReader.Name, err)
+	}
+	defer archiveFile.Close()
+
+	// Clean the archive path to prevent extracting files outside the destination.
+	archivePath := filepath.Clean(archiveReader.Name)
+	if strings.HasPrefix(archivePath, ".."+string(filepath.Separator)) {
+		// Skip relative paths for security reasons
+		return nil
+	}
+	// Prepare to write the file
+	finalPath := filepath.Join(destPath, archivePath)
+
+	// Check if the file to extract is just a directory
+	if archiveReader.FileInfo().IsDir() {
+		err = os.MkdirAll(finalPath, 0o755)
+		if err != nil {
+			return fmt.Errorf("could not create directory %s: %w", finalPath, err)
+		}
+	} else {
+		// Create all needed directories
+		if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
+		}
+
+		// Prepare to write the destination file
+		destinationFile, err := os.OpenFile(finalPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, archiveReader.Mode())
+		if err != nil {
+			return fmt.Errorf("could not open file %s: %w", finalPath, err)
+		}
+		defer destinationFile.Close()
+
+		// Write the destination file
+		if _, err = io.Copy(destinationFile, archiveFile); err != nil {
+			return fmt.Errorf("could not write file %s: %w", finalPath, err)
+		}
+	}
+	return nil
+}
