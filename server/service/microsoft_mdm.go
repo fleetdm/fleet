@@ -1941,7 +1941,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	resPendingCmds := []*mdm_types.SyncMLCmd{}
+	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
 		// Process the pending operations and get the MDM response protocol commands
@@ -1950,19 +1950,12 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
-	}
 
-	// Check if we need to send ESP (Enrollment Status Page) commands for this device.
-	// This handles Windows Autopilot setup experience tracking. Only run for trusted
-	// requests so we don't enqueue ESP state or leak commands to unauthenticated devices.
-	var espCmds []*mdm_types.SyncMLCmd
-	if requestAuthState == RequestAuthStateTrusted {
-		var espErr error
-		espCmds, espErr = svc.getESPCommands(ctx, deviceID)
-		if espErr != nil {
-			// Log the error but don't fail the entire response -- the device should
-			// still receive its normal management commands.
-			svc.logger.WarnContext(ctx, "failed to get ESP commands", "device_id", deviceID, "err", espErr)
+		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices.
+		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
+		espCmds, err = svc.getESPCommands(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("ESP commands error %w", err)
 		}
 	}
 
@@ -2117,9 +2110,14 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, nil
 	}
 
-	// Win the race first via CAS so only one concurrent checkin proceeds to
-	// build and enqueue the ESP command. If enqueue fails afterward, revert
-	// the state back to Pending so the next checkin retries.
+	// Transition from Pending to Active using a conditional update
+	// (SET awaiting_configuration = Active WHERE awaiting_configuration = Pending).
+	// This ensures only one checkin proceeds: if two management sessions arrive
+	// concurrently for the same device (e.g., the device polls rapidly or retries
+	// due to a timeout), only the first one that hits the database will match the
+	// WHERE clause and succeed. The second sees zero rows affected and returns early.
+	// If the ESP command build fails after the transition, we revert back to
+	// Pending so the next checkin retries.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
 	if err != nil {
@@ -2144,17 +2142,12 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
 	}
 
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, espCmd); err != nil {
-		// Revert state so next checkin retries.
-		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
-			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP enqueue error", "err", revertErr)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "enqueue ESP initial command")
-	}
-
 	// Return inline so the device receives the ESP configuration on this
-	// same checkin (rather than waiting for the next poll).
+	// same checkin. We intentionally do not persist the command to avoid
+	// duplicate delivery on the next checkin (the device would get "418
+	// Already Exists" for the Add operations). If the connection drops
+	// before delivery, the device is already Active and handleESPStatusUpdate
+	// takes over on subsequent checkins.
 	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parse ESP initial command for inline response")

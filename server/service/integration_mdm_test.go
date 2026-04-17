@@ -9238,6 +9238,151 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	checkinAndAck(false)
 }
 
+func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set up enroll secret and Entra tenant
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
+	// Enroll device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending)
+	azureMail := "esp-test@example.com"
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	require.NoError(t, d.Enroll())
+
+	// First checkin: receive fleetd install commands, ack them
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+	for _, c := range cmds {
+		switch c.Verb {
+		case "Add":
+			fleetdAddCmd = c
+		case "Exec":
+			fleetdExecCmd = c
+		}
+	}
+	require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value)
+	require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value)
+	msgID, err := d.GetCurrentMsgID()
+	require.NoError(t, err)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		MsgRef:  &msgID, CmdRef: &fleetdAddCmd.Cmd.CmdID.Value,
+		Cmd: &fleetdAddCmd.Verb, Data: ptr.String("200"),
+		CmdID: fleet.CmdID{Value: uuid.NewString()},
+	})
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		MsgRef:  &msgID, CmdRef: &fleetdExecCmd.Cmd.CmdID.Value,
+		Cmd: &fleetdExecCmd.Verb, Data: ptr.String("200"),
+		CmdID: fleet.CmdID{Value: uuid.NewString()},
+	})
+	_, err = d.SendResponse()
+	require.NoError(t, err)
+
+	// Create a team first, then simulate fleetd installed on that team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "esp-h1", s.ds)
+	// Transfer host to the team via the API
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
+	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
+	require.NoError(t, err)
+
+	testProfileSyncML := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/WiFi/AllowAutoConnect</LocURI></Target><Data>1</Data></Item></Replace>`
+	_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		TeamID: &tm.ID,
+		Name:   "WiFi Config",
+		SyncML: []byte(testProfileSyncML),
+	}, nil)
+	require.NoError(t, err)
+
+	// Enqueue setup experience items for the host (simulating what orbit would do)
+	_, err = s.ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host.UUID, tm.ID)
+	require.NoError(t, err)
+
+	// Expire the grace period by updating awaiting_configuration_at to >10 minutes ago
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_windows_enrollments SET awaiting_configuration_at = DATE_SUB(NOW(), INTERVAL 15 MINUTE) WHERE mdm_device_id = ?`,
+			d.DeviceID)
+		return err
+	})
+
+	// Management checkin: device should receive ESP initial commands
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	// Look for an Atomic command containing ESP LocURIs
+	// Look for an Atomic block containing ESP commands (BlockInStatusPage).
+	// The ESP command structure is thoroughly tested in esp_csp_test.go;
+	// here we just verify the full pipeline delivered it.
+	var foundESP bool
+	for _, c := range cmds {
+		if c.Verb != fleet.CmdAtomic {
+			continue
+		}
+		for _, rc := range c.Cmd.ReplaceCommands {
+			if strings.Contains(rc.GetTargetURI(), "FirstSyncStatus/BlockInStatusPage") {
+				foundESP = true
+				break
+			}
+		}
+		if foundESP {
+			break
+		}
+	}
+	require.True(t, foundESP, "management session should include ESP Atomic commands")
+
+	// Verify device transitioned to awaiting_configuration=Active
+	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
+
+	// Simulate a setup experience software item being enqueued and partially installed
+	// by inserting a result row directly (normally orbit does this via SetupExperienceInit).
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO setup_experience_status_results (host_uuid, name, status) VALUES (?, ?, ?)`,
+			host.UUID, "Test App", fleet.SetupExperienceStatusRunning)
+		return err
+	})
+
+	// Second management checkin: should receive an ESP status update with InstallationState
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	var foundStatusUpdate bool
+	for _, c := range cmds {
+		if c.Verb != fleet.CmdAtomic {
+			continue
+		}
+		for _, rc := range c.Cmd.ReplaceCommands {
+			if strings.Contains(rc.GetTargetURI(), "InstallationState") {
+				foundStatusUpdate = true
+				break
+			}
+		}
+		if foundStatusUpdate {
+			break
+		}
+	}
+	require.True(t, foundStatusUpdate, "second checkin should include ESP status update with InstallationState")
+}
+
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
 	t := s.T()
 	ctx := context.Background()

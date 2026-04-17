@@ -18,6 +18,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1097,30 +1098,33 @@ func hashMDMCredentials(username, password, nonce string) []byte {
 }
 
 func TestGetESPCommands(t *testing.T) {
-	ctx := t.Context()
-	ds := new(mock.Store)
-	logger := slog.New(slog.DiscardHandler)
-	svc := &Service{ds: ds, logger: logger}
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const hostUUID = "test-host-uuid"
 
-	deviceID := "test-device-id"
-	hostUUID := "test-host-uuid"
-	now := time.Now()
+	// newSvc creates a fresh mock datastore and service for each subtest,
+	// preventing mock state from leaking between tests.
+	newSvc := func(t *testing.T) (*mock.Store, *Service) {
+		ds := new(mock.Store)
+		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
+	}
 
-	t.Run("no awaiting configuration", func(t *testing.T) {
+	t.Run("no awaiting configuration returns nil", func(t *testing.T) {
+		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:           deviceID,
-				HostUUID:              hostUUID,
 				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone,
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		assert.Nil(t, cmds)
 	})
 
-	t.Run("pending but no host UUID yet", func(t *testing.T) {
+	t.Run("pending without host UUID waits for orbit", func(t *testing.T) {
+		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:           deviceID,
@@ -1129,13 +1133,14 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		assert.Nil(t, cmds)
 	})
 
-	t.Run("pending within grace period with configured items but none enqueued yet", func(t *testing.T) {
-		enrolledAt := time.Now().Add(-5 * time.Minute) // within grace period
+	t.Run("pending within grace period waits for orbit to enqueue items", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		enrolledAt := time.Now().Add(-5 * time.Minute)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:             deviceID,
@@ -1151,16 +1156,17 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetSetupExperienceCountFunc = func(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
-			return &fleet.SetupExperienceCount{Installers: 2}, nil
+			return &fleet.SetupExperienceCount{Installers: 2}, nil // items configured but not yet enqueued
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		assert.Nil(t, cmds, "should wait within grace period when items are configured")
+		assert.Nil(t, cmds)
 	})
 
-	t.Run("pending with no configured items and no profiles short-circuits without blocking ESP", func(t *testing.T) {
-		enrolledAt := now.Add(-1 * time.Minute)
+	t.Run("pending with nothing to track transitions to active without ESP command", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		enrolledAt := time.Now().Add(-1 * time.Minute)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:             deviceID,
@@ -1176,33 +1182,27 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, nil
 		}
 		ds.GetSetupExperienceCountFunc = func(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
-			return &fleet.SetupExperienceCount{}, nil // no items configured
+			return &fleet.SetupExperienceCount{}, nil
 		}
 		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
 			return nil, nil
 		}
-
-		insertCalled := false
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
-			insertCalled = true
-			return nil
-		}
-		var expectFrom, to fleet.WindowsMDMAwaitingConfiguration
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, t fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			expectFrom, to = from, t
+		var transitionedFrom, transitionedTo fleet.WindowsMDMAwaitingConfiguration
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			transitionedFrom, transitionedTo = from, to
 			return true, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		assert.Nil(t, cmds, "no items to track, no ESP command should be sent")
-		assert.False(t, insertCalled, "should not enqueue an ESP command with nothing to track")
-		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, expectFrom)
-		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, to)
+		assert.Nil(t, cmds)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, transitionedFrom)
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, transitionedTo)
 	})
 
-	t.Run("pending with items and profiles", func(t *testing.T) {
-		enrolledAt := now.Add(-1 * time.Minute)
+	t.Run("pending with items and profiles returns inline ESP command and transitions to active", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		enrolledAt := time.Now().Add(-1 * time.Minute)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:             deviceID,
@@ -1212,59 +1212,40 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-			teamID := uint(1)
-			return &fleet.Host{UUID: hostUUID, TeamID: &teamID}, nil
+			return &fleet.Host{UUID: hostUUID, TeamID: new(uint)}, nil
 		}
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return []*fleet.SetupExperienceStatusResult{
 				{Name: "Fleet osquery", Status: fleet.SetupExperienceStatusPending},
-				{Name: "Chrome", Status: fleet.SetupExperienceStatusPending},
 			}, nil
 		}
 		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
 			return []*fleet.MDMWindowsProfilePayload{
 				{ProfileUUID: "prof-1", ProfileName: "WiFi Config"},
-				{ProfileUUID: "prof-2", ProfileName: "SCEP Cert"},
 			}, nil
 		}
 		ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 			return map[string]fleet.MDMWindowsProfileContents{
 				"prof-1": {SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/WiFi/Profile/MyWiFi</LocURI></Target><Data>config</Data></Item></Replace>`)},
-				"prof-2": {SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1</LocURI></Target><Data>config</Data></Item></Replace>`)},
 			}, nil
 		}
-
-		var enqueuedCmd *fleet.MDMWindowsCommand
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
-			enqueuedCmd = cmd
-			return nil
-		}
 		ds.GetSetupExperienceCountFunc = func(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
-			return &fleet.SetupExperienceCount{Installers: 2}, nil
+			return &fleet.SetupExperienceCount{Installers: 1}, nil
 		}
+		transitioned := false
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			transitioned = true
 			return true, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "initial ESP command should be returned inline")
-		require.NotNil(t, enqueuedCmd, "initial ESP command should also be persisted")
-
-		raw := string(enqueuedCmd.RawCommand)
-		// prof-1 (WiFi) tracked as security policy
-		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/WiFi/Profile/MyWiFi")
-		assert.Contains(t, raw, "TrackingPolicies/prof-1")
-		// prof-2 (SCEP-only) tracked under Certificates only, not Security policies
-		assert.NotContains(t, raw, "TrackingPolicies/prof-2")
-		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-2")
-		assert.NotContains(t, raw, "ExpectedSCEPCerts/prof-1")
-		// Check software tracking
-		assert.Contains(t, raw, "Apps/Fleet osquery")
-		assert.Contains(t, raw, "Apps/Chrome")
+		require.NotEmpty(t, cmds, "should return inline ESP commands")
+		assert.True(t, transitioned, "should transition to active")
 	})
 
 	t.Run("active returns inline status update", func(t *testing.T) {
+		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:           deviceID,
@@ -1273,8 +1254,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-			teamID := uint(1)
-			return &fleet.Host{UUID: hostUUID, TeamID: &teamID}, nil
+			return &fleet.Host{UUID: hostUUID, TeamID: new(uint)}, nil
 		}
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return []*fleet.SetupExperienceStatusResult{
@@ -1283,23 +1263,13 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "status update should return inline commands")
-
-		// Serialize to check content
-		var rawParts []string
-		for _, cmd := range cmds {
-			b, err := xml.Marshal(cmd)
-			require.NoError(t, err)
-			rawParts = append(rawParts, string(b))
-		}
-		combined := strings.Join(rawParts, "")
-		assert.Contains(t, combined, "Fleet osquery")
-		assert.Contains(t, combined, "Chrome")
+		require.NotEmpty(t, cmds, "should return inline status update commands")
 	})
 
 	t.Run("active with no results returns nil", func(t *testing.T) {
+		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
 				MDMDeviceID:           deviceID,
@@ -1314,7 +1284,7 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, nil
 		}
 
-		cmds, err := svc.getESPCommands(ctx, deviceID)
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		assert.Nil(t, cmds)
 	})
