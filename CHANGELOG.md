@@ -111,6 +111,12 @@
 - Fixed an issue where silent migration status would persist even after re-enrolling the device normally, causing SCEP renewal to fail.
 - Fixed issue where the "Change Management" form would reset when the page lost and regained focus.
 
+## Fleet 4.83.2 (Apr 13, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.```
+
 ## Fleet 4.83.1 (Apr 10, 2026)
 
 ### Bug fixes
