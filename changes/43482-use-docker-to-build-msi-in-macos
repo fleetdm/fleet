@@ -1,0 +1,1 @@
+- Default to using Docker for building .msi fleetd packages on MacOS
