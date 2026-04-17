@@ -1,0 +1,81 @@
+// Mixins for feature-block layout patterns.
+// These handle LAYOUT only — typography, icons, and text alignment inside each
+// feature are page-specific. Add those overrides on the selectors after calling
+// the mixin.
+
+// Side-by-side: an image paired with a text block (headline + paragraph +
+// checklist or similar). Collapses to a single column below 992px.
+//
+// Expected markup:
+//   <div purpose='feature-with-image'>              (or add `class='reverse'`)
+//     <div purpose='feature-image'>...</div>
+//     <div purpose='feature-text'>...</div>
+//   </div>
+//
+// `feature-image` can contain img OR video — both get `border-radius: 16px` and
+// scale to fit the parent. Pages set the exact desktop width on the image.
+.feature-with-image() {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 64px;
+  &.reverse {
+    flex-direction: row-reverse;
+  }
+  [purpose='feature-image'] {
+    img, video {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+    }
+  }
+  [purpose='feature-text'] {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  @media (max-width: 991px) {
+    flex-direction: column;
+    gap: 48px;
+    &.reverse {
+      flex-direction: column;
+    }
+    [purpose='feature-image'] {
+      width: 100%;
+      img, video {
+        width: 100%;
+      }
+    }
+  }
+}
+
+// Responsive 3-column grid of feature items.
+// Expected markup: a parent with [purpose='feature'] children.
+// Flex-wraps, so any multiple of items works (3, 6, 9, etc.).
+// Collapses to 2 columns at <= 991px and 1 column at <= 767px.
+.three-column-features() {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 64px;
+  max-width: @content-max-width;
+  margin-left: auto;
+  margin-right: auto;
+  [purpose='feature'] {
+    flex: 0 1 ~'calc((100% - 2 * 64px) / 3)';
+    min-width: 0;
+  }
+  @media (max-width: 991px) {
+    gap: 48px;
+    [purpose='feature'] {
+      flex-basis: ~'calc((100% - 48px) / 2)';
+    }
+  }
+  @media (max-width: 767px) {
+    gap: 40px;
+    [purpose='feature'] {
+      flex-basis: 100%;
+    }
+  }
+}

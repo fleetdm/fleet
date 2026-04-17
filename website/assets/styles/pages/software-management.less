@@ -158,13 +158,6 @@
       width: 50%;
     }
   }
-  [purpose='feature-image'] {
-    width: 50%;
-    img {
-      max-width: 100%;
-      max-height: 100%;
-    }
-  }
   [purpose='checklist'] {
     .checklist();
     margin-top: 8px;
@@ -229,35 +222,26 @@
   }
 
 
-  [purpose='feature'] {
+  [purpose='feature-with-image'] {
+    .feature-with-image();
     padding-top: 64px;
     padding-bottom: 64px;
-    h3 {
-      color: @core-fleet-black;
-      font-size: 24px;
-      font-weight: 800;
-      line-height: @heading-lineheight; /* 120% */
-      margin-bottom: 32px;
-    }
     &:last-of-type {
       margin-bottom: 0px;
     }
-  }
-
-  [purpose='feature'].flex-column {
-    [purpose='feature-text'] {
-      margin-left: 16px;
-      padding-left: 48px;
+    [purpose='feature-image'] {
+      width: 50%;
     }
-  }
-  [purpose='feature'].flex-column-reverse {
     [purpose='feature-text'] {
-      margin-right: 16px;
-      padding-right: 48px;
+      width: 50%;
+      h3 {
+        color: @core-fleet-black;
+        font-size: 24px;
+        font-weight: 800;
+        line-height: @heading-lineheight; /* 120% */
+        margin-bottom: 32px;
+      }
     }
-  }
-  [purpose='feature-text'] {
-    width: 50%;
   }
   [parasails-component='scrollable-tweets'] {
     [purpose='tweets'] {
@@ -322,15 +306,9 @@
         width: 50%;
       }
     }
-    [purpose='feature'].flex-column {
+    [purpose='feature-with-image'] {
       [purpose='feature-text'] {
-        margin-left: 16px;
         padding-left: 16px;
-      }
-    }
-    [purpose='feature'].flex-column-reverse {
-      [purpose='feature-text'] {
-        margin-right: 16px;
         padding-right: 16px;
       }
     }
@@ -402,28 +380,18 @@
       padding-bottom: 64px;
       padding-top: 0px;
     }
-    [purpose='feature'].flex-column {
+    [purpose='feature-with-image'] {
       padding-top: 32px;
       padding-bottom: 48px;
       [purpose='feature-text'] {
-        margin-left: 0px;
+        width: 100%;
         padding-left: 0px;
-      }
-    }
-    [purpose='feature'].flex-column-reverse {
-      padding-top: 48px;
-      padding-bottom: 32px;
-      [purpose='feature-text'] {
         padding-right: 0px;
-        margin-right: 0px;
       }
-    }
-    [purpose='feature-text'] {
-      width: 100%;
-    }
-    [purpose='feature-image'] {
-      width: 100%;
-      margin-bottom: 32px;
+      [purpose='feature-image'] {
+        width: 100%;
+        margin-bottom: 32px;
+      }
     }
     [purpose='bottom-cta'] {
       h2 {
