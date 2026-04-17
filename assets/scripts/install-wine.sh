@@ -12,12 +12,9 @@ printf "============================================================\n"
 printf "Wine is no longer required to build Windows (.msi) packages on macOS.\n"
 printf "fleetctl package now uses Docker by default on all macOS architectures.\n"
 printf "Install Docker Desktop instead: https://docs.docker.com/get-docker\n\n"
-printf "This script only remains for Fleet Premium users who pass\n"
-printf "--local-wix-dir to fleetctl package on macOS. If that isn't you,\n"
-printf "you can stop here.\n"
+printf "This script may fail due to updates to Homebrew and Wine releases.\n\n"
 printf "============================================================\n\n"
 }
-
 
 brew_wine(){
     # Wine reference: https://wiki.winehq.org/MacOS
