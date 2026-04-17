@@ -5,36 +5,17 @@ import ToastCard from "./ToastCard";
 
 const baseClass = "toast-notification";
 
-/**
- * Per-variant auto-dismiss duration (ms). Success toasts fade out after a
- * few seconds; error toasts stay until the user clicks the close button
- * (Sonner interprets `Infinity` as "never auto-close").
- */
+// Auto close duration (error toast is never closed automatically)
 const SUCCESS_DURATION = 10000;
 const ERROR_DURATION = Infinity;
 
-/**
- * Max number of visible toasts rendered by Sonner at the same time.
- */
-const VISIBLE_TOASTS = 3;
+// Max number of visible toasts at the same time.
+const VISIBLE_TOASTS = 5;
 
 export interface IToastNotificationProps {
   className?: string;
 }
 
-/**
- * `<ToastNotification />` is a pre-configured Sonner `<Toaster />` wrapper.
- *
- * Mount this component once near the root of the app to enable imperative
- * toast notifications via the exported `notify` helper.
- *
- * We use Sonner in headless mode: every toast is rendered via
- * `toast.custom()` with our own `<ToastCard />` UI, so the visuals do not
- * depend on Sonner's built-in styled variants.
- *
- * NOTE: Additive only — it does not replace the existing `FlashMessage`
- * component.
- */
 const ToastNotification = ({
   className,
 }: IToastNotificationProps): JSX.Element => {

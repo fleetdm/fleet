@@ -12,16 +12,18 @@ const baseClass = "toast-notification";
 export type ToastVariant = "success" | "error";
 
 export interface IToastCardProps {
+  /* Success or error. */
   variant: ToastVariant;
+  /* Success or error message in the toast. */
   message: string;
   /**
-   * Optional raw payload (e.g. an API error response). When provided on an
+   * Optional raw payload (e.g. API error response). When provided on an
    * error toast, the card renders a chevron toggle that reveals a formatted
    * JSON panel below the message.
    */
   detail?: unknown;
   /**
-   * Label shown above the detail panel. Defaults to "Raw response".
+   * Label shown above the error response (detail). Defaults to "Raw response".
    */
   detailLabel?: string;
   toastId: string | number;
@@ -29,10 +31,10 @@ export interface IToastCardProps {
 
 const variantIcon: Record<
   ToastVariant,
-  { name: "success" | "error"; color: Colors }
+  { name: "success-outline" | "error-outline"; color: Colors }
 > = {
-  success: { name: "success", color: "status-success" },
-  error: { name: "error", color: "status-error" },
+  success: { name: "success-outline", color: "status-success" },
+  error: { name: "error-outline", color: "status-error" },
 };
 
 /**
@@ -115,9 +117,13 @@ const ToastCard = ({
 
   return (
     <div
-      className={classnames(`${baseClass}__card`, {
-        [`${baseClass}__card--open`]: hasDetail && isOpen,
-      })}
+      className={classnames(
+        `${baseClass}__card`,
+        `${baseClass}__card--${variant}`,
+        {
+          [`${baseClass}__card--open`]: hasDetail && isOpen,
+        }
+      )}
       role="alert"
     >
       <div className={`${baseClass}__header`}>

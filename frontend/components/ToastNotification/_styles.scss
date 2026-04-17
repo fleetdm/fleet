@@ -37,27 +37,75 @@ $toast-notification-width: 500px;
   // Card surface (the outer white rectangle)
   // ------------------------------------------------------------------
   &__card {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     width: 100%;
     min-width: $toast-notification-width;
-    padding: $pad-smedium; // 12px (rem-based)
-    background-color: $core-fleet-white;
+    padding: $pad-smedium $pad-medium;
+    // Solid white base with a subtle accent tint layered on top.
+    // The gradient is nearly transparent (5% opacity) and fades out by the
+    // midpoint, so the card reads as white with a faint coloured wash in
+    // the top-left corner.
+    background: linear-gradient(
+        145deg,
+        rgba(var(--card-accent-rgb), 0.05),
+        transparent 50%
+      ),
+      $core-fleet-white;
     color: $core-fleet-black;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius-xxlarge; // 16px
+    border: 0;
+    border-radius: $border-radius-large;
     box-shadow: $toast-notification-shadow;
     box-sizing: border-box;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif;
-    font-size: $x-small; // 14px
+    font-size: $x-small;
+    font-family: "Inter", sans-serif;
     line-height: $line-height;
 
     // 12px gap between header and JSON panel when the detail panel is open.
     gap: 0;
     &--open {
       gap: $pad-smedium;
+    }
+
+    // Per-variant accent colour for the gradient border + background tint.
+    // Two vars per variant: the full colour (for the border gradient) and
+    // its raw RGB channels (for `rgba()` in the background gradient — CSS
+    // can't decompose a hex custom property into channels).
+    --card-accent: #{$ui-fleet-black-25};
+    --card-accent-rgb: 197, 199, 209; // $ui-fleet-black-25
+
+    &--success {
+      --card-accent: #{$ui-success};
+      --card-accent-rgb: 61, 182, 123; // $ui-success
+    }
+
+    &--error {
+      --card-accent: #{$ui-error};
+      --card-accent-rgb: 214, 108, 123; // $ui-error
+    }
+
+    // Gradient border — a softened variant colour fading to grey. Rendered
+    // as a pseudo-element with a mask to preserve the rounded corners that
+    // `border-image` ignores. The accent is mixed with white (via rgba at
+    // 40% opacity composited onto a white base) so the border stays visible
+    // but doesn't overpower the card surface.
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px; // border thickness
+      background: linear-gradient(
+          145deg,
+          rgba(var(--card-accent-rgb), 0.4),
+          $ui-fleet-black-10
+        ),
+        $core-fleet-white;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
     }
   }
 
@@ -100,7 +148,7 @@ $toast-notification-width: 500px;
     font-size: $x-small;
     font-weight: $regular;
     line-height: $line-height;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     word-break: break-word;
   }
 
@@ -163,8 +211,8 @@ $toast-notification-width: 500px;
     // Thin divider between the header row and the payload section.
     // Padding above the label keeps the space above/below the line symmetric
     // with the card's `--open` gap (12px from the header → 1px line → 12px).
-    border-top: 1px solid $ui-fleet-black-10;
-    padding-top: $pad-smedium;
+    border-top: 1px solid $ui-fleet-black-5;
+    padding-top: $pad-medium;
   }
 
   &__panel-header {
@@ -207,20 +255,41 @@ $toast-notification-width: 500px;
     color: $ui-fleet-black-75;
   }
 
-  // Per-instance tweaks on top of the global `pre` rules — cap the height
-  // and allow scrolling so large payloads stay contained inside the toast.
+  // Light-themed JSON code block. Overrides the global dark `pre` rules
+  // to match the ace-fleet editor theme (light surface, same token colours
+  // as Fleet's SQL / YAML editors).
   &__json-block {
     margin: 0;
     max-height: 200px;
     overflow: auto;
     box-sizing: border-box;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: $pad-smedium;
     font-size: $xx-small;
 
-    code {
-      font-family: inherit;
-      font-size: inherit;
-      line-height: inherit;
-      color: inherit;
+    // Token colours aligned with the ace-fleet editor theme so JSON in
+    // toasts looks consistent with the SQL editor, YAML editor, etc.
+    .key {
+      color: $ui-fleet-black-75; // ace keyword — dark grey, neutral
+    }
+
+    .string {
+      color: #2e8b57; // darkened from ace string #4fd061 for light-bg readability
+    }
+
+    .number {
+      color: #b5651d; // darkened from ace #f5871f for light-bg readability (~4.5:1)
+    }
+
+    .boolean {
+      color: #4271ae; // ace function / variable — blue (~4.5:1, passes AA)
+    }
+
+    .null {
+      color: #6b4290; // darkened from ace #8959a8 for light-bg readability (~5:1)
     }
   }
 }

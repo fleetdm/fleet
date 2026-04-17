@@ -322,11 +322,6 @@ const EditQueryPage = ({
     } catch (updateError: any) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
-      // Fleet's `sendRequest` (frontend/services/index.ts) rejects with the
-      // raw AxiosResponse, so `updateError` IS the response. Pass it as
-      // `response` and the toast auto-populates:
-      //   detail      = updateError.data
-      //   detailLabel = "Status: {status} {statusText}"
       if (reason.includes("Duplicate")) {
         notify.error("A report with this name already exists.", {
           response: updateError,
