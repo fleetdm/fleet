@@ -328,8 +328,25 @@ This view displays the website's efficiency by tracking the rate at which users 
 ## Fleet writing style, tone, and voice instructions for AI
 When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
 
-## Rituals
+## Post blog articles
+Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
+1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+3. Title the file with the slug version of your blog title, ending in `.md`
+4. First line should be the Title of the blog with H1 markdown (`#`)
+5. Put in your article, using markdown to format it
+6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) first
+8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
+9. Once you think your blog is ready, commit the changes
+10. Before submitting a PR to merge it, preview it:
+    - GitHub: has a **Preview** button in the editor
+    - VS Code: right click on filename tab and select **Open Preview**
+    - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
+11. When ready, submit a PR to get it reviewed and merged
+
+## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 #### Stubs
