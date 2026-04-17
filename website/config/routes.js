@@ -598,10 +598,10 @@ module.exports.routes = {
     }
   },
 
-  'GET /on-premises': {
+  'GET /on-premise': {
     action: 'landing-pages/view-on-premises',
     locals: {
-      pageTitleForMeta: 'On-premises device management',
+      pageTitleForMeta: 'On-premise device management',
       pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
       currentSection: 'platform',
     }

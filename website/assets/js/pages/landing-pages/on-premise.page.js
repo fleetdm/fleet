@@ -1,4 +1,4 @@
-parasails.registerPage('on-premises-page', {
+parasails.registerPage('on-premise-page', {
   data: {
     //…
   },

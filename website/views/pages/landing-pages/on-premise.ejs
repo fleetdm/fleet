@@ -1,4 +1,4 @@
-<div id="on-premises-page" v-cloak>
+<div id="on-premise-page" v-cloak>
   <div purpose="landing-page-container">
     <div purpose="landing-page-content">
 
@@ -6,7 +6,7 @@
       <div purpose="landing-page-hero">
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
-            <h4>On-premises deployment</h4>
+            <h4>On-premise deployment</h4>
             <h1>Your device data belongs in your environment.</h1>
           </div>
           <div purpose="page-hero-text">
@@ -39,7 +39,7 @@
       <%/* ── WHO NEEDS ON-PREM ────────────────────────────────────────────── */%>
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h3>Who needs on-premises MDM</h3>
+          <h3>Who needs on-premise MDM</h3>
           <p>For a growing number of organizations regulated industries, government agencies, high-security enterprises, and globally distributed teams sending device telemetry to a vendor's cloud creates a compliance, sovereignty, or architecture problem that cloud-only MDMs simply cannot solve.</p>
         </div>
         <div purpose="feature-row">
@@ -73,7 +73,7 @@
       <%/* ── QUOTE ────────────────────────────────────────────────────────── */%>
       <div purpose="landing-page-section">
         <div purpose="section-quote">
-          <p purpose="quote-text">"Every other MDM vendor told us our data had to live in their cloud. Fleet was the only one that said run it on your own infrastructure same features, no exceptions. That was the decision."</p>
+          <p purpose="quote-text">"Every other MDM vendor told us our data had to live in their cloud. Fleet was the only one that said run it on your own infrastructure. Same features, no exceptions."</p>
           <div purpose="quote-author-info">
             <p purpose="author-name">IT Security Architecture</p>
             <p purpose="author-title">Financial services, Fortune 100</p>
@@ -85,28 +85,33 @@
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>The problem with cloud-only MDM</h3>
-          <p>Jamf Cloud, Microsoft Intune, and most modern MDMs are cloud-first by design which means device inventory, configuration state, policy results, and user data all flow through their infrastructure. For organizations with strict data governance requirements, that's not a configuration option. It's a structural blocker.</p>
+          <p>Most modern MDMs are cloud-first. Device inventory, policy results, and user data flow through vendor infrastructure. For strict data governance requirements, that's a structural blocker.</p>
         </div>
         <div purpose="scenario-card">
           <p purpose="scenario-label">The cloud MDM compliance wall</p>
-          <h3 purpose="scenario-heading">Your CISO approved Jamf. </h3>
-          <h3 purpose="scenario-heading">Then legal reviewed the BAA.</h3>
-          <h3 purpose="scenario-heading">Then the data governance team asked where device telemetry lives.</h3>
-          <h3 purpose="scenario-heading">The answer was "Jamf's AWS us-east-1."</h3>
-          <h3 purpose="scenario-heading">The project was paused.</h3>
-          <p purpose="scenario-body">This scenario plays out constantly in regulated industries. A cloud MDM is selected, procurement begins, and then compliance or legal identifies that device inventory data, user enrollment records, and MDM command history are all stored in a third-party cloud environment that the organization cannot control or audit. Jamf's on-prem offering exists but is actively losing features relative to Jamf Cloud. Microsoft Intune has no on-premises option at all. Fleet's self-hosted deployment is architected to be fully featured by design, not by exception.</p>
-          <div purpose="scenario-stats">
-            <div purpose="stat-item">
-              <p purpose="stat-number">0</p>
-              <p purpose="stat-label">external network calls required in air-gap mode</p>
+          <div purpose="scenario-columns">
+            <div purpose="scenario-left">
+              <h3 purpose="scenario-heading">Your CISO approved Jamf.</h3>
+              <h3 purpose="scenario-heading">Then legal reviewed the BAA.</h3>
+              <h3 purpose="scenario-heading">Then the data governance team asked where device telemetry lives.</h3>
+              <h3 purpose="scenario-heading">The answer was "Jamf's AWS us-east-1."</h3>
+              <h3 purpose="scenario-heading">The project was paused.</h3>
             </div>
-            <div purpose="stat-item">
-              <p purpose="stat-number">100%</p>
-              <p purpose="stat-label">feature parity between Fleet Cloud and self-hosted</p>
-            </div>
-            <div purpose="stat-item">
-              <p purpose="stat-number">MIT</p>
-              <p purpose="stat-label">licensed every line of code is auditable</p>
+            <div purpose="scenario-right">
+              <div purpose="scenario-facts">
+                <div purpose="scenario-fact">
+                  <p purpose="scenario-fact-label">The pattern</p>
+                  <p>Cloud MDM selected. Procurement begins. Compliance flags that device data lives in vendor infrastructure. Project paused.</p>
+                </div>
+                <div purpose="scenario-fact">
+                  <p purpose="scenario-fact-label">The alternatives</p>
+                  <p>Jamf's on-prem product is actively losing features. Microsoft Intune has no on-premise option.</p>
+                </div>
+                <div purpose="scenario-fact">
+                  <p purpose="scenario-fact-label">Fleet's approach</p>
+                  <p>One codebase. Full features everywhere. Self-hosted by design, not by exception.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -115,22 +120,22 @@
       <%/* ── HOW IT WORKS ─────────────────────────────────────────────────── */%>
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h3>How Fleet on-premises works</h3>
-          <p>Fleet runs as a standard Go service + MySQL database on infrastructure you control AWS, GCP, Azure, bare metal, or a fully air-gapped private cloud. The architecture is simple, auditable, and designed to operate indefinitely without calling home.</p>
+          <h3>How Fleet on-premise works</h3>
+          <p>Fleet runs on infrastructure you control: AWS, GCP, Azure, bare metal, or air-gapped. Simple to deploy, fully auditable, and designed to operate without calling home.</p>
         </div>
 
         <div purpose="three-column-list">
           <div purpose="feature">
-            <p purpose="feature-headline">On-premises data center</p>
-            <p purpose="feature-text">Run Fleet on bare metal or VMware in your own data center. Standard Docker or Kubernetes deployment. No internet egress required once the initial setup is complete.</p>
+            <p purpose="feature-headline">On-premise data center</p>
+            <p purpose="feature-text">Bare metal or VMware, Docker or Kubernetes. No internet egress required.</p>
           </div>
           <div purpose="feature">
             <p purpose="feature-headline">Classified / air-gapped networks</p>
-            <p purpose="feature-text">Fleet operates in fully isolated environments with zero outbound internet dependency. Package all assets for offline deployment. fleetd agent updates distributed via internal artifact repositories.</p>
+            <p purpose="feature-text">Zero outbound internet dependency. Package all assets for offline deployment and distribute via internal artifact repositories.</p>
           </div>
           <div purpose="feature">
             <p purpose="feature-headline">AWS / GCP / Azure</p>
-            <p purpose="feature-text">Deploy Fleet via Terraform into your own cloud account. VPC-isolated, no cross-account data access, no vendor visibility into your deployment. Your cloud, your keys, your logs.</p>
+            <p purpose="feature-text">Terraform into your own cloud account. VPC-isolated, no cross-account data access, no vendor visibility.</p>
           </div>
         </div>
 
@@ -172,14 +177,14 @@
       <%/* ── FEATURES ─────────────────────────────────────────────────────── */%>
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h3>What you get with Fleet on-premises</h3>
+          <h3>What you get with Fleet on-premise</h3>
           <p>Fleet's self-hosted deployment gives your security and compliance teams everything they need without any of the data residency trade-offs of cloud-only MDMs.</p>
         </div>
         <div purpose="feature-cards">
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Complete data sovereignty</p>
-              <p>Every device enrollment record, every MDM command, every osquery result, every policy check stored in your database, on your infrastructure, accessible only to your team.</p>
+              <p>Every enrollment record, MDM command, and policy result stays in your database, on your infrastructure, accessible only to your team.</p>
             </div>
             <div purpose="card-footer">
               <p>Fleet never has visibility into your deployment</p>
@@ -188,7 +193,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Air-gap and offline operation</p>
-              <p>Fleet operates with zero outbound internet dependency in air-gap mode. Package fleetd agents and updates for internal distribution. Designed for classified networks from day one.</p>
+              <p>Zero outbound internet dependency. Package agents and updates for internal distribution. Designed for classified networks from day one.</p>
             </div>
             <div purpose="card-footer">
               <p>0 external calls required</p>
@@ -197,7 +202,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">100% feature parity</p>
-              <p>Fleet's self-hosted deployment is not a stripped-down tier. GitOps, Declarative MDM, live osquery, vulnerability management, AI-assisted workflows every feature ships everywhere.</p>
+              <p>Not a stripped-down tier. GitOps, Declarative MDM, live osquery, vulnerability management, and AI workflows all ship to self-hosted on the same day as cloud.</p>
             </div>
             <div purpose="card-footer">
               <p>One codebase, same features everywhere</p>
@@ -206,7 +211,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Bring your own encryption keys</p>
-              <p>Encrypt the Fleet database with your own KMS keys AWS KMS, HashiCorp Vault, or hardware HSMs. FileVault and BitLocker recovery keys stored in your database. No vendor escrow.</p>
+              <p>Use AWS KMS, HashiCorp Vault, or hardware HSMs. FileVault and BitLocker recovery keys stay in your database. No vendor escrow.</p>
             </div>
             <div purpose="card-footer">
               <p>AWS KMS, Vault, or HSM support</p>
@@ -215,7 +220,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Your upgrade schedule</p>
-              <p>Test in staging, validate against your environment, deploy on your timeline. No forced upgrades, no surprise API changes. Especially critical for regulated environments where change control is mandatory.</p>
+              <p>Test in staging, validate, deploy on your timeline. No forced upgrades or surprise API changes, critical for environments where change control is mandatory.</p>
             </div>
             <div purpose="card-footer">
               <p>No forced upgrades or deprecations</p>
@@ -224,7 +229,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Fully auditable open-source codebase</p>
-              <p>Fleet is MIT licensed and public on GitHub. Every line of code that touches your device data can be inspected, built from source, and verified by your security team.</p>
+              <p>MIT licensed and public on GitHub. Every line of code touching your device data can be inspected, built from source, and verified by your team.</p>
             </div>
             <div purpose="card-footer">
               <p>No black-box binaries</p>
@@ -377,7 +382,7 @@
   <div purpose="bottom-gradient">
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
-        <h4>On-premises deployment</h4>
+        <h4>On-premise deployment</h4>
         <h1>Your infrastructure. Your data. Your terms.</h1>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Talk to our team</a>
