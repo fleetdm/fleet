@@ -626,6 +626,23 @@ module.exports.routes = {
     }
   },
 
+
+  'GET /webinars/:slug': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: false,
+    }
+  },
+
+  'GET /webinars/:slug/watch': {
+    action: 'articles/view-basic-webinar',
+    locals: {
+      displayVideo: true,
+      disableChatbotAndIndexing: true,
+      hideFooterLinks: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -1160,7 +1177,9 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#turn-on-apple-mdm',
+  'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
+  'GET /learn-more-about/add-vpp': '/guides/apple-mdm-setup#volume-purchasing-program-vpp',
+  'GET /learn-more-about/renew-vpp': '/guides/apple-mdm-setup#renew-vpp',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
@@ -1351,6 +1370,7 @@ module.exports.routes = {
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
+  'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
 
   //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

@@ -179,31 +179,16 @@
   }
 
   [purpose='checklist'] {
+    .checklist();
+    p {
+      margin-bottom: 0px;
+    }
     padding: 8px 0px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
-    p {
-      font-size: 14px;
-      font-style: normal;
-      font-weight: 400;
-      padding-left: 37px;
-      text-indent: -37px;
-      margin-bottom: 0px;
-    }
-    p::before {
-      content: ' ';
-      background-image: url('/images/icon-checkmark-green-20x20@2x.png');
-      background-size: 20px 20px;
-      display: inline-block;
-      position: relative;
-      top: 5px;
-      margin-right: 16px;
-      width: 20px;
-      height: 20px;
-    }
   }
 
 
@@ -298,27 +283,13 @@
     gap: 24px;
   }
   [ purpose='cta-button'] {
-    display: flex;
+    .cta-button();
     height: 36px;
     min-width: 140px;
     padding: 8px 16px;
-    justify-content: center;
-    align-items: center;
-    border-radius: 8px;
-    background: #009A7D;
-    color: #FFF;
-    text-align: center;
-
-    /* Body/Emphasis/SM */
-    font-family: Inter;
     font-size: 14px;
-    font-style: normal;
     font-weight: 700;
     line-height: 150%;
-    &:hover {
-      color: #FFF;
-    }
-    gap: 4px;
   }
   [purpose='carousel-image'] {
     max-width: 50%;
