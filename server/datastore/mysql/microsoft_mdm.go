@@ -232,12 +232,13 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given
 // MDMWindowsEnrolledDevice entry from the database using the device id.
-// It also cleans up any pending profile rows for the host since the device
-// can no longer receive MDM commands after unenrollment.
+// It also cleans up all host_mdm_windows_profiles rows for the host since
+// the device can no longer receive MDM commands after unenrollment.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Look up host_uuid before deleting the enrollment so we can clean up profile rows.
-		var hostUUID string
+		// Use sql.NullString since host_uuid may be NULL if the enrollment hasn't been linked to a host yet.
+		var hostUUID sql.NullString
 		err := sqlx.GetContext(ctx, tx,
 			&hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`, mdmDeviceID)
 		if err != nil {
@@ -257,10 +258,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 		}
 
-		// Clean up pending profile rows for this host since it can no longer receive MDM commands.
-		if hostUUID != "" {
+		// Clean up all host_mdm_windows_profiles rows for this host since it can no longer receive MDM commands.
+		if hostUUID.Valid && hostUUID.String != "" {
 			if _, err := tx.ExecContext(ctx,
-				`DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, hostUUID); err != nil {
+				`DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, hostUUID.String); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles after unenrollment")
 			}
 		}
