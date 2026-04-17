@@ -696,6 +696,28 @@ ORDER BY
 	return labels, nil
 }
 
+func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
+	// Each platform case uses literal SQL statements to avoid fmt.Sprintf with table names (gosec G202).
+	// Apple platforms (darwin, ios, ipados) share the same profile/declaration tables.
+	switch platform {
+	case "darwin", "ios", "ipados":
+		if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_apple_declarations`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
+		}
+	case "windows":
+		if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
+		}
+	default:
+		return ctxerr.Errorf(ctx, "unsupported platform %s for MDM profile cleanup", platform)
+	}
+
+	return nil
+}
+
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,

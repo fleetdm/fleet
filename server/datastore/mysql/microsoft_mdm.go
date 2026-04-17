@@ -232,20 +232,41 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given
 // MDMWindowsEnrolledDevice entry from the database using the device id.
+// It also cleans up any pending profile rows for the host since the device
+// can no longer receive MDM commands after unenrollment.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
-	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?"
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Look up host_uuid before deleting the enrollment so we can clean up profile rows.
+		var hostUUID string
+		err := sqlx.GetContext(ctx, tx,
+			&hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+			}
+			return ctxerr.Wrap(ctx, err, "looking up host_uuid for enrolled device")
+		}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete MDMWindowsDeleteEnrolledDeviceWithDeviceID")
-	}
+		res, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting Windows enrolled device")
+		}
 
-	deleted, _ := res.RowsAffected()
-	if deleted == 1 {
+		deleted, _ := res.RowsAffected()
+		if deleted != 1 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+		}
+
+		// Clean up pending profile rows for this host since it can no longer receive MDM commands.
+		if hostUUID != "" {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, hostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles after unenrollment")
+			}
+		}
+
 		return nil
-	}
-
-	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
+	})
 }
 
 // this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
