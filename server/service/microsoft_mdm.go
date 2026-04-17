@@ -2092,11 +2092,7 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 			profileTrackingInfos = append(profileTrackingInfos, microsoft_mdm.ESPProfileTrackingInfo{
 				ProfileUUID: p.ProfileUUID,
 				TopLocURI:   locURIs[0],
-				// SCEP-only profiles are tracked under Certificates, not Security
-				// policies. HasSCEP controls the ExpectedSCEPCerts entry, and
-				// SCEPOnly controls whether we skip ExpectedPolicies/TrackingPolicies.
-				HasSCEP:  hasSCEP,
-				SCEPOnly: hasSCEP && len(locURIs) == 1,
+				IsSCEP:      hasSCEP,
 			})
 		}
 	}
@@ -2171,7 +2167,9 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 }
 
 // handleESPStatusUpdate handles subsequent checkins when awaiting_configuration=2.
-// It builds inline SyncML commands reflecting the current setup experience status.
+// It builds inline SyncML commands with the current software installation statuses.
+// Only software needs explicit updates here -- profiles and SCEP certs are tracked
+// automatically by the Windows DMClient once registered in the initial ESP command.
 func (svc *Service) handleESPStatusUpdate(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil

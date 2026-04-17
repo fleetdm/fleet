@@ -1,6 +1,7 @@
 package microsoft_mdm
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -9,7 +10,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// assertAppInstallationState checks that the SyncML output contains a Replace
+// block associating the given app name with the expected InstallationState value.
+func assertAppInstallationState(t *testing.T, raw, appName string, expectedStatus uint) {
+	t.Helper()
+	// The template produces a <Replace> block where the LocURI containing the
+	// app name's InstallationState is followed by a <Data> element with the status.
+	needle := fmt.Sprintf("Apps/%s/InstallationState</LocURI>", appName)
+	idx := strings.Index(raw, needle)
+	require.NotEqual(t, -1, idx, "expected InstallationState entry for %q", appName)
+
+	// Find the <Data>N</Data> that follows within the same <Replace> block.
+	after := raw[idx:]
+	dataNeedle := fmt.Sprintf("<Data>%d</Data>", expectedStatus)
+	endNeedle := "</Replace>"
+	endIdx := strings.Index(after, endNeedle)
+	require.NotEqual(t, -1, endIdx, "expected closing </Replace> after InstallationState for %q", appName)
+
+	block := after[:endIdx]
+	assert.Contains(t, block, dataNeedle,
+		"app %q should have InstallationState=%d", appName, expectedStatus)
+}
+
 func TestESPInitialCommand(t *testing.T) {
+	t.Parallel()
+
 	t.Run("missing cmdUUID", func(t *testing.T) {
 		_, err := ESPInitialCommand(ESPInitialCommandSpec{})
 		require.Error(t, err)
@@ -27,7 +52,7 @@ func TestESPInitialCommand(t *testing.T) {
 		raw := string(cmd.RawCommand)
 		// Should have timeout, block, and skip-user settings (int format per DMClient CSP spec)
 		assert.Contains(t, raw, "TimeOutUntilSyncFailure")
-		assert.Contains(t, raw, "<Data>10800</Data>")
+		assert.Contains(t, raw, fmt.Sprintf("<Data>%d</Data>", ESPTimeoutSeconds))
 		assert.Contains(t, raw, "BlockInStatusPage")
 		assert.Contains(t, raw, "SkipUserStatusPage")
 		assert.Contains(t, raw, "<Format>int</Format>")
@@ -44,19 +69,12 @@ func TestESPInitialCommand(t *testing.T) {
 				{
 					ProfileUUID: "prof-1",
 					TopLocURI:   "./Device/Vendor/MSFT/Policy/Config/WiFi",
-					HasSCEP:     false,
+					IsSCEP:      false,
 				},
 				{
 					ProfileUUID: "prof-2",
-					TopLocURI:   "./Device/Vendor/MSFT/Policy/Config/VPN",
-					HasSCEP:     true,
-					SCEPOnly:    false, // has SCEP but also other settings
-				},
-				{
-					ProfileUUID: "prof-3",
 					TopLocURI:   "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1",
-					HasSCEP:     true,
-					SCEPOnly:    true, // SCEP-only: tracked under Certificates, not Security policies
+					IsSCEP:      true, // SCEP profiles tracked under Certificates, not Security policies
 				},
 			},
 			Software: []ESPSoftwareTrackingInfo{
@@ -72,28 +90,19 @@ func TestESPInitialCommand(t *testing.T) {
 		assert.Contains(t, raw, "TimeOutUntilSyncFailure")
 		assert.Contains(t, raw, "BlockInStatusPage")
 
-		// Profile expected policies -- prof-1 and prof-2 are tracked, prof-3 (SCEP-only) is not
+		// prof-1 (non-SCEP) tracked as security policy
 		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/Policy/Config/WiFi")
-		assert.Contains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/Policy/Config/VPN")
-		assert.NotContains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/ClientCertificateInstall")
-
-		// Profile tracking policies -- prof-1 and prof-2 tracked, prof-3 excluded
 		assert.Contains(t, raw, "TrackingPolicies/prof-1")
-		assert.Contains(t, raw, "TrackingPolicies/prof-2")
-		assert.NotContains(t, raw, "TrackingPolicies/prof-3")
 
-		// SCEP certs for prof-2 and prof-3, not prof-1
+		// prof-2 (SCEP) tracked under Certificates, not Security policies
+		assert.NotContains(t, raw, "ExpectedPolicies/./Device/Vendor/MSFT/ClientCertificateInstall")
+		assert.NotContains(t, raw, "TrackingPolicies/prof-2")
 		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-2")
-		assert.Contains(t, raw, "ExpectedSCEPCerts/prof-3")
 		assert.NotContains(t, raw, "ExpectedSCEPCerts/prof-1")
 
-		// Software tracking
-		assert.Contains(t, raw, "TrackingPolicies/Apps/Fleet osquery")
-		assert.Contains(t, raw, "TrackingPolicies/Apps/Chrome")
-
-		// InstallationState should be 1 (NotInstalled) for both software items.
-		// BlockInStatusPage and SkipUserStatusPage also use <Data>1</Data>, so total is 4.
-		assert.Equal(t, 2, strings.Count(raw, "InstallationState</LocURI></Target>\n<Data>1</Data>"))
+		// Software tracking -- verify each app has the correct InstallationState
+		assertAppInstallationState(t, raw, "Fleet osquery", ESPItemStatusNotInstalled)
+		assertAppInstallationState(t, raw, "Chrome", ESPItemStatusNotInstalled)
 	})
 
 	t.Run("xml escaping in names", func(t *testing.T) {
@@ -105,11 +114,13 @@ func TestESPInitialCommand(t *testing.T) {
 		})
 		require.NoError(t, err)
 		raw := string(cmd.RawCommand)
-		assert.Contains(t, raw, "App &lt;with&gt; &amp; &quot;special&quot; chars")
+		assert.Contains(t, raw, "App &lt;with&gt; &amp; &#34;special&#34; chars")
 	})
 }
 
 func TestESPStatusUpdateCommand(t *testing.T) {
+	t.Parallel()
+
 	t.Run("missing cmdUUID", func(t *testing.T) {
 		_, err := ESPStatusUpdateCommand(ESPStatusUpdateSpec{})
 		require.Error(t, err)
@@ -129,19 +140,16 @@ func TestESPStatusUpdateCommand(t *testing.T) {
 
 		raw := string(cmd.RawCommand)
 
-		// Check each status value
-		assert.Contains(t, raw, "Apps/Fleet osquery/InstallationState")
-		assert.Contains(t, raw, "Apps/Chrome/InstallationState")
-		assert.Contains(t, raw, "Apps/Slack/InstallationState")
-
-		// Completed=3, Error=4, NotInstalled=1
-		assert.Contains(t, raw, "<Data>3</Data>")
-		assert.Contains(t, raw, "<Data>4</Data>")
-		assert.Contains(t, raw, "<Data>1</Data>")
+		// Verify each app is associated with the correct status value
+		assertAppInstallationState(t, raw, "Fleet osquery", ESPItemStatusCompleted)
+		assertAppInstallationState(t, raw, "Chrome", ESPItemStatusError)
+		assertAppInstallationState(t, raw, "Slack", ESPItemStatusNotInstalled)
 	})
 }
 
 func TestSetupExperienceStatusToESP(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input    fleet.SetupExperienceStatusResultStatus
 		expected uint

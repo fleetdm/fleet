@@ -2,6 +2,7 @@ package microsoft_mdm
 
 import (
 	"bytes"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"text/template"
@@ -14,17 +15,12 @@ import (
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/enrollmentstatustracking-csp
 const (
 	ESPItemStatusNotInstalled uint = 1
-	ESPItemStatusNotRequired  uint = 2
 	ESPItemStatusCompleted    uint = 3
 	ESPItemStatusError        uint = 4
 )
 
 // ESPTimeoutSeconds is the default timeout for the Enrollment Status Page (3 hours).
-const ESPTimeoutSeconds = 10800
-
-// providerID is the MDM provider ID used in DMClient CSP paths.
-// This must match the ProviderID used in the provisioning document (see syncml.DocProvisioningAppProviderID).
-const providerID = syncml.DocProvisioningAppProviderID
+const ESPTimeoutSeconds = 3 * 60 * 60
 
 // ESPProfileTrackingInfo holds the information needed to track a profile on the ESP.
 type ESPProfileTrackingInfo struct {
@@ -32,11 +28,12 @@ type ESPProfileTrackingInfo struct {
 	ProfileUUID string
 	// TopLocURI is the LocURI of the first setting in the profile, used for ExpectedPolicies.
 	TopLocURI string
-	// HasSCEP indicates whether this profile contains SCEP certificate settings.
-	HasSCEP bool
-	// SCEPOnly indicates this profile contains only SCEP settings and should be
-	// tracked under Certificates only, not under Security policies.
-	SCEPOnly bool
+	// IsSCEP indicates this is a SCEP certificate profile. SCEP profiles are
+	// tracked under Certificates (ExpectedSCEPCerts) on the ESP, not under
+	// Security policies (ExpectedPolicies/TrackingPolicies). Fleet's profile
+	// validator enforces that SCEP profiles cannot contain non-SCEP settings,
+	// so a profile is either entirely SCEP or has no SCEP at all.
+	IsSCEP bool
 }
 
 // ESPSoftwareTrackingInfo holds the information needed to track a software item on the ESP.
@@ -70,75 +67,103 @@ func (spec ESPInitialCommandSpec) validate() error {
 // - DMClient FirstSyncStatus ExpectedSCEPCerts entries for profiles with SCEP
 // - EnrollmentStatusTracking DevicePreparation/PolicyProviders/.../TrackingPolicies/Apps entries for each software item
 var espInitialCommandTmpl = template.Must(template.New("esp_init").Funcs(template.FuncMap{
-	"escapeXML": escapeXMLString,
-}).Parse(`<Atomic>
-<CmdID>{{ .CmdUUID }}</CmdID>
-<Replace>
-<CmdID>{{ .CmdUUID }}-timeout</CmdID>
-<Item>
-<Meta><Format>int</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/TimeOutUntilSyncFailure</LocURI></Target>
-<Data>` + fmt.Sprintf("%d", ESPTimeoutSeconds) + `</Data>
-</Item>
-</Replace>
-<Replace>
-<CmdID>{{ .CmdUUID }}-block</CmdID>
-<Item>
-<Meta><Format>int</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/BlockInStatusPage</LocURI></Target>
-<Data>1</Data>
-</Item>
-</Replace>
-<Replace>
-<CmdID>{{ .CmdUUID }}-skipuser</CmdID>
-<Item>
-<Meta><Format>int</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/SkipUserStatusPage</LocURI></Target>
-<Data>1</Data>
-</Item>
-</Replace>
-{{- range $i, $p := .Profiles }}
-{{- if not $p.SCEPOnly }}
-<Add>
-<CmdID>{{ $.CmdUUID }}-policy-{{ $i }}</CmdID>
-<Item>
-<Meta><Format>chr</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/ExpectedPolicies/{{ escapeXML $p.TopLocURI }}</LocURI></Target>
-</Item>
-</Add>
-<Add>
-<CmdID>{{ $.CmdUUID }}-pp-{{ $i }}</CmdID>
-<Item>
-<Target><LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + providerID + `/TrackingPolicies/{{ escapeXML $p.ProfileUUID }}</LocURI></Target>
-</Item>
-</Add>
-{{- end }}
-{{- if $p.HasSCEP }}
-<Add>
-<CmdID>{{ $.CmdUUID }}-scep-{{ $i }}</CmdID>
-<Item>
-<Target><LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + providerID + `/FirstSyncStatus/ExpectedSCEPCerts/{{ escapeXML $p.ProfileUUID }}</LocURI></Target>
-</Item>
-</Add>
-{{- end }}
-{{- end }}
-{{- range $i, $s := .Software }}
-<Add>
-<CmdID>{{ $.CmdUUID }}-app-{{ $i }}</CmdID>
-<Item>
-<Target><LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + providerID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}</LocURI></Target>
-</Item>
-</Add>
-<Replace>
-<CmdID>{{ $.CmdUUID }}-appst-{{ $i }}</CmdID>
-<Item>
-<Meta><Format>int</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + providerID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}/InstallationState</LocURI></Target>
-<Data>{{ $s.Status }}</Data>
-</Item>
-</Replace>
-{{- end }}
-</Atomic>`))
+	"escapeXML": func(s string) string {
+		var buf bytes.Buffer
+		_ = xml.EscapeText(&buf, []byte(s))
+		return buf.String()
+	},
+}).Parse(`
+<Atomic>
+  <CmdID>{{ .CmdUUID }}</CmdID>
+
+  <Replace>
+    <CmdID>{{ .CmdUUID }}-timeout</CmdID>
+    <Item>
+      <Meta><Format>int</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + syncml.DocProvisioningAppProviderID + `/FirstSyncStatus/TimeOutUntilSyncFailure</LocURI>
+      </Target>
+      <Data>` + fmt.Sprintf("%d", ESPTimeoutSeconds) + `</Data>
+    </Item>
+  </Replace>
+
+  <Replace>
+    <CmdID>{{ .CmdUUID }}-block</CmdID>
+    <Item>
+      <Meta><Format>int</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + syncml.DocProvisioningAppProviderID + `/FirstSyncStatus/BlockInStatusPage</LocURI>
+      </Target>
+      <Data>1</Data>
+    </Item>
+  </Replace>
+
+  <Replace>
+    <CmdID>{{ .CmdUUID }}-skipuser</CmdID>
+    <Item>
+      <Meta><Format>int</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + syncml.DocProvisioningAppProviderID + `/FirstSyncStatus/SkipUserStatusPage</LocURI>
+      </Target>
+      <Data>1</Data>
+    </Item>
+  </Replace>
+
+  {{- range $i, $p := .Profiles }}
+  {{- if not $p.IsSCEP }}
+  <Add>
+    <CmdID>{{ $.CmdUUID }}-policy-{{ $i }}</CmdID>
+    <Item>
+      <Meta><Format>chr</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + syncml.DocProvisioningAppProviderID + `/FirstSyncStatus/ExpectedPolicies/{{ escapeXML $p.TopLocURI }}</LocURI>
+      </Target>
+    </Item>
+  </Add>
+  <Add>
+    <CmdID>{{ $.CmdUUID }}-pp-{{ $i }}</CmdID>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + syncml.DocProvisioningAppProviderID + `/TrackingPolicies/{{ escapeXML $p.ProfileUUID }}</LocURI>
+      </Target>
+    </Item>
+  </Add>
+  {{- end }}
+  {{- if $p.IsSCEP }}
+  <Add>
+    <CmdID>{{ $.CmdUUID }}-scep-{{ $i }}</CmdID>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/DMClient/Provider/` + syncml.DocProvisioningAppProviderID + `/FirstSyncStatus/ExpectedSCEPCerts/{{ escapeXML $p.ProfileUUID }}</LocURI>
+      </Target>
+    </Item>
+  </Add>
+  {{- end }}
+  {{- end }}
+
+  {{- range $i, $s := .Software }}
+  <Add>
+    <CmdID>{{ $.CmdUUID }}-app-{{ $i }}</CmdID>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + syncml.DocProvisioningAppProviderID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}</LocURI>
+      </Target>
+    </Item>
+  </Add>
+  <Replace>
+    <CmdID>{{ $.CmdUUID }}-appst-{{ $i }}</CmdID>
+    <Item>
+      <Meta><Format>int</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + syncml.DocProvisioningAppProviderID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}/InstallationState</LocURI>
+      </Target>
+      <Data>{{ $s.Status }}</Data>
+    </Item>
+  </Replace>
+  {{- end }}
+
+</Atomic>
+`))
 
 // ESPInitialCommand builds the SyncML command that initializes the Enrollment Status Page
 // for a Windows device. This is sent when the device transitions from awaiting_configuration=1 to =2.
@@ -155,12 +180,19 @@ func ESPInitialCommand(spec ESPInitialCommandSpec) (*fleet.MDMWindowsCommand, er
 	return &fleet.MDMWindowsCommand{
 		CommandUUID:  spec.CmdUUID,
 		RawCommand:   buf.Bytes(),
-		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/" + providerID + "/FirstSyncStatus",
+		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/" + syncml.DocProvisioningAppProviderID + "/FirstSyncStatus",
 	}, nil
 }
 
 // ESPStatusUpdateSpec defines the parameters for building an ESP status update
 // returned inline on subsequent checkins (awaiting_configuration=2).
+//
+// Only software items need explicit status updates. Profiles and SCEP certs
+// are tracked automatically by Windows: once registered via ExpectedPolicies
+// and ExpectedSCEPCerts in the initial command, the DMClient CSP updates their
+// status internally as they are delivered through the normal SyncML flow.
+// Software is installed by orbit outside the SyncML channel, so Fleet must
+// push InstallationState updates to the ESP on each checkin.
 type ESPStatusUpdateSpec struct {
 	CmdUUID  string
 	Software []ESPSoftwareTrackingInfo
@@ -174,20 +206,30 @@ func (spec ESPStatusUpdateSpec) validate() error {
 }
 
 var espStatusUpdateTmpl = template.Must(template.New("esp_status").Funcs(template.FuncMap{
-	"escapeXML": escapeXMLString,
-}).Parse(`<Atomic>
-<CmdID>{{ .CmdUUID }}</CmdID>
-{{- range $i, $s := .Software }}
-<Replace>
-<CmdID>{{ $.CmdUUID }}-appst-{{ $i }}</CmdID>
-<Item>
-<Meta><Format>int</Format><Type>text/plain</Type></Meta>
-<Target><LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + providerID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}/InstallationState</LocURI></Target>
-<Data>{{ $s.Status }}</Data>
-</Item>
-</Replace>
-{{- end }}
-</Atomic>`))
+	"escapeXML": func(s string) string {
+		var buf bytes.Buffer
+		_ = xml.EscapeText(&buf, []byte(s))
+		return buf.String()
+	},
+}).Parse(`
+<Atomic>
+  <CmdID>{{ .CmdUUID }}</CmdID>
+
+  {{- range $i, $s := .Software }}
+  <Replace>
+    <CmdID>{{ $.CmdUUID }}-appst-{{ $i }}</CmdID>
+    <Item>
+      <Meta><Format>int</Format><Type>text/plain</Type></Meta>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/` + syncml.DocProvisioningAppProviderID + `/TrackingPolicies/Apps/{{ escapeXML $s.Name }}/InstallationState</LocURI>
+      </Target>
+      <Data>{{ $s.Status }}</Data>
+    </Item>
+  </Replace>
+  {{- end }}
+
+</Atomic>
+`))
 
 // ESPStatusUpdateCommand builds the SyncML command that updates the ESP with current
 // software installation statuses. This is returned inline (not enqueued) on subsequent
@@ -205,7 +247,7 @@ func ESPStatusUpdateCommand(spec ESPStatusUpdateSpec) (*fleet.MDMWindowsCommand,
 	return &fleet.MDMWindowsCommand{
 		CommandUUID:  spec.CmdUUID,
 		RawCommand:   buf.Bytes(),
-		TargetLocURI: "./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/" + providerID + "/TrackingPolicies",
+		TargetLocURI: "./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/" + syncml.DocProvisioningAppProviderID + "/TrackingPolicies",
 	}, nil
 }
 
@@ -221,26 +263,4 @@ func SetupExperienceStatusToESP(status fleet.SetupExperienceStatusResultStatus) 
 	default:
 		return ESPItemStatusNotInstalled
 	}
-}
-
-// escapeXMLString escapes characters that are not safe in XML attribute values or text content.
-func escapeXMLString(s string) string {
-	var buf bytes.Buffer
-	for _, c := range s {
-		switch c {
-		case '&':
-			buf.WriteString("&amp;")
-		case '<':
-			buf.WriteString("&lt;")
-		case '>':
-			buf.WriteString("&gt;")
-		case '"':
-			buf.WriteString("&quot;")
-		case '\'':
-			buf.WriteString("&apos;")
-		default:
-			buf.WriteRune(c)
-		}
-	}
-	return buf.String()
 }
