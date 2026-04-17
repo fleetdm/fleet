@@ -3,7 +3,7 @@
 # Affected fields: purpose, tags, contributors, platforms
 
 - platform: windows
-  name: 'CIS - Ensure ''MSS: (DisableSavePassword) Prevent the dialup password from being saved (recommended)'' is set to ''Enabled'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (DisableSavePassword) Prevent the dialup password from being saved (recommended)' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\RasMan\Parameters\DisableSavePassword' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.4
@@ -11,7 +11,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\MSS (Legacy)\MSS:(DisableSavePassword) Prevent the dial-up password from being saved (recommended)
 
 - platform: windows
-  name: 'CIS - Ensure ''MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'' is set to ''Enabled: 300,000 or 5 minutes (recommended)'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes (recommended)'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\KeepAliveTime' AND CAST(data AS INTEGER) <= 300000;
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.6
@@ -19,7 +19,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 300,000 or 5 minutes (recommended). Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keepalive packets are sent in milliseconds'
 
 - platform: windows
-  name: 'CIS - Ensure ''MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'' is set to ''Disabled'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)' is set to 'Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\PerformRouterDiscovery' AND data = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.8
@@ -27,7 +27,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'
 
 - platform: windows
-  name: 'CIS - Ensure ''MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'' is set to ''Enabled: 3'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\TCPIP6\Parameters\TcpMaxDataRetransmissions' AND CAST(data AS INTEGER) <= 3;
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.11
@@ -35,7 +35,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 3. Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted'
 
 - platform: windows
-  name: 'CIS - Ensure ''MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'' is set to ''Enabled: 3'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\TcpMaxDataRetransmissions' AND CAST(data AS INTEGER) <= 3;
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.5.12
@@ -43,7 +43,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 3. Administrative Templates\MSS (Legacy)\MSS:(TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted'
 
 - platform: windows
-  name: CIS - Ensure 'Turn on Mapper I/O (LLTDIO) driver' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn on Mapper I/O (LLTDIO) driver' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'LLTDIO'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.8.1
@@ -51,7 +51,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Link-Layer Topology Discovery\Turn on Mapper I/O (LLTDIO) driver
 
 - platform: windows
-  name: CIS - Ensure 'Turn on Responder (RSPNDR) driver' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn on Responder (RSPNDR) driver' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RSPNDR'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.8.2
@@ -59,7 +59,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Link-Layer Topology Discovery\Turn on Responder
 
 - platform: windows
-  name: CIS - Ensure 'Configuration of wireless settings using Windows Connect Now' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Configuration of wireless settings using Windows Connect Now' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsConnectNow/WCN_EnableRegistrar</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Disabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.17.1
@@ -67,7 +67,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Network\Windows Connect Now\Configuration of wireless settings using Windows Connect Now
 
 - platform: windows
-  name: CIS - Ensure 'Prohibit access of the Windows Connect Now wizards' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Prohibit access of the Windows Connect Now wizards' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsConnectNow/WCN_DisableWcnUi_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.6.17.2
@@ -75,7 +75,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Network\Windows Connect Now\Prohibit access of the Windows Connect Now wizards
 
 - platform: windows
-  name: CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\ApplicationManagement\DisableStoreOriginatedApps' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.1
@@ -83,7 +83,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off access to the Store
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Help Experience Improvement Program (User)' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Help Experience Improvement Program (User)' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Assistance\Client\1.0\NoImplicitFeedback' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.3
@@ -91,7 +91,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication Settings\Turn off Help Experience Improvement Program
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/NC_ExitOnISP</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.4
@@ -99,7 +99,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com
 
 - platform: windows
-  name: CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Connectivity/DiablePrintingOverHTTP</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.6
@@ -107,7 +107,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off printing over HTTP
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/NC_NoRegistration</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.7
@@ -115,7 +115,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Registration if URL connection is referring to Microsoft.com
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/SearchCompanion_DisableFileUpdates</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.8
@@ -123,7 +123,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Search Companion content file updates
 
 - platform: windows
-  name: CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off the \"Order Prints\" picture task' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/ShellRemoveOrderPrints_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.9
@@ -131,7 +131,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Order Prints" picture task
 
 - platform: windows
-  name: CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off the \"Publish to Web\" task for files and folders' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/ShellRemovePublishToWeb_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.10
@@ -139,7 +139,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the "Publish to Web" task for files and folders
 
 - platform: windows
-  name: CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/WinMSG_NoInstrumentation_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.11
@@ -147,7 +147,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off the Windows Messenger Customer Experience Improvement Program
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_ICM/CEIPEnable</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.12
@@ -155,7 +155,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Customer Experience Improvement Program
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.20.1.13
@@ -163,7 +163,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Internet Communication Management\Internet Communication settings\Turn off Windows Error Reporting
 
 - platform: windows
-  name: 'CIS - Ensure ''Support device authentication using certificate'' is set to ''Enabled: Automatic'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Support device authentication using certificate' is set to 'Enabled: Automatic'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_Kerberos/DevicePKInitEnabled</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.23.1
@@ -171,7 +171,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Automatic. Administrative Templates\System\Kerberos\Support device authentication using certificate'
 
 - platform: windows
-  name: CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Control Panel\International\BlockUserInputMethodsForSignIn' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.25.1
@@ -179,7 +179,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\System\Locale Services\Disallow copying of user input methods to the system account for sign-in
 
 - platform: windows
-  name: 'CIS - Ensure ''Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider'' is set to ''Disabled'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MSDT/MsdtSupportProvider</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.10.40.5.1
@@ -187,7 +187,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\System\Troubleshooting and Diagnostics\Microsoft Support Diagnostic Tool\Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider'
 
 - platform: windows
-  name: CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content.' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content.' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_AppxRuntime/AppxRuntimeBlockHostedAppAccessWinRT</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Enabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.3.2
@@ -195,7 +195,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\App runtime\Block launching Universal Windows apps with Windows Runtime API access from hosted content. Note: A reboot may be required after the setting is applied.'
 
 - platform: windows
-  name: CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MicrosoftDefenderAntivirus/SpynetReporting</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.28.3.2
@@ -204,7 +204,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Microsoft Defender Antivirus\MAPS\Join Microsoft MAPS
 
 - platform: windows
-  name: CIS - Ensure 'Configure Watson events' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Configure Watson events' is set to 'Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting\Disabled' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.28.10.1
@@ -212,7 +212,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Microsoft Defender Antivirus\Reporting\Configure Watson events
 
 - platform: windows
-  name: CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ApplicationManagement/DisableStoreOriginatedApps</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.35.1
@@ -220,7 +220,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Push to Install\Turn off Push To Install service
 
 - platform: windows
-  name: CIS - Ensure 'Allow users to connect remotely by using Remote Desktop Services' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow users to connect remotely by using Remote Desktop Services' is set to 'Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\fDenyTSConnections' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.2.1
@@ -228,7 +228,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Connections\Allow users to connect remotely by using Remote Desktop Services
 
 - platform: windows
-  name: CIS - Ensure 'Do not allow COM port redirection' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Do not allow COM port redirection' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableCcm' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.1
@@ -236,7 +236,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow COM port redirection
 
 - platform: windows
-  name: CIS - Ensure 'Do not allow LPT port redirection' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Do not allow LPT port redirection' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableLPT' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.3
@@ -244,7 +244,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow LPT port redirection
 
 - platform: windows
-  name: CIS - Ensure 'Do not allow supported Plug and Play device redirection' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Do not allow supported Plug and Play device redirection' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisablePNPRedir' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.4
@@ -252,7 +252,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Do not allow supported Plug and Play device redirection
 
 - platform: windows
-  name: 'CIS - Ensure ''Restrict clipboard transfer from server to client'' is set to ''Enabled: Disable clipboard transfers from server to client'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Restrict clipboard transfer from server to client' is set to 'Enabled: Disable clipboard transfers from server to client'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\fDisableClip' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.3.5
@@ -260,7 +260,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Disable clipboard transfers from server to client. Administrative Templates\Windows Components\Remote Desktop Session Host\Device and Resource Redirection\Restrict clipboard transfer from server to client'
 
 - platform: windows
-  name: 'CIS - Ensure ''Set time limit for active but idle Remote Desktop Services sessions'' is set to ''Enabled: 15 minutes or less, but not Never (0)'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Set time limit for active but idle Remote Desktop Services sessions' is set to 'Enabled: 15 minutes or less, but not Never (0)'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_TerminalServer/TS_SESSIONS_Idle_Limit_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%' AND CAST(SUBSTR(mdm_command_output, INSTR(mdm_command_output, 'value="') + 7, INSTR(SUBSTR(mdm_command_output, INSTR(mdm_command_output, 'value="') + 7), '"') - 1) AS INTEGER) BETWEEN 1 AND 900000;
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.10.1
@@ -268,7 +268,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 15 minutes or less, but not Never (0). Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for active but idle Remote Desktop Services sessions'
 
 - platform: windows
-  name: 'CIS - Ensure ''Set time limit for disconnected sessions'' is set to ''Enabled: 1 minute'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Set time limit for disconnected sessions' is set to 'Enabled: 1 minute'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_TerminalServer/TS_SESSIONS_Disconnected_Timeout_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%' AND mdm_command_output LIKE '%value="60000"%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.36.4.10.2
@@ -276,7 +276,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: 1 minute. Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Session Time Limits\Set time limit for disconnected sessions'
 
 - platform: windows
-  name: CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn off the Store application' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_WindowsStore/RemoveWindowsStore_2</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.42.2
@@ -284,7 +284,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Store\Turn off the Store application
 
 - platform: windows
-  name: CIS - Ensure 'Prevent Internet Explorer security prompt for Windows Installer scripts' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Prevent Internet Explorer security prompt for Windows Installer scripts' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ADMX_MSI/SafeForScripting</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<disabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.49.1
@@ -292,7 +292,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Installer\Prevent Internet Explorer security prompt for Windows Installer scripts
 
 - platform: windows
-  name: CIS - Ensure 'Prevent Codec Download (User)' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Prevent Codec Download (User)' is set to 'Enabled'"
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\\S-1-5-21-%\\SOFTWARE\\Policies\\Microsoft\\WindowsMediaPlayer\\PreventCodecDownload' AND data = '1') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsMediaPlayer\\PreventCodecDownload' AND data = '1');
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.52.2.1
@@ -300,7 +300,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows Media Player\Playback\Prevent Codec Download (User)
 
 - platform: windows
-  name: CIS - Ensure 'Turn on PowerShell Script Block Logging' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn on PowerShell Script Block Logging' is set to 'Enabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<Enabled/>%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.54.1
@@ -308,7 +308,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Script Block Logging
 
 - platform: windows
-  name: CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'"
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/WindowsPowerShell/TurnOnPowerShellTranscription</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%<enabled%') OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\PowerShell\Transcription\EnableTranscripting' AND data = '1');
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.54.2
@@ -316,7 +316,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled. Administrative Templates\Windows Components\Windows PowerShell\Turn on PowerShell Transcription
 
 - platform: windows
-  name: CIS - Ensure 'Allow remote server management through WinRM' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow remote server management through WinRM' is set to 'Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service\AllowAutoConfig' AND data = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.55.2.2
@@ -324,7 +324,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Remote Management (WinRM)\WinRM Service\Allow remote server management through WinRM
 
 - platform: windows
-  name: CIS - Ensure 'Allow Remote Shell Access' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Remote Shell Access' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/RemoteShell/AllowRemoteShellAccess</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Disabled%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS4.11.56.1
@@ -332,7 +332,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled. Administrative Templates\Windows Components\Windows Remote Shell\Allow Remote Shell Access
 
 - platform: windows
-  name: CIS - Ensure 'Allow Camera' is set to 'Not allowed'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Camera' is set to 'Not allowed'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Camera/AllowCamera</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS12.1
@@ -340,7 +340,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: Camera\Allow Camera'
 
 - platform: windows
-  name: CIS - Ensure 'Enable Convert Warn To Block' is set to 'Warn verdicts are converted to block'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Enable Convert Warn To Block' is set to 'Warn verdicts are converted to block'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/EnableConvertWarnToBlock</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.24
@@ -348,7 +348,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Warn verdicts are converted to block. Defender\Enable Convert Warn To Block
 
 - platform: windows
-  name: CIS - Ensure 'Enable File Hash Computation' is set to 'Enable'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Enable File Hash Computation' is set to 'Enable'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/EnableFileHashComputation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.25
@@ -356,7 +356,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable. Defender\Enable File Hash Computation
 
 - platform: windows
-  name: CIS - Ensure 'Remote Encryption Protection Aggressiveness' is set to 'Medium' or higher
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Encryption Protection Aggressiveness' is set to 'Medium' or higher"
   query: SELECT 1 WHERE EXISTS (SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Configuration/RemoteEncryptionProtectionAggressiveness</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output IN ('1', '2')) OR EXISTS (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Defender\\Configuration\\BehavioralNetworkBlocks\\RemoteEncryptionProtection\\RemoteEncryptionProtectionAggressiveness' AND data IN ('1', '2'));
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS22.31
@@ -364,7 +364,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Medium: Use cloud aggregation and block when confidence level is above 99% or High: Use cloud intel and context, and block when confidence level is above 90%. Defender\Remote Encryption Protection Aggressiveness'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Windows Spotlight (User)' is set to 'Block'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Windows Spotlight (User)' is set to 'Block'"
   query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\S-1-%\SOFTWARE\Policies\Microsoft\Windows\CloudContent\DisableWindowsSpotlightFeatures' AND data = '1' LIMIT 1;
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS34.3
@@ -372,7 +372,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block: Experience\Allow Windows Spotlight (User)'
 
 - platform: windows
-  name: CIS - Ensure 'Disallow KMS Client Online AVS Validation' is set to 'Allow'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disallow KMS Client Online AVS Validation' is set to 'Allow'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Licensing/DisallowKMSClientOnlineAVSValidation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS47.1
@@ -380,7 +380,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Allow: Licensing\Disallow KMS Client Online AVS Validation'
 
 - platform: windows
-  name: 'CIS - Ensure ''Devices: Prevent users from installing printerdrivers when connecting to shared printers'' is set to ''Enable'''
+  name: "[Win 11 Intune L2] CIS - Ensure 'Devices: Prevent users from installing printerdrivers when connecting to shared printers' is set to 'Enable'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\Providers\LanMan Print Services\Servers\AddPrinterDrivers' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS49.5
@@ -388,7 +388,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable: Local Policies Security Options\Devices: Prevent users from installing printer drivers when connecting to shared printers'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Message Sync' is set to 'message sync is not allowed and cannot be changed by the user.'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Message Sync' is set to 'message sync is not allowed and cannot be changed by the user.'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Messaging/AllowMessageSync</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS54.1
@@ -396,7 +396,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to message sync is not allowed and cannot be changed by the user.: Messaging\Allow Message Sync'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Shared User App Data' is set to 'Block'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Shared User App Data' is set to 'Block'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/ApplicationManagement/AllowSharedUserAppData</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS55.3
@@ -404,7 +404,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Microsoft App Store\Allow Shared User App Data
 
 - platform: windows
-  name: CIS - Ensure 'Disable Store Originated Apps' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disable Store Originated Apps' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\current\device\ApplicationManagement\DisableStoreOriginatedApps' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS55.5
@@ -412,7 +412,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Microsoft App Store\Disable Store Originated Apps'
 
 - platform: windows
-  name: CIS - Ensure 'Disallow Cloud Notification' is set to 'Allow'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disallow Cloud Notification' is set to 'Allow'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Notifications/DisallowCloudNotification</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS61.1
@@ -420,7 +420,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Allow. Notifications\Disallow Cloud Notification
 
 - platform: windows
-  name: CIS - Ensure 'Allow Cross Device Clipboard' is set to 'Block'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Cross Device Clipboard' is set to 'Block'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Privacy/AllowCrossDeviceClipboard</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.1
@@ -428,7 +428,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block: Privacy\Allow Cross Device Clipboard'
 
 - platform: windows
-  name: CIS - Ensure 'Disable Advertising ID' is set to 'Enabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disable Advertising ID' is set to 'Enabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo\DisabledByGroupPolicy' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.3
@@ -436,7 +436,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enabled: Privacy\Disable Advertising ID'
 
 - platform: windows
-  name: CIS - Ensure 'Upload User Activities' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Upload User Activities' is set to 'Disabled'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Privacy/UploadUserActivities</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS68.5
@@ -444,7 +444,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Disabled: Privacy\Upload User Activities'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Cloud Search' is set to 'Not allowed'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Cloud Search' is set to 'Not allowed'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Search/AllowCloudSearch</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS72.1
@@ -452,7 +452,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: Search\Allow Cloud Search'
 
 - platform: windows
-  name: CIS - Ensure 'Allow search highlights' is set to '0'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow search highlights' is set to '0'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search\EnableDynamicContentInWSB' AND data = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS72.4
@@ -460,7 +460,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to 0: Search\Allow search highlights'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Online Tips' is set to 'Block'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Online Tips' is set to 'Block'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/Settings/AllowOnlineTips</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS74.1
@@ -468,7 +468,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Settings\Allow Online Tips
 
 - platform: windows
-  name: CIS - Ensure 'Allow Font Providers' is set to 'Not allowed'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Font Providers' is set to 'Not allowed'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowFontProviders</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.1
@@ -476,7 +476,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Not allowed: System\Allow Font Providers'
 
 - platform: windows
-  name: CIS - Ensure 'Allow Location' is set to 'Force Location Off...'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Allow Location' is set to 'Force Location Off...'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/System/AllowLocation</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output = '0';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.2
@@ -484,7 +484,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Force Location Off.... System\Allow Location
 
 - platform: windows
-  name: CIS - Ensure 'Disable Enterprise Auth Proxy' is set to 'Enable'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disable Enterprise Auth Proxy' is set to 'Enable'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Spynet\DisableEnterpriseAuthProxy' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.4
@@ -492,7 +492,7 @@
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Enable. System\Disable Enterprise Auth Proxy
 
 - platform: windows
-  name: CIS - Ensure 'Disable One Drive File Sync' is set to 'Sync Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Disable One Drive File Sync' is set to 'Sync Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\OneDrive\DisableFileSyncNGSC' AND data = '1';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS80.5
@@ -500,7 +500,7 @@
   resolution: 'To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Sync Disabled: System\Disable One Drive File Sync'
 
 - platform: windows
-  name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'BTAGService'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.1
@@ -508,7 +508,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name BTAGService -StartupType Disabled Note: This service was first introduced in Windows 10 Release 1803. It appears to have replaced the older Bluetooth Handsfree Service (BthHFSrv), which was removed from Windows in that release (it is not simply a rename, but a different service).'
 
 - platform: windows
-  name: CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'bthserv'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.2
@@ -516,7 +516,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name bthserv -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'"
   query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\MapsBroker\Start' AND data = '4';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.4
@@ -524,7 +524,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name MapsBroker -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'GameInputSvc'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.5
@@ -532,7 +532,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name GameInputSvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'"
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM services WHERE name = 'lfsvc') OR EXISTS (SELECT 1 FROM services WHERE name = 'lfsvc' AND start_type = 'DISABLED');
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.6
@@ -540,7 +540,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name lfsvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'lltdsvc'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.9
@@ -548,7 +548,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name lltdsvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'"
   query: SELECT 1 FROM services WHERE name = 'MSiSCSI' AND UPPER(start_type) = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.12
@@ -556,7 +556,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name MSiSCSI -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'Spooler'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.14
@@ -564,7 +564,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name Spooler -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'wercplsupport'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.15
@@ -572,7 +572,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name wercplsupport -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RasAuto'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.16
@@ -580,7 +580,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name RasAuto -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'SessionEnv'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.17
@@ -588,7 +588,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name SessionEnv -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'TermService'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.18
@@ -596,7 +596,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name TermService -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'UmRdpService'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.19
@@ -604,7 +604,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name UmRdpService -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'RemoteRegistry'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.21
@@ -612,7 +612,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name RemoteRegistry -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'LanmanServer'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.23
@@ -620,7 +620,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name LanmanServer -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or 'Not Installed'
+  name: "[Win 11 Intune L2] CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or 'Not Installed'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'SNMP'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.25
@@ -628,7 +628,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name SNMP -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WerSvc'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.30
@@ -636,7 +636,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WerSvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'Wecsvc'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.31
@@ -644,7 +644,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name Wecsvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WpnService'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.34
@@ -652,7 +652,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WpnService -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'PushToInstall'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.35
@@ -660,7 +660,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name PushToInstall -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'"
   query: SELECT 1 WHERE COALESCE((SELECT UPPER(start_type) FROM services WHERE name = 'WinRM'), 'DISABLED') = 'DISABLED';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.36
@@ -668,7 +668,7 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WinRM -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'
+  name: "[Win 11 Intune L2] CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'"
   query: SELECT 1 FROM services WHERE name = 'WinHttpAutoProxySvc' AND UPPER(start_type) IN ('DISABLED', 'DEMAND_START');
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS81.37
@@ -676,14 +676,14 @@
   resolution: 'Remediation of this service is currently not possible through Settings Catalog or a custom profile OMA-URI. Instead, it can be scripted and deployed through the Intune Scripts or Remediations blade or by other means. To establish the recommended configuration via PowerShell, run the following cmdlet: Set-Service -Name WinHttpAutoProxySvc -StartupType Disabled'
 
 - platform: windows
-  name: CIS - Ensure 'Log On As Batch Job' is set to 'Administrators'
+  name: "[Win 11 Intune L2] CIS - Ensure 'Log On As Batch Job' is set to 'Administrators'"
   query: SELECT 1 FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LogOnAsBatchJob</LocURI></Target></Item></Get></SyncBody>' AND mdm_command_output LIKE '%Administrators%';
   # purpose: Enforcement
   # tags: framework:CISv8.1, benchmark:win11, level:2, platform:windows, category:unknown, requirement:standard, critical:false, cis_safeguard_ids:CIS89.24
   description: 'This policy setting allows accounts to log on using the task scheduler service. Because the task scheduler is often used for administrative purposes, it may be needed in enterprise environments. However, its use should be restricted in high security environments to prevent misuse of system resources or to prevent attackers from using the right to launch malicious code after gaining user level access to a computer. The recommended state for this setting is: *S-1-5-32-544 (Administrators).'
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to *S-1-5-32-544 (Administrators). User Rights\Log On As Batch Job
 
-- name: CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Block'
+- name: "[Win 11 Intune L2] CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Block'"
   platform: windows
   description: 'This policy setting determines whether suggested apps in Windows Ink Workspace are allowed. The recommended state for this setting is: Block.'
   resolution: To establish the recommended configuration via configuration profiles, set the following Settings Catalog path to Block. Windows Ink Workspace\Allow suggested apps in Windows Ink Workspace

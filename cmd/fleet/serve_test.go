@@ -32,6 +32,8 @@ import (
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -1321,4 +1323,21 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	require.NoError(t, err)
 	// Only one label (the host vitals label) should have been processed.
 	require.Equal(t, 1, numCalls)
+}
+
+// TestOTELResourceCreation verifies that the OTEL resource can be created without schema URL
+// conflicts. The SDK's WithTelemetrySDK() detector embeds its own schema URL, which must match
+// the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
+// update our semconv import) causes a runtime error on server startup.
+func TestOTELResourceCreation(t *testing.T) {
+	res, err := resource.New(t.Context(),
+		resource.WithSchemaURL(semconv.SchemaURL),
+		resource.WithAttributes(
+			semconv.ServiceName("fleet-test"),
+			semconv.ServiceVersion("0.0.0-test"),
+		),
+		resource.WithTelemetrySDK(),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, res)
 }
