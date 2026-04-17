@@ -81,7 +81,7 @@ func Heat(path string, native bool, localWixDir string) error {
 func darwinWineExecutable() (string, error) {
 	cmdOut, err := exec.Command("wine", "--version").Output()
 	if err != nil {
-		return "", fmt.Errorf("running wine to get version information: %w", err)
+		return "", fmt.Errorf("running wine to get version information: %w. Is Wine installed? Building a Windows (.msi) package with --local-wix-dir on macOS requires Wine; the default path uses Docker instead", err)
 	}
 	wineVerStr, found := strings.CutPrefix(string(cmdOut), "wine-")
 	if !found {

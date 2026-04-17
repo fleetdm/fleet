@@ -177,9 +177,6 @@ func BuildMSI(opt Options) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("could not get filepath from local-wix-dir %s: %w", opt.LocalWixDir, err)
 		}
-		if err = checkWine(false); err != nil {
-			return "", err
-		}
 	}
 	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
 		return "", fmt.Errorf("package root files: %w", err)
@@ -213,20 +210,6 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
-}
-
-func checkWine(wineChecked bool) error {
-	if !wineChecked && runtime.GOOS == "darwin" {
-		// Ensure wine is installed
-		cmd := exec.Command(wix.WineCmd, "--version")
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
-				wix.WineCmd, err,
-			)
-		}
-	}
-	return nil
 }
 
 func writeWixFile(opt Options, rootPath string) error {
