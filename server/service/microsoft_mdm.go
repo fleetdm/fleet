@@ -1988,6 +1988,10 @@ const espGracePeriod = 10 * time.Minute
 func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Device may have just unenrolled; nothing to do.
+			return nil, nil
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get enrolled device for ESP")
 	}
 
