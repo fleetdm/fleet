@@ -841,20 +841,28 @@ func tryHomebrewShortcut(p candidateEntry) *recipe {
 		}
 	}
 
-	// --- Stage 3: double-404 → auto-skip ---
-	// Data shows: of 502 skipped products in the CRITICAL run, 100% were 404 on
-	// both formula and cask. The 9 non-Homebrew installs (dmg/pkg) are rare edge
-	// cases that can be handled manually or via --no-shortcut + Claude.
+	// --- Stage 3: AutoPkg index fuzzy search ---
+	// If Homebrew doesn't have it but AutoPkg does, it's likely real macOS
+	// software worth researching via Claude (don't auto-skip).
+	if match := searchAutoPkgIndex(p.Vendor, product); match != "" {
+		// Return nil to fall through to Claude research in the main loop.
+		fmt.Fprintf(os.Stderr, "autopkg match %q → Claude ... ", match)
+		return nil
+	}
+
+	// --- Stage 4: not on Homebrew, not in AutoPkg → auto-skip ---
+	sources := []string{
+		"https://formulae.brew.sh/api/formula/" + product + ".json",
+		"https://formulae.brew.sh/api/cask/" + product + ".json",
+		autopkgIndexURL,
+	}
 	return &recipe{
 		Method:     "skip",
 		Identifier: "",
 		Confidence: "medium",
-		SourcesConsulted: []string{
-			"https://formulae.brew.sh/api/formula/" + product + ".json",
-			"https://formulae.brew.sh/api/cask/" + product + ".json",
-		},
+		SourcesConsulted: sources,
 		Rationale: fmt.Sprintf(
-			"No Homebrew formula or cask found for %q. Auto-skipped (not on Homebrew = 98%%+ chance of being non-macOS software).",
+			"No Homebrew formula/cask or AutoPkg recipe found for %q. Auto-skipped.",
 			p.Product),
 	}
 }
@@ -881,6 +889,131 @@ func probeHomebrew(kind, name string) bool {
 	found := resp.StatusCode == http.StatusOK
 	brewProbeCache[key] = found
 	return found
+}
+
+// -----------------------------------------------------------------------------
+// AutoPkg index (third-tier pre-filter)
+// -----------------------------------------------------------------------------
+
+const autopkgIndexURL = "https://raw.githubusercontent.com/jannheider/AutoPKGindex/main/index.json"
+
+// autoPkgNames is populated lazily on first call to searchAutoPkgIndex.
+// Each entry is a lowercased product name from the AutoPkg index.
+var autoPkgNames []string
+var autoPkgLoaded bool
+
+// loadAutoPkgIndex fetches the AutoPkg index and extracts unique lowercase
+// product names. Called once; errors are swallowed (the index is optional).
+func loadAutoPkgIndex() {
+	autoPkgLoaded = true
+	resp, err := brewAPIClient.Get(autopkgIndexURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  (autopkg index fetch failed: %v)\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "  (autopkg index returned %d)\n", resp.StatusCode)
+		return
+	}
+
+	var idx struct {
+		Identifiers map[string]struct {
+			Name string `json:"name"`
+		} `json:"identifiers"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&idx); err != nil {
+		fmt.Fprintf(os.Stderr, "  (autopkg index decode failed: %v)\n", err)
+		return
+	}
+
+	seen := make(map[string]struct{}, len(idx.Identifiers))
+	for _, entry := range idx.Identifiers {
+		name := strings.ToLower(strings.TrimSpace(entry.Name))
+		if name == "" || name == "%name%" || strings.HasPrefix(name, "++") {
+			continue
+		}
+		if _, ok := seen[name]; !ok {
+			seen[name] = struct{}{}
+			autoPkgNames = append(autoPkgNames, name)
+		}
+	}
+	sort.Strings(autoPkgNames)
+	fmt.Fprintf(os.Stderr, "  (autopkg index: %d unique product names loaded)\n", len(autoPkgNames))
+}
+
+// searchAutoPkgIndex does a fuzzy match of the NVD vendor/product against the
+// AutoPkg product names. Returns the matched AutoPkg name, or "" if no match.
+//
+// Matching strategy (in order of specificity):
+//  1. Exact match on product name.
+//  2. Product name with hyphens/underscores replaced by spaces and vice versa.
+//  3. AutoPkg name contains the product (for multi-word AutoPkg names like
+//     "Google Chrome" matching product "chrome").
+func searchAutoPkgIndex(vendor, product string) string {
+	if !autoPkgLoaded {
+		loadAutoPkgIndex()
+	}
+	if len(autoPkgNames) == 0 {
+		return ""
+	}
+
+	product = strings.ToLower(product)
+	vendor = strings.ToLower(vendor)
+
+	// Normalize: hyphens, underscores, dots become spaces.
+	normalized := strings.NewReplacer("-", " ", "_", " ", ".", " ").Replace(product)
+	// Squish: strip ALL non-alphanumeric chars for maximum fuzziness.
+	squished := squishName(product)
+
+	for _, name := range autoPkgNames {
+		nameSquished := squishName(name)
+		switch {
+		// Exact
+		case name == product:
+			return name
+		// Normalized (e.g., "rocket-chat" matches "rocket chat")
+		case name == normalized:
+			return name
+		// Squished (e.g., "rocketchat" matches "rocket.chat")
+		case nameSquished == squished && squished != "":
+			return name
+		}
+	}
+
+	// Substring: AutoPkg name contains product (e.g., "Google Chrome" contains "chrome").
+	// Only for products >= 4 chars to avoid false positives on short names.
+	if len(product) >= 4 {
+		for _, name := range autoPkgNames {
+			if strings.Contains(name, product) || strings.Contains(squishName(name), squished) {
+				return name
+			}
+		}
+	}
+
+	// Reverse substring: product contains the AutoPkg name.
+	if len(product) >= 6 {
+		for _, name := range autoPkgNames {
+			nameNorm := strings.NewReplacer(" ", "_", "-", "_").Replace(name)
+			if len(name) >= 4 && (strings.Contains(product, nameNorm) || strings.Contains(squished, squishName(name))) {
+				return name
+			}
+		}
+	}
+
+	return ""
+}
+
+// squishName strips all non-alphanumeric characters and lowercases.
+// "Rocket.Chat" → "rocketchat", "smart_switch" → "smartswitch".
+func squishName(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // -----------------------------------------------------------------------------
