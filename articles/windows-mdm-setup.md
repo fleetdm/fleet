@@ -49,13 +49,18 @@ With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet'
 
 ### Migrating from another MDM solution
 
-When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., ⁠400 or ⁠0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging).
+When migrating Windows hosts from another MDM, devices may fail to report MDM as "On." You might see enrollment errors (e.g., 400 or 0x8018000a) in [fleetd logs](https://fleetdm.com/guides/enroll-hosts#debugging). Local accounts can also become locked.
 
-These issues are caused by residual enrollment data, registry conflicts, tattooed policies, or third-party management agents from the previous MDM solution.
+These issues are usually caused by leftover enrollment data or third-party management agents from the previous MDM.
 
-[Run the combined remediation script](https://fleetdm.com/guides/scripts#manually-run-scripts) below on the affected hosts, then **reboot the device** and select **Refetch** on the host details:
+To fix this:
 
-- [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1): Comprehensive remediation script that detects and fixes common post-migration issues. Each fix only runs if the problem is detected. The script handles: incorrect MDM enrollment flags, stale enrollment records and caches, broken Workplace Join configuration, unreachable WSUS server configuration, orphaned EnterpriseMgmt scheduled tasks, and local account lockout caused by tattooed `LocalUsersAndGroups` policies.
+1. Run the [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1) script on affected hosts.
+2. Reboot the device.
+3. In Fleet, open the host and select **Refetch** on the **Host details** page.
+
+Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-run-scripts).
+
 
 **Conflicting RMM or management agents:** Third-party RMM agents (such as N-able/SolarWinds, ConnectWise, or Kaseya) installed alongside the previous MDM solution can interfere with Fleet's MDM enrollment and may cause Windows Update to stop functioning. Check for and remove any RMM agents that are no longer needed before or after migrating to Fleet.
 
@@ -153,9 +158,9 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ### Step 1: Create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the Intune admin user from step 1.
+1. Sign in to [Microsoft Intune](https://intune.microsoft.com/) using the Intune admin user from step 1.
 
-2. In the left-side bar, select **Devices > Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
+2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
 3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
 
@@ -163,7 +168,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Open your test workstation and follow these [Microsoft instructions](https://learn.microsoft.com/en-us/autopilot/add-devices#desktop-hash-export) to export your workstation's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
 
-2. In Intune, in the left-side bar, select **Devices > Enroll devices**. Under **Windows Autopilot Deployment Program** select **Devices** to navigate to the **Windows Autopilot devices** page.
+2. In Intune, in the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Devices** to navigate to the **Windows Autopilot devices** page.
 
 3. Select **Import** and import your CSV.
 
@@ -173,7 +178,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
-2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding**.
+2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Custom branding** in the sidebar.
 
 3. On the **Company Branding** page, select **Configure** or **Edit** under **Default sign-in experience**.
 

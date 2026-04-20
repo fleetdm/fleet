@@ -3,6 +3,8 @@ package mdmtest
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -27,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
@@ -38,6 +41,7 @@ import (
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
+	"golang.org/x/crypto/acme"
 )
 
 // TestAppleMDMClient simulates a macOS MDM client.
@@ -48,6 +52,8 @@ type TestAppleMDMClient struct {
 	SerialNumber string
 	// Model is the model of the simulated device.
 	Model string
+	// OSVersion is the version of the operating system of the simulated device.
+	OSVersion string
 
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
@@ -116,11 +122,24 @@ type TestAppleMDMClient struct {
 	// SCEP enrollment process.
 	scepKey *rsa.PrivateKey
 
+	acmeCertCA    *x509.Certificate
+	acmeCertCAKey *ecdsa.PrivateKey
+
+	acmeCert *x509.Certificate
+	acmeKey  *ecdsa.PrivateKey
+
+	// ACME client used to enroll via ACME if enrollment profile is ACME based.
+	acmeClient *acme.Client
+
 	// legacyIDeviceEnrollRef is an optional enroll reference that will be added to the MDMURL after the
 	// client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
 	// is not a full simulation of legacy enrollments (especially, as it related to IdP). Rather it
 	// is enough to test certain SCEP renewal scenarios for iOS/IPadOS devices
 	legacyIDeviceEnrollRef string
+
+	// skipParseEnrollProf, when set to true, will skip parsing the enrollment profile after
+	// fetching it. Instead, the raw profile bytes will still be stored in enrollProfBytes.
+	skipParseEnrollProf bool
 }
 
 // TestMDMAppleClientOption allows configuring a TestMDMClient.
@@ -147,6 +166,20 @@ func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
 	}
 }
 
+func WithSkipParseEnrollProf(skip bool) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.skipParseEnrollProf = skip
+	}
+}
+
+// Will set ACME CA certs, which is required if the device enrolls via the ACME flow
+func WithACMECerts(certCA *x509.Certificate, certKey *ecdsa.PrivateKey) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.acmeCertCA = certCA
+		c.acmeCertCAKey = certKey
+	}
+}
+
 // Will add the specified reference as a query parameter to the MDMURL after the
 // client fetches the enrollment profile but prior to attempting SCEP enrollment. Note that this
 // is not a full simulation of legacy enrollments (especially, as it relates to IdP). Rather it
@@ -168,6 +201,15 @@ type AppleEnrollInfo struct {
 	// AssignedManagedAppleID is the Assigned Managed Apple account for the device. Only used for
 	// account driven enrollment flows, so it will not always be available.
 	AssignedManagedAppleID string
+	// ACMEURL is the optional URL that will be used for ACME enrollment instead of the SCEP.
+	// Currently, this is only used for certain enrollment scenarios when
+	// config.mdm.apple_require_hardware_attestation is true.
+	ACMEURL string
+
+	// RawProfile contains the raw bytes of the enrollment profile. This is useful for tests that
+	// want to inspect the actual profile content. This field is populated regardless of the value
+	// of skipParseEnrollProf.
+	RawProfile []byte
 }
 
 // NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
@@ -344,8 +386,15 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 		c.EnrollInfo.MDMURL = parsedMDMURL.String()
 	}
 
-	if err := c.SCEPEnroll(); err != nil {
-		return fmt.Errorf("scep enroll: %w", err)
+	if c.acmeClient != nil {
+		// Do ACME enrollment
+		if err := c.ACMEEnroll(); err != nil {
+			return fmt.Errorf("ACME enroll: %w", err)
+		}
+	} else {
+		if err := c.SCEPEnroll(); err != nil {
+			return fmt.Errorf("scep enroll: %w", err)
+		}
 	}
 	if err := c.Authenticate(); err != nil {
 		return fmt.Errorf("authenticate: %w", err)
@@ -419,8 +468,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
-		Serial: c.SerialNumber,
-		UDID:   c.UUID,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -432,8 +483,10 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
 	buf, err := MachineInfoAsPKCS7(fleet.MDMAppleMachineInfo{
-		Serial: c.SerialNumber,
-		UDID:   c.UUID,
+		Serial:    c.SerialNumber,
+		UDID:      c.UUID,
+		Product:   c.Model,
+		OSVersion: c.OSVersion,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -619,10 +672,15 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	if err != nil {
 		return fmt.Errorf("verifying enrollment profile: %w", err)
 	}
+	if c.skipParseEnrollProf {
+		c.EnrollInfo.RawProfile = p7.Content
+		return nil
+	}
 	enrollInfo, err := ParseEnrollmentProfile(p7.Content)
 	if err != nil {
 		return fmt.Errorf("parse OTA SCEP profile: %w", err)
 	}
+	enrollInfo.RawProfile = p7.Content
 	c.EnrollInfo = *enrollInfo
 	return nil
 }
@@ -678,12 +736,27 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 
 		rawProfile = p7.Content
 	}
-
+	if c.skipParseEnrollProf {
+		c.EnrollInfo.RawProfile = rawProfile
+		return nil
+	}
 	enrollInfo, err := ParseEnrollmentProfile(rawProfile)
 	if err != nil {
 		return fmt.Errorf("parse enrollment profile: %w", err)
 	}
+	enrollInfo.RawProfile = rawProfile
 	c.EnrollInfo = *enrollInfo
+
+	if enrollInfo.ACMEURL != "" {
+		if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
+			return errors.New("ACME enrollment requested but no cert/key provided")
+		}
+		c.acmeClient = &acme.Client{
+			Key:          c.acmeCertCAKey,
+			DirectoryURL: enrollInfo.ACMEURL,
+			HTTPClient:   fleethttp.NewClient(),
+		}
+	}
 
 	return nil
 }
@@ -830,6 +903,96 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 	return nil
 }
 
+func (c *TestAppleMDMClient) ACMEEnroll() error {
+	if c.acmeClient == nil {
+		return errors.New("ACME URL not set in enrollment profile")
+	}
+	ctx := context.Background()
+	_, err := c.acmeClient.Register(ctx, &acme.Account{}, func(tosURL string) bool { return true })
+	if err != nil {
+		return fmt.Errorf("ACME register account: %w", err)
+	}
+
+	order, err := c.acmeClient.AuthorizeOrder(ctx, []acme.AuthzID{{Type: "permanent-identifier", Value: c.SerialNumber}})
+	if err != nil {
+		return fmt.Errorf("ACME authorize order: %w", err)
+	}
+
+	if len(order.AuthzURLs) != 1 {
+		// We only create on authz for an order
+		return fmt.Errorf("expected 1 authz URL, got %d", len(order.AuthzURLs))
+	}
+
+	authz, err := c.acmeClient.GetAuthorization(ctx, order.AuthzURLs[0])
+	if err != nil {
+		return fmt.Errorf("ACME get authorization: %w", err)
+	}
+
+	if len(authz.Challenges) != 1 {
+		// We only create one challenge for an authz
+		return fmt.Errorf("expected 1 challenge, got %d", len(authz.Challenges))
+	}
+
+	if authz.Challenges[0].Type != "device-attest-01" {
+		return fmt.Errorf("expected challenge type device-attest-01, got %s", authz.Challenges[0].Type)
+	}
+
+	challenge := authz.Challenges[0]
+	leafCert, err := testhelpers.BuildAttestationLeafCert(c.acmeCertCA, c.acmeCertCAKey, c.SerialNumber, challenge.Token)
+	if err != nil {
+		return fmt.Errorf("build attestation leaf cert: %w", err)
+	}
+	payload, err := testhelpers.BuildAppleDeviceAttestationPayload(leafCert, c.acmeCertCA)
+	if err != nil {
+		return fmt.Errorf("build Apple device attestation payload: %w", err)
+	}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+	challenge.Payload = jsonPayload
+	challenge, err = c.acmeClient.Accept(ctx, challenge)
+	if err != nil {
+		return fmt.Errorf("ACME accept challenge: %w", err)
+	}
+
+	if challenge.Status != "valid" {
+		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
+	}
+
+	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber)
+	if err != nil {
+		return fmt.Errorf("generate CSR DER: %w", err)
+	}
+
+	// crypto/acme lib base64encodes inside the method, so we have to decode it again here
+	decoded, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return fmt.Errorf("decode CSR DER: %w", err)
+	}
+
+	der, _, err := c.acmeClient.CreateOrderCert(ctx, order.FinalizeURL, decoded, false)
+	if err != nil {
+		return fmt.Errorf("ACME create order cert and fetch cert: %w", err)
+	}
+
+	if len(der) != 1 {
+		// Since we don't bundle in CreateOrderCert, we only expect the leaf cert that we can sign requests with.
+		return fmt.Errorf("expected 1 certificate in ACME response, got %d", len(der))
+	}
+
+	acmeCert, err := x509.ParseCertificate(der[0])
+	if err != nil {
+		return fmt.Errorf("parse x509 ACME certificate: %w", err)
+	}
+
+	c.acmeCert = acmeCert
+	// We can reuse the same key we used for the CSR since it's the one that matches the cert
+	c.acmeKey = acmeKey
+
+	return nil
+}
+
 // Authenticate sends the Authenticate message to the MDM server (Check In protocol).
 func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
@@ -854,9 +1017,11 @@ func (c *TestAppleMDMClient) Authenticate() error {
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	pushMagic := "pushmagic" + c.SerialNumber
 	token := []byte("token" + c.SerialNumber)
+	unlockToken := []byte("unlocktoken" + c.SerialNumber)
 	if c.SerialNumber == "" {
 		pushMagic = "pushmagic" + c.Identifier()
 		token = []byte("token" + c.Identifier())
+		unlockToken = []byte("unlocktoken" + c.Identifier())
 	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
@@ -865,6 +1030,7 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 		"NotOnConsole": "false",
 		"PushMagic":    pushMagic,
 		"Token":        token,
+		"UnlockToken":  unlockToken,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID
@@ -1188,6 +1354,16 @@ func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any
 	return &p, nil
 }
 
+func (c *TestAppleMDMClient) getSignerCertAndKey() (*x509.Certificate, crypto.PrivateKey, error) {
+	if c.scepCert != nil && c.scepKey != nil {
+		return c.scepCert, c.scepKey, nil
+	}
+	if c.acmeCert != nil && c.acmeKey != nil {
+		return c.acmeCert, c.acmeKey, nil
+	}
+	return nil, nil, errors.New("no signer certificate and key available")
+}
+
 func (c *TestAppleMDMClient) request(contentType string, payload map[string]any) (*http.Response, error) {
 	body, err := plist.Marshal(payload)
 	if err != nil {
@@ -1198,7 +1374,11 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 	if err != nil {
 		return nil, fmt.Errorf("create signed data: %w", err)
 	}
-	err = signedData.AddSigner(c.scepCert, c.scepKey, pkcs7.SignerInfoConfig{})
+	cert, key, err := c.getSignerCertAndKey()
+	if err != nil {
+		return nil, fmt.Errorf("get signer certificate and key: %w", err)
+	}
+	err = signedData.AddSigner(cert, key, pkcs7.SignerInfoConfig{})
 	if err != nil {
 		return nil, fmt.Errorf("add signer: %w", err)
 	}
@@ -1237,21 +1417,12 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 // ParseEnrollmentProfile parses the enrollment profile and returns the parsed information as EnrollInfo.
 func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	var enrollmentProfile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	if err := plist.Unmarshal(mobileConfig, &enrollmentProfile); err != nil {
 		return nil, fmt.Errorf("unmarshal enrollment profile: %w", err)
 	}
-	payloadContent := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})
 
-	scepChallenge, ok := payloadContent["Challenge"].(string)
-	if !ok || scepChallenge == "" {
-		return nil, errors.New("SCEP Challenge field not found")
-	}
-	scepURL, ok := payloadContent["URL"].(string)
-	if !ok || scepURL == "" {
-		return nil, errors.New("SCEP URL field not found")
-	}
 	mdmURL, ok := enrollmentProfile.PayloadContent[1]["ServerURL"].(string)
 	if !ok || mdmURL == "" {
 		return nil, errors.New("MDM ServerURL field not found")
@@ -1269,12 +1440,77 @@ func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 		assignedManagedAppleID = assignedManagedAppleIDVal.(string)
 	}
 
-	return &AppleEnrollInfo{
-		SCEPChallenge:          scepChallenge,
-		SCEPURL:                scepURL,
+	enrollInfo := &AppleEnrollInfo{
 		MDMURL:                 mdmURL,
 		AssignedManagedAppleID: assignedManagedAppleID,
-	}, nil
+	}
+
+	var err error
+	payloadContent, ok := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]any)
+	if ok {
+		enrollInfo, err = parseSCEPEnrollmentPayload(*enrollInfo, payloadContent)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Check for ACME
+		_, ok := enrollmentProfile.PayloadContent[0]["DirectoryURL"].(string)
+		_, ok2 := enrollmentProfile.PayloadContent[0]["HardwareBound"].(bool)
+		_, ok3 := enrollmentProfile.PayloadContent[0]["Attest"].(bool)
+		if !ok || !ok2 || !ok3 {
+			// One of ACME fields are not present (we don't care about the value, but they need to be present)
+			return nil, errors.New("not a valid ACME or SCEP enrollment profile")
+		}
+
+		enrollInfo, err = parseACMEEnrollmentPayload(*enrollInfo, enrollmentProfile.PayloadContent[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return enrollInfo, nil
+}
+
+func parseSCEPEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[string]any) (*AppleEnrollInfo, error) {
+	scepChallenge, ok := payloadContent["Challenge"].(string)
+	if !ok || scepChallenge == "" {
+		return nil, errors.New("SCEP Challenge field not found")
+	}
+	scepURL, ok := payloadContent["URL"].(string)
+	if !ok || scepURL == "" {
+		return nil, errors.New("SCEP URL field not found")
+	}
+
+	enrollInfo.SCEPChallenge = scepChallenge
+	enrollInfo.SCEPURL = scepURL
+	return &enrollInfo, nil
+}
+
+func parseACMEEnrollmentPayload(enrollInfo AppleEnrollInfo, payloadContent map[string]any) (*AppleEnrollInfo, error) {
+	directoryURL, ok := payloadContent["DirectoryURL"].(string)
+	if !ok || directoryURL == "" {
+		return nil, errors.New("ACME DirectoryURL field not found")
+	}
+
+	// TODO CLEAN UP
+	/*
+			PayloadIdentifier: BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1
+		  PayloadUUID: BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1
+		  ClientIdentifier: 1c0a81b9-1f30-4393-aa5d-0d4064640233
+		  DirectoryURL: http://127.0.0.1:63768/api/mdm/acme/0639af7d-7009-4ac2-9b73-839984323b68/directory
+		  PayloadDisplayName: Fleet Identity ACME
+		  PayloadType: com.apple.security.acme
+		  HardwareBound: true
+		  KeySize: 384
+		  PayloadVersion: 1
+		  Subject: [[[CN %SerialNumber%]]]
+		  KeyType: ECSECPrimeRandom
+		  Attest: true
+	*/
+
+	// TODO: Directory URL or just base URL with identifier
+	enrollInfo.ACMEURL = directoryURL
+	return &enrollInfo, nil
 }
 
 // numbers plus capital letters without I, L, O for readability

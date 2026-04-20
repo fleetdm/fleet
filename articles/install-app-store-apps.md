@@ -30,6 +30,24 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
+#### Install Android web app (web clip)
+
+> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.
+
+To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
+
+The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
+
+**Example request**
+
+```sh
+curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
+  -H "Authorization: Bearer <your_fleet_api_token>" \
+  -F 'title=Acme web app' \
+  -F 'url=https://app.acme.com' \
+  -F 'icon=@/path/to/app-icon.png'
+```
+
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
@@ -62,6 +80,8 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 > 
 > To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
+> VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries) to handle intermittent issues.
+
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
@@ -73,7 +93,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Configuration
 
-Currently, editing configuration is only supported for Android apps. And currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+Currently, editing configurations is only supported for Android apps. Only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are currently supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 

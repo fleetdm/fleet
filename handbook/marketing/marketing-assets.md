@@ -15,6 +15,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Format | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Pitch: Fleet for IT engineers & admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d465263e50_2_189#slide=id.g3d465263e50_2_189) | Slides | The official pitch deck | <nobr>Apr-10-2026</nobr> |
 | [Leave Behind Deck](https://docs.google.com/presentation/d/1Wxb4IedJ0cEXJQwvKCdYf8OatXk4sG1QTkiNLB3h11E/edit) | Slides | Presentation tool for internal teams to present Fleet's value. | <nobr>Feb‑18‑2026</nobr> |
 | [Additional slides for pitch deck](https://docs.google.com/presentation/d/1l6eh1ow4Izi9lv-IrrYV1UjNT4VKbfk5lJHDJUgnDVM/edit) | Slides | Customizable slides for tailored prospect presentations. | <nobr>Feb‑18‑2026</nobr> |
 | [Fleet in 3 Minutes (VIDEO)](https://www.youtube.com/watch?v=q1Tm3IBcx24) | Video | A short 3-minute demo of how Fleet works. | <nobr>May‑13‑2026</nobr> |
@@ -27,6 +28,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
+|[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |<nobr>Apr-15-2026</nobr> |
 
 ### Sales enablement
 
@@ -52,6 +54,15 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [ROI Spreadsheet](https://docs.google.com/spreadsheets/d/14Cfj77ynOB6z4pmb9DD7HNRGo0kcKJuEIifgnz-YO50/edit) | — | Financial value justification and ROI calculator for deals. | <nobr>Aug‑14‑2023</nobr> |
 | [Product Roadmap](https://docs.google.com/document/d/16si8Nkh0F25opUMpZYm6XwU8LEhGd7H4eOzPKFz8jGw/edit) | — | Future development vision for open roadmap conversations. | <nobr>Jan‑20‑2021</nobr> |
 | [Gartner IT Symposium 2025 Presentation](https://drive.google.com/file/d/1HK1QXA2kOCeOoOG1E0-tk7-xwBhQ2QMa/view) | — | Outcomes and value achieved via GitOps. (by Allen Houchins) | <nobr>Oct‑21‑2024</nobr> |
+
+
+## Webinar Recordings
+
+| Asset | Description | Speakers | Date updated |  Social Sharing /Registration | Direct Replay | 
+| --- | --- | --- | --- | --- | --- |
+| **Device management that actually works for IT** | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> | [Registration]() | [Direct Replay](https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e) |
+| **Beyond the Hype: Practical AI for Device Management** | Moving from manual MDM engineering workflows to AI | Allen Houchins - Fleet, Harley Williams and Mike Meyer - Foursquare | <nobr>2026-04-02</nobr>| [Registration](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management) | [Direct Replay](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management/watch) |
+
 
 
 ## 🔵 Editorial & thought leadership
@@ -203,6 +214,7 @@ How-to guides, step-by-step walkthroughs, and reference material for IT admins a
 | ☁️ AWS | [Deploy Fleet on AWS ECS](https://fleetdm.com/guides/deploy-fleet-on-aws-ecs) | Information for deploying Fleet on AWS ECS. | Ben Edwards | <nobr>2021‑10‑06</nobr> |
 | 🐳 Container | [Deploy Fleet on Kubernetes](https://fleetdm.com/guides/deploy-fleet-on-kubernetes) | Learn how to deploy Fleet on Kubernetes. | Mike Arpaia | <nobr>2017‑11‑18</nobr> |
 | 🐧 Linux | [Deploy Fleet on CentOS](https://fleetdm.com/guides/deploy-fleet-on-centos) | A guide to deploy Fleet on CentOS. | Mike Arpaia | <nobr>2017‑09‑22</nobr> |
+| 🐧 Linux | [Deploy Fleet on Proxmox](https://fleetdm.com/guides/deploy-fleet-on-proxmox) | A guide to deploy Fleet on Proxmox. | Anthony Critelli | <nobr>2026‑04‑07</nobr> |
 
 ### MDM setup & enrollment
 

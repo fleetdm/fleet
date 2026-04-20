@@ -10,10 +10,12 @@ import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -25,7 +27,6 @@ import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
-import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
@@ -72,7 +73,7 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
-import CompanyPortal from "./CompanyPortal";
+
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -259,7 +260,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
-  "adobe acrobat": AdobeAcrobat,
+  "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
@@ -313,10 +314,12 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -378,6 +381,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,

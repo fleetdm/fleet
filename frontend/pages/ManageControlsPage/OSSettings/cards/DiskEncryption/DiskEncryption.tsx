@@ -94,7 +94,7 @@ const DiskEncryption = ({
       refetchOnWindowFocus: false,
       retry: false,
       enabled: currentTeamId !== 0,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (res) => {
         const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
@@ -275,7 +275,6 @@ const DiskEncryption = ({
           )}
           <div className="button-wrap">
             <GitOpsModeTooltipWrapper
-              tipOffset={-12}
               renderChildren={(d) => (
                 <Button
                   disabled={d}

@@ -929,12 +929,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   ranScript: (activity: IActivity) => {
-    const { script_name, host_display_name } = activity.details || {};
+    const { script_name, host_display_name, from_setup_experience } =
+      activity.details || {};
     return (
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        <b>{host_display_name}</b>.
+        <b>{host_display_name}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -1281,6 +1283,7 @@ const TAGGED_TEMPLATES = {
       software_title: title,
       status,
       source,
+      from_setup_experience,
     } = details;
 
     const showSoftwarePackage =
@@ -1293,7 +1296,8 @@ const TAGGED_TEMPLATES = {
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.
+        <b>{hostName}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -1497,12 +1501,27 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledInstallSoftware: (activity: IActivity) => {
+    const {
+      software_title: title,
+      host_display_name: hostName,
+      from_setup_experience: fromSetupExperience,
+    } = activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>
+        {fromSetupExperience ? " during setup experience" : ""}.
+      </>
+    );
+  },
+  canceledSetupExperience: (activity: IActivity) => {
     const { software_title: title, host_display_name: hostName } =
       activity.details || {};
     return (
       <>
         {" "}
-        canceled <b>{title}</b> install on <b>{hostName}</b>.
+        canceled setup experience on <b>{hostName}</b> because <b>{title}</b>{" "}
+        failed to install.
       </>
     );
   },
@@ -1799,6 +1818,13 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
+  clearedPasscode: (activity: IActivity) => {
+    return (
+      <>
+        cleared the passcode on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1957,15 +1983,11 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
-    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.EnabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
-    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.DisabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
@@ -2156,6 +2178,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
     }
+    case ActivityType.CanceledSetupExperience: {
+      return TAGGED_TEMPLATES.canceledSetupExperience(activity);
+    }
     case ActivityType.CreatedSavedQuery: {
       return TAGGED_TEMPLATES.createdSavedQuery(activity);
     }
@@ -2203,6 +2228,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.ClearedPasscode: {
+      return TAGGED_TEMPLATES.clearedPasscode(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

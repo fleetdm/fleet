@@ -15,26 +15,26 @@ on:
       - patch-*
       - prepare-*
     paths:
-      - 'cmd/fleetctl/**.go'
-      - 'pkg/**.go'
-      - 'server/context/**.go'
-      - 'orbit/**.go'
-      - 'ee/fleetctl/**.go'
-      - 'tools/fleetctl-docker/**'
-      - 'tools/wix-docker/**'
-      - 'tools/bomutils-docker/**'
-      - '.github/workflows/test-packaging.yml'
+      - "cmd/fleetctl/**.go"
+      - "pkg/**.go"
+      - "server/context/**.go"
+      - "orbit/**.go"
+      - "ee/fleetctl/**.go"
+      - "tools/fleetctl-docker/**"
+      - "tools/wix-docker/**"
+      - "tools/bomutils-docker/**"
+      - ".github/workflows/test-packaging.yml"
   pull_request:
     paths:
-      - 'cmd/fleetctl/**.go'
-      - 'pkg/**.go'
-      - 'server/context/**.go'
-      - 'orbit/**.go'
-      - 'ee/fleetctl/**.go'
-      - 'tools/fleetctl-docker/**'
-      - 'tools/wix-docker/**'
-      - 'tools/bomutils-docker/**'
-      - '.github/workflows/test-packaging.yml'
+      - "cmd/fleetctl/**.go"
+      - "pkg/**.go"
+      - "server/context/**.go"
+      - "orbit/**.go"
+      - "ee/fleetctl/**.go"
+      - "tools/fleetctl-docker/**"
+      - "tools/wix-docker/**"
+      - "tools/bomutils-docker/**"
+      - ".github/workflows/test-packaging.yml"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15]
+        os: [ubuntu-latest, macos-15, macos-26]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -87,7 +87,7 @@ jobs:
       - name: Install wine and wix
         if: startsWith(matrix.os, 'macos')
         run: |
-          ./it-and-security/lib/macos/scripts/install-wine.sh -n
+          ./assets/scripts/install-wine.sh -n
           wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
           mkdir wix
           unzip wix.zip -d wix

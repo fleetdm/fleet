@@ -359,8 +359,8 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -624,8 +624,8 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -684,6 +684,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  clearPasscode: (id: number) => {
+    const { HOST_CLEAR_PASSCODE } = endpoints;
+    return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
   },
 
   resendProfile: (hostId: number, profileUUID: string): Promise<void> => {

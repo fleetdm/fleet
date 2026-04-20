@@ -2,7 +2,6 @@ import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import TooltipTruncatedText from ".";
 import DataSet from "../DataSet";
-import Checkbox from "../forms/fields/Checkbox";
 
 import "../../index.scss";
 

@@ -79,7 +79,7 @@ const RecoveryLockPasswordModal = ({
     if (canRotatePassword) {
       return (
         <Button
-          variant="text-link"
+          variant="inverse"
           onClick={onRotatePassword}
           disabled={isRotating}
           className={`${baseClass}__rotate-button`}
@@ -132,7 +132,7 @@ const RecoveryLockPasswordModal = ({
             </p>
             {recoveryLockData?.auto_rotate_at && (
               <InfoBanner color="yellow">
-                Password rotates automatically by{" "}
+                Password rotates automatically after{" "}
                 {monthDayTimeFormat(recoveryLockData.auto_rotate_at)}.
               </InfoBanner>
             )}

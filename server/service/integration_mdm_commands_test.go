@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -11,11 +12,13 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,6 +112,16 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	newUnlockActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeUnlockedHost{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "host_platform": %q}`, host.ID, host.DisplayName(), host.FleetPlatform()), 0)
 	require.NotEqual(t, unlockActID, newUnlockActID)
+
+	// simulate passage of time: backdate unlock_ref so that CleanAppleMDMLock's
+	// 5-minute guard doesn't block the upcoming Idle from clearing the lock state.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, mysql.MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
 
 	// as soon as the host sends an Idle MDM request, it is marked as unlocked
 	cmd, err = mdmClient.Idle()
@@ -239,8 +252,27 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}))
 	s.setSkipWorkerJobs(t)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
 	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ipados", devices[1].SerialNumber)
+
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// empty the command queue for both hosts
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = iPadOSMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iPadOSMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
@@ -302,7 +334,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// refresh the host's status, it is now locked
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -365,7 +397,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// Get host data
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -728,4 +760,44 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 		})
 	}
+}
+
+func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
+	t := s.T()
+
+	s.enableABM(t.Name())
+
+	// Create iOS host and enroll in MDM
+	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
+
+	// Trigger ClearPasscode endpoint
+	var clearPasscodeResp clearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusOK, &clearPasscodeResp)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
+	require.Equal(t, "ios", clearPasscodeResp.Platform)
+
+	// Check host and global activity
+	s.lastHostActivityMatches(iosHost.ID, fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+	s.lastActivityMatches(fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+
+	// Check in with the iOS device to receive the ClearPasscode command
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, cmd.Command.RequestType)
+	b64Encoded := base64.StdEncoding.EncodeToString([]byte("unlocktoken" + iosMDMClient.SerialNumber))
+	require.Contains(t, string(cmd.Raw), b64Encoded)
+
+	// Acknowledge the ClearPasscode command
+	_, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// Fetch the command result and check the response is acknowledged (+ Payload has the expected unlock token value)
+	commandResultResp := &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: clearPasscodeResp.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
+	require.NotNil(t, commandResultResp.Results[0].Result)
 }

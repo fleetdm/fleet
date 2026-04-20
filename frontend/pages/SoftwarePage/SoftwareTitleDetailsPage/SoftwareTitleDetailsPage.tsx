@@ -8,6 +8,7 @@ import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ISoftwareTitleDetails } from "interfaces/software";
@@ -60,8 +61,9 @@ const SoftwareTitleDetailsPage = ({
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const autoOpenGitOpsYamlModal =
-    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
+    location.query.gitops_yaml === "true" && gitOpsModeEnabled;
 
   const {
     currentTeamId,
@@ -159,7 +161,6 @@ const SoftwareTitleDetailsPage = ({
         softwareTitle={title}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
         isLoading={isSoftwareTitleLoading}
         onToggleViewYaml={onToggleViewYaml}

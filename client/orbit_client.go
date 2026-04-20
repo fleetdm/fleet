@@ -61,6 +61,10 @@ type OrbitClient struct {
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
 	receiverUpdateCancelFunc context.CancelFunc
 
+	// euaToken is a one-time Fleet-signed JWT from Windows MDM enrollment,
+	// sent during orbit enrollment to link the IdP account without prompting.
+	euaToken string
+
 	// hostIdentityCertPath is the file path to the host identity certificate issued using SCEP.
 	//
 	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
@@ -209,6 +213,11 @@ func NewOrbitClient(
 		receiverUpdateCancelFunc:   cancelFunc,
 		hostIdentityCertPath:       hostIdentityCertPath,
 	}, nil
+}
+
+// SetEUAToken sets a one-time EUA token to include in the enrollment request.
+func (oc *OrbitClient) SetEUAToken(token string) {
+	oc.euaToken = token
 }
 
 // TriggerOrbitRestart triggers a orbit process restart.
@@ -512,6 +521,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,
+		EUAToken:          oc.euaToken,
 	}
 	var resp fleet.EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)

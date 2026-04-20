@@ -7,6 +7,7 @@ import createMockUser from "__mocks__/userMock";
 import createMockTeam from "__mocks__/teamMock";
 
 import HostActionsDropdown from "./HostActionsDropdown";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
@@ -1404,7 +1405,7 @@ describe("Host Actions Dropdown", () => {
   });
 
   describe("Render options only available for iOS and iPadOS", () => {
-    it("renders only the transfer, wipe, and delete options for iOS", async () => {
+    it("renders only the transfer, wipe, clear passcode, and delete options for iOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1433,6 +1434,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Transfer")).toBeInTheDocument();
       expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
       expect(screen.queryByText("Live report")).not.toBeInTheDocument();
@@ -1442,7 +1444,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
+    it("renders only the transfer, wipe, clear passcode, and delete options for iPadOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1471,6 +1473,7 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.queryByText("Transfer")).toBeInTheDocument();
       expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
       expect(screen.queryByText("Live report")).not.toBeInTheDocument();
@@ -1512,6 +1515,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
       expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
@@ -1551,6 +1555,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Transfer")).toBeInTheDocument();
       expect(screen.getByText("Delete")).toBeInTheDocument();
       expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
@@ -1734,5 +1739,253 @@ describe("Host Actions Dropdown", () => {
         ).toBeInTheDocument();
       });
     });
+  });
+
+  describe("Clear passcode action", () => {
+    it("renders the action when an iOS host is enrolled in MDM", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+    });
+
+    it("does not render for below maintainer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalTechnician: true,
+            isGlobalAdmin: false,
+            isTeamMaintainer: false,
+            isTeamAdmin: false,
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      // Component returns null when no options are available for this role,
+      // so neither the Actions button nor Clear passcode are rendered.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
+    it("does not render for non-iOS hosts", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
+    it("is hidden if Apple MDM is not enabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: false,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
+    it("is hidden on Fleet free", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: false,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+    });
+
+    it.each<HostMdmDeviceStatusUIState>([
+      "locked",
+      "locking",
+      "unlocking",
+      "locating",
+    ])("is disabled with tooltip when host status is %s", async (status) => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="ios"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus={status}
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Clear passcode");
+      expect(option).toBeInTheDocument();
+      expect(option).toHaveAttribute("aria-disabled", "true");
+
+      await user.hover(option);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            /Clear passcode is unavailable while host is in Lost Mode./i
+          )
+        ).toBeInTheDocument();
+      });
+    });
+
+    it.each<HostMdmDeviceStatusUIState>(["wiping", "wiped"])(
+      "is disabled with tooltip when pending wipe",
+      async (status) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isGlobalAdmin: true,
+              isPremiumTier: true,
+              isMacMdmEnabledAndConfigured: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="ios"
+            hostMdmEnrollmentStatus="On (company-owned)"
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        const option = screen.getByText("Clear passcode");
+        expect(option).toBeInTheDocument();
+        expect(option).toHaveAttribute("aria-disabled", "true");
+
+        await user.hover(option);
+
+        await waitFor(() => {
+          expect(
+            screen.getByText(
+              /Clear passcode is unavailable while host is pending wipe./i
+            )
+          ).toBeInTheDocument();
+        });
+      }
+    );
   });
 });

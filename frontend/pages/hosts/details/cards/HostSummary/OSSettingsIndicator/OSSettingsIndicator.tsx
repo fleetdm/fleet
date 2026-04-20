@@ -4,7 +4,7 @@ import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import CustomLink from "components/CustomLink";
+import Button from "components/buttons/Button";
 
 const baseClass = "os-settings-indicator";
 
@@ -75,7 +75,7 @@ const countHostProfilesByStatus = (
 };
 
 /**
- * Returns the displayed status of the macOS settings field based on the
+ * Returns the displayed status of the apple settings field based on the
  * profile statuses.
  * If any profile has a status of "failed", the status will be displayed as "Failed" and
  * continues to fall through to "Pending" and "Verifying" if any profiles have those statuses.
@@ -122,15 +122,16 @@ const OSSettingsIndicator = ({
 
   const statusDisplayOption = STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  // Using custom link for underline styling
   return (
     <span className={`${baseClass} info-flex__data`}>
       <Icon name={statusDisplayOption.iconName} />
-      <CustomLink
-        text={displayStatus}
-        customClickHandler={onClick}
+      <Button
+        variant="link"
+        onClick={onClick}
         className={`${baseClass}__button`}
-      />
+      >
+        {displayStatus}
+      </Button>
     </span>
   );
 };

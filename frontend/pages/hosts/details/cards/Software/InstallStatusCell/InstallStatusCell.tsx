@@ -544,7 +544,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
