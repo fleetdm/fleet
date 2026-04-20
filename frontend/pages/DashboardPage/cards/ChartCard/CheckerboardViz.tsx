@@ -1,6 +1,10 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 
+import Moon from "components/icons/Moon";
+import Sun from "components/icons/Sun";
+import { IconSizes } from "styles/var/icon_sizes";
+
 import { IFormattedDataPoint } from "./types";
 
 const baseClass = "checkerboard-viz";
@@ -20,34 +24,6 @@ const formatHourLabel = (hourVal: number): string => {
   if (hourVal === 12) return "12pm";
   return `${hourVal - 12}pm`;
 };
-
-// Font Awesome "moon" (classic solid) — crescent moon
-// eslint-disable-next-line react/prop-types
-const MoonIcon = ({ size = 16, color = "#6C7A89" }) => (
-  <svg
-    viewBox="0 0 384 512"
-    width={size}
-    height={size}
-    fill={color}
-    aria-hidden="true"
-  >
-    <path d="M223.5 32C100 32 0 132.3 0 256s100 224 223.5 224c60.6 0 115.5-24.2 155.8-63.4 5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6-96.9 0-175.5-78.8-175.5-176 0-65.8 36-123.1 89.3-153.3 6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z" />
-  </svg>
-);
-
-// Font Awesome "sun-bright" (classic solid) — sun with rays
-// eslint-disable-next-line react/prop-types
-const SunIcon = ({ size = 16, color = "#6C7A89" }) => (
-  <svg
-    viewBox="0 0 512 512"
-    width={size}
-    height={size}
-    fill={color}
-    aria-hidden="true"
-  >
-    <path d="M256 0c-13.3 0-24 10.7-24 24v56c0 13.3 10.7 24 24 24s24-10.7 24-24V24c0-13.3-10.7-24-24-24zm0 408c-13.3 0-24 10.7-24 24v56c0 13.3 10.7 24 24 24s24-10.7 24-24v-56c0-13.3-10.7-24-24-24zM488 232h-56c-13.3 0-24 10.7-24 24s10.7 24 24 24h56c13.3 0 24-10.7 24-24s-10.7-24-24-24zM80 232H24c-13.3 0-24 10.7-24 24s10.7 24 24 24h56c13.3 0 24-10.7 24-24s-10.7-24-24-24zm340.5-91.2-39.6 39.6c-9.4 9.4-9.4 24.6 0 33.9 9.4 9.4 24.6 9.4 33.9 0l39.6-39.6c9.4-9.4 9.4-24.6 0-33.9s-24.6-9.4-33.9 0zM97.1 337.7l-39.6 39.6c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39.6-39.6c-9.4-9.4-24.6-9.4-33.9 0-9.4-9.4-9.4-24.6 0-33.9zm316.8 73.5c9.4-9.4 9.4-24.6 0-33.9l-39.6-39.6c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l39.6 39.6c9.4 9.4 24.6 9.4 33.9 0zM131 180.3l-39.6-39.6c-9.4-9.4-24.6-9.4-33.9 0s-9.4 24.6 0 33.9l39.6 39.6c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9zM256 152c-57.4 0-104 46.6-104 104s46.6 104 104 104 104-46.6 104-104-46.6-104-104-104z" />
-  </svg>
-);
 
 interface ICellData {
   dayIndex: number;
@@ -249,7 +225,13 @@ const CheckerboardViz = ({
 
   const showYAxis = !is24h;
   const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
-  const iconSize = 16 * scale;
+  const pickIconSize = (px: number): IconSizes => {
+    if (px <= 13) return "small";
+    if (px <= 15) return "small-medium";
+    if (px <= 20) return "medium";
+    return "large";
+  };
+  const iconSize = pickIconSize(16 * scale);
 
   return (
     <div
@@ -286,9 +268,9 @@ const CheckerboardViz = ({
                     }}
                   >
                     {section.type === "day" ? (
-                      <SunIcon size={iconSize} color="#9FAAB5" />
+                      <Sun size={iconSize} />
                     ) : (
-                      <MoonIcon size={iconSize} color="#9FAAB5" />
+                      <Moon size={iconSize} />
                     )}
                   </div>
                 );
