@@ -13,9 +13,7 @@ type contextKeyRouteTemplate struct{}
 var routeTemplateKey = contextKeyRouteTemplate{}
 
 // RouteTemplateRequestFunc captures the gorilla/mux route template for the
-// matched request and stores it in the context. Register as a
-// kithttp.ServerBefore option on an endpointer so downstream middleware can
-// read the matched route template via RouteTemplateFromContext.
+// matched request and stores it in the context.
 func RouteTemplateRequestFunc(ctx context.Context, r *http.Request) context.Context {
 	route := mux.CurrentRoute(r)
 	if route == nil {

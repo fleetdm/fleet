@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +12,6 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -242,7 +240,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.False(t, *called)
 
 		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user, allow-list entry for non-catalog endpoint is still denied", func(t *testing.T) {
