@@ -1,0 +1,1 @@
+* Re-push MDM commands to Apple devices that responded with NotNow. Previously the pending-commands cron excluded any enrollment whose command had a NotNow response, which could leave commands waiting until the device reconnected on its own.

@@ -7476,6 +7476,23 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
+
+	// A NotNow response from a device should NOT remove it from the list of
+	// pending enrollments — Apple asked the device to try again later, and we
+	// need to keep re-pushing so the command is eventually picked up. See #40693.
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: hosts[1].UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid1,
+		Status:      "NotNow",
+		Raw:         []byte(rawCmd1),
+	})
+	require.NoError(t, err)
+
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
 }
 
 func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {

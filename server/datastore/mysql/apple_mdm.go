@@ -6531,7 +6531,12 @@ FROM
     AND ncr.id = neq.id
 WHERE
     neq.active = 1
-    AND ncr.status IS NULL
+    -- Include commands that have never been answered (status IS NULL) as well
+    -- as commands the device answered with NotNow. NotNow means Apple asked
+    -- the device to try again later, and without re-pushing these the command
+    -- would otherwise wait for the device to reconnect on its own schedule.
+    -- See #40693.
+    AND (ncr.status IS NULL OR ncr.status = 'NotNow')
     AND neq.created_at >= NOW() - INTERVAL 7 DAY
     AND neq.priority IN (0, 1)
 ORDER BY RAND()
