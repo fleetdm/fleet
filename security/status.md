@@ -188,6 +188,13 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 12:06:46
 
+### [CVE-2026-33810](https://nvd.nist.gov/vuln/detail/CVE-2026-33810)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:**: `fleetctl@v4.84.0`,`pkg:golang/stdlib@1.26.1`
+- **Action statement:** `Low probability of exploit: requires the fleetctl admin to (1) trust a private/enterprise CA that uses excluded DNS name constraints, (2) an attacker able to obtain a cert under that CA with a wildcard SAN whose case differs from the excluded constraint, and (3) a MITM or DNS-hijack position between the admin's workstation and the Fleet server. If all conditions are met, the attacker can impersonate the Fleet server over TLS and capture the admin's API token. The Fleet server itself is unaffected. Upgrade to a fleetctl build using Go >= 1.26.2 when available.`
+- **Timestamp:** 2026-04-20 14:07:42
+
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -203,6 +210,21 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/google.golang.org/grpc`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 19:20:41
+
+### [CVE-2026-32280](https://nvd.nist.gov/vuln/detail/CVE-2026-32280)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:**: `fleetctl@v4.83.2`,`fleetctl@v4.83.1`,`fleetctl@v4.83.0`,`fleetctl@v4.82.2`,`fleetctl@v4.82.1`,`fleetctl@v4.82.0`,`fleetctl@v4.81.3`,`fleetctl@v4.81.2`,`fleetctl@v4.81.1`,`fleetctl@v4.81.0`,`fleetctl@v4.80.3`,`fleetctl@v4.80.2`,`fleetctl@v4.80.1`,`fleetctl@v4.80.0`,`pkg:golang/stdlib@1.25.7`
+- **Action statement:** `Low impact: denial-of-service (high CPU) on the host running fleetctl if it connects to a hostile TLS peer (malicious/compromised Fleet server, or MITM presenting a valid-looking cert) that sends many intermediate certificates. No code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to a fleetctl build using Go >= 1.26.2 when available.`
+- **Timestamp:** 2026-04-20 14:00:03
+
+### [CVE-2026-27806](https://nvd.nist.gov/vuln/detail/CVE-2026-27806)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability in orbit not fleetctl.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 13:46:50
 
 ### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
 - **Author:** @lucasmrod
