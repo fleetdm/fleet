@@ -5,7 +5,7 @@ the "how do devices get enrolled" problem. But there's a separate question worth
 you know the device that enrolled is actually the device it claims to be?
 
 That's where device attestation comes in. Fleet 4.84 adds support for hardware-attested MDM
-enrollment for Apple Silicon Macs via ADE, so let's talk about what attestation actually means
+enrollment for Apple Silicon Macs via ADE, so let's talk about what attestation means
 and why it's worth enabling.
 
 ## The problem attestation solves
@@ -108,11 +108,11 @@ via SCEP for now.
 
 When a device enrolls with a hardware-attested certificate, Fleet shows **MDM attestation: Yes**
 in host vitals. If a host isn't attested, the field doesn't appear. That keeps the UI clear
-for devices where attestation actually applies.
+for devices where attestation applies.
 
 The setting is available in Fleet's UI and can be managed via GitOps. When GitOps mode is
 enabled, the checkbox in the UI is disabled, which keeps your configuration source of truth in
-version control where it belongs.
+version control.
 
 ## Why this matters in practice
 
@@ -129,7 +129,7 @@ could be an identity provider that gates access based on device posture. It coul
 network access control system that requires proof of enrollment. Fleet now gives you the verified 
 device identity to feed those systems.
 
-The best part? For devices that already enrolled, you don't have to do anything disruptive.
+For devices that already enrolled, you don't have to do anything disruptive.
 Enable the setting and qualifying devices upgrade to ACME on their next renewal cycle.
 
 <meta name="articleTitle" value="What is device attestation, and why does it matter for Apple enrollment?">
