@@ -926,7 +926,7 @@ type MDMAppleDDMDeclarationItem struct {
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
 	// extra query.
-	RawJSON json.RawMessage `db:"raw_json"`
+	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

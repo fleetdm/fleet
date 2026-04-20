@@ -6168,11 +6168,13 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		// computation below so that the token matches the SQL-computed
 		// token from handleTokens.
 		if d.VariablesUpdatedAt != nil {
-			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(d.RawJSON), hostUUID); err != nil {
-				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+			if d.RawJSON != nil {
+				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*d.RawJSON), hostUUID); err != nil {
+					if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+					}
+					continue
 				}
-				continue
 			}
 		}
 
