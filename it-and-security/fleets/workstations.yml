@@ -262,6 +262,8 @@ software:
         - Browsers
     - slug: firefox/darwin # Mozilla Firefox for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Firefox installed
       categories:
         - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
@@ -282,12 +284,6 @@ software:
         - Macs with Visual Studio Code installed
       categories:
         - Developer tools
-    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
-      self_service: true
-      labels_include_any:
-        - Macs with Microsoft Teams installed
-      categories:
-        - Communication
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
@@ -437,7 +433,7 @@ software:
       categories:
         - Browsers
       labels_include_any:
-        - "x86-based Windows hosts"
+        - "x86 Windows hosts with Firefox installed"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       setup_experience: true
