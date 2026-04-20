@@ -188,6 +188,13 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 12:06:46
 
+### [CVE-2026-33810](https://nvd.nist.gov/vuln/detail/CVE-2026-33810)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:**: `fleetctl@v4.84.0`,`pkg:golang/stdlib@1.26.1`
+- **Action statement:** `Low probability of exploit: requires the fleetctl admin to (1) trust a private/enterprise CA that uses excluded DNS name constraints, (2) an attacker able to obtain a cert under that CA with a wildcard SAN whose case differs from the excluded constraint, and (3) a MITM or DNS-hijack position between the admin's workstation and the Fleet server. If all conditions are met, the attacker can impersonate the Fleet server over TLS and capture the admin's API token. The Fleet server itself is unaffected. Upgrade to a fleetctl build using Go >= 1.26.2 when available.`
+- **Timestamp:** 2026-04-20 14:07:42
+
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -203,6 +210,21 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/google.golang.org/grpc`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 19:20:41
+
+### [CVE-2026-32280](https://nvd.nist.gov/vuln/detail/CVE-2026-32280)
+- **Author:** @lucasmrod
+- **Status:** `affected`
+- **Products:**: `fleetctl@v4.83.2`,`fleetctl@v4.83.1`,`fleetctl@v4.83.0`,`fleetctl@v4.82.2`,`fleetctl@v4.82.1`,`fleetctl@v4.82.0`,`fleetctl@v4.81.3`,`fleetctl@v4.81.2`,`fleetctl@v4.81.1`,`fleetctl@v4.81.0`,`fleetctl@v4.80.3`,`fleetctl@v4.80.2`,`fleetctl@v4.80.1`,`fleetctl@v4.80.0`,`fleetctl@v4.79.1`,`fleetctl@v4.79.0`,`fleetctl@v4.78.3`,`fleetctl@v4.78.2`,`fleetctl@v4.78.1`,`fleetctl@v4.78.0`,`fleetctl@v4.77.1`,`fleetctl@v4.77.0`,`fleetctl@v4.76.2`,`fleetctl@v4.76.1`,`fleetctl@v4.76.0`,`fleetctl@v4.75.2`,`fleetctl@v4.75.1`,`fleetctl@v4.75.0`,`fleetctl@v4.74.0`,`fleetctl@v4.73.5`,`fleetctl@v4.73.4`,`fleetctl@v4.73.3`,`fleetctl@v4.73.2`,`fleetctl@v4.73.1`,`fleetctl@v4.73.0`,`fleetctl@v4.72.1`,`fleetctl@v4.72.0`,`fleetctl@v4.71.1`,`fleetctl@v4.71.0`,`fleetctl@v4.70.1`,`fleetctl@v4.70.0`,`fleetctl@v4.69.0`,`fleetctl@v4.68.1`,`fleetctl@v4.68.0`,`fleetctl@v4.67.3`,`fleetctl@v4.67.2`,`fleetctl@v4.67.1`,`fleetctl@v4.67.0`,`fleetctl@v4.66.0`,`fleetctl@v4.65.0`,`fleetctl@v4.64.2`,`fleetctl@v4.64.1`,`fleetctl@v4.64.0`,`fleetctl@v4.63.2`,`fleetctl@v4.63.1`,`fleetctl@v4.63.0`,`fleetctl@v4.62.4`,`fleetctl@v4.62.3`,`fleetctl@v4.62.2`,`fleetctl@v4.62.1`,`fleetctl@v4.62.0`,`fleetctl@v4.61.0`,`fleetctl@v4.60.1`,`fleetctl@v4.60.0`,`fleetctl@v4.59.1`,`fleetctl@v4.59.0`,`fleetctl@v4.58.1`,`fleetctl@v4.58.0`,`fleetctl@v4.57.3`,`fleetctl@v4.57.2`,`fleetctl@v4.57.1`,`fleetctl@v4.57.0`,`fleetctl@v4.56.0`,`fleetctl@v4.55.2`,`fleetctl@v4.55.1`,`fleetctl@v4.55.0`,`fleetctl@v4.54.2`,`fleetctl@v4.54.1`,`fleetctl@v4.54.0`,`fleetctl@v4.53.2`,`fleetctl@v4.53.1`,`fleetctl@v4.53.0`,`fleetctl@v4.52.0`,`fleetctl@v4.51.1`,`fleetctl@v4.51.0`,`fleetctl@v4.50.2`,`fleetctl@v4.50.1`,`fleetctl@v4.50.0`,`fleetctl@v4.49.4`,`fleetctl@v4.49.3`,`fleetctl@v4.49.2`,`fleetctl@v4.49.1`,`fleetctl@v4.49.0`,`fleetctl@v4.48.3`,`fleetctl@v4.48.2`,`fleetctl@v4.48.1`,`fleetctl@v4.48.0`,`fleetctl@v4.47.3`,`fleetctl@v4.47.2`,`fleetctl@v4.47.1`,`fleetctl@v4.47.0`,`fleetctl@v4.46.2`,`fleetctl@v4.46.1`,`fleetctl@v4.46.0`,`fleetctl@v4.45.1`,`fleetctl@v4.45.0`,`fleetctl@v4.44.1`,`fleetctl@v4.44.0`,`fleetctl@v4.43.3`,`fleetctl@v4.43.2`,`fleetctl@v4.43.1`,`fleetctl@v4.43.0`,`fleetctl@v4.42.0`,`fleetctl@v4.41.1`,`fleetctl@v4.41.0`,`fleetctl@v4.40.0`,`fleetctl@v4.39.0`,`fleetctl@v4.38.1`,`fleetctl@v4.38.0`,`fleetctl@v4.37.0`,`fleetctl@v4.36.0`,`fleetctl@v4.35.2`,`fleetctl@v4.35.1`,`fleetctl@v4.35.0`,`fleetctl@v4.34.1`,`fleetctl@v4.34.0`,`fleetctl@v4.33.1`,`fleetctl@v4.33.0`,`fleetctl@v4.32.0`,`fleetctl@v4.31.1`,`fleetctl@v4.31.0`,`fleetctl@v4.30.1`,`fleetctl@v4.30.0`,`fleetctl@v4.29.1`,`fleetctl@v4.29.0`,`fleetctl@v4.28.1`,`fleetctl@v4.28.0`,`fleetctl@v4.27.1`,`fleetctl@v4.27.0`,`fleetctl@v4.26.0`,`fleetctl@v4.25.0`,`fleetctl@v4.24.1`,`fleetctl@v4.24.0`,`fleetctl@v4.23.0`,`fleetctl@v4.22.1`,`fleetctl@v4.22.0`,`fleetctl@v4.21.0`,`fleetctl@v4.20.1`,`fleetctl@v4.20.0`,`fleetctl@v4.19.1`,`fleetctl@v4.19.0`,`fleetctl@v4.18.0`,`fleetctl@v4.17.1`,`fleetctl@v4.17.0`,`fleetctl@v4.16.0`,`fleetctl@v4.15.0`,`fleetctl@v4.14.0`,`fleetctl@v4.13.2`,`fleetctl@v4.13.1`,`fleetctl@v4.13.0`,`fleetctl@v4.12.1`,`fleetctl@v4.12.0`,`fleetctl@v4.11.0`,`fleetctl@v4.10.0`,`fleetctl@v4.9.1`,`fleetctl@v4.9.0`,`fleetctl@v4.8.0`,`fleetctl@v4.7.0`,`fleetctl@v4.6.2`,`fleetctl@v4.6.1`,`fleetctl@v4.6.0`,`fleetctl@v4.5.1`,`fleetctl@v4.5.0`,`fleetctl@v4.4.3`,`fleetctl@v4.4.2`,`fleetctl@v4.4.1`,`fleetctl@v4.4.0`,`fleetctl@v4.3.2`,`fleetctl@v4.3.1`,`fleetctl@v4.3.0`,`fleetctl@v4.2.4`,`fleetctl@v4.2.3`,`fleetctl@v4.2.2`,`fleetctl@v4.2.1`,`fleetctl@v4.2.0`,`fleetctl@v4.1.0`,`fleetctl@v4.0.1`,`fleetctl@v4.0.0`,`fleetctl@v3.13.0`,`fleetctl@v3.12.0`,`fleetctl@v3.11.0`,`fleetctl@v3.10.1`,`fleetctl@v3.10.0`,`fleetctl@v3.9.0`,`fleetctl@v3.8.0`,`fleetctl@v3.7.4`,`fleetctl@v3.7.1`,`fleetctl@v3.7.0`,`fleetctl@v3.6.0`,`fleetctl@v3.5.1`,`fleetctl@v3.5.0`,`fleetctl@v3.4.0`,`fleetctl@v3.3.0`,`pkg:golang/stdlib@1.25.7`
+- **Action statement:** `Low impact: denial-of-service (high CPU) on the host running fleetctl if it connects to a hostile TLS peer (malicious/compromised Fleet server, or MITM presenting a valid-looking cert) that sends many intermediate certificates. No code execution or data disclosure, and the Fleet server itself is unaffected. Upgrade to a fleetctl build using Go >= 1.26.2 when available.`
+- **Timestamp:** 2026-04-20 14:00:03
+
+### [CVE-2026-27806](https://nvd.nist.gov/vuln/detail/CVE-2026-27806)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability in orbit not fleetctl.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 13:46:50
 
 ### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
 - **Author:** @lucasmrod
@@ -437,6 +459,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do JPEG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libgdk-pixbuf-2.0-0`,`pkg:deb/debian/libgdk-pixbuf2.0-common`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:41:33
+
+### [CVE-2026-4775](https://nvd.nist.gov/vuln/detail/CVE-2026-4775)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do TIFF processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libtiff6`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:42:37
+
 ### [CVE-2026-33636](https://nvd.nist.gov/vuln/detail/CVE-2026-33636)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -460,6 +498,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/wix does not connect to TLS servers using OpenSSL.
+- **Products:**: `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:44:34
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
@@ -502,6 +548,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Timestamp:** 2025-10-01 08:36:42
 
 ## `fleetdm/bomutils` docker image
+
+### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/bomutils does not connect to TLS servers using OpenSSL.
+- **Products:**: `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:48:55
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
