@@ -1089,11 +1089,22 @@ def wait_for_query_pass(
     query_timeout: int,
     deadline_seconds: int = 90,
     poll_interval: int = 10,
+    expected: bool = True,
 ) -> bool:
-    """Poll run_query until it returns True or deadline elapses."""
+    """Poll run_query until it matches `expected` or deadline elapses.
+
+    expected=True  (default): wait for the query to return rows (e.g.,
+                              after pushing a profile that should make
+                              the policy pass).
+    expected=False:           wait for the query to return no rows
+                              (e.g., after removing a profile that was
+                              the reason the policy passed).
+
+    Returns True when the expected state is observed, False on timeout.
+    """
     deadline = time.time() + deadline_seconds
     while time.time() < deadline:
-        if run_query(query, hostname, fleetctl, query_timeout):
+        if run_query(query, hostname, fleetctl, query_timeout) == expected:
             return True
         time.sleep(poll_interval)
     return False
@@ -1224,15 +1235,17 @@ def run_test(
                     p for p in other_profiles if str(p) not in this_profile_paths
                 ]
 
-                mdm_wait = 30
+                mdm_deadline = 90
 
-                # Step 1: remove profile → query should fail
+                # Step 1: remove profile → query should poll to False
                 log_verbose("Removing profile via MDM...")
                 push_profiles_to_team(
                     fleet_url, fleet_token, fleetctl, team_name, other_profiles
                 )
-                time.sleep(mdm_wait)
-                if run_query(policy.query, hostname, fleetctl, query_timeout):
+                if not wait_for_query_pass(
+                    policy.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=mdm_deadline, expected=False,
+                ):
                     # Restore before returning
                     push_profiles_to_team(
                         fleet_url, fleet_token, fleetctl, team_name,
@@ -1240,29 +1253,24 @@ def run_test(
                     )
                     return TestResult(
                         cis_id, name, "FAIL",
-                        "Query still passed after removing MDM profile",
+                        "Query still passed after removing MDM profile "
+                        f"(waited {mdm_deadline}s)",
                     )
 
-                # Step 2: re-install profile → query should pass
+                # Step 2: re-install profile → query should poll to True
                 log_verbose("Re-pushing profile via MDM...")
                 push_profiles_to_team(
                     fleet_url, fleet_token, fleetctl, team_name,
                     other_profiles + list(plan.profiles),
                 )
-                # Poll for the profile to take effect rather than a
-                # fixed sleep — delivery time varies.
-                deadline = time.time() + (mdm_wait * 3)
-                passed = False
-                while time.time() < deadline:
-                    if run_query(policy.query, hostname, fleetctl, query_timeout):
-                        passed = True
-                        break
-                    time.sleep(10)
-                if not passed:
+                if not wait_for_query_pass(
+                    policy.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=mdm_deadline, expected=True,
+                ):
                     return TestResult(
                         cis_id, name, "FAIL",
                         "Query did not pass after re-pushing MDM profile "
-                        f"(waited {mdm_wait * 3}s)",
+                        f"(waited {mdm_deadline}s)",
                     )
                 return TestResult(cis_id, name, "PASS")
 
@@ -1335,7 +1343,7 @@ def run_test(
             disable_pol = plan.counterpart
             enable_prof = plan.enable_profile
             disable_prof = plan.disable_profile
-            profile_wait = 15
+            org_deadline = 90
 
             log_verbose(
                 f"Org-decision pair: "
@@ -1349,50 +1357,62 @@ def run_test(
             # profile so we don't wipe them from the team.
             other_profiles = list(base_profiles or [])
 
-            # Step 1: Push enable profile, check enable passes + disable fails
+            # Step 1: Push enable profile, poll: enable passes + disable fails
             if enable_prof:
                 log_verbose("Pushing enable profile + base profiles...")
                 push_profiles_to_team(
                     fleet_url, fleet_token, fleetctl, team_name,
                     other_profiles + [enable_prof],
                 )
-                time.sleep(profile_wait)
 
-                if not run_query(enable_pol.query, hostname, fleetctl, query_timeout):
+                if not wait_for_query_pass(
+                    enable_pol.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=org_deadline, expected=True,
+                ):
                     failures.append(
-                        f"Enable policy did not pass after enable profile"
+                        "Enable policy did not pass after enable profile"
                     )
-                if disable_pol and run_query(disable_pol.query, hostname, fleetctl, query_timeout):
+                if disable_pol and not wait_for_query_pass(
+                    disable_pol.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=org_deadline, expected=False,
+                ):
                     failures.append(
-                        f"Disable policy still passes after enable profile"
+                        "Disable policy still passes after enable profile"
                     )
 
-            # Step 2: Push disable profile, check disable passes + enable fails
+            # Step 2: Push disable profile, poll: disable passes + enable fails
             if disable_prof:
                 log_verbose("Pushing disable profile + base profiles...")
                 push_profiles_to_team(
                     fleet_url, fleet_token, fleetctl, team_name,
                     other_profiles + [disable_prof],
                 )
-                time.sleep(profile_wait)
 
-                if disable_pol and not run_query(disable_pol.query, hostname, fleetctl, query_timeout):
+                if disable_pol and not wait_for_query_pass(
+                    disable_pol.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=org_deadline, expected=True,
+                ):
                     failures.append(
-                        f"Disable policy did not pass after disable profile"
+                        "Disable policy did not pass after disable profile"
                     )
-                if run_query(enable_pol.query, hostname, fleetctl, query_timeout):
+                if not wait_for_query_pass(
+                    enable_pol.query, hostname, fleetctl, query_timeout,
+                    deadline_seconds=org_deadline, expected=False,
+                ):
                     failures.append(
-                        f"Enable policy still passes after disable profile"
+                        "Enable policy still passes after disable profile"
                     )
 
-            # Restore base profiles without any org-decision profile
+            # Restore base profiles without any org-decision profile.
+            # No polling here — no assertion about the resulting state,
+            # just letting the team settle before the next test.
             if other_profiles:
                 log_verbose("Restoring base profiles...")
                 push_profiles_to_team(
                     fleet_url, fleet_token, fleetctl, team_name,
                     other_profiles,
                 )
-                time.sleep(profile_wait)
+                time.sleep(15)
 
             if failures:
                 return TestResult(
@@ -2145,14 +2165,24 @@ def main() -> int:
                 )
 
             # Collect profiles needed by PROFILE plans (tested by
-            # presence during the test). Exclude ORG_DECISION (toggles
-            # its own profiles) and PASS_FAIL with MDM (also toggles
-            # its own profile).
+            # presence during the test). Exclusions:
+            #   - ORG_DECISION: toggles its own enable/disable profiles
+            #   - PASS_FAIL with MDM: toggles its own profile
+            #   - MANUAL: includes quarantined plans
+            #     (SSH_BREAKING_CIS_IDS, PASSWORD_POLICY_CIS_IDS,
+            #     NON_AUTOMATABLE_CIS_IDS) whose mobileconfigs must
+            #     NOT be bulk-pushed. Password-policy profiles break
+            #     VM SSH auth; the Siri/iCloud profiles cause cross-
+            #     test state pollution; 2.6.3 uses wrong keys. These
+            #     profiles are discovered by _discover_profiles() but
+            #     deliberately kept out of the bulk push.
             all_profiles = []
             for plan in active_plans:
                 if plan.test_type == "ORG_DECISION":
                     continue
                 if plan.test_type == "PASS_FAIL" and plan.policy.needs_mdm and plan.profiles:
+                    continue
+                if plan.test_type == "MANUAL":
                     continue
                 all_profiles.extend(plan.profiles)
             base_profiles = list({str(p): p for p in all_profiles}.values())
