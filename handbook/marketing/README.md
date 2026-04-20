@@ -199,12 +199,82 @@ Here are some links that filter relevant conversations on each platform:
 The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
 
 To monitor and respond to LinkedIn comments:
-1. Check LinkedIn mentions and comments once per work day.
+1. Check LinkedIn mentions and comments once per workday.
 2. Like mentions and respond to comments where appropriate.
 3. Repost content related to GitOps certification or from Fleeties.
 4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
-5. All interactions are catalogued in Hootsuite for future review.
+5. All interactions are cataloged in Hootsuite for future review.
 
+### Process to send out GitOps workshop certifications
+After every GitOps workshop, Fleet issues a certificate to all participants who passed via email.
+
+#### Collect attendee data
+
+1. Ask the AE or CSM to submit a GitHub issue after the workshop.  
+2. Make sure the issue is assigned to the DRI (Irena).  
+3. Confirm the issue includes:  
+   - Workshop date  
+   - Workshop location  
+   - First name  
+   - Last name  
+   - Email address  
+   - Registered (yes or no)  
+   - Attended (yes or no)  
+   - Certified by the trainer (passed)  
+4. Only issue certificates to attendees who passed the workshop.
+
+#### Create a new certificate collection
+
+1. Go to virtualbadge.io.  
+2. Find the most recent certificate collection.  
+3. Duplicate the collection.  
+4. Rename the collection using:  
+   - City  
+   - Date in YYYY-MM-DD format
+
+#### Update certificate details
+
+1. Open the duplicated collection.  
+2. Edit the certificate template:  
+   - Set the issue date to the workshop date.  
+   - Do not use the email send date.  
+   - Remove any expiration date.  
+   - Keep the contact email as the SVP of Customer Success  
+   - Update the Fleet version if needed.  
+     - It’s ok to reuse a version for up to 3-6 months. After this point, use the current version of Fleet.  
+3. Click **Customize** and update:  
+   - Event location  
+   - Event date  
+4. Do not edit the recipient name field. It is auto-filled.
+
+#### Add recipients
+
+1. Go to the recipient list.  
+2. Choose manual entry for speed.  
+3. Click **Add single**.  
+4. Enter:  
+   - Email address  
+   - Full name (first and last)  
+5. Repeat for each certified attendee.  
+6. If there are more than 10 attendees, consider uploading a CSV.  
+7. Click **Upload**, then **Confirm**.
+
+#### Generate certificates
+
+1. Check the **Certificate status** column.  
+2. Wait until all certificates show “generated”.
+
+#### Send certificates
+
+1. Select all recipients.  
+2. Click **Send emails**.
+
+#### Notes
+
+- Only send certificates to attendees who passed.  
+- Do not send certificates to registrants or attendees who did not pass.  
+- Use the workshop date for all certificate records.  
+- Keep the process simple and consistent for every workshop.
 
 ### Publish sprint demo video
 
