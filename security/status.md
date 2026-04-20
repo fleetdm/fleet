@@ -441,7 +441,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleetctl does not do JPEG processing when using fleetdm/wix.
-- **Products:**: `wix`,`pkg:deb/debian/libgdk-pixbuf-2.0-0`,`deb/debian/libgdk-pixbuf2.0-common`
+- **Products:**: `wix`,`pkg:deb/debian/libgdk-pixbuf-2.0-0`,`pkg:deb/debian/libgdk-pixbuf2.0-common`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:41:33
 
