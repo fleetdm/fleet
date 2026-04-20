@@ -6768,6 +6768,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 - [Update custom MDM setup enrollment profile](#update-custom-mdm-setup-enrollment-profile)
 - [Get custom MDM setup enrollment profile](#get-custom-mdm-setup-enrollment-profile)
+- [Get Fleet default MDM setup enrollment profile](#get-fleet-default-mdm-setup-enrollment-profile)
 - [Delete custom MDM setup enrollment profile](#delete-custom-mdm-setup-enrollment-profile)
 - [Get Over-the-Air (OTA) enrollment profile](#get-over-the-air-ota-enrollment-profile)
 - [Get manual enrollment profile](#get-manual-enrollment-profile)
@@ -6862,6 +6863,72 @@ Gets the custom MDM setup enrollment profile for a fleet or "Unassigned".
   }
 }
 ```
+
+### Get Fleet default MDM setup enrollment profile
+
+_Available in Fleet Premium_
+
+Gets the Fleet default MDM setup enrollment profile. This is the profile Fleet registers with Apple for devices in fleets that do not have a custom MDM setup enrollment profile uploaded.
+
+The default profile is a single profile per Fleet instance. It is shared across all fleets and all Apple Business Manager (ABM) tokens and cannot be scoped by `fleet_id`.
+
+If the default profile has not yet been stored (for example, on a new Fleet instance that has not completed its first automatic enrollment registration), Fleet returns the in-code defaults that will be registered on first use, and `updated_at` is `null`.
+
+`GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "updated_at": "2026-04-04T00:00:00Z",
+  "enrollment_profile": {
+    "profile_name": "Fleet default enrollment profile",
+    "allow_pairing": true,
+    "auto_advance_setup": false,
+    "is_multi_user": false,
+    "is_mandatory": false,
+    "is_mdm_removable": true,
+    "language": "en",
+    "org_magic": "1",
+    "skip_setup_items": [
+      "Appearance",
+      "AppleID",
+      "AppStore",
+      "Biometric",
+      "Diagnostics",
+      "FileVault",
+      "iCloudDiagnostics",
+      "iCloudStorage",
+      "Intelligence",
+      "Location",
+      "OSShowcase",
+      "Payment",
+      "Privacy",
+      "Restore",
+      "ScreenTime",
+      "Siri",
+      "SoftwareUpdate",
+      "TermsOfAddress",
+      "TOS",
+      "UnlockWithWatch",
+      "UpdateCompleted",
+      "Welcome"
+    ]
+  }
+}
+```
+
+> NOTE: The `ConfigurationWebURL` and `URL` values are automatically populated by Fleet at registration time and are not included in this response.
 
 ### Delete custom MDM setup enrollment profile
 
