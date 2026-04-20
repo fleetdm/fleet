@@ -2587,7 +2587,14 @@ func (svc *Service) setHostConditionalAccess(
 		)
 		logger.DebugContext(ctx, "set compliance status message sent")
 		startTime := time.Now()
-		for range time.Tick(conditionalAccessSetWaitTime) {
+		// time.Tick never releases its underlying ticker, so every
+		// invocation that exits via `return` or `break` would leak the
+		// goroutine and channel for the lifetime of the process. With
+		// active macOS hosts this accumulates one leaked ticker per
+		// checkin (#42901). Own the ticker explicitly and defer Stop.
+		ticker := time.NewTicker(conditionalAccessSetWaitTime)
+		defer ticker.Stop()
+		for range ticker.C {
 			if time.Since(startTime) > timeout {
 				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 			}
