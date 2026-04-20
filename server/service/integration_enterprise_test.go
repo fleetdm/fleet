@@ -28985,3 +28985,57 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	require.False(t, foundRegular.APIOnly)
 	require.Empty(t, foundRegular.APIEndpoints)
 }
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
+	t := s.T()
+
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	createAPIOnlyUser := func(name string, endpoints []map[string]any) string {
+		body := map[string]any{
+			"name":        name,
+			"global_role": "observer",
+		}
+		if endpoints != nil {
+			body["api_endpoints"] = endpoints
+		}
+		var createResp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", body, http.StatusOK, &createResp)
+		require.NotEmpty(t, createResp.Token)
+		return createResp.Token
+	}
+
+	// With no endpoint restrictions the user can reach any endpoint in the catalog.
+	t.Run("no restrictions allows all catalog endpoints", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-no-restrictions", nil)
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	})
+
+	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
+	t.Run("endpoint restrictions limit access to the allowed list", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+
+		// The only allowed endpoint returns 200.
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+
+		// These are in the catalog but not in the user's allow list.
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusForbidden)
+	})
+
+	// Non-api-only users must not be affected by the middleware at all.
+	t.Run("non-api-only user is unaffected", func(t *testing.T) {
+		s.token = s.getTestAdminToken()
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	})
+}

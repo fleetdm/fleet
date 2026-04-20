@@ -535,12 +535,13 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// An API-only user cannot modify their own record via this endpoint.
+	// An API-only user cannot reach this admin endpoint: the api_only middleware
+	// rejects it at the catalog check (the user-management endpoint is not in the catalog).
 	s.token = apiUserToken
 	defer func() { s.token = s.getTestAdminToken() }()
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"name": "Self Update",
-	}, http.StatusUnprocessableEntity)
+	}, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
@@ -16607,66 +16608,5 @@ func (s *integrationTestSuite) TestListHostReports() {
 
 		_, hasReportID := firstReport["report_id"]
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
-	})
-}
-
-func (s *integrationTestSuite) TestAPIOnlyUserEndpointMiddleware() {
-	t := s.T()
-
-	// Create an API-only user with no endpoint restrictions via the dedicated endpoint.
-	// The returned token is used directly without a login step.
-	var createResp struct {
-		User struct {
-			Email string `json:"email"`
-		} `json:"user"`
-		Token string `json:"token"`
-	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "api-only-mw-test",
-		"global_role": "observer",
-	}, http.StatusOK, &createResp)
-	require.NotEmpty(t, createResp.Token)
-	require.NotEmpty(t, createResp.User.Email)
-	apiOnlyToken := createResp.Token
-
-	defer func() { s.token = s.getTestAdminToken() }()
-
-	// With no endpoint restrictions the user can reach any endpoint in the catalog.
-	t.Run("no restrictions allows all catalog endpoints", func(t *testing.T) {
-		s.token = apiOnlyToken
-
-		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
-	})
-
-	// Insert endpoint restrictions directly through the datastore to bypass the
-	// premium guard on the public API, so we can exercise the middleware logic
-	// in a core (non-premium) test context.
-	t.Run("endpoint restrictions limit access to the allowed list", func(t *testing.T) {
-		user, err := s.ds.UserByEmail(t.Context(), createResp.User.Email)
-		require.NoError(t, err)
-		user.APIEndpoints = []fleet.APIEndpointRef{
-			{Method: "GET", Path: "/api/v1/fleet/version"},
-		}
-		require.NoError(t, s.ds.SaveUser(t.Context(), user))
-
-		s.token = apiOnlyToken
-
-		// The only allowed endpoint returns 200.
-		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
-
-		// These are in the catalog but not in the user's allow list.
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusForbidden)
-	})
-
-	// Non-api-only users must not be affected by the middleware at all.
-	t.Run("non-api-only user is unaffected", func(t *testing.T) {
-		s.token = s.getTestAdminToken()
-
-		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
 	})
 }
