@@ -89,35 +89,63 @@ func testManagedLocalAccountSetStatus(t *testing.T, ds *Datastore) {
 
 func testManagedLocalAccountGetByCommandUUID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	hostUUID := "host-uuid-cmd"
+
+	// Create a real host so the host lookup in GetManagedLocalAccountByCommandUUID succeeds.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "managed-account-host",
+		OsqueryHostID:  new("managed-account-osquery-1"),
+		NodeKey:        new("managed-account-node-1"),
+		UUID:           "host-uuid-cmd",
+		Platform:       "darwin",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
 	cmdUUID := "cmd-uuid-lookup"
-	err := ds.SaveHostManagedLocalAccount(ctx, hostUUID, "pass", cmdUUID)
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "pass", cmdUUID)
 	require.NoError(t, err)
 
 	got, err := ds.GetManagedLocalAccountByCommandUUID(ctx, cmdUUID)
 	require.NoError(t, err)
-	assert.Equal(t, hostUUID, got)
+	assert.Equal(t, host.UUID, got.UUID)
+	assert.Equal(t, host.ID, got.ID)
 }
 
 func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	hostUUID := "host-uuid-upsert"
+
+	// Create a real host so the host lookup succeeds.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "managed-account-upsert-host",
+		OsqueryHostID:  new("managed-account-osquery-2"),
+		NodeKey:        new("managed-account-node-2"),
+		UUID:           "host-uuid-upsert",
+		Platform:       "darwin",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
 
 	// First save.
-	err := ds.SaveHostManagedLocalAccount(ctx, hostUUID, "old-pass", "cmd-old")
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "old-pass", "cmd-old")
 	require.NoError(t, err)
-	err = ds.SetHostManagedLocalAccountStatus(ctx, hostUUID, fleet.MDMDeliveryVerified)
+	err = ds.SetHostManagedLocalAccountStatus(ctx, host.UUID, fleet.MDMDeliveryVerified)
 	require.NoError(t, err)
 
 	// Upsert with new password and command UUID should reset status to NULL (pending).
-	err = ds.SaveHostManagedLocalAccount(ctx, hostUUID, "new-pass", "cmd-new")
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "new-pass", "cmd-new")
 	require.NoError(t, err)
 
-	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, "new-pass", got.Password)
 
-	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
 	require.NoError(t, err)
 	require.NotNil(t, status.Status)
 	assert.Equal(t, "pending", *status.Status)
@@ -125,7 +153,7 @@ func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
 	// Command UUID should be the new one.
 	foundHost, err := ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-new")
 	require.NoError(t, err)
-	assert.Equal(t, hostUUID, foundHost)
+	assert.Equal(t, host.UUID, foundHost.UUID)
 
 	// Old command UUID should no longer match.
 	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-old")
