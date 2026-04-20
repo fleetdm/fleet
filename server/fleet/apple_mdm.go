@@ -922,6 +922,11 @@ type MDMAppleDDMDeclarationItem struct {
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// RawJSON is conditionally loaded only for declarations that use Fleet
+	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
+	// so that handleDeclarationItems can check variable resolution without an
+	// extra query.
+	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
