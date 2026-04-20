@@ -279,48 +279,66 @@
     gap: 16px;
   }
 
-  [purpose='scenario-columns'] {
+  [purpose='scenario-timeline'] {
     display: flex;
     flex-direction: row;
-    gap: 64px;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 32px;
+    border-bottom: 1px solid @core-fleet-black-10;
   }
 
-  [purpose='scenario-left'] {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    flex: 0 0 auto;
-    width: 440px;
-  }
-
-  [purpose='scenario-right'] {
+  [purpose='timeline-step'] {
     flex: 1;
-    display: flex;
-    align-items: stretch;
-    min-height: 100%;
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  [purpose='timeline-text'] {
+    font-size: 15px;
+    font-weight: 700;
+    color: @core-fleet-black;
+    line-height: 1.4;
+    margin-bottom: 0;
+  }
+
+  [purpose='timeline-arrow'] {
+    color: @core-fleet-black-25;
+    font-size: 20px;
+    flex: 0 0 auto;
+    line-height: 1;
   }
 
   [purpose='scenario-facts'] {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    gap: 0;
     width: 100%;
   }
 
   [purpose='scenario-fact'] {
-    padding: 20px 0;
-    border-top: 1px solid @core-fleet-black-10;
+    flex: 1;
+    padding: 24px 32px;
+    border-right: 1px solid @core-fleet-black-10;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    &:first-child {
+      padding-left: 0;
+    }
+    &:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
     p {
       margin-bottom: 0;
       font-size: 14px;
       color: @core-fleet-black-75;
       line-height: 1.6;
-    }
-    &:last-child {
-      border-bottom: 1px solid @core-fleet-black-10;
     }
   }
 
@@ -819,15 +837,27 @@
     [purpose='section-heading'] {
       h2, h3 { font-size: 24px; }
     }
-    [purpose='scenario-stats'] {
+    [purpose='scenario-timeline'] {
+      gap: 6px;
+    }
+    [purpose='timeline-arrow'] {
+      display: none;
+    }
+    [purpose='timeline-step'] {
+      min-width: 100%;
+    }
+    [purpose='scenario-facts'] {
       flex-direction: column;
     }
-    [purpose='scenario-columns'] {
-      flex-direction: column;
-      gap: 32px;
-    }
-    [purpose='scenario-left'] {
-      width: 100%;
+    [purpose='scenario-fact'] {
+      border-right: none;
+      border-bottom: 1px solid @core-fleet-black-10;
+      padding: 20px 0;
+      &:first-child { padding-left: 0; }
+      &:last-child {
+        border-bottom: none;
+        padding-right: 0;
+      }
     }
     [purpose='feature-row'] [purpose='feature-item'] {
       flex: 1 0 80%;

@@ -10,7 +10,7 @@
             <h1>Your device data belongs in your environment.</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Some organizations cannot send device telemetry to a vendor's cloud by regulation, by policy, or by architecture. Fleet is the only enterprise MDM that runs entirely on your infrastructure, with every feature intact, and your data never leaving your network.</p>
+            <p>Fleet runs entirely on your infrastructure.<br>Every feature intact. Your data never leaves your network.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" href="/contact" no-underline>Talk to our team</a>
@@ -70,49 +70,17 @@
         </div>
       </div>
 
-      <%/* ── QUOTE ────────────────────────────────────────────────────────── */%>
+      <%/* ── PROBLEM ──────────────────────────────────────────────────────── */%>
       <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>The problem with cloud-only MDM</h3>
+          <p>Most modern MDMs are cloud-first.<br>Device inventory, policy results, and user data flow through vendor infrastructure.<br>For strict data governance requirements, that's a structural blocker.</p>
+        </div>
         <div purpose="section-quote">
           <p purpose="quote-text">"Every other MDM vendor told us our data had to live in their cloud. Fleet was the only one that said run it on your own infrastructure. Same features, no exceptions."</p>
           <div purpose="quote-author-info">
             <p purpose="author-name">IT Security Architecture</p>
             <p purpose="author-title">Financial services, Fortune 100</p>
-          </div>
-        </div>
-      </div>
-
-      <%/* ── PROBLEM ──────────────────────────────────────────────────────── */%>
-      <div purpose="landing-page-section">
-        <div purpose="section-heading">
-          <h3>The problem with cloud-only MDM</h3>
-          <p>Most modern MDMs are cloud-first. Device inventory, policy results, and user data flow through vendor infrastructure. For strict data governance requirements, that's a structural blocker.</p>
-        </div>
-        <div purpose="scenario-card">
-          <p purpose="scenario-label">The cloud MDM compliance wall</p>
-          <div purpose="scenario-columns">
-            <div purpose="scenario-left">
-              <h3 purpose="scenario-heading">Your CISO approved Jamf.</h3>
-              <h3 purpose="scenario-heading">Then legal reviewed the BAA.</h3>
-              <h3 purpose="scenario-heading">Then the data governance team asked where device telemetry lives.</h3>
-              <h3 purpose="scenario-heading">The answer was "Jamf's AWS us-east-1."</h3>
-              <h3 purpose="scenario-heading">The project was paused.</h3>
-            </div>
-            <div purpose="scenario-right">
-              <div purpose="scenario-facts">
-                <div purpose="scenario-fact">
-                  <p purpose="scenario-fact-label">The pattern</p>
-                  <p>Cloud MDM selected. Procurement begins. Compliance flags that device data lives in vendor infrastructure. Project paused.</p>
-                </div>
-                <div purpose="scenario-fact">
-                  <p purpose="scenario-fact-label">The alternatives</p>
-                  <p>Jamf's on-prem product is actively losing features. Microsoft Intune has no on-premise option.</p>
-                </div>
-                <div purpose="scenario-fact">
-                  <p purpose="scenario-fact-label">Fleet's approach</p>
-                  <p>One codebase. Full features everywhere. Self-hosted by design, not by exception.</p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -144,10 +112,10 @@
             <h3>Deploy on your infrastructure. Own every byte of your data.</h3>
             <p>Spin up Fleet using the official Terraform module, Helm chart, or Docker Compose. Fleet's architecture is a single binary + database no microservices sprawl, no vendor agents phoning home, no surprise egress.</p>
             <div purpose="checklist" class="flex-column d-flex">
-              <p>Device enrollment points to your Fleet instance, not a vendor cloud</p>
-              <p>Every MDM command and osquery result stays inside your network</p>
+              <p>Device enrollment points to your own Fleet instance, not a vendor cloud</p>
+              <p>Every MDM command and query result stays inside your network</p>
               <p>Auditors can verify zero outbound traffic to vendor infrastructure</p>
-              <p>Upgrade on your schedule no forced updates, no deprecation emails</p>
+              <p>Upgrade on your schedule: no forced updates, no deprecation emails</p>
             </div>
           </div>
           <div purpose="terminal-block">
@@ -202,7 +170,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">100% feature parity</p>
-              <p>Not a stripped-down tier. GitOps, Declarative MDM, live osquery, vulnerability management, and AI workflows all ship to self-hosted on the same day as cloud.</p>
+              <p>Not a stripped-down tier. GitOps, AI workflows, Declarative MDM, live osquery, and vulnerability management all ship to self-hosted on the same day as cloud.</p>
             </div>
             <div purpose="card-footer">
               <p>One codebase, same features everywhere</p>
@@ -229,7 +197,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Fully auditable open-source codebase</p>
-              <p>MIT licensed and public on GitHub. Every line of code touching your device data can be inspected, built from source, and verified by your team.</p>
+              <p>Public on GitHub. Every line of code touching your device data can be inspected, built from source, and verified by your team.</p>
             </div>
             <div purpose="card-footer">
               <p>No black-box binaries</p>
@@ -243,17 +211,15 @@
         <div purpose="feature-with-image" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-start">
           <div purpose="feature-text" class="d-flex flex-column">
             <h3>Self-hosted Fleet gets everything Fleet Cloud gets.</h3>
-            <p>Jamf built two separate products and has been systematically moving features to cloud-only for years. Fleet made a different choice: one codebase, one feature set, two deployment options. If it ships, it ships everywhere.</p>
+            <p>With Fleet, you get: one codebase, one feature set - if it ships, it ships everywhere.</p>
           </div>
           <div purpose="feature-text" class="d-flex flex-column">
             <div purpose="checklist" class="flex-column d-flex">
-              <p>GitOps and PR-based change management</p>
-              <p>Declarative MDM (DDM) for macOS</p>
-              <p>Live osquery and real-time device reports</p>
-              <p>Vulnerability management and CVE tracking</p>
-              <p>AI-assisted IT workflows via MCP server</p>
+              <p>AI-assisted IT workflows</p>
+              <p>GitOps based change management</p>
+              <p>Real-time device reports</p>
               <p>Software management and app lifecycle</p>
-              <p>Full REST API and MCP server surface</p>
+              <p>Vulnerability management and CVE tracking</p>
             </div>
           </div>
         </div>
@@ -293,7 +259,7 @@
               <tbody>
                 <tr>
                   <td>Self-hosted option</td>
-                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Full deployment, MIT licensed, zero vendor dependency</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Full deployment, zero vendor dependency</div></td>
                   <td><div purpose="table-cell"><span purpose="tilde">~</span> Exists but actively losing features vs. Jamf Cloud</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No self-hosted option Azure cloud only</div></td>
                 </tr>
@@ -311,7 +277,7 @@
                 </tr>
                 <tr>
                   <td>Open-source / auditable code</td>
-                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">MIT licensed every line public on GitHub</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary binary only</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary no source access</div></td>
                 </tr>
