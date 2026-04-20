@@ -9,18 +9,15 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/msi"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/josephspurrier/goversioninfo"
 	"github.com/rs/zerolog/log"
@@ -159,71 +156,48 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("write VERSIONINFO: %w", err)
 	}
 
-	if err := writeWixFile(opt, tmpDir); err != nil {
-		return "", fmt.Errorf("write wix file: %w", err)
+	// Build MSI using pure Go — no WiX, Wine, or Docker dependency needed.
+	msiOpts := msi.MSIOptions{
+		ProductName:                        "Fleet osquery",
+		ProductVersion:                     opt.Version,
+		Manufacturer:                       "Fleet Device Management (fleetdm.com)",
+		UpgradeCode:                        "{B681CB20-107E-428A-9B14-2D3C1AFED244}",
+		Architecture:                       opt.Architecture,
+		FleetURL:                           opt.FleetURL,
+		EnrollSecret:                       opt.EnrollSecret,
+		EnableScripts:                      opt.EnableScripts,
+		Desktop:                            opt.Desktop,
+		Insecure:                           opt.Insecure,
+		Debug:                              opt.Debug,
+		UpdateURL:                          opt.UpdateURL,
+		DisableUpdates:                     opt.DisableUpdates,
+		DesktopChannel:                     opt.DesktopChannel,
+		OrbitChannel:                       opt.OrbitChannel,
+		OsquerydChannel:                    opt.OsquerydChannel,
+		HostIdentifier:                     opt.HostIdentifier,
+		EndUserEmail:                       opt.EndUserEmail,
+		EnableEndUserEmailProperty:         opt.EnableEndUserEmailProperty,
+		EnableEUATokenProperty:             opt.EnableEUATokenProperty,
+		OsqueryDB:                          opt.OsqueryDB,
+		DisableSetupExperience:             opt.DisableSetupExperience,
+		FleetDesktopAlternativeBrowserHost: opt.FleetDesktopAlternativeBrowserHost,
+		OrbitUpdateInterval:                opt.OrbitUpdateInterval.String(),
+		FleetCertificate:                   opt.FleetCertificate,
+		UpdateTLSServerCertificate:         opt.UpdateTLSServerCertificate,
+		FleetTLSClientCertificate:          opt.FleetTLSClientCertificate,
+		UpdateTLSClientCertificate:         opt.UpdateTLSClientCertificate,
 	}
-
-	if runtime.GOOS == "windows" {
-		// Explicitly grant read access, otherwise within the Docker
-		// container there are permissions errors.
-		// "S-1-1-0" is the SID for the World/Everyone group
-		// (a group that includes all users).
-		out, err := exec.Command(
-			"icacls", tmpDir, "/grant", "*S-1-1-0:R", "/t",
-		).CombinedOutput()
-		if err != nil {
-			fmt.Println(string(out))
-			return "", fmt.Errorf("icacls: %w", err)
-		}
+	msiPath := filepath.Join(tmpDir, "orbit.msi")
+	msiFile, err := os.Create(msiPath)
+	if err != nil {
+		return "", fmt.Errorf("create msi file: %w", err)
 	}
-
-	absWixDir := opt.LocalWixDir
-	wineChecked := false
-
-	// Download wix for macOS running on arm64, unless a local-wix-dir is provided.
-	// We are using native MSI build on macOS arm64, instead of Docker, because the current fleetdm/wix Docker image is unreliable on macOS arm64.
-	// We are looking into creating a new Docker image for macOS arm64.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
-		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
-
-		// Ensure wine is installed before downloading wix
-		if err = checkWine(false); err != nil {
-			return "", err
-		}
-		wineChecked = true
-
-		fmt.Printf("Downloading wix from %s\n", wixDownload)
-		client := fleethttp.NewClient()
-		absWixDir = filepath.Join(tmpDir, "wix")
-		err = downloadAndExtractZip(client, wixDownload, absWixDir)
-		if err != nil {
-			return "", err
-		}
+	if err := msi.WriteMSI(msiFile, filesystemRoot, msiOpts); err != nil {
+		msiFile.Close()
+		return "", fmt.Errorf("write msi: %w", err)
 	}
-
-	if absWixDir != "" {
-		absWixDir, err = filepath.Abs(absWixDir)
-		if err != nil {
-			return "", fmt.Errorf("could not get filepath from local-wix-dir %s: %w", opt.LocalWixDir, err)
-		}
-		if err = checkWine(wineChecked); err != nil {
-			return "", err
-		}
-	}
-	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
-		return "", fmt.Errorf("package root files: %w", err)
-	}
-
-	if err := wix.TransformHeat(filepath.Join(tmpDir, "heat.wxs")); err != nil {
-		return "", fmt.Errorf("transform heat: %w", err)
-	}
-
-	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir, opt.Architecture); err != nil {
-		return "", fmt.Errorf("build package: %w", err)
-	}
-
-	if err := wix.Light(tmpDir, opt.NativeTooling, absWixDir); err != nil {
-		return "", fmt.Errorf("build package: %w", err)
+	if err := msiFile.Close(); err != nil {
+		return "", fmt.Errorf("close msi: %w", err)
 	}
 
 	filename := "fleet-osquery.msi"
@@ -242,39 +216,6 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
-}
-
-func checkWine(wineChecked bool) error {
-	if !wineChecked && runtime.GOOS == "darwin" {
-		// Ensure wine is installed
-		cmd := exec.Command(wix.WineCmd, "--version")
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
-				wix.WineCmd, err,
-			)
-		}
-	}
-	return nil
-}
-
-func writeWixFile(opt Options, rootPath string) error {
-	// PackageInfo is metadata for the pkg
-	path := filepath.Join(rootPath, "main.wxs")
-	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-
-	var contents bytes.Buffer
-	if err := windowsWixTemplate.Execute(&contents, opt); err != nil {
-		return fmt.Errorf("execute template: %w", err)
-	}
-
-	if err := os.WriteFile(path, contents.Bytes(), 0o666); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	return nil
 }
 
 func writeEventLogFile(opt Options, rootPath string) error {
