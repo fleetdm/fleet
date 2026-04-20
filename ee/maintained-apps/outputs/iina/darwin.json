@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina' AND version_compare(bundle_short_version, '1.4.2') < 0);"
       },
-      "installer_url": "https://dl-portal.iina.io/IINA.v1.4.2.dmg",
+      "installer_url": "https://dl-portal.iina.io/IINA.v1.4.2-build164.dmg",
       "install_script_ref": "18ab90f9",
       "uninstall_script_ref": "20f465cb",
-      "sha256": "2e0fd89fbba1c92a6c115171e5b51904883bb497fbe513a6961d080fbab08ff6",
+      "sha256": "804e3368518f19039ebfbc3d698e1fabc9cd20f15fc4e42de635456cdf6a7f58",
       "default_categories": [
         "Utilities"
       ]

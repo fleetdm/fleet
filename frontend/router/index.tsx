@@ -17,6 +17,9 @@ import {
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
+import CreateUserPage from "pages/admin/UserManagementPage/CreateUserPage";
+import CreateApiUserPage from "pages/admin/UserManagementPage/CreateApiUserPage";
+import EditUserPage from "pages/admin/UserManagementPage/EditUserPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
@@ -238,6 +241,13 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
+            <Route component={ExcludeInSandboxRoutes}>
+              <Route component={AuthGlobalAdminRoutes}>
+                <Route path="users/new/human" component={CreateUserPage} />
+                <Route path="users/new/api" component={CreateApiUserPage} />
+                <Route path="users/:user_id/edit" component={EditUserPage} />
+              </Route>
+            </Route>
 
             <Redirect from="teams" to="fleets" />
             <Redirect from="teams/users" to="fleets/users" />

@@ -54,6 +54,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
+		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 	}
 
 	for _, c := range cases {
@@ -2648,7 +2649,7 @@ func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
 
 	// Mock the profilesVariablesByIdentifier that would be passed from service layer
 	profilesVars := []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
+		{Identifier: fleet.MDMWindowsProfileUUIDPrefix + "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
 	}
 
 	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1WithVarsAgain, teamProf2NoChange}, nil, nil, profilesVars)
@@ -3680,7 +3681,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	_, err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: globalProfiles[0], FleetVariables: nil},
 		{ProfileUUID: globalProfiles[1], FleetVariables: nil},
-	}, "windows")
+	}, "windows", false)
 	require.NoError(t, err)
 
 	checkProfileVariables(globalProfiles[0], 0, nil)
@@ -3690,7 +3691,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	_, err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: globalProfiles[0], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 		{ProfileUUID: globalProfiles[1], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
-	}, "windows")
+	}, "windows", false)
 	require.NoError(t, err)
 
 	checkProfileVariables(globalProfiles[0], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
@@ -4478,4 +4479,42 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+// testMDMWindowsUnenrollCleansUpProfiles verifies that pending profile rows are cleaned up when a
+// Windows host unenrolls from MDM (issue #42427, scenario B).
+func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a Windows host and enroll it
+	host := test.NewHost(t, ds, "win-unenroll", "10.0.0.1", "win-key", "win-unenroll-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	deviceID := windowsEnroll(t, ds, host)
+
+	// create a Windows profile and set it as pending install on the host
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			host.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID)
+		return err
+	})
+
+	// verify the profile row exists
+	winProfs, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, winProfs, 1)
+	require.Equal(t, profUUID, winProfs[0].ProfileUUID)
+
+	// unenroll the device
+	err = ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+
+	// verify the profile row has been cleaned up
+	winProfs, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, winProfs)
 }
