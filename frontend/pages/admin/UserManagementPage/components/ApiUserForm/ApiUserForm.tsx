@@ -98,6 +98,9 @@ const ApiUserForm = ({
     if (!validatePresence(name)) {
       errors.name = "Name is required";
     }
+    if (!isGlobalUser && fleets.length === 0) {
+      errors.teams = "Please select at least one fleet";
+    }
     if (isSpecificEndpoints && selectedEndpoints.length === 0) {
       errors.api_endpoints = "Please select at least one API endpoint";
     }
@@ -153,10 +156,23 @@ const ApiUserForm = ({
 
   const handleFleetChange = (newFleets: ITeam[]) => {
     setFleets(newFleets);
+    if (newFleets.length > 0 && formErrors.teams) {
+      setFormErrors((prev) => {
+        const { teams: _, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const handleIsGlobalUserChange = (value: string) => {
-    setIsGlobalUser(value === UserTeamType.GlobalUser);
+    const isGlobal = value === UserTeamType.GlobalUser;
+    setIsGlobalUser(isGlobal);
+    if (isGlobal && formErrors.teams) {
+      setFormErrors((prev) => {
+        const { teams: _, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const renderGlobalRoleForm = () => (
@@ -201,7 +217,18 @@ const ApiUserForm = ({
           disabled={!availableTeams.length}
         />
       </div>
-      {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+      {isGlobalUser ? (
+        renderGlobalRoleForm()
+      ) : (
+        <>
+          {renderTeamsForm()}
+          {formErrors.teams && (
+            <div className="form-field__label form-field__label--error">
+              {formErrors.teams}
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 
