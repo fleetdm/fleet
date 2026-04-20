@@ -22,7 +22,7 @@ on:
         default: 0
         required: true
       task_size:
-        description: "CPU and Memory setting for osquery-perf containers. Example: {\"cpu\":\"4098\",\"memory\":\"8192\"}"
+        description: "CPU and Memory setting for osquery-perf containers. Example: {\"cpu\":\"4096\",\"memory\":\"8192\"}"
         type: string
         default: "{\"cpu\":\"4096\",\"memory\":\"8192\"}"
         required: true
