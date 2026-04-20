@@ -214,7 +214,6 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
   return (
     <MainContent className={baseClass}>
       <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
-      <h1>{showApiForm ? "Edit API-only user" : "Edit user"}</h1>
       {showApiForm ? (
         <ApiUserForm
           onCancel={() => router.push(PATHS.ADMIN_USERS)}
@@ -230,26 +229,29 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
           isPremiumTier={isPremiumTier}
         />
       ) : (
-        <UserForm
-          onCancel={() => router.push(PATHS.ADMIN_USERS)}
-          onSubmit={handleHumanUserSubmit}
-          availableTeams={teams || []}
-          isPremiumTier={isPremiumTier || false}
-          smtpConfigured={config?.smtp_settings?.configured || false}
-          sesConfigured={config?.email?.backend === "ses" || false}
-          canUseSso={config?.sso_settings?.enable_sso || false}
-          isSsoEnabled={entityData?.sso_enabled}
-          isMfaEnabled={(entityData as IUser).mfa_enabled}
-          isApiOnly={false}
-          isInvitePending={isInvite}
-          isModifiedByGlobalAdmin
-          defaultName={entityData?.name}
-          defaultEmail={entityData?.email}
-          defaultGlobalRole={entityData?.global_role}
-          defaultTeams={entityData?.teams}
-          ancestorErrors={formErrors}
-          isUpdatingUsers={isSubmitting}
-        />
+        <>
+          <h1>Edit user</h1>
+          <UserForm
+            onCancel={() => router.push(PATHS.ADMIN_USERS)}
+            onSubmit={handleHumanUserSubmit}
+            availableTeams={teams || []}
+            isPremiumTier={isPremiumTier || false}
+            smtpConfigured={config?.smtp_settings?.configured || false}
+            sesConfigured={config?.email?.backend === "ses" || false}
+            canUseSso={config?.sso_settings?.enable_sso || false}
+            isSsoEnabled={entityData?.sso_enabled}
+            isMfaEnabled={(entityData as IUser).mfa_enabled}
+            isApiOnly={false}
+            isInvitePending={isInvite}
+            isModifiedByGlobalAdmin
+            defaultName={entityData?.name}
+            defaultEmail={entityData?.email}
+            defaultGlobalRole={entityData?.global_role}
+            defaultTeams={entityData?.teams}
+            ancestorErrors={formErrors}
+            isUpdatingUsers={isSubmitting}
+          />
+        </>
       )}
     </MainContent>
   );

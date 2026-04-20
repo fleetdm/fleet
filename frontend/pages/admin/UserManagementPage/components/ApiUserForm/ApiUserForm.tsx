@@ -232,19 +232,29 @@ const ApiUserForm = ({
     </>
   );
 
-  const renderPageDescription = () => (
-    <>
-      This user will have access to the Fleet API, but will not be able to log
-      into the UI.
-    </>
-  );
+  const renderPageHeader = () => {
+    const pageDesc = `This user will have access to the Fleet API, but will not be able to log
+      into the UI.`;
+
+    return (
+      <div>
+        {isNewUser ? (
+          <>
+            <h1>New API-only user</h1>
+            <PageDescription content={pageDesc} />
+          </>
+        ) : (
+          <>
+            <h1>Edit API-only user</h1>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
-      <div>
-        <h1>New user</h1>
-        <PageDescription content={renderPageDescription()} />
-      </div>
+      {renderPageHeader()}
       <div>
         <form autoComplete="off" onSubmit={handleSubmit}>
           <InputField
