@@ -58,6 +58,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
+		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 	}
 
@@ -4609,6 +4610,127 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
 	})
+}
+
+// testCustomToFMAInstallerReplacement regresses issue #43738: when a title
+// that previously had a custom (non-FMA) installer is replaced by an FMA
+// installer via GitOps, the stale custom row used to remain with is_active=1,
+// causing setup experience to enqueue the app twice.
+func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma"})
+	require.NoError(t, err)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg1",
+		Slug:             "pkg1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg1",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	// Seed a custom installer for title "pkg1".
+	customInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:              "pkg1",
+		Source:             "apps",
+		Platform:           "darwin",
+		PreInstallQuery:    "SELECT 1",
+		InstallScript:      "echo install",
+		PostInstallScript:  "echo post install",
+		UninstallScript:    "echo uninstall",
+		InstallerFile:      tfr,
+		StorageID:          "storageid_custom",
+		Filename:           "pkg1.pkg",
+		Version:            "1.0",
+		UserID:             user.ID,
+		ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		InstallDuringSetup: new(true),
+		SelfService:        false,
+		TeamID:             new(team.ID),
+	})
+	require.NoError(t, err)
+
+	// Attach a policy to the custom installer so we also exercise the
+	// policy re-point on deletion (policies.software_installer_id FK has no
+	// ON DELETE CASCADE).
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                "p_custom_to_fma",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: &customInstallerID,
+	})
+	require.NoError(t, err)
+
+	// GitOps run: same title, now an FMA payload.
+	err = ds.BatchSetSoftwareInstallers(ctx, new(team.ID), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			FleetMaintainedAppID: new(fma.ID),
+			Title:                "pkg1",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1 DIFFERENT",
+			InstallScript:        "echo install 2",
+			PostInstallScript:    "echo post install 2",
+			UninstallScript:      "echo uninstall 2",
+			InstallerFile:        tfr,
+			StorageID:            "storageid_fma",
+			Filename:             "pkg1_fma.pkg",
+			Version:              "2.0",
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup:   new(true),
+			SelfService:          true,
+			TeamID:               new(team.ID),
+		},
+	})
+	require.NoError(t, err)
+
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team.ID)}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+
+	// The old custom row (fleet_maintained_app_id IS NULL) must be gone.
+	var customRows int
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &customRows, `
+			SELECT COUNT(*) FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+		`, team.ID, titles[0].ID)
+	})
+	require.Zero(t, customRows, "stale custom installer row was not cleaned up after FMA replacement")
+
+	// Exactly one active installer remains for the title, and it's the FMA.
+	var activeCount int
+	var activeFMAID *uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &activeCount, `
+			SELECT COUNT(*) FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
+		`, team.ID, titles[0].ID)
+	})
+	require.Equal(t, 1, activeCount)
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &activeFMAID, `
+			SELECT fleet_maintained_app_id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
+		`, team.ID, titles[0].ID)
+	})
+	require.NotNil(t, activeFMAID)
+	require.Equal(t, fma.ID, *activeFMAID)
+
+	// The policy that pointed at the deleted custom installer must have
+	// been re-pointed to the new FMA row, not dropped/nulled.
+	metadata, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, new(team.ID), titles[0].ID, false)
+	require.NoError(t, err)
+	policyAfter, err := ds.TeamPolicy(ctx, team.ID, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policyAfter.SoftwareInstallerID)
+	require.Equal(t, metadata.InstallerID, *policyAfter.SoftwareInstallerID)
+	require.NotEqual(t, customInstallerID, *policyAfter.SoftwareInstallerID)
 }
 
 func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
