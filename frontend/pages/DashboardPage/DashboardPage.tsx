@@ -77,6 +77,8 @@ import WelcomeHost from "./cards/WelcomeHost";
 import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import ChartCard from "./cards/ChartCard";
+import { HostsEnrolledCard } from "./cards/HostsEnrolledCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -261,6 +263,39 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       },
     }
   );
+
+  // Separate query to get the total host count per platform regardless of platform filter.
+  // Used by the "hosts enrolled" chart.
+  const { data: hostSummaryTotals } = useQuery<
+    IHostSummary,
+    Error,
+    IHostSummary
+  >(
+    ["host summary totals", teamIdForApi, isPremiumTier],
+    () =>
+      hostSummaryAPI.getSummary({
+        teamId: teamIdForApi,
+        lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
+      }),
+    {
+      enabled: isRouteOk,
+    }
+  );
+
+  const totalCounts = useMemo(() => {
+    if (!hostSummaryTotals?.platforms) {
+      return {};
+    }
+    return hostSummaryTotals.platforms.reduce(
+      (acc: any, item) => {
+        acc[item.platform] = item.hosts_count || 0;
+        return acc;
+      },
+      {
+        linux: hostSummaryTotals.all_linux_count || 0,
+      }
+    );
+  }, [hostSummaryTotals]);
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
     IEnrollSecretsResponse,
@@ -889,6 +924,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             </div>
           </div>
         </div>
+        <div className={`${baseClass}__charts-row`}>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <HostsEnrolledCard counts={totalCounts} />
+          </Card>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <ChartCard />
+          </Card>
+        </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <DropdownWrapper
@@ -907,18 +950,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               );
             }}
           />
-        </div>
-
-        <div className={`${baseClass}__host-sections`}>
-          <>
-            {isHostSummaryFetching ? (
-              <Card paddingSize="medium">
-                <Spinner includeContainer={false} verticalPadding="small" />
-              </Card>
-            ) : (
-              HostCountCards
-            )}
-          </>
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
