@@ -75,8 +75,6 @@ spec:
       manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
-      enable_managed_local_account: false
-      end_user_local_account_type: ""
       script:
       software:
     setup_experience:
@@ -88,8 +86,6 @@ spec:
       macos_manual_agent_install:
       require_all_software_macos: false
       require_all_software_windows: false
-      enable_create_local_admin_account: false
-      end_user_local_account_type: ""
       macos_script:
       software:
     windows_settings:
