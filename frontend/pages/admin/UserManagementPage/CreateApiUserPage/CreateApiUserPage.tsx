@@ -58,8 +58,8 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
           setApiKey(response.token);
         } else {
           renderFlash(
-            "error",
-            `${formData.name} has been created, but the token could not be retrieved`
+            "warning-filled",
+            `${formData.name} has been created, but the API key could not be retrieved. Contact your administrator.`
           );
           router.push(PATHS.ADMIN_USERS);
         }
