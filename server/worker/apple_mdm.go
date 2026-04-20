@@ -255,6 +255,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	if ssoEnabled || managedAdminAccountEnabled {
 		var password string
+		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
 			password = apple_mdm.GenerateManagedAccountPassword()
 			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
@@ -267,20 +268,17 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				PasswordHash: passwordHash,
 				Hidden:       true,
 			}
-		}
-
-		cmdUUID, err := a.createManagedAccounts(ctx, &args, ssoAccount, adminAccount, lockPrimaryAccountInfo)
-		if err != nil {
-			return err
-		}
-		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
-
-		if managedAdminAccountEnabled {
-			err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID)
-			if err != nil {
+			// Save the password before sending the command so the plaintext is
+			// escrowed even if the command enqueue succeeds but a later step fails.
+			if err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID); err != nil {
 				return err
 			}
 		}
+
+		if err := a.sendManagedAccounts(ctx, &args, ssoAccount, adminAccount, lockPrimaryAccountInfo, cmdUUID); err != nil {
+			return err
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
 	}
 
 	// proceed to release the device if it is not a macos, as those are released
@@ -909,34 +907,25 @@ func QueueAppleMDMJob(
 	return nil
 }
 
-// createManagedAccounts enqueues an AccountConfiguration command for an sso and/or
+// sendManagedAccounts enqueues an AccountConfiguration command for an sso and/or
 // a breakglass admin account.
-func (a *AppleMDM) createManagedAccounts(
+func (a *AppleMDM) sendManagedAccounts(
 	ctx context.Context,
 	args *appleMDMArgs,
 	ssoAccount *fleet.MDMIdPAccount,
 	adminAccount *AdminAccount,
 	lockPrimaryAccountInfo bool,
-) (string, error) {
+	cmdUUID string,
+) error {
 
-	// we can keep the base command as is
-	// if managed account is disabled, check sso
-	// 		- if sso is enabled, send the base command
-	// if managed account is enabled, check sso
-	// 		- if sso is enabled, send the base command, PLUS AutoSetupAdminAccounts payload
-	// 		- if sso is disabled, add DontAutoPopulatePrimaryAccountInfo=false, LockPrimaryAccountInfo=false
-	// 			and send the AutoSetupAdminAccounts payload
-
-	// call a.Commander.AccountConfiguration() here?
 	var ssoAccountPayload, managedAccountPayload string
 
 	if ssoAccount != nil {
 		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "getting idp account display name")
+			return ctxerr.Wrap(ctx, err, "getting idp account display name")
 		}
 
-		// TODO(JK): use plist.Marshal() instead?
 		ssoAccountPayload = fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
@@ -949,20 +938,21 @@ func (a *AppleMDM) createManagedAccounts(
 
 	if adminAccount != nil {
 		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
-		// TODO(JK): use plist.Marshal() instead?
 		managedAccountPayload = fmt.Sprintf(`
-      <key>AutoSetupAdminAccount</key>
-      <dict>
-        <key>hidden</key>
-        <true/>
-        <key>passwordHash</key>
-        <data>%s</data>
-        <key>shortName</key>
-        <string>%s</string>
-        <key>fullName</key>
-        <string>%s</string>
-     </dict>
-`, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+      <key>AutoSetupAdminAccounts</key>
+      <array>
+        <dict>
+          <key>hidden</key>
+          <%t />
+          <key>passwordHash</key>
+          <data>%s</data>
+          <key>shortName</key>
+          <string>%s</string>
+          <key>fullName</key>
+          <string>%s</string>
+        </dict>
+      </array>
+`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
 	}
 
 	var payload string
@@ -977,19 +967,18 @@ func (a *AppleMDM) createManagedAccounts(
 			payload = ssoAccountPayload
 		} else {
 			// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
-			return "", ctxerr.New(ctx, "unreachable")
+			return ctxerr.New(ctx, "unreachable")
 		}
 	}
 
 	if ssoAccount != nil {
 		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
 	}
-	cmdUUID := uuid.New().String()
 	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, payload, cmdUUID); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+		return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 	}
 
-	return cmdUUID, nil
+	return nil
 }
 
 // AdminAccount holds the parameters for an AutoSetupAdminAccounts entry in

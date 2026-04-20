@@ -1534,7 +1534,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		require.ElementsMatch(t, []string{"InstallProfile", "DeclarativeManagement", "InstallProfile", "InstallProfile", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
-	t.Run("createManagedAccounts with SSO and admin account", func(t *testing.T) {
+	t.Run("sendManagedAccounts with SSO and admin account", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
@@ -1565,9 +1565,9 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 			Platform: "darwin",
 		}
 
-		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, ssoAccount, adminAccount, true)
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, ssoAccount, adminAccount, true, cmdUUID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmdUUID)
 
 		// Read the enqueued command XML from nano_commands
 		var rawCommand string
@@ -1584,8 +1584,9 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Contains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
 		assert.Contains(t, rawCommand, "<true />")
 
-		// Verify the command contains admin account fields
-		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		// Verify the command contains admin account fields with correct Apple plist structure
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
+		assert.Contains(t, rawCommand, "<array>")
 		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
 		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
 		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
@@ -1595,7 +1596,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Contains(t, rawCommand, fmt.Sprintf("<string>%s</string>", cmdUUID))
 	})
 
-	t.Run("createManagedAccounts with SSO only", func(t *testing.T) {
+	t.Run("sendManagedAccounts with SSO only", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
@@ -1619,9 +1620,9 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 			Platform: "darwin",
 		}
 
-		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, ssoAccount, nil, false)
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, ssoAccount, nil, false, cmdUUID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmdUUID)
 
 		var rawCommand string
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1638,11 +1639,11 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Contains(t, rawCommand, "<false />")
 
 		// Admin fields NOT present
-		assert.NotContains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		assert.NotContains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
 		assert.NotContains(t, rawCommand, "_fleetadmin")
 	})
 
-	t.Run("createManagedAccounts with admin only", func(t *testing.T) {
+	t.Run("sendManagedAccounts with admin only", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
@@ -1666,9 +1667,9 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 			Platform: "darwin",
 		}
 
-		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, nil, adminAccount, false)
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, nil, adminAccount, false, cmdUUID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmdUUID)
 
 		var rawCommand string
 		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1676,8 +1677,9 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
 		})
 
-		// Admin fields present
-		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		// Admin fields present with correct Apple plist structure
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
+		assert.Contains(t, rawCommand, "<array>")
 		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
 		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
 		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
