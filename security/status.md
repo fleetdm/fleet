@@ -437,6 +437,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-5201](https://nvd.nist.gov/vuln/detail/CVE-2026-5201)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do JPEG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libgdk-pixbuf-2.0-0`,`deb/debian/libgdk-pixbuf2.0-common`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:41:33
+
+### [CVE-2026-4775](https://nvd.nist.gov/vuln/detail/CVE-2026-4775)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do TIFF processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libtiff6`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:42:37
+
 ### [CVE-2026-33636](https://nvd.nist.gov/vuln/detail/CVE-2026-33636)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -460,6 +476,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/wix does not connect to TLS servers using OpenSSL.
+- **Products:**: `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-20 11:44:34
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
