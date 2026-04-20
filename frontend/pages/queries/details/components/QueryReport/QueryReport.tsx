@@ -150,6 +150,7 @@ const QueryReport = ({
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
           renderCount={renderResultsCount}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );

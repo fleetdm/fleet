@@ -229,7 +229,7 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 	if save {
 		if appConfig.ServerSettings.DeferredSaveHost {
-			go svc.serialUpdateHost(host)
+			go svc.serialUpdateHost(ctx, host)
 		} else {
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				return "", ctxerr.Wrap(ctx, err, "save host in enroll agent")
@@ -242,12 +242,14 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 
 var counter = int64(0)
 
-func (svc *Service) serialUpdateHost(host *fleet.Host) {
+func (svc *Service) serialUpdateHost(ctx context.Context, host *fleet.Host) {
 	newVal := atomic.AddInt64(&counter, 1)
 	defer func() {
 		atomic.AddInt64(&counter, -1)
 	}()
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 30*time.Second)
+	// Detach from request cancellation but preserve context values (e.g. OTEL trace),
+	// then apply a timeout for this background operation.
+	ctx, cancelFunc := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancelFunc()
 	svc.logger.DebugContext(ctx, "serial update host background", "background", newVal)
 	err := svc.ds.SerialUpdateHost(ctx, host)
@@ -715,6 +717,53 @@ var criticalDetailQueries = map[string]bool{
 	"mdm_windows": true,
 }
 
+// hostDetailQueryConfig holds pre-loaded configuration data needed for building and ingesting
+// detail queries. Loading this once and passing it through avoids redundant database calls
+// (AppConfig, HostFeatures, TeamMDMConfig, conditional access) on every detail query result,
+// and also caches the resolved detail query map so it is built only once per request.
+type hostDetailQueryConfig struct {
+	appConfig     *fleet.AppConfig
+	features      *fleet.Features
+	detailQueries map[string]osquery_utils.DetailQuery
+}
+
+func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.Host) (*hostDetailQueryConfig, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read app config")
+	}
+
+	features, err := svc.HostFeatures(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read host features")
+	}
+
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
+
+	return &hostDetailQueryConfig{
+		appConfig:     appConfig,
+		features:      features,
+		detailQueries: detailQueries,
+	}, nil
+}
+
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
 // osqueryd to fill in the host details.
 func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) (queries map[string]string, discovery map[string]string, err error) {
@@ -729,36 +778,15 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
+	cfg, err := svc.loadHostDetailQueryConfig(ctx, host)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "read app config")
-	}
-
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
-		}
+		return nil, nil, err
 	}
 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		}, mdmTeamConfig)
-	for name, query := range detailQueries {
+	for name, query := range cfg.detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
 		}
@@ -784,13 +812,13 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	if features.AdditionalQueries == nil || criticalQueriesOnly {
+	if cfg.features.AdditionalQueries == nil || criticalQueriesOnly {
 		// No additional queries set
 		return queries, discovery, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*features.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*cfg.features.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 
@@ -804,7 +832,7 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
-	if host.Platform != "darwin" {
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return false
 	}
 
@@ -821,15 +849,22 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
+	svc.jitterMu.RLock()
+	jh := svc.jitterH[interval]
+	svc.jitterMu.RUnlock()
 
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+	if jh == nil {
+		svc.jitterMu.Lock()
+		// Double-check after acquiring write lock.
+		if svc.jitterH[interval] == nil {
+			svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+			svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+		}
+		jh = svc.jitterH[interval]
+		svc.jitterMu.Unlock()
 	}
 
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	jitter := jh.jitterForHost(hostID)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
 }
@@ -859,7 +894,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 		if err != nil && !fleet.IsNotFound(err) {
 			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
 		}
@@ -869,8 +904,8 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 	}
 }
 
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
@@ -1086,6 +1121,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	preProcessSoftwareResults(ctx, host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
+	// Lazy-load detail query config only when a detail result is present, to avoid
+	// unnecessary HostFeatures/TeamMDMConfig/conditional access DB calls for payloads
+	// that only contain label, policy, or live-query results.
+	var detailConfig *hostDetailQueryConfig
+	var detailConfigFailed bool
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -1109,8 +1150,23 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 		queryStats := stats[query]
 
+		// Lazy-load detail config on first detail query result.
+		if detailConfig == nil && strings.HasPrefix(query, hostDetailQueryPrefix) {
+			if detailConfigFailed {
+				// Already failed to load detail config, skip all detail queries.
+				continue
+			}
+			var err error
+			detailConfig, err = svc.loadHostDetailQueryConfig(ctx, host)
+			if err != nil {
+				detailConfigFailed = true
+				logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "loading host detail query config"))
+				continue
+			}
+		}
+
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
-			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
+			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats, detailConfig,
 		)
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
@@ -1121,6 +1177,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		additionalUpdated = additionalUpdated || ingestedAdditionalUpdated
 	}
 
+	// Load AppConfig separately for label/policy processing. detailConfig may be nil
+	// (no detail queries in this check-in) or may have failed to load (soft failure).
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
@@ -1151,16 +1209,32 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		// Compute flipping policies once for all consumers. This replaces up to 5 individual calls to
+		// FlippingPoliciesForHost with a single database query.
+		newFailing, newPassing, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, policyResults)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
+		// Ensure newPassing is non-nil so RecordPolicyQueryExecutions can distinguish "pre-computed with zero results"
+		// from "not pre-computed" (nil means compute it yourself).
+		if newPassing == nil {
+			newPassing = []uint{}
+		}
+		newFailingSet := make(map[uint]struct{}, len(newFailing))
+		for _, id := range newFailing {
+			newFailingSet[id] = struct{}{}
+		}
+
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if host.Platform == "darwin" {
-			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+		if host.Platform == "darwin" || host.Platform == "windows" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -1168,18 +1242,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
 			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
-			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults, newFailingSet); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		// filter policy results for webhooks
+		// Filter policy results for webhooks using pre-computed flipping sets.
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
@@ -1198,12 +1272,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
 		if len(filteredResults) > 0 {
-			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, filteredResults); err != nil {
-				logging.WithErr(ctx, err)
-			} else {
+			// Filter the pre-computed flipping results to only webhook-enabled policies.
+			webhookFailing := filterByPolicyIDs(newFailing, filteredResults)
+			webhookPassing := filterByPolicyIDs(newPassing, filteredResults)
+			if len(webhookFailing) > 0 || len(webhookPassing) > 0 {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), webhookFailing, webhookPassing); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -1217,12 +1292,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
 
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
@@ -1253,16 +1328,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			logging.WithErr(ctx, err)
+		if ac.ServerSettings.DeferredSaveHost {
+			go svc.serialUpdateHost(ctx, host)
 		} else {
-			if appConfig.ServerSettings.DeferredSaveHost {
-				go svc.serialUpdateHost(host)
-			} else {
-				if err := svc.ds.UpdateHost(ctx, host); err != nil {
-					logging.WithErr(ctx, err)
-				}
+			if err := svc.ds.UpdateHost(ctx, host); err != nil {
+				logging.WithErr(ctx, err)
 			}
 		}
 	}
@@ -1681,6 +1751,7 @@ func (svc *Service) ingestQueryResults(
 	labelResults map[uint]*bool,
 	additionalResults fleet.OsqueryDistributedQueryResults,
 	stats *fleet.Stats,
+	detailConfig *hostDetailQueryConfig,
 ) (bool, bool, error) {
 	var detailUpdated, additionalUpdated bool
 
@@ -1706,11 +1777,14 @@ func (svc *Service) ingestQueryResults(
 
 	switch {
 	case strings.HasPrefix(query, hostDetailQueryPrefix):
+		if detailConfig == nil { // safety net for NilAway linter
+			return false, false, newOsqueryError("detail query config not loaded for query " + query)
+		}
 		trimmedQuery := strings.TrimPrefix(query, hostDetailQueryPrefix)
 		var ingested bool
-		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows)
+		ingested, err = svc.directIngestDetailQuery(ctx, host, trimmedQuery, rows, detailConfig)
 		if !ingested && err == nil {
-			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows)
+			err = svc.ingestDetailQuery(ctx, host, trimmedQuery, rows, detailConfig)
 			// No err != nil check here because ingestDetailQuery could have updated
 			// successfully some values of host.
 			detailUpdated = true
@@ -1726,36 +1800,8 @@ func (svc *Service) ingestQueryResults(
 
 var noSuchTableRegexp = regexp.MustCompile(`^no such table: \S+$`)
 
-func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) (ingested bool, err error) {
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return false, newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return false, newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return false, newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		mdmTeamConfig,
-	)
-	query, ok := detailQueries[name]
+func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, cfg *hostDetailQueryConfig) (ingested bool, err error) {
+	query, ok := cfg.detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
 	}
@@ -1885,44 +1931,14 @@ func ingestMembershipQuery(
 
 // ingestDetailQuery takes the results of a detail query and modifies the
 // provided fleet.Host appropriately.
-func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string) error {
-	features, err := svc.HostFeatures(ctx, host)
-	if err != nil {
-		return newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return newOsqueryError("ingest detail query: " + err.Error())
-	}
-
-	var mdmTeamConfig *fleet.TeamMDM
-	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
-		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
-		if err != nil {
-			return newOsqueryError("ingest detail query: " + err.Error())
-		}
-	}
-
-	detailQueries := osquery_utils.GetDetailQueries(
-		ctx,
-		svc.config,
-		appConfig,
-		features,
-		osquery_utils.Integrations{
-			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-		},
-		mdmTeamConfig,
-	)
-
-	query, ok := detailQueries[name]
+func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, name string, rows []map[string]string, cfg *hostDetailQueryConfig) error {
+	query, ok := cfg.detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)
 	}
 
 	if query.IngestFunc != nil {
-		err = query.IngestFunc(ctx, svc.logger, host, rows)
-		if err != nil {
+		if err := query.IngestFunc(ctx, svc.logger, host, rows); err != nil {
 			return newOsqueryError(fmt.Sprintf("ingesting query %s: %s", name, err.Error()))
 		}
 	}
@@ -1942,6 +1958,18 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 			continue
 		}
 		filtered[policyID] = passes
+	}
+	return filtered
+}
+
+// filterByPolicyIDs returns only the policy IDs from ids that are present in allowedResults and have a non-nil result
+// (i.e., the policy actually executed). This matches the behavior of FlippingPoliciesForHost which ignores nil results.
+func filterByPolicyIDs(ids []uint, allowedResults map[uint]*bool) []uint {
+	var filtered []uint
+	for _, id := range ids {
+		if val, ok := allowedResults[id]; ok && val != nil {
+			filtered = append(filtered, id)
+		}
 	}
 	return filtered
 }
@@ -1972,6 +2000,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostPlatform string,
 	hostOrbitNodeKey *string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// We do not want to queue software installations on vanilla osquery hosts.
@@ -1987,15 +2016,13 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2008,43 +2035,15 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to installers.
-	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
-	for _, policyWithInstaller := range policiesWithInstaller {
-		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
-	}
-	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithInstallersMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithInstallers[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithInstallers) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with installers that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithInstallers,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
-		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with installers that are not newly failing.
+	// Filter to policies with installers that are newly failing, using the pre-computed set.
 	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
 	for _, policyWithInstaller := range policiesWithInstaller {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+		if _, ok := newFailingSet[policyWithInstaller.ID]; ok {
 			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
 		}
+	}
+	if len(failingPoliciesWithInstaller) == 0 {
+		return nil
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
@@ -2120,6 +2119,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	var policyTeamID uint
 	if hostTeamID == nil {
@@ -2130,15 +2130,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2151,45 +2149,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to VPP apps.
-	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
-	for _, policyWithVPP := range policiesWithVPP {
-		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
-	}
-	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithVPPMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithVPP[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithVPP) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithVPP,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
-		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with VPP apps that are not newly failing.
+	// Filter to policies with VPP apps that are newly failing, using the pre-computed set.
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+		if _, ok := newFailingSet[policyWithVPP.ID]; ok {
 			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 		}
 	}
-
 	if len(failingPoliciesWithVPP) == 0 {
 		return nil
 	}
@@ -2270,6 +2236,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostOrbitNodeKey *string,
 	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		return nil // vanilla osquery hosts can't run scripts
@@ -2298,15 +2265,13 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2319,43 +2284,15 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to scripts.
-	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
-	for _, policyWithScript := range policiesWithScript {
-		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
-	}
-	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithScriptsMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithScripts[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithScripts) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with scripts that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithScripts,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
-		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with scripts that are not newly failing.
+	// Filter to policies with scripts that are newly failing, using the pre-computed set.
 	var failingPoliciesWithScript []fleet.PolicyScriptData
 	for _, policyWithScript := range policiesWithScript {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+		if _, ok := newFailingSet[policyWithScript.ID]; ok {
 			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
 		}
+	}
+	if len(failingPoliciesWithScript) == 0 {
+		return nil
 	}
 
 	for _, failingPolicyWithScript := range failingPoliciesWithScript {
@@ -2487,6 +2424,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	hostID uint,
 	hostTeamID *uint,
 	hostOrbitNodeKey *string,
+	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
@@ -2535,7 +2473,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	}
 
 	// Get policies configured for conditional access.
-	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID, hostPlatform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
@@ -2562,13 +2500,14 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
 
 	return nil
 }
 
 func (svc *Service) setHostConditionalAccessAsync(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2576,11 +2515,12 @@ func (svc *Service) setHostConditionalAccessAsync(
 	go func() {
 		logger := svc.logger.With(
 			"host_id", hostID,
+			"platform", hostPlatform,
 			"managed", managed,
 			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
 			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
 		}
 		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
@@ -2593,6 +2533,7 @@ var conditionalAccessSetWaitTime = 10 * time.Second
 
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
+	hostPlatform string,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
@@ -2605,10 +2546,18 @@ func (svc *Service) setHostConditionalAccess(
 	}
 	logger := svc.logger.With(
 		"host_id", hostID,
+		"platform", hostPlatform,
 		"managed", managed,
 		"compliant", compliant,
 	)
 	logger.DebugContext(ctx, "set compliance status")
+
+	// Currently, only macOS and Windows are supported.
+	osName := "macOS" // "macOS" is what Entra requires for darwin hosts.
+	if hostPlatform == "windows" {
+		osName = "windows"
+	}
+
 	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
 		integration.TenantID,
 		integration.ProxyServerSecret,
@@ -2618,7 +2567,7 @@ func (svc *Service) setHostConditionalAccess(
 
 		managed,
 		hostConditionalAccessStatus.DisplayName,
-		"macOS",
+		osName,
 		hostConditionalAccessStatus.OSVersion,
 		compliant,
 		time.Now().UTC(),
@@ -2626,38 +2575,46 @@ func (svc *Service) setHostConditionalAccess(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
-	const (
-		timeout = 1 * time.Minute
-	)
-	logger.DebugContext(ctx, "set compliance status message sent")
-	startTime := time.Now()
-	for range time.Tick(conditionalAccessSetWaitTime) {
-		if time.Since(startTime) > timeout {
-			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
-		}
-		logger.DebugContext(ctx, "get compliance status message wait")
-		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
-			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+
+	//
+	// The macOS API is asynchronous, the Windows API is not.
+	// So we only need to retrieve the status of the "request" for macOS hosts.
+	//
+
+	if hostPlatform == "darwin" {
+		const (
+			timeout = 1 * time.Minute
 		)
-		if err != nil {
-			// Retry again in case of network or transient errors.
-			logger.InfoContext(ctx, "get message status, retrying", "err", err)
-			continue
-		}
-		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
-			logger.DebugContext(ctx, "set device compliance status completed",
-				"took", time.Since(startTime),
+		logger.DebugContext(ctx, "set compliance status message sent")
+		startTime := time.Now()
+		for range time.Tick(conditionalAccessSetWaitTime) {
+			if time.Since(startTime) > timeout {
+				return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+			}
+			logger.DebugContext(ctx, "get compliance status message wait")
+			messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+				integration.TenantID, integration.ProxyServerSecret, response.MessageID,
 			)
-			break
+			if err != nil {
+				// Retry again in case of network or transient errors.
+				logger.InfoContext(ctx, "get message status, retrying", "err", err)
+				continue
+			}
+			if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+				logger.DebugContext(ctx, "set device compliance status completed",
+					"took", time.Since(startTime),
+				)
+				break
+			}
+			detail := ""
+			if messageStatus.Detail != nil {
+				detail = *messageStatus.Detail
+			}
+			logger.InfoContext(ctx, "get message status, retrying",
+				"status", messageStatus.Status,
+				"detail", detail,
+			)
 		}
-		detail := ""
-		if messageStatus.Detail != nil {
-			detail = *messageStatus.Detail
-		}
-		logger.InfoContext(ctx, "get message status, retrying",
-			"status", messageStatus.Status,
-			"detail", detail,
-		)
 	}
 
 	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {

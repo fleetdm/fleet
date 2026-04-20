@@ -56,7 +56,7 @@ Manager, IT Endpoint Engineering, Thumbtack
 <meta name="description" value="Thumbtack migrated more than 90% of Macs to Fleet with no IT intervention and now manages devices with GitOps and fast Slack support.">
 
 
-<meta name="publishedOn" value="2026-03-26">
+<meta name="publishedOn" value="2026-03-13">
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 

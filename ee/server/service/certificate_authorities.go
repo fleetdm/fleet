@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -380,9 +381,9 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, *ndesSCEP); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
 		switch {
-		case errors.As(err, &NDESPasswordCacheFullError{}):
+		case errors.As(err, &scep.NDESPasswordCacheFullError{}):
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
-		case errors.As(err, &NDESInsufficientPermissionsError{}):
+		case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 		default:
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}
@@ -481,12 +482,12 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return nil
 }
 
-func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
+func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if !viaGitOps {
+	if !opts.ViaGitOps {
 		// Note: This check is here primarily for future reference to help make the usage intent
 		// clear and to differentiate behavior from dual-use endpoints that support patch semantics (e.g., app config)
 		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
@@ -502,7 +503,11 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return nil
 	}
 
-	if dryRun {
+	if opts.SkipDeletes {
+		ops.Delete = nil
+	}
+
+	if opts.DryRun {
 		svc.logger.DebugContext(ctx, "batch apply certificate authorities: no certificate authority changes to apply")
 		return nil
 	}
@@ -1437,9 +1442,9 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 		if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, NDESProxy); err != nil {
 			svc.logger.ErrorContext(ctx, "Failed to validate NDES SCEP admin URL", "err", err)
 			switch {
-			case errors.As(err, &NDESPasswordCacheFullError{}):
+			case errors.As(err, &scep.NDESPasswordCacheFullError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe NDES password cache is full. Please increase the number of cached passwords in NDES and try again.", errPrefix)}
-			case errors.As(err, &NDESInsufficientPermissionsError{}):
+			case errors.As(err, &scep.NDESInsufficientPermissionsError{}):
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInsufficient permissions for NDES SCEP admin URL. Please correct and try again.", errPrefix)}
 			default:
 				return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid NDES SCEP admin URL or credentials. Please correct and try again.", errPrefix)}

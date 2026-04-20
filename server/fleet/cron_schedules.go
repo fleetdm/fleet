@@ -52,6 +52,7 @@ const (
 	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
+	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
 )
 
 type CronSchedulesService interface {

@@ -55,7 +55,9 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
+		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
+		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
 
 	for _, c := range cases {
@@ -1334,8 +1336,66 @@ type anyProfile struct {
 	IdentifierOrName string
 }
 
-// only asserts the profile ID, status and operation
+// cleanupStaleWindowsRemoveRows simulates the full Windows profile removal
+// lifecycle (reconciler sends <Delete> → device confirms → row deleted) for
+// remove rows that are NOT expected in the test assertions. Without this,
+// remove rows from previous test phases accumulate and cause count mismatches.
+//
+// Scoped to only the Windows hosts present in the want map so that rows
+// belonging to hosts not in the current assertion are left untouched. This
+// prevents implicitly hiding issues for hosts the test phase doesn't check.
+func cleanupStaleWindowsRemoveRows(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	// Collect the set of Windows host UUIDs in the assertion and the
+	// (profile_uuid, host_uuid) pairs that are expected as remove rows.
+	wantWindowsHostUUIDs := make([]string, 0)
+	wantRemoveKeys := make(map[string]bool)
+	for h, profs := range want {
+		if h.Platform != "windows" {
+			continue
+		}
+		wantWindowsHostUUIDs = append(wantWindowsHostUUIDs, h.UUID)
+		for _, p := range profs {
+			if p.OperationType == fleet.MDMOperationTypeRemove {
+				wantRemoveKeys[p.ProfileUUID+"\n"+h.UUID] = true
+			}
+		}
+	}
+	if len(wantWindowsHostUUIDs) == 0 {
+		return
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Only select remove rows for hosts in the current assertion's want map.
+		stmt, args, err := sqlx.In(
+			`SELECT profile_uuid, host_uuid FROM host_mdm_windows_profiles WHERE operation_type = 'remove' AND host_uuid IN (?)`,
+			wantWindowsHostUUIDs)
+		if err != nil {
+			return err
+		}
+		var rows []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			HostUUID    string `db:"host_uuid"`
+		}
+		if err := sqlx.SelectContext(context.Background(), q, &rows, stmt, args...); err != nil {
+			return err
+		}
+		for _, r := range rows {
+			key := r.ProfileUUID + "\n" + r.HostUUID
+			if !wantRemoveKeys[key] {
+				if _, err := q.ExecContext(context.Background(),
+					`DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ? AND host_uuid = ? AND operation_type = 'remove'`,
+					r.ProfileUUID, r.HostUUID); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+}
+
+// assertHostProfiles only asserts the profile UUID, status, and operation.
 func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	cleanupStaleWindowsRemoveRows(t, ds, want)
+
 	ctx := context.Background()
 	for h, wantProfs := range want {
 		var gotProfs []anyProfile
@@ -1884,8 +1944,23 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		unenrolledHost: {},
 		linuxHost:      {},
-		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
-		windowsHosts[0]: {},
+		windowsHosts[0]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[1]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -1942,10 +2017,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	require.Len(t, toRemoveDarwin, 6)
-	// 3 are now "to remove" for windows
+	// 6 are now "to remove" for windows (3 for windowsHosts[0] marked remove+NULL, 3 for windowsHosts[1] install+NULL)
 	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemoveWindows, 3)
+	require.Len(t, toRemoveWindows, 6)
 
 	// update status of the moved host via its uuid (team has no profiles)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(
@@ -2056,11 +2131,43 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				IdentifierOrName: globalProfiles[4].Identifier,
 			},
 		},
-		unenrolledHost:  {},
-		linuxHost:       {},
-		windowsHosts[0]: {},
-		// windows profiles are directly deleted without a pending state
-		windowsHosts[1]: {},
+		unenrolledHost: {},
+		linuxHost:      {},
+		windowsHosts[0]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
+		// windows profiles are now marked for removal instead of being directly deleted
+		windowsHosts[1]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[2]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -2110,10 +2217,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	toRemoveDarwin, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)
 	require.Len(t, toRemoveDarwin, 6)
-	// no profiles to remove in windows
+	// 6 profiles still to remove in windows (3 remove+NULL on windowsHosts[0], 3 remove+NULL on windowsHosts[1])
 	toRemoveWindows, err = ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemoveWindows, 0)
+	require.Len(t, toRemoveWindows, 6)
 
 	// update status of the affected team
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
@@ -2234,6 +2341,21 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		linuxHost:      {},
 		windowsHosts[0]: {
 			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
 				ProfileUUID:   tm1Profiles[2].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -2244,7 +2366,23 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
 		},
-		windowsHosts[1]: {},
+		windowsHosts[1]: {
+			{
+				ProfileUUID:   globalProfiles[5].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[6].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+			{
+				ProfileUUID:   globalProfiles[7].ProfileUUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		},
 		windowsHosts[2]: {
 			{
 				ProfileUUID:   globalProfiles[5].ProfileUUID,
@@ -8207,8 +8345,14 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 				IdentifierOrName: allProfs[2].Identifier,
 			},
 		},
-		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
-		winHost: {},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[3].Name,
+			},
+		},
 		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
@@ -8969,8 +9113,10 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
 	require.NoError(t, err)
 
-	assertHostProfileOpStatus(t, ds, host3.UUID)
-	assertHostProfileOpStatus(t, ds, host4.UUID)
+	assertHostProfileOpStatus(t, ds, host3.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host4.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
 
 	// set the android profile as pending install on host 5 and installed on host 6
 	forceSetAndroidHostProfileStatus(t, ds, host5.UUID, test.ToMDMAndroidConfigProfile(profNameToProf["G2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
@@ -8997,7 +9143,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID := uuid.New().String()
-	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID)
+	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID, "")
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host2.UUID, profNameToProf["A2"].ProfileUUID)
@@ -9028,7 +9174,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID = uuid.New().String()
-	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID)
+	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID, "")
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host1.UUID, profNameToProf["A3"].ProfileUUID)
@@ -9062,6 +9208,94 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
+}
+
+// testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is
+// deleted, <Delete> commands are generated for Windows profiles that were
+// delivered to hosts. This ensures settings are actually removed from devices
+// rather than silently orphaned.
+func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a team with Windows profiles.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "delete-team-test"})
+	require.NoError(t, err)
+
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "TW1", "TW1"),
+		windowsConfigProfileForTest(t, "TW2", "TW2"),
+	}
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Collect profile UUIDs.
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 2)
+	profUUIDs := make([]string, len(profs))
+	for i, p := range profs {
+		profUUIDs[i] = p.ProfileUUID
+	}
+
+	// Create Windows hosts enrolled in MDM and assigned to the team.
+	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
+	host1.Platform = "windows"
+	host1.TeamID = &team.ID
+	err = ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host1)
+
+	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
+	host2.Platform = "windows"
+	host2.TeamID = &team.ID
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host2)
+
+	// Simulate profiles delivered to both hosts (install + verified).
+	for _, h := range []*fleet.Host{host1, host2} {
+		for _, p := range profs {
+			forceSetWindowsHostProfileStatus(t, ds, h.UUID,
+				test.ToMDMWindowsConfigProfile(p),
+				fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		}
+	}
+
+	// Verify: 4 rows, all install+verified.
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	// Delete the team — this should generate <Delete> commands.
+	err = ds.DeleteTeam(ctx, team.ID)
+	require.NoError(t, err)
+
+	// Config profiles should be gone.
+	teamProfs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, teamProfs, 0)
+
+	// Host-profile rows should be remove+pending (not remove+NULL, not deleted).
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profUUIDs[0], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profUUIDs[1], fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// Verify <Delete> commands were enqueued.
+	var deleteCmdCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &deleteCmdCount, `
+			SELECT COUNT(*) FROM windows_mdm_command_queue wmcq
+			JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
+			WHERE wmc.raw_command LIKE '%<Delete>%'`)
+	})
+	// 2 profiles × 2 hosts = 4 queue entries (but command rows are shared per profile)
+	require.Equal(t, 4, deleteCmdCount, "expected 4 delete command queue entries (2 profiles × 2 hosts)")
 }
 
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
@@ -9159,6 +9393,155 @@ func forceSetAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID stri
 			hostUUID, actualStatus, operation, profile.Name, profile.ProfileUUID)
 		return err
 	})
+}
+
+func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	// Create and enroll a macOS host
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host-cmd-name",
+		OsqueryHostID:  new("osquery-macos-cmd-name"),
+		NodeKey:        new("node-key-macos-cmd-name"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "CMDNAME123",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, mdmStorage := createMDMAppleCommanderAndStorage(t, ds)
+
+	// Test 1: InstallProfile with a name
+	cmdUUID1 := uuid.New().String()
+	mc := mobileconfig.Mobileconfig(fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array/>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>%s</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>`, uuid.New().String()))
+	err = commander.InstallProfile(ctx, []string{macH.UUID}, mc, cmdUUID1, "Test Profile Name")
+	require.NoError(t, err)
+
+	// Verify name in DB
+	var storedName sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID1)
+	})
+	require.True(t, storedName.Valid)
+	require.Equal(t, "Test Profile Name", storedName.String)
+
+	// Also verify via ListMDMCommands
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.NotNil(t, cmds[0].Name)
+	require.Equal(t, "Test Profile Name", *cmds[0].Name)
+
+	// Test 2: EnqueueCommand without a name
+	cmdUUID2 := uuid.New().String()
+	rawCmd := createRawAppleCmd("ProfileList", cmdUUID2)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, rawCmd)
+	require.NoError(t, err)
+
+	// Verify name is NULL in DB
+	var storedName2 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName2, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID2)
+	})
+	require.False(t, storedName2.Valid)
+
+	// Verify name is null in the API
+	// Verify ListMDMCommands also exposes nil Name for unnamed commands
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+
+	gotByUUID := make(map[string]*fleet.MDMCommand, len(cmds))
+	for _, c := range cmds {
+		gotByUUID[c.CommandUUID] = c
+	}
+	require.Equal(t, "Test Profile Name", *gotByUUID[cmdUUID1].Name)
+	require.Nil(t, gotByUUID[cmdUUID2].Name)
+
+	// Test 3: Name exactly 255 characters — should NOT be truncated
+	cmdUUID3 := uuid.New().String()
+	name255 := strings.Repeat("a", 255)
+	rawXML3 := createRawAppleCmd("InstallProfile", cmdUUID3)
+	decodedCmd3, err := mdm.DecodeCommand([]byte(rawXML3))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd3,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    name255,
+	})
+	require.NoError(t, err)
+
+	var storedName3 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName3, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID3)
+	})
+	require.True(t, storedName3.Valid)
+	require.Equal(t, name255, storedName3.String)
+	require.Len(t, []rune(storedName3.String), 255)
+
+	// Test 4: Name longer than 255 ASCII characters — should be truncated to 255
+	cmdUUID4 := uuid.New().String()
+	name300 := strings.Repeat("b", 300)
+	rawXML4 := createRawAppleCmd("InstallProfile", cmdUUID4)
+	decodedCmd4, err := mdm.DecodeCommand([]byte(rawXML4))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd4,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    name300,
+	})
+	require.NoError(t, err)
+
+	var storedName4 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName4, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID4)
+	})
+	require.True(t, storedName4.Valid)
+	require.Equal(t, strings.Repeat("b", 255), storedName4.String)
+	require.Len(t, []rune(storedName4.String), 255)
+
+	// Test 5: Name with multi-byte utf8mb4 characters exceeding 255 — should truncate to 255 runes (not bytes)
+	cmdUUID5 := uuid.New().String()
+	// Each emoji is a single rune but 4 bytes in utf8mb4. Build a 300-rune string.
+	nameMultibyte := strings.Repeat("🍎", 300)
+	require.Len(t, []rune(nameMultibyte), 300)
+	rawXML5 := createRawAppleCmd("InstallProfile", cmdUUID5)
+	decodedCmd5, err := mdm.DecodeCommand([]byte(rawXML5))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd5,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    nameMultibyte,
+	})
+	require.NoError(t, err)
+
+	var storedName5 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName5, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID5)
+	})
+	require.True(t, storedName5.Valid)
+	require.Equal(t, strings.Repeat("🍎", 255), storedName5.String)
+	require.Len(t, []rune(storedName5.String), 255)
 }
 
 func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {

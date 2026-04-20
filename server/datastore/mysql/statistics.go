@@ -171,9 +171,19 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
 
+		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "conditional access enabled on a team")
+		}
+
 		if appConfig.ConditionalAccess != nil {
 			stats.OktaConditionalAccessConfigured = appConfig.ConditionalAccess.OktaConfigured()
 			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
+		}
+
+		stats.EntraConditionalAccessConfigured, err = ds.entraConditionalAccessConfigured(ctx, config)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
 
 		return nil
@@ -265,7 +275,7 @@ func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) 
 		return nil, err
 	}
 
-	var byName = make(map[string]uint)
+	byName := make(map[string]uint)
 	for _, row := range results {
 		byName[row.Table] = row.Rows
 	}
@@ -305,4 +315,40 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 	}
 
 	return macOSApps, windowsApps, nil
+}
+
+func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context, fleetConfig config.FleetConfig) (bool, error) {
+	// Check if the needed server configuration for Conditional Access is set.
+	if !fleetConfig.MicrosoftCompliancePartner.IsSet() {
+		return false, nil
+	}
+
+	// Check if the integration is fully configured.
+	integration, err := ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	return integration.SetupDone, nil
+}
+
+func (ds *Datastore) conditionalAccessEnabledOnATeam(ctx context.Context, teams []*fleet.Team) (bool, error) {
+	// Check configuration for "Unassigned" is stored in the main appconfig.
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
+	}
+	if cfg.Integrations.ConditionalAccessEnabled.Set && cfg.Integrations.ConditionalAccessEnabled.Value {
+		return true, nil
+	}
+
+	// Check for the setting in teams.
+	for _, team := range teams {
+		if team.Config.Integrations.ConditionalAccessEnabled.Set && team.Config.Integrations.ConditionalAccessEnabled.Value {
+			return true, nil
+		}
+	}
+	return false, nil
 }

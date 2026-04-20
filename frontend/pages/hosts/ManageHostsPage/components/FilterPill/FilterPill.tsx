@@ -1,13 +1,12 @@
-import React, { ReactNode, useRef } from "react";
-import ReactTooltip from "react-tooltip";
+import React, { ReactNode, useRef, useState } from "react";
 import classnames from "classnames";
 
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
-import { COLORS } from "styles/var/colors";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IFilterPillProps {
   label: string;
@@ -33,10 +32,30 @@ const FilterPill = ({
 
   const pillText = useRef(null);
   const isTruncated = useCheckTruncatedElement(pillText);
+  const [tooltipContent, setTooltipContent] = useState(tooltipDescription);
 
   // if tooltipDescription not provided, behave like TooltipTruncatedText
-  const tooltipContent =
-    tooltipDescription ?? (isTruncated ? label : undefined);
+  if (isTruncated && !tooltipContent) {
+    setTooltipContent(label);
+  }
+
+  const labelWithTooltip = tooltipContent ? (
+    <TooltipWrapper
+      tipContent={tooltipContent}
+      position="top"
+      underline={false}
+      showArrow
+      tipOffset={12}
+    >
+      <span ref={pillText} className={`${baseClass}__tooltip-text`}>
+        {label}
+      </span>
+    </TooltipWrapper>
+  ) : (
+    <span ref={pillText} className={`${baseClass}__tooltip-text`}>
+      {label}
+    </span>
+  );
 
   return (
     <div
@@ -48,14 +67,7 @@ const FilterPill = ({
         <span>
           <div className={labelClasses}>
             {icon && <Icon name={icon} />}
-            <span
-              data-tip={tooltipContent}
-              data-for={`filter-pill-tooltip-${label}`}
-              className={`${baseClass}__tooltip-text`}
-              ref={pillText}
-            >
-              {label}
-            </span>
+            {labelWithTooltip}
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
@@ -66,18 +78,6 @@ const FilterPill = ({
             </Button>
           </div>
         </span>
-        {tooltipContent && (
-          <ReactTooltip
-            role="tooltip"
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`filter-pill-tooltip-${label}`}
-            data-html
-          >
-            <span>{tooltipContent}</span>
-          </ReactTooltip>
-        )}
       </>
     </div>
   );

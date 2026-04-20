@@ -12,14 +12,8 @@ assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
 # Important reference data
 
 1. [fleetctl preview setup](https://fleetdm.com/fleetctl-preview)
-2. [permissions documentation](https://fleetdm.com/docs/using-fleet/permissions) 
-3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
-4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
-
-# Database migration tests
-
-1. Create a [custom issue](https://github.com/fleetdm/confidential/issues/new?template=1-custom-request.md) tagged `:help-customers` in the confidential repo to run [cloud migration tests](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml) targeted off of the RC branch. Tests will be run off of [these environments](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud-tests).
-2. Once tests are complete, if migration duration for any environment takes more than 5 seconds, check logs to determine whether any single migration took more than 5 seconds, or if the entire process took more than 15 seconds. If either is the case and there is not already a progress indicator for the migration that updates at least every ten seconds, file an unreleased bug triaged to the team that created the migration to audit the migration and evaluate if progress updates or performance improvements are needed.
+2. [Permissions documentation](https://fleetdm.com/docs/using-fleet/permissions)
+3. [Fleet free vs premium documentation](https://fleetdm.com/pricing)
 
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
@@ -32,10 +26,8 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 ### Prerequisites
 
-1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://fleetdm.com/handbook/engineering#run-fleet-locally-for-qa-purposes)
-2. Unless you are explicitly testing older browser versions, browser is up to date.
-3. Certificate & flagfile are in place to create new host.
-4. In your browser, clear local storage using devtools.
+1. Local instance is running and up to date with the target release branch
+2. In your browser, clear local storage using devtools.
 
 ### Orchestration
 <table>
@@ -103,7 +95,10 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Packs
+   - Gitops 
 - Premium features are correctly restricted or hidden
+   - IdP information
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -193,7 +188,12 @@ Perform a quick visual scan of the UI and confirm:
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Host enrollment
+   - Apple, Windows, Android MDM
+   - Configuration profile delivery    
+   - APNs Certificate renewal 
 - Premium features are correctly restricted or hidden
+   - Setup experience
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -256,23 +256,18 @@ Perform a quick visual scan of the UI and confirm:
 7. Verify software installs display correctly in Activity feed.
 </td><td>pass/fail</td></tr>
 
-
-<tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
-
-Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-upgrade-test.yml
-1. Using the most recent stable version of Fleet and `main`, click `Run workflow`
-2. Enter the Docker tag of Fleet starting version, e.g. 'v4.64.2'
-3. Enter the Docker tag of Fleet version to upgrade to, e.g. 'rc-minor-fleet-v4.65.0'
-4. Click `Run workflow`.
-5. Action should complete successfully.
-</td><td>pass/fail</td></tr>
-
 <tr><td>Fleet Free</td><td>Verify that product group features behave correctly on Fleet Free</td><td>
 
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Host details page
+   - Reports (Add, edit, live report)
+   - Software inventory
+   - Scripts (Add, delete, run)
+   - My device page (Mac, Windows, Linux)
 - Premium features are correctly restricted or hidden
+   - Add software
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -339,7 +334,13 @@ Perform a quick visual scan of the UI and confirm:
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Vulnerability detection
+   - Individual CVE page
 - Premium features are correctly restricted or hidden
+   - Disk encryption
+   - OS Updates
+   - Lock / Wipe
+   - Certificate authorities
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -361,21 +362,74 @@ Perform a quick visual scan of the UI and confirm:
 
 ### All Product Groups
 <table>
- <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
-<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
-<tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
-  
-1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
-2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
-</td><td>pass/fail</td>
-<tr><td>Load tests - minor releases only unless otherwise specified</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
-  
-1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
-2. After all expected changes have been merged to the RC branch, two load tests will need to be run - a new instance with no data, and a migrated instance.
-3. For the new instance with no data, set up a load test environment using the RC branch and allow it at least 24hrs of run time.
-4. For the migrated instance, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch. Monitor the metrics post-migration to determine if any performance issues arise.
-5. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the two load test runs. 
-</td><td>pass/fail</td></tr> 
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/Fail</th></tr>
+
+<tr>
+<td>$Name</td>
+<td>{what a tester should do}</td>
+<td>{what a tester should see when they do that}</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Release blockers</td>
+<td>Verify there are no outstanding release blocking tickets.</td>
+<td>
+
+1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.  
+2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`) channels.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Load tests - minor releases only unless otherwise specified</td>
+<td>Verify all load test metrics are within acceptable range on final build of RC.</td>
+<td>
+
+1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.  
+2. After all expected changes have been merged to the RC branch, two load tests will need to be run - a new instance with no data, and a migrated instance.  
+3. For the new instance with no data, set up a load test environment using the RC branch and allow it at least 24hrs of run time.  
+4. For the migrated instance, set up a load test environment on the previous minor release branch. Once the environment has been set up and stabilized, follow the instructions in [Deploying code changes to fleet](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/readme.md#deploying-code-changes-to-fleet) to migrate to the RC branch. Monitor the metrics post-migration to determine if any performance issues arise.  
+5. Record metrics in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?usp=drive_link) for the two load test runs.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Migration Test</td>
+<td>Verify Fleet can migrate to the next version with no issues.</td>
+<td>
+
+Using [this github action](https://github.com/fleetdm/fleet/actions/workflows/db-upgrade-test.yml)
+
+1. Using the most recent stable version of Fleet and `main`, click `Run workflow`  
+2. Enter the Docker tag of Fleet starting version, e.g. `v4.64.2`  
+3. Enter the Docker tag of Fleet version to upgrade to, e.g. `rc-minor-fleet-v4.65.0`  
+4. Click `Run workflow`  
+5. Action should complete successfully
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
+<td>Cloud migration tests</td>
+<td>Verify Fleet can migrate when using real world data.</td>
+<td>
+
+Using [this github action](https://github.com/fleetdm/confidential/actions/workflows/cloud-tests.yml)
+
+1. Enter `fleetdm/fleet:rc-minor-fleet-<version>` for `The image to test`  
+2. Select `all` for `Where will we deploy?`  
+3. Action should complete successfully and the total time for each instance shouldn't be drastically different from previous releases
+
+</td>
+<td>pass/fail</td>
+</tr>
+
 </table>
 
 ### Notes

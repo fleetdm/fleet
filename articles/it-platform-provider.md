@@ -23,9 +23,6 @@ They chose Fleet for its deep GitOps integration, allowing them to build their o
 - **Consolidated stack:** Consolidation allowed them to replace 4+ legacy tools with one system, reducing vendor sprawl.  
 - **AI-driven insights:** Real-time telemetry is fed into their own orchestration engine to proactively detect and remediate issues.
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.  
 
 <meta name="articleTitle" value="IT platform provider automates patching across thousands of Mac, Windows, and Linux devices">
 <meta name="authorFullName" value="Irena Reedy">
@@ -34,3 +31,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="An IT platform provider used Fleet and GitOps to automate patching, unify Mac, Windows, and Linux, and replace legacy tools.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="IT platform provider">

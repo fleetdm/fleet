@@ -240,3 +240,53 @@ func testConditionalAccessHosts(t *testing.T, ds *Datastore) {
 	require.Nil(t, s.Managed)
 	require.Nil(t, s.Compliant)
 }
+
+func TestExtractWindowsBuildVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "Windows 10 Pro",
+			input:    "Windows 10 Pro 22H2 10.0.19045.6456",
+			expected: "10.0.19045.6456",
+		},
+		{
+			name:     "Windows Server 2025 Datacenter",
+			input:    "Windows Server 2025 Datacenter 24H2 10.0.26100.32230",
+			expected: "10.0.26100.32230",
+		},
+		{
+			name:     "no spaces",
+			input:    "10.0.19045.6456",
+			expected: "10.0.19045.6456",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "single word",
+			input:    "Windows",
+			expected: "Windows",
+		},
+		{
+			name:     "trailing whitespace",
+			input:    "Windows 10 Pro 22H2 10.0.19045.6456  ",
+			expected: "10.0.19045.6456",
+		},
+		{
+			name:     "leading whitespace",
+			input:    "  Windows 10 Pro 22H2 10.0.19045.6456",
+			expected: "10.0.19045.6456",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractWindowsBuildVersion(tt.input)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}

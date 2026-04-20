@@ -62,14 +62,8 @@ const AddUsersModal = ({
         </div>
         <p>
           User not here?&nbsp;
-          <Button
-            onClick={onCreateNewTeamUser}
-            variant="text-link"
-            className="light-text"
-          >
-            <>
-              <strong>Create a user</strong>
-            </>
+          <Button onClick={onCreateNewTeamUser} variant="link">
+            Create a user
           </Button>
         </p>
         <div className="modal-cta-wrap">

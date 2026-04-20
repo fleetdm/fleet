@@ -20,6 +20,15 @@ const (
 	// HostSecretRecoveryLockPassword is the host secret type for macOS recovery lock passwords.
 	// The password is stored encrypted in host_recovery_key_passwords and injected at delivery time.
 	HostSecretRecoveryLockPassword = "RECOVERY_LOCK_PASSWORD"
+
+	// HostSecretRecoveryLockPendingPassword is the host secret type for pending recovery lock passwords
+	// during password rotation. The pending password is stored encrypted in host_recovery_key_passwords
+	// (pending_encrypted_password column) and injected as the NewPassword during rotation.
+	HostSecretRecoveryLockPendingPassword = "RECOVERY_LOCK_PENDING_PASSWORD"
+
+	// HostSecretMDMUnlockToken is the host secret type for MDM unlock tokens.
+	// The token is stored in the nano_devices table and injected at delivery time for ClearPasscode commands sent to Apple MDM-enrolled hosts.
+	HostSecretMDMUnlockToken = "MDM_UNLOCK_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 )
 
 type MissingSecretsError struct {

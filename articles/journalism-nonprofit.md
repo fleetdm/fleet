@@ -23,9 +23,6 @@ They chose Fleet for its ability to treat Linux and macOS with equal visibility 
 - **Transparent metrics:** device compliance status is synced directly to internal team dashboards via the API.  
 - **Live Posture checks:** the team can run live queries across the entire foundation to confirm security status in seconds.
 
-## About Fleet
-
-Fleet is the open-source endpoint management platform that gives you total control, unlike the proprietary 'black boxes' of legacy vendors. Our open device management provides full visibility into our code and roadmap, plus a true choice of deployment—on-prem or cloud—with 100% feature parity. Our API-first approach empowers technical teams to automate with GitOps, scale confidently, and get the real-time data needed to secure their entire macOS, iOS, Windows, and Linux fleets.
 
 <meta name="articleTitle" value="Journalism nonprofit manages Mac and Linux devices with GitOps">
 <meta name="authorFullName" value="Irena Reedy">
@@ -34,3 +31,4 @@ Fleet is the open-source endpoint management platform that gives you total contr
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="Journalism nonprofit manages Mac and Linux devices with open source, GitOps workflows, and transparent, real-time compliance visibility.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Journalism nonprofit">

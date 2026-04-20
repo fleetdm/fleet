@@ -173,7 +173,7 @@ spec:
   contributors: marcosd4h
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get OpenSSL versions
   platform: linux
@@ -193,7 +193,7 @@ spec:
   contributors: GrayW
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get authorized SSH keys
   platform: darwin, linux
@@ -205,7 +205,7 @@ spec:
   contributors: mike-j-thomas
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get authorized keys for Domain Joined Accounts
   platform: darwin, linux
@@ -216,7 +216,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get crashes
   platform: darwin
@@ -227,7 +227,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get installed Chrome Extensions
   platform: darwin, linux, windows
@@ -238,7 +238,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get installed Linux software
   platform: linux
@@ -249,7 +249,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get installed macOS software
   platform: darwin
@@ -260,7 +260,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get installed Safari extensions
   platform: darwin
@@ -271,7 +271,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get installed Windows software
   platform: windows
@@ -282,7 +282,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get laptops with failing batteries
   platform: darwin
@@ -293,7 +293,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get current users with active shell/console on the system
   platform: darwin, linux, windows
@@ -304,7 +304,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get unencrypted SSH keys for local accounts
   platform: darwin, linux, windows
@@ -316,7 +316,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get unencrypted SSH keys for domain-joined accounts
   platform: darwin, linux, windows
@@ -328,7 +328,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
   platform: linux
@@ -340,7 +340,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
   platform: darwin
@@ -352,7 +352,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get etc hosts entries
   platform: darwin, linux
@@ -363,7 +363,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get network interfaces
   platform: darwin, linux, windows
@@ -374,7 +374,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get local user accounts
   platform: darwin, linux, windows
@@ -385,7 +385,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get active user accounts on servers
   platform: linux
@@ -396,7 +396,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get Nmap scanner
   platform: darwin, linux, windows
@@ -410,7 +410,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get Docker contained processes on a system
   platform: darwin, linux
@@ -421,7 +421,7 @@ spec:
   contributors: anelshaer
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get Windows print spooler remote code execution vulnerability
   platform: windows
@@ -432,7 +432,7 @@ spec:
   contributors: maravedi
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get local users and their privileges
   platform: darwin, linux, windows
@@ -443,7 +443,7 @@ spec:
   contributors: noahtalerman
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get processes that no longer exist on disk
   platform: linux, darwin, windows
@@ -454,7 +454,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get user files matching a specific hash
   platform: darwin, linux
@@ -465,7 +465,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get local administrator accounts on macOS
   platform: darwin
@@ -476,7 +476,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get all listening ports, by process
   platform: linux, darwin, windows
@@ -487,7 +487,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get whether TeamViewer is installed/running
   platform: windows
@@ -498,7 +498,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get malicious Python backdoors
   platform: darwin, linux, windows
@@ -509,7 +509,7 @@ spec:
   contributors: alphabrevity
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Check for artifacts of the Floxif trojan
   platform: windows
@@ -520,7 +520,7 @@ spec:
   contributors: micheal-o
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get Shimcache table
   platform: windows
@@ -531,7 +531,7 @@ spec:
   contributors: puffyCid
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get running docker containers
   platform: darwin, linux
@@ -542,7 +542,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get applications hogging memory
   platform: darwin, linux, windows
@@ -553,7 +553,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get servers with root login in the last 24 hours
   platform: darwin, linux, windows
@@ -564,7 +564,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Detect active processes with Log4j running
   platform: darwin, linux
@@ -612,7 +612,7 @@ spec:
   contributors: zwass,tgauda
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get applications that were opened within the last 24 hours
   platform: darwin
@@ -623,7 +623,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get applications that are not in the Applications directory
   platform: darwin
@@ -634,7 +634,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get subscription-based applications that have not been opened for the last 30 days
   platform: darwin
@@ -645,7 +645,7 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get operating system information
   platform: darwin, windows, linux
@@ -856,7 +856,7 @@ spec:
     </plist>
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get built-in antivirus status on macOS
   platform: darwin
@@ -867,7 +867,7 @@ spec:
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get antivirus status from the Windows Security Center
   platform: windows
@@ -878,7 +878,7 @@ spec:
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
   platform: linux
@@ -1850,7 +1850,7 @@ spec:
   contributors: nonpunctual
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Discover TLS certificates
   platform: linux, windows, darwin
@@ -1861,7 +1861,7 @@ spec:
   contributors: nabilschear
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Discover Python Packages from Running Python Interpreters
   platform: linux, darwin
@@ -1872,7 +1872,7 @@ spec:
   contributors: nabilschear
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Identify the default mail, http and ftp applications
   platforms: macOS
@@ -2022,7 +2022,7 @@ spec:
   contributors: defensivedepth
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Identify Apple development secrets (macOS)
   query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
@@ -2032,7 +2032,7 @@ spec:
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Geolocate via ipapi.co
   platform: darwin, linux, windows
@@ -2051,7 +2051,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get Crowdstrike Falcon network content filter status
   platform: darwin
@@ -2062,7 +2062,7 @@ spec:
   contributors: zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin, linux, windows
@@ -2074,7 +2074,7 @@ spec:
   contributors: lucasmrod,sharon-fdm,zwass
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: List osquery table names
   platform: darwin, linux, windows
@@ -2168,3 +2168,126 @@ spec:
     #!/bin/sh
     
     /Applications/Falcon.app/Contents/Resources/falconctl load
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ubuntu GNOME password policy
+  platform: linux
+  description: "Checks that the password policy requires at least 12 characters and is complex."
+  query: |
+    SELECT 1
+    FROM file_lines
+    WHERE
+      path = '/etc/pam.d/common-password'
+      AND ltrim(line) NOT LIKE '#%'
+      AND line LIKE '%pam_pwquality.so%'
+      AND line LIKE '%minlen=12%'
+      AND line LIKE '%dcredit=-1%'
+      AND line LIKE '%ucredit=-1%'
+      AND line LIKE '%lcredit=-1%'
+      AND line LIKE '%ocredit=-1%'
+      AND line LIKE '%difok=3%'
+      AND line LIKE '%enforce_for_root%';
+  tags: compliance, hardening, critical
+  contributors: spalmesano0
+  script: |
+    #!/bin/bash
+    
+    # try_first_pass   - Use the password from the previous PAM module before prompting the user
+    # retry=3          - Allow 3 attempts before returning a failure
+    # minlen=12        - Minimum password length of 12 characters
+    # dcredit=-1       - Require at least 1 digit (0-9)
+    # ucredit=-1       - Require at least 1 uppercase letter (A-Z)
+    # lcredit=-1       - Require at least 1 lowercase letter (a-z)
+    # ocredit=-1       - Require at least 1 special character (e.g. !@#$%)
+    # difok=3          - At least 3 characters must differ from the previous password
+    # enforce_for_root - Apply this policy to the root account as well
+    
+    PASSWORD_POLICY="password    requisite   pam_pwquality.so try_first_pass retry=3 minlen=12 dcredit=-1 ucredit=-1 lcredit=-1 ocredit=-1 difok=3 enforce_for_root"
+    PAM_FILE="/etc/pam.d/common-password"
+    
+    
+    # Ensure pam_pwquality is installed
+    apt-get install -y libpam-pwquality
+    
+    # Remove any existing pam_pwquality line to avoid duplicates
+    sed -i '/pam_pwquality\.so/d' "$PAM_FILE"
+    
+    # Add the new policy line (before the pam_unix line is conventional)
+    sed -i "/pam_unix\.so/i $PASSWORD_POLICY" "$PAM_FILE"
+    
+    echo "Password policy applied successfully."
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ubuntu GNOME lock screen after 5 minutes
+  platform: linux
+  description: "Checks that the lock screen is activated after 5 minutes."
+  query: |
+    SELECT 1
+    WHERE (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/profile/user'
+        AND ltrim(line) = 'system-db:local'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'lock-enabled=true'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'lock-delay=uint32 0'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'idle-delay=uint32 300'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0;
+  tags: compliance, hardening, critical
+  contributors: spalmesano0
+  script: |
+    #!/bin/bash
+    
+    # 1. Create the dconf profile if it doesn't exist
+    PROFILE_FILE="/etc/dconf/profile/user"
+    if ! grep -Eq '^[[:space:]]*system-db:local[[:space:]]*$' "$PROFILE_FILE" 2>/dev/null; then
+        mkdir -p /etc/dconf/profile
+        cat > "$PROFILE_FILE" <<EOF
+    user-db:user
+    system-db:local
+    EOF
+    fi
+    
+    # 2. Write the lock screen settings
+    mkdir -p /etc/dconf/db/local.d
+    cat > /etc/dconf/db/local.d/00-lockscreen <<EOF
+    [org/gnome/desktop/screensaver]
+    lock-enabled=true
+    lock-delay=uint32 0
+    
+    [org/gnome/desktop/session]
+    idle-delay=uint32 300
+    EOF
+    
+    # 3. Lock the keys so users can't override them
+    # Note that the settings may still appear to be mutable to the user
+    # However, the system ignores this and applies the settings from here
+    mkdir -p /etc/dconf/db/local.d/locks
+    cat > /etc/dconf/db/local.d/locks/lockscreen <<EOF
+    /org/gnome/desktop/screensaver/lock-enabled
+    /org/gnome/desktop/screensaver/lock-delay
+    /org/gnome/desktop/session/idle-delay
+    EOF
+    
+    # 4. Update the dconf database
+    dconf update
+    
+    echo "Lock screen policy applied."

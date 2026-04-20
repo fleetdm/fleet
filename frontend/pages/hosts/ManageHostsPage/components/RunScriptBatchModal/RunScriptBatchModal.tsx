@@ -7,7 +7,6 @@ import classnames from "classnames";
 import { getPathWithQueryParams } from "utilities/url";
 
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
@@ -349,7 +348,7 @@ const RunScriptBatchModal = ({
         {!selectedScript && !scriptForDetails && (
           <div className="modal-cta-wrap">
             <Button disabled={isUpdating} onClick={onCancel}>
-              Done
+              Close
             </Button>
           </div>
         )}

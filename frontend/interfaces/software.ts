@@ -142,6 +142,7 @@ export interface ISoftwarePackage {
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
@@ -172,6 +173,7 @@ export interface IAppStoreApp {
   } | null;
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   configuration?: string;

@@ -1,6 +1,7 @@
 import React, { useContext, useRef, useState } from "react";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PATHS from "router/paths";
 
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
@@ -64,10 +65,12 @@ const ConditionalAccessModal = ({
   };
 
   const getPolicyDisabled = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin");
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows");
 
   const getPolicyTooltipContent = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows")
+      ? "Policy does not target macOS or Windows"
+      : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -124,6 +127,7 @@ const ConditionalAccessModal = ({
             onCancel={onExit}
             teamId={teamId}
             disableList={!formData.enabled}
+            renderPlatform
           />
         </div>
       </>
@@ -136,13 +140,24 @@ const ConditionalAccessModal = ({
       connect Fleet to {providerText}.
       <br />
       <br />
-      This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-      <b>Conditional access</b>.
+      This can be configured in{" "}
+      {isGlobalAdmin ? (
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+          text="Settings > Integrations > Conditional access"
+        />
+      ) : (
+        <>
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Conditional access</b>
+        </>
+      )}
+      .
       <br />
       <br />
       {learnMoreLink}
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );

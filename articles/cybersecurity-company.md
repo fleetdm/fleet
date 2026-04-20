@@ -69,13 +69,6 @@ The platform also simplified device management. Instead of maintaining complex s
 
 Their recommendation centers on customization and insight. Fleet allows teams to collect the specific data points that matter to their environment. Instead of relying on fixed inventory views, security teams build queries and workflows that match their operational needs.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Cybersecurity company improves endpoint visibility with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
@@ -84,3 +77,5 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-03-14">
 <meta name="description" value="A cybersecurity company improves device visibility with Fleet, using osquery for real-time queries and vulnerability detection."> 
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Cybersecurity company">
+<meta name="cardBodyForCustomersPage" value="A cybersecurity company improves device visibility.">

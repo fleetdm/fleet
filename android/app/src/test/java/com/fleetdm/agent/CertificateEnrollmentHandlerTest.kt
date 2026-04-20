@@ -138,6 +138,24 @@ class CertificateEnrollmentHandlerTest {
     }
 
     @Test
+    fun `handler handles IllegalStateException from installer as non-retryable failure`() = runTest {
+        mockInstaller.exceptionToThrow = IllegalStateException(
+            "CERT_INSTALL delegation not granted to com.fleetdm.agent, current scopes: []",
+        )
+
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
+
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+
+        assertTrue(mockInstaller.wasInstallCalled)
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertTrue(failure.reason.contains("CERT_INSTALL delegation not granted"))
+        assertTrue(failure.reason.startsWith("Certificate installation failed:"))
+    }
+
+    @Test
     fun `handler uses default values for optional parameters`() = runTest {
         val template = TestCertificateTemplateFactory.create()
 

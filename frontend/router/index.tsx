@@ -17,6 +17,9 @@ import {
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
+import CreateUserPage from "pages/admin/UserManagementPage/CreateUserPage";
+import CreateApiUserPage from "pages/admin/UserManagementPage/CreateApiUserPage";
+import EditUserPage from "pages/admin/UserManagementPage/EditUserPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
@@ -42,9 +45,11 @@ import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
-import PolicyPage from "pages/policies/PolicyPage";
+import PolicyDetailsPage from "pages/policies/details/PolicyDetailsPage";
+import EditPolicyPage from "pages/policies/edit";
 import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
 import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import LivePolicyPage from "pages/policies/live/LivePolicyPage";
 import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
@@ -236,6 +241,13 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
+            <Route component={ExcludeInSandboxRoutes}>
+              <Route component={AuthGlobalAdminRoutes}>
+                <Route path="users/new/human" component={CreateUserPage} />
+                <Route path="users/new/api" component={CreateApiUserPage} />
+                <Route path="users/:user_id/edit" component={EditUserPage} />
+              </Route>
+            </Route>
 
             <Redirect from="teams" to="fleets" />
             <Redirect from="teams/users" to="fleets/users" />
@@ -283,6 +295,7 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
+              <Route path="reports" component={HostDetailsPage} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
@@ -305,6 +318,10 @@ const routes = (
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
+                <Redirect
+                  from="os-settings/custom-settings"
+                  to="os-settings/configuration-profiles"
+                />
                 <Route path="os-settings/:section" component={OSSettings} />
 
                 <Route path="setup-experience" component={SetupExperience} />
@@ -404,9 +421,16 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManagePoliciesPage} />
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="new" component={PolicyPage} />
+              <Route path="new">
+                <IndexRoute component={EditPolicyPage} />
+                <Route path="live" component={LivePolicyPage} />
+              </Route>
             </Route>
-            <Route path=":id" component={PolicyPage} />
+            <Route path=":id">
+              <IndexRoute component={PolicyDetailsPage} />
+              <Route path="edit" component={EditPolicyPage} />
+              <Route path="live" component={LivePolicyPage} />
+            </Route>
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
           <Route path="account" component={AccountPage} />

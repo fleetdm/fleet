@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -322,6 +324,37 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
 	})
+
+	t.Run("mdm unlock token expansion", func(t *testing.T) {
+		// Create a host with an MDM unlock token
+		hostMDM, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("host-mdm-unlock-token-test"),
+			NodeKey:         ptr.String("host-mdm-unlock-token-test-key"),
+			UUID:            "host-mdm-unlock-token-test-uuid",
+			Hostname:        "host-mdm-unlock-token-test-hostname",
+			Platform:        "ios",
+		})
+		require.NoError(t, err)
+
+		unlockToken := "TEST-MDM-UNLOCK-TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
+			require.NoError(t, err)
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex', NOW())`, hostMDM.UUID, hostMDM.UUID)
+			return err
+		})
+
+		b64Encoded := base64.StdEncoding.EncodeToString([]byte(unlockToken))
+		doc := `<string>$FLEET_HOST_SECRET_MDM_UNLOCK_TOKEN</string>`
+		expected := `<string>` + b64Encoded + `</string>`
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostMDM.UUID)
+		require.NoError(t, err)
+		assert.Equal(t, expected, expanded)
+	})
 }
 
 func testCreateSecretVariable(t *testing.T, ds *Datastore) {
@@ -585,7 +618,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Identifier: "decl-1",
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.
@@ -607,7 +640,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 			Name:       "decl-1",
 			RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_FOOBAR}"}`),
 			TeamID:     &foobarTeam.ID,
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		// Attempt to delete the variable, should fail.

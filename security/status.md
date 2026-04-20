@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** There are no path-based authorization interceptors. The only interceptors are grpc_recovery (panic handlers). CVE-2026-33186 specifically requires path-based authz rules (like grpc/authz RBAC policies) that compare against info.FullMethod — Fleet doesn't use any.
+- **Products:**: `fleet`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:38:53
+
 ### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -156,6 +164,46 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:30:33
 
+### [GHSA-479m-364c-43vc](https://nvd.nist.gov/vuln/detail/GHSA-479m-364c-43vc)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not validate any XML signatures.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/russellhaering/goxmldsig`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-23 16:44:57
+
+### [CVE-2026-34875](https://nvd.nist.gov/vuln/detail/CVE-2026-34875)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use Mbed TLS. The libmbedcrypto16 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libmbedcrypto16`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:49
+
+### [CVE-2026-34873](https://nvd.nist.gov/vuln/detail/CVE-2026-34873)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use Mbed TLS. The libmbedcrypto16 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libmbedcrypto16`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:46
+
+### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Possible vulnerability in SSO service providers, not in fleetctl command line tool.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/russellhaering/goxmldsig`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-31 09:54:45
+
+### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl uses admin controlled URLs to manage Fleet. The primary attack vector is social engineering an admin into using a crafted URL.
+- **Products:**: `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-23 19:20:41
+
 ### [CVE-2026-27465](https://nvd.nist.gov/vuln/detail/CVE-2026-27465)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -163,6 +211,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:33:34
+
+### [CVE-2026-26061](https://nvd.nist.gov/vuln/detail/CVE-2026-26061)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability in fleet server, not fleetctl.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-03-31 09:36:31
+
+### [CVE-2026-25679](https://nvd.nist.gov/vuln/detail/CVE-2026-25679)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl uses admin controlled URLs to manage Fleet. The primary attack vector is social engineering an admin into using a crafted URL.
+- **Products:**: `fleetctl`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-23 19:12:15
 
 ### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
 - **Author:** @lucasmrod
@@ -179,6 +243,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2026-01-30 09:25:41
+
+### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl does not use libssh. The libssh-4 package is an unused transitive dependency in the container image.
+- **Products:**: `fleetctl`,`pkg:deb/debian/libssh-4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 12:06:51
 
 ### [CVE-2025-69419](https://nvd.nist.gov/vuln/detail/CVE-2025-69419)
 - **Author:** @lucasmrod
@@ -365,6 +437,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/wix` docker image
 
+### [CVE-2026-33636](https://nvd.nist.gov/vuln/detail/CVE-2026-33636)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 11:43:22
+
+### [CVE-2026-33416](https://nvd.nist.gov/vuln/detail/CVE-2026-33416)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not do PNG processing when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libpng16-16t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-08 11:01:10
+
+### [CVE-2026-2921](https://nvd.nist.gov/vuln/detail/CVE-2026-2921)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:**: `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** No attacker-controlled allocation arguments. The fleetdm/wix container runs WiX toolset commands (heat.exe, candle.exe, light.exe) via Wine to compile .wxs files into an MSI. The only input is a volume-mounted temp directory containing Fleet-generated files (main.wxs, heat.wxs, the orbit root directory). None of this feeds attacker-controlled size/alignment values to memalign.
+- **Products:**: `wix`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 12:18:16
+
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -399,5 +503,11 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/bomutils` docker image
 
-No vulnerabilities tracked at the moment.
+### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Use of mkbom and xar from fleetdm/bomutils have admin controlled inputs.
+- **Products:**: `bomutils`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-03-24 08:41:27
 

@@ -145,7 +145,7 @@ const SelectQueryModal = ({
           <>
             {" "}
             or{" "}
-            <Button variant="text-link" onClick={onQueryHostCustom}>
+            <Button variant="link" onClick={onQueryHostCustom}>
               create your own report
             </Button>
           </>
@@ -201,7 +201,6 @@ const SelectQueryModal = ({
             value={queriesFilter}
             autofocus
             iconSvg="search"
-            iconPosition="start"
           />
           <div className={`${baseClass}__query-selection`}>{queryList}</div>
         </>
@@ -219,7 +218,6 @@ const SelectQueryModal = ({
               value={queriesFilter}
               autofocus
               iconSvg="search"
-              iconPosition="start"
             />
           </div>
           <div className={`${baseClass}__no-queries`}>

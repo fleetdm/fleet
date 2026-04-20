@@ -35,7 +35,7 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	payload.InstallerID = existingInstaller.InstallerID
 
-	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	_, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -127,13 +127,14 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 
 	// now that the payload has been updated with any patches, we can set the
 	// final fields of the activity
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
+		existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll)
 	if payload.ValidatedLabels != nil {
-		actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	}
-	activity.LabelsIncludeAny = actLabelsIncl
-	activity.LabelsExcludeAny = actLabelsExcl
+	activity.LabelsIncludeAny = actLabelsInclAny
+	activity.LabelsExcludeAny = actLabelsExclAny
+	activity.LabelsIncludeAll = actLabelsInclAll
 	if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for edited in house app")
 	}

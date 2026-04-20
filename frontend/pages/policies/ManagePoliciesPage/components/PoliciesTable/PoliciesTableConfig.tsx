@@ -120,17 +120,18 @@ const generateTableHeaders = (
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
                 {type === "patch" && (
-                  <PillBadge text="Patch" tipContent={PATCH_TOOLTIP_CONTENT} />
+                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>
+                    Patch
+                  </PillBadge>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <PillBadge
-                    text="Inherited"
-                    tipContent="This policy runs on all hosts."
-                  />
+                  <PillBadge tipContent="This policy runs on all hosts.">
+                    Inherited
+                  </PillBadge>
                 )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
+            path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
               fleet_id: team_id,
             })}
           />

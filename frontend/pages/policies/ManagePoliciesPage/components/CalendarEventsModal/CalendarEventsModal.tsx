@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
@@ -186,7 +185,7 @@ const CalendarEventsModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
+          <Button onClick={onExit}>Close</Button>
         </div>
       </div>
     );

@@ -85,13 +85,10 @@ export enum ActivityType {
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
-  // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  EnabledDiskEncryption = "enabled_disk_encryption",
+  ResentCertificate = "resent_certificate",
+  // Note: This activity is generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  DisabledDiskEncryption = "disabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
@@ -141,6 +138,7 @@ export enum ActivityType {
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
+  CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
@@ -159,9 +157,11 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
+  InstalledCertificate = "installed_certificate",
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  ClearedPasscode = "cleared_passcode",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -180,7 +180,11 @@ export type IHostPastActivityType =
   | ActivityType.CanceledRunScript
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
-  | ActivityType.CanceledUninstallSoftware;
+  | ActivityType.CanceledUninstallSoftware
+  | ActivityType.CanceledSetupExperience
+  | ActivityType.InstalledCertificate
+  | ActivityType.ResentCertificate
+  | ActivityType.ClearedPasscode;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -279,6 +283,7 @@ export interface IActivityDetails {
   team_name?: string | null;
   teams?: ITeamSummary[];
   triggered_by?: string;
+  from_setup_experience?: boolean;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -286,6 +291,9 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  certificate_name?: string;
+  certificate_template_id?: number;
+  detail?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -309,6 +317,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
   canceled_uninstall_software: "Canceled activity: uninstall software",
+  canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",
@@ -346,7 +355,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_conditional_access_automations:
     "Disabled conditional access automations",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_disk_encryption: "Turned off disk encryption",
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
@@ -378,7 +386,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_conditional_access_automations:
     "Enabled conditional access automations",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_disk_encryption: "Turned on disk encryption",
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
@@ -400,7 +407,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   read_host_disk_encryption_key: "Viewed disk encryption key",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
-  rotated_host_recovery_lock_password: "Rotated Recovery Lock password",
+  rotated_host_recovery_lock_password:
+    "Triggered Recovery Lock password rotation",
   enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
   disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
@@ -442,6 +450,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "GitOps: edited configuration profiles: Android",
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
+  [ActivityType.ResentCertificate]: "Resent certificate",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.HostBypassedConditionalAccess]:
     "Host bypassed conditional access",
@@ -454,5 +463,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
+  [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
+  [ActivityType.ClearedPasscode]: "Cleared passcode",
 };

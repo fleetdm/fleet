@@ -22,15 +22,6 @@
   autoIssue:
     labels: [":help-finance"]
     repo: "confidential"
-- task: "Vanta check"
-  startedOn: "2025-06-09"
-  frequency: "Weekly"
-  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#monitor-compliance-tests"
-  dri: "rfoo2015"
-  autoIssue:
-    labels: [":help-finance"]
-    repo: "confidential"
 - task: "Key review prep"
   startedOn: "2024-02-14"
   frequency: "Triweekly"
@@ -198,3 +189,12 @@
   frequency: "Quarterly"
   description: "Prepare slide deck for the next board meeting."
   dri: "rfoo2015"
+- task: "Update Salesforce placards"
+  startedOn: "2026-07-15"
+  frequency: "Quarterly"
+  description: "Sam Pfluger and Tina Ong meet to update the Salesforce placards and thermometer guidelines using numbers from the operating model, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#update-salesforce-placards"
+  dri: "sampfluger88"
+  autoIssue:
+    labels: [":help-gtm-ops"]
+    repo: "confidential"

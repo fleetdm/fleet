@@ -48,7 +48,8 @@ SELECT
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
     nvq.request_type as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    nvq.name
 FROM
     nano_view_queue nvq
 INNER JOIN
@@ -67,7 +68,8 @@ SELECT
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    NULL as name
 FROM windows_mdm_commands wmc
 LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
 LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
@@ -225,7 +227,8 @@ SELECT
         WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
-	request_type
+	request_type,
+	nc.name
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
@@ -251,7 +254,8 @@ WHERE
 		wc.created_at AS updated_at,
 		'101' AS status,
 		'pending' AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_queue wq
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
@@ -287,7 +291,8 @@ WHERE
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_results wcr
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
@@ -447,7 +452,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -1763,6 +1768,42 @@ LIMIT ?`, expiryDays, limit)
 	return uuids, nil
 }
 
+func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	if len(hostUUIDs) == 0 {
+		return []fleet.DeviceInfoForACMERenewal{}, nil
+	}
+
+	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
+	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
+	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
+	stmt := `
+SELECT
+	h.uuid AS host_uuid,
+	h.hardware_serial AS hardware_serial,
+	h.hardware_model AS hardware_model,
+	os.version AS os_version
+FROM
+	hosts h
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
+	JOIN host_operating_system hos ON hos.host_id = h.id
+	JOIN operating_systems os ON os.id = hos.os_id
+WHERE
+	h.uuid IN(?)
+	AND hda.deleted_at IS NULL
+	AND os.name = 'macOS'`
+
+	stmt, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query for ACME hardware attestation")
+	}
+
+	var dest []fleet.DeviceInfoForACMERenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host details for ACME hardware attestation")
+	}
+	return dest, nil
+}
+
 func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
 	if len(assocs) == 0 {
 		return nil
@@ -1980,18 +2021,21 @@ func batchSetProfileVariableAssociationsDB(
 	tx sqlx.ExtContext,
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	platform string,
+	forAppleDeclarations bool,
 ) (didUpdate bool, err error) {
 	if len(profileVariablesByUUID) == 0 {
 		return false, nil
 	}
 
-	var platformPrefix string
-	switch platform {
-	case "darwin":
-		platformPrefix = "apple"
-	case "windows":
-		platformPrefix = "windows"
-	case "android":
+	var columnName string
+	switch {
+	case platform == "darwin" && forAppleDeclarations:
+		columnName = "apple_declaration_uuid"
+	case platform == "darwin":
+		columnName = "apple_profile_uuid"
+	case platform == "windows":
+		columnName = "windows_profile_uuid"
+	case platform == "android":
 		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
@@ -2009,7 +2053,7 @@ func batchSetProfileVariableAssociationsDB(
 	}
 
 	// delete variables associated with those profiles
-	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
+	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s IN (?)`, columnName)
 	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
@@ -2076,13 +2120,13 @@ func batchSetProfileVariableAssociationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`
 			INSERT INTO mdm_configuration_profile_variables (
-				%s_profile_uuid,
+				%s,
 				fleet_variable_id
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
 				fleet_variable_id = VALUES(fleet_variable_id)
-		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+		`, columnName, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
@@ -2533,12 +2577,23 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile label associations", platform))
 	}
 
-	// save fleet variables associated with Windows profiles (both new and updated)
+	// save fleet variables associated with profiles (both new and updated)
 	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
 	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
+	var varPrefix string
+	switch platform {
+	case "darwin":
+		varPrefix = fleet.MDMAppleProfileUUIDPrefix
+	case "windows":
+		varPrefix = fleet.MDMWindowsProfileUUIDPrefix
+	case "android":
+		varPrefix = fleet.MDMAndroidProfileUUIDPrefix
+	}
 	profileVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 	for _, pv := range profilesVariablesByIdentifier {
-		profileVariablesByName[pv.Identifier] = pv.FleetVariables
+		if name, ok := strings.CutPrefix(pv.Identifier, varPrefix); ok {
+			profileVariablesByName[name] = pv.FleetVariables
+		}
 	}
 
 	// collect ALL profile UUIDs, including those without variables (to clear stale associations)
@@ -2554,7 +2609,7 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 
 	if len(profilesVarsToUpsert) > 0 {
 		var didUpdateVariableAssociations bool
-		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform); err != nil {
+		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform, false); err != nil {
 			return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile variable associations", platform))
 		}
 

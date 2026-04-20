@@ -108,9 +108,6 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	// that match our default dev setup.
 	setIfEmpty(&cfg.Mysql.Password, "insecure")
 
-	setIfEmpty(&cfg.Prometheus.BasicAuth.Username, "fleet")
-	setIfEmpty(&cfg.Prometheus.BasicAuth.Password, "insecure")
-
 	setIfEmpty(&cfg.S3.CarvesBucket, "carves-dev")
 	setIfEmpty(&cfg.S3.CarvesRegion, "localhost")
 	setIfEmpty(&cfg.S3.CarvesPrefix, "dev-prefix")

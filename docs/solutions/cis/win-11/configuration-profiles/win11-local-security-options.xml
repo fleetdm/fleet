@@ -1,0 +1,57 @@
+<!-- CIS Windows 11 Enterprise v4.0.0 – Local Security Options (Section 2.3) -->
+<Replace>
+  <!-- 2.3.1.1: Accounts – Administrator account status = Disabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableAdministratorAccountStatus</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 2.3.1.3: Accounts – Guest account status = Disabled -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_EnableGuestAccountStatus</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!--
+    2.3.1.5: Accounts – Rename administrator account
+    Change "AdminAcct" to your organization's preferred name.
+    Must NOT be "Administrator" to satisfy CIS requirements.
+  -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameAdministratorAccount</LocURI>
+    </Target>
+    <Data>AdminAcct</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!--
+    2.3.1.6: Accounts – Rename guest account
+    Change "GuestAcct" to your organization's preferred name.
+    Must NOT be "Guest" to satisfy CIS requirements.
+  -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/Accounts_RenameGuestAccount</LocURI>
+    </Target>
+    <Data>GuestAcct</Data>
+  </Item>
+</Replace>

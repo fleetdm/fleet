@@ -11,7 +11,7 @@ export default {
   CONTROLS: `${URL_PREFIX}/controls`,
   CONTROLS_OS_UPDATES: `${URL_PREFIX}/controls/os-updates`,
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
-  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/custom-settings`,
+  CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/configuration-profiles`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
@@ -45,6 +45,10 @@ export default {
 
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_USERS_NEW_HUMAN: `${URL_PREFIX}/settings/users/new/human`,
+  ADMIN_USERS_NEW_API: `${URL_PREFIX}/settings/users/new/api`,
+  ADMIN_USERS_EDIT: (userId: number) =>
+    `${URL_PREFIX}/settings/users/${userId}/edit`,
 
   // Integrations pages
 
@@ -124,8 +128,12 @@ export default {
     `${URL_PREFIX}/reports/${queryId || "new"}/live`,
   REPORT_DETAILS: (queryId: number): string =>
     `${URL_PREFIX}/reports/${queryId}`,
-  EDIT_POLICY: (policyId: number): string =>
+  POLICY_DETAILS: (policyId: number): string =>
     `${URL_PREFIX}/policies/${policyId}`,
+  EDIT_POLICY: (policyId: number): string =>
+    `${URL_PREFIX}/policies/${policyId}/edit`,
+  LIVE_POLICY: (policyId: number | null): string =>
+    `${URL_PREFIX}/policies/${policyId || "new"}/live`,
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,

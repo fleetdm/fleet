@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import createMockOsqueryTable from "__mocks__/osqueryTableMock";
@@ -16,8 +16,14 @@ describe("QuerySidePanel - component", () => {
       />
     );
 
-    const tableDropdownText = screen.getByDisplayValue(/users/i);
-    expect(tableDropdownText).toBeInTheDocument();
+    // Multiple text saying "users"
+    const valueContainer = document.querySelector(
+      ".react-select__value-container"
+    ) as HTMLElement;
+    expect(valueContainer).not.toBeNull();
+
+    const selectedValue = within(valueContainer).getByText(/users/i);
+    expect(selectedValue).toBeInTheDocument();
   });
 
   it("renders platform compatibility", () => {
