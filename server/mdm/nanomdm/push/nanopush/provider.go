@@ -116,6 +116,13 @@ func (p *Provider) pushSerial(ctx context.Context, pushInfos []*mdm.Push) (map[s
 func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	// don't start more workers than we have pushes to send
 	workers := p.workers
+	if workers < 1 {
+		// WithWorkers accepts any int and the Provider zero value has
+		// workers=0, so guard here before len(...) or wg.Add see it:
+		// wg.Add(<0) panics, and wg.Add(0) plus an unbuffered jobs
+		// channel would wedge the feeder forever.
+		workers = 1
+	}
 	if len(pushInfos) < workers {
 		workers = len(pushInfos)
 	}
