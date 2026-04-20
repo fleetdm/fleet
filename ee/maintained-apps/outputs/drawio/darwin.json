@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "29.6.6",
+      "version": "29.7.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop' AND version_compare(bundle_short_version, '29.6.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jgraph.drawio.desktop' AND version_compare(bundle_short_version, '29.7.8') < 0);"
       },
-      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v29.6.6/draw.io-arm64-29.6.6.dmg",
+      "installer_url": "https://github.com/jgraph/drawio-desktop/releases/download/v29.7.8/draw.io-arm64-29.7.8.dmg",
       "install_script_ref": "60c841d6",
       "uninstall_script_ref": "58c5bcdc",
-      "sha256": "d725b6333977adf73ecbfa3dcc60dd4f2d745706e6758526611b737561a5c61e",
+      "sha256": "4ed41dcea4b40f7c534974f3b6c90aaf098e1cc747b4d0bc0b2967ee2f75fa18",
       "default_categories": [
         "Productivity"
       ]

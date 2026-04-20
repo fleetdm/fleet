@@ -17,6 +17,9 @@
     margin-bottom: 16px;
     line-height: 24px;
     font-size: 14px;
+    code {
+      padding: 2px 4px;
+    }
   }
   p:only-child, p:last-child {
     margin-bottom: 0px;
@@ -27,7 +30,7 @@
   li:last-child {
     padding-bottom: 0px;
   }
-  :first-child {// Remove top padding from the first element inside purpose="tip" blockquotes
+  :first-child:not(code) {// Remove top padding from the first element inside purpose="tip" blockquotes
     padding-top: 0;
   }
 }
