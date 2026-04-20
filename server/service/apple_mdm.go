@@ -1143,9 +1143,9 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 }
 
 // markDeclarationFailed marks a DDM declaration as failed for a specific host.
-func (svc *MDMAppleDDMService) markDeclarationFailed(ctx context.Context, hostUUID string, d *fleet.MDMAppleDeclaration, detail string) error {
+func (svc *MDMAppleDDMService) markDeclarationFailed(ctx context.Context, hostUUID string, declarationUUID string, detail string) error {
 	status := fleet.MDMDeliveryFailed
-	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, d.DeclarationUUID, &status, detail, nil)
+	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, declarationUUID, &status, detail, nil)
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -6168,12 +6168,8 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		// computation below so that the token matches the SQL-computed
 		// token from handleTokens.
 		if d.VariablesUpdatedAt != nil {
-			decl, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, d.Identifier, hostUUID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "fetching declaration for variable check")
-			}
-			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(decl.RawJSON), hostUUID); err != nil {
-				if err := svc.markDeclarationFailed(ctx, hostUUID, decl, err.Error()); err != nil {
+			if _, err := svc.replaceDeclarationFleetVariables(ctx, string(d.RawJSON), hostUUID); err != nil {
+				if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
 				}
 				continue
@@ -6324,7 +6320,7 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
 	if err != nil {
 		// Mark this declaration as failed for this host, return empty 200
-		if err := svc.markDeclarationFailed(ctx, hostUUID, d, err.Error()); err != nil {
+		if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
 		}
 		return nil, nil
