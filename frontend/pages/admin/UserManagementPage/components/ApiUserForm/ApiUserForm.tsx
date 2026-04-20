@@ -11,6 +11,8 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import validatePresence from "components/forms/validators/validate_presence";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
+import PageDescription from "components/PageDescription";
+
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import ApiAccessSection from "../ApiAccessSection";
 import { roleOptions } from "../../helpers/userManagementHelpers";
@@ -203,42 +205,55 @@ const ApiUserForm = ({
     </>
   );
 
+  const renderPageDescription = () => (
+    <>
+      This user will have access to the Fleet API, but will not be able to log
+      into the UI.
+    </>
+  );
+
   return (
-    <div>
-      <form autoComplete="off" onSubmit={handleSubmit}>
-        <InputField
-          name="name"
-          label="Name"
-          value={name}
-          onChange={onInputChange}
-          onBlur={onInputBlur}
-          error={formErrors.name}
-          autofocus
-        />
-        {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
-        {isPremiumTier && (
-          <ApiAccessSection
-            isSpecificEndpoints={isSpecificEndpoints}
-            onAccessTypeChange={handleAccessTypeChange}
-            selectedEndpoints={selectedEndpoints}
-            onEndpointSelectionChange={handleEndpointSelectionChange}
-            error={formErrors.api_endpoints}
+    <>
+      <div>
+        <h1>New user</h1>
+        <PageDescription content={renderPageDescription()} />
+      </div>
+      <div>
+        <form autoComplete="off" onSubmit={handleSubmit}>
+          <InputField
+            name="name"
+            label="Name"
+            value={name}
+            onChange={onInputChange}
+            onBlur={onInputBlur}
+            error={formErrors.name}
+            autofocus
           />
-        )}
-        <div className="user-management-form__footer">
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            isLoading={isSubmitting}
-            disabled={isSubmitting}
-          >
-            {isNewUser ? "Add" : "Save"}
-          </Button>
-        </div>
-      </form>
-    </div>
+          {isPremiumTier ? renderPermissions() : renderGlobalRoleForm()}
+          {isPremiumTier && (
+            <ApiAccessSection
+              isSpecificEndpoints={isSpecificEndpoints}
+              onAccessTypeChange={handleAccessTypeChange}
+              selectedEndpoints={selectedEndpoints}
+              onEndpointSelectionChange={handleEndpointSelectionChange}
+              error={formErrors.api_endpoints}
+            />
+          )}
+          <div className="user-management-form__footer">
+            <Button onClick={onCancel} variant="inverse">
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              disabled={isSubmitting}
+            >
+              {isNewUser ? "Add" : "Save"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 };
 

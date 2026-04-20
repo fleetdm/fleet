@@ -149,6 +149,10 @@
     align-self: flex-start;
   }
 
+  .page-description {
+    margin-top: 8px;
+  }
+
   // Left-align form footers on page-based flows (both UserForm's
   // ModalFooter and ApiUserForm's shared footer class)
   .modal-footer__content-wrapper,

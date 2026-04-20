@@ -45,7 +45,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
       .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,
-        fleets: formData.fleets.map((f) => ({ id: f.id, role: f.role! })),
+        fleets: formData.fleets,
         api_endpoints: formData.api_endpoints,
       })
       .then((response) => {
@@ -76,9 +76,12 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
   return (
     <MainContent className={baseClass}>
       <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
-      <h1>New user</h1>
       {apiKey ? (
-        <ApiKeyDisplay apiKey={apiKey} onDone={handleDone} />
+        <ApiKeyDisplay
+          newUserName={createdUserName}
+          apiKey={apiKey}
+          onDone={handleDone}
+        />
       ) : (
         <ApiUserForm
           isPremiumTier={isPremiumTier}

@@ -221,9 +221,9 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
           onSubmit={handleApiUserSubmit}
           availableTeams={teams || []}
           defaultData={{
-            name: entityData.name || "",
-            global_role: entityData.global_role ?? null,
-            fleets: entityData.teams || [],
+            name: entityData.name,
+            global_role: entityData.global_role,
+            fleets: entityData.teams,
             api_endpoints: (entityData as IUser).api_endpoints,
           }}
           isSubmitting={isSubmitting}
