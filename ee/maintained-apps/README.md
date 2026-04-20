@@ -46,6 +46,14 @@
 | `post_uninstall_scripts` | string        | Command lines run **after** the generated uninstall script (e.g., for [Box](inputs/homebrew/box-drive.json)).                                                                                                                                                                   |
 | `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
+| `api_base_url`           | string        | Overrides the brew API base URL for this app only (default: `https://formulae.brew.sh/api/`). The URL must serve cask metadata at `<api_base_url>/cask/<token>.json` in the same schema as formulae.brew.sh. Used to ingest casks from third-party taps. See [Ingesting apps from a custom tap](#ingesting-apps-from-a-custom-tap) below.                 |
+
+### Ingesting apps from a custom tap
+
+Apps that live in a third-party Homebrew tap (not `Homebrew/homebrew-cask`) are not proxied by `https://formulae.brew.sh/api/` and must be fetched from a tap-hosted JSON endpoint. To ingest such an app:
+
+1. Have the tap publish cask metadata as JSON at a stable URL. The JSON must match the shape returned by `https://formulae.brew.sh/api/cask/<token>.json` (fields: `token`, `name`, `url`, `version`, `sha256`, `artifacts`, etc.). A common pattern is to commit generated files under `api/cask/<token>.json` in the tap repo and serve them via `https://raw.githubusercontent.com/<owner>/<tap>/main/api/` or GitHub Pages. You can generate these files from cask `.rb` files with `brew info --cask --json=v2 ./Casks/<token>.rb` in a GitHub Action on the tap side.
+2. In the app's input manifest under `inputs/homebrew/`, set the `api_base_url` field to the base URL (everything up to and including `/api/`, but without the `cask/<token>.json` suffix). The existing generator (`go run cmd/maintained-apps/main.go`) will then fetch from that host for that app only. All other apps continue to use `formulae.brew.sh`.
 
 ## Adding a new app (Windows)
 

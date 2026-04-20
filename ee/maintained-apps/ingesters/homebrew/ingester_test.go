@@ -157,3 +157,89 @@ func TestIngestValidations(t *testing.T) {
 		})
 	}
 }
+
+// TestIngestCustomAPIBaseURL verifies that when an input app sets
+// api_base_url, the ingester fetches cask metadata from that host instead of
+// the ingester's default base URL. This supports ingesting casks from
+// third-party taps that publish a brew-API-compatible JSON endpoint.
+func TestIngestCustomAPIBaseURL(t *testing.T) {
+	var defaultHits, overrideHits int
+
+	defaultSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defaultHits++
+		// Should never be called for an app with api_base_url set.
+		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
+		cask := brewCask{
+			Token:   appToken,
+			Name:    []string{appToken},
+			URL:     "https://example.com/default",
+			Version: "1.0",
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(cask))
+	}))
+	t.Cleanup(defaultSrv.Close)
+
+	overrideSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		overrideHits++
+		// Ensure the path layout matches what the ingester constructs:
+		// "<baseURL>/cask/<token>.json"
+		require.True(t, strings.HasPrefix(r.URL.Path, "/cask/"), "unexpected path: %s", r.URL.Path)
+		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
+		cask := brewCask{
+			Token:   appToken,
+			Name:    []string{appToken},
+			URL:     "https://example.com/override",
+			Version: "2.0",
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(cask))
+	}))
+	t.Cleanup(overrideSrv.Close)
+
+	ctx := context.Background()
+	i := &brewIngester{
+		logger:  slog.New(slog.DiscardHandler),
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL: defaultSrv.URL + "/",
+	}
+
+	// App without api_base_url uses the default.
+	out, err := i.ingestOne(ctx, inputApp{
+		Token:            "vanilla",
+		UniqueIdentifier: "com.example.vanilla",
+		InstallerFormat:  "pkg",
+		Name:             "Vanilla",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/default", out.InstallerURL)
+	require.Equal(t, "1.0", out.Version)
+	require.Equal(t, 1, defaultHits)
+	require.Equal(t, 0, overrideHits)
+
+	// App with api_base_url routes to the override host. Intentionally omit the
+	// trailing slash to exercise normalization.
+	out, err = i.ingestOne(ctx, inputApp{
+		Token:            "tapped",
+		UniqueIdentifier: "com.example.tapped",
+		InstallerFormat:  "pkg",
+		Name:             "Tapped",
+		APIBaseURL:       overrideSrv.URL,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/override", out.InstallerURL)
+	require.Equal(t, "2.0", out.Version)
+	require.Equal(t, 1, defaultHits, "default server should not have been hit again")
+	require.Equal(t, 1, overrideHits)
+
+	// Override with a trailing slash should also work.
+	out, err = i.ingestOne(ctx, inputApp{
+		Token:            "tapped-slash",
+		UniqueIdentifier: "com.example.tappedslash",
+		InstallerFormat:  "pkg",
+		Name:             "TappedSlash",
+		APIBaseURL:       overrideSrv.URL + "/",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/override", out.InstallerURL)
+	require.Equal(t, 1, defaultHits)
+	require.Equal(t, 2, overrideHits)
+}

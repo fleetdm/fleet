@@ -632,6 +632,13 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Druva inSync",
+      "slug": "druva-insync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync is a backup client."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
@@ -721,6 +728,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Fleet Desktop",
+      "slug": "fleet-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fleetdm.fleet-desktop",
+      "description": "Fleet Desktop is a native macOS application that provides end users with a self-service portal for Fleet."
     },
     {
       "name": "Fork",

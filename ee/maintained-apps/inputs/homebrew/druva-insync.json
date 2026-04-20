@@ -1,0 +1,9 @@
+{
+  "name": "Druva inSync",
+  "unique_identifier": "com.druva.inSyncClient",
+  "token": "druva-insync",
+  "installer_format": "dmg",
+  "slug": "druva-insync/darwin",
+  "default_categories": ["Productivity"],
+  "api_base_url": "https://raw.githubusercontent.com/allenhouchins/homebrew-fleet/main/api/"
+}

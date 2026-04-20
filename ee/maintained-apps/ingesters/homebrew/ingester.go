@@ -96,7 +96,18 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
+	// Allow per-app override of the brew API base URL so we can ingest casks
+	// from third-party taps that publish a JSON endpoint matching the
+	// formulae.brew.sh schema (e.g. a custom tap's GitHub Pages / raw content).
+	// When api_base_url is not set, fall back to the shared default.
+	baseURL := i.baseURL
+	if input.APIBaseURL != "" {
+		baseURL = input.APIBaseURL
+	}
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
+	}
+	apiURL := fmt.Sprintf("%scask/%s.json", baseURL, input.Token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -245,6 +256,12 @@ type inputApp struct {
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
 	PatchPolicyPath      string   `json:"patch_policy_path"`
+	// APIBaseURL optionally overrides the brew API base URL for this app.
+	// It must point at a host that serves cask metadata at
+	// "<api_base_url>/cask/<token>.json" in the same schema as
+	// https://formulae.brew.sh/api/. Used to support third-party taps.
+	// When empty, the ingester falls back to formulae.brew.sh.
+	APIBaseURL string `json:"api_base_url"`
 }
 
 type brewCask struct {
