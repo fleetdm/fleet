@@ -393,7 +393,6 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
                 account.
               </li>
               <li>
-                {" "}
                 <div className={`${baseClass}__oauth-scopes`}>
                   For the OAuth scopes, paste the following value:
                   <InputField
