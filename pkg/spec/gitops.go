@@ -275,10 +275,17 @@ type SoftwarePackage struct {
 	fleet.SoftwarePackageSpec
 }
 
-func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
-	if spec.Icon.Path != "" || spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
+func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
+	if spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
 		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
 		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+	}
+
+	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
+	if spec.Icon.Path != "" {
+		if ext != ".sh" && ext != ".ps1" {
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		}
 	}
 
 	packageLevel.Categories = spec.Categories
@@ -1880,7 +1887,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					InstallScript:      fleet.TeamSpecSoftwareAsset{Path: resolvedPath},
 					ReferencedYamlPath: resolvedPath,
 				}
-				scriptSpec, err = teamLevelPackage.HydrateToPackageLevel(scriptSpec)
+				// Get the icon from the team level yaml
+				scriptSpec.Icon.Path = resolveApplyRelativePath(baseDir, teamLevelPackage.Icon.Path)
+				scriptSpec, err = teamLevelPackage.HydrateToPackageLevel(scriptSpec, ext)
 				if err != nil {
 					multiError = multierror.Append(multiError, err)
 					continue
@@ -1922,7 +1931,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 				for i, spec := range softwarePackageSpecs {
 					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
-					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec, ext)
 					if err != nil {
 						multiError = multierror.Append(multiError, err)
 						continue
