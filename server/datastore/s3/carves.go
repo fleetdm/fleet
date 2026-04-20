@@ -147,6 +147,11 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
 	}
+	if len(nonExpiredCarves) == 0 {
+		// Nothing to compare against; without this guard the lastCarveNextHour
+		// line below would panic with index out of range.
+		return 0, nil
+	}
 	// List carves in S3 up to a hour+1 prefix
 	lastCarveNextHour := nonExpiredCarves[len(nonExpiredCarves)-1].CreatedAt.Add(time.Hour)
 	lastCarvePrefix := c.prefix + lastCarveNextHour.Format(timePrefixFormat)

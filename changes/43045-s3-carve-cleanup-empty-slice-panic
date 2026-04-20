@@ -1,0 +1,1 @@
+* Fixed an index-out-of-range panic in the S3 carve store's `CleanupCarves` when there are no non-expired carves.
