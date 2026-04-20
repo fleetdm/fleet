@@ -1548,8 +1548,10 @@ software:
 	appConfig.License = &fleet.LicenseInfo{
 		Tier: fleet.TierPremium,
 	}
-	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	gitops, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	require.NoError(t, err)
+	require.Len(t, gitops.Software.Packages, 1)
+	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), gitops.Software.Packages[0].Icon.Path)
 }
 
 func TestIllegalFleetSecret(t *testing.T) {
