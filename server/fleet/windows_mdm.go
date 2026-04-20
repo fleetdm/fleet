@@ -238,7 +238,11 @@ func validateLocURIFormat(locURI string) error {
 	}
 	// OMA-DM Configuration Service Provider URIs always start with one of
 	// these roots; see https://learn.microsoft.com/en-us/windows/client-management/mdm/
-	validPrefixes := []string{"./Device/", "./User/", "./Vendor/", "./vendor/"}
+	// Casing is strict here to match downstream helpers (IsWindowsSCEPLocURI,
+	// setLocURIArrays, isSCEPLocURIWithoutFleetVar) - accepting variant
+	// casing here would let LocURIs through that those helpers then fail to
+	// classify.
+	validPrefixes := []string{"./Device/", "./User/", "./Vendor/"}
 	for _, prefix := range validPrefixes {
 		if strings.HasPrefix(trimmed, prefix) {
 			return nil
