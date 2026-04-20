@@ -122,7 +122,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:       "decl-1",
 				TeamID:     &team.ID,
 				RawJSON:    json.RawMessage(`{"Type": "com.apple.configuration.test", "Identifier": "decl-1"}`),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			teamLabel, err := ds.NewLabel(t.Context(), &fleet.Label{
