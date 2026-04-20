@@ -210,7 +210,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showRenewModal && selectedToken.current && (
         <RenewVppModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />
