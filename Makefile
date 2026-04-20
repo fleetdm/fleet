@@ -897,7 +897,9 @@ UPDATE_GO_MODS := \
 	./third_party/vuln-check/go.mod \
 	./tools/ci/setboolcheck/go.mod \
 	./tools/github-manage/go.mod \
-	./tools/qacheck/go.mod
+	./tools/qacheck/go.mod \
+	./third_party/goval-dictionary/go.mod \
+	./tools/fleet-mcp/go.mod
 update-go:
 	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
