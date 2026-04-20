@@ -548,6 +548,8 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 
 	var result *fleet.MDMWindowsSaveResponseResult
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result = nil
+
 		// store the full response
 		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)

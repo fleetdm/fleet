@@ -1021,6 +1021,10 @@ func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+func (a ActivityTypeWipeFailedHost) WasFromAutomation() bool {
+	return true
+}
+
 // ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
 // Can be user-initiated (manual) or Fleet-initiated (auto-rotation after password viewed).
 type ActivityTypeRotatedHostRecoveryLockPassword struct {
