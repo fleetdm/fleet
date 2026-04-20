@@ -4068,7 +4068,7 @@ func getHostManagedAccountPasswordEndpoint(ctx context.Context, request any, svc
 	if err != nil {
 		return getHostManagedAccountPasswordResponse{Err: err}, nil
 	}
-	return getHostManagedAccountPasswordResponse{ManagedLocalAccount: pwd}, nil
+	return getHostManagedAccountPasswordResponse{HostID: req.ID, ManagedLocalAccount: pwd}, nil
 }
 
 func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {

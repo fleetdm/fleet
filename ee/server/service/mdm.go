@@ -281,6 +281,9 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 	}
 
 	if payload.EndUserLocalAccountType != nil {
+		if *payload.EndUserLocalAccountType != "admin" {
+			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+		}
 		if ac.MDM.MacOSSetup.EndUserLocalAccountType == nil || *ac.MDM.MacOSSetup.EndUserLocalAccountType != *payload.EndUserLocalAccountType {
 			ac.MDM.MacOSSetup.EndUserLocalAccountType = payload.EndUserLocalAccountType
 			didUpdate = true
