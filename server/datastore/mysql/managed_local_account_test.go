@@ -92,11 +92,11 @@ func testManagedLocalAccountGetByCommandUUID(t *testing.T, ds *Datastore) {
 
 	// Create a real host so the host lookup in GetManagedLocalAccountByCommandUUID succeeds.
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "managed-account-host",
-		OsqueryHostID:  new("managed-account-osquery-1"),
-		NodeKey:        new("managed-account-node-1"),
-		UUID:           "host-uuid-cmd",
-		Platform:       "darwin",
+		Hostname:        "managed-account-host",
+		OsqueryHostID:   new("managed-account-osquery-1"),
+		NodeKey:         new("managed-account-node-1"),
+		UUID:            "host-uuid-cmd",
+		Platform:        "darwin",
 		DetailUpdatedAt: ds.clock.Now(),
 		LabelUpdatedAt:  ds.clock.Now(),
 		PolicyUpdatedAt: ds.clock.Now(),
@@ -119,11 +119,11 @@ func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
 
 	// Create a real host so the host lookup succeeds.
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "managed-account-upsert-host",
-		OsqueryHostID:  new("managed-account-osquery-2"),
-		NodeKey:        new("managed-account-node-2"),
-		UUID:           "host-uuid-upsert",
-		Platform:       "darwin",
+		Hostname:        "managed-account-upsert-host",
+		OsqueryHostID:   new("managed-account-osquery-2"),
+		NodeKey:         new("managed-account-node-2"),
+		UUID:            "host-uuid-upsert",
+		Platform:        "darwin",
 		DetailUpdatedAt: ds.clock.Now(),
 		LabelUpdatedAt:  ds.clock.Now(),
 		PolicyUpdatedAt: ds.clock.Now(),

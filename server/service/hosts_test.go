@@ -821,6 +821,10 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 		return &fleet.HostArchivedDiskEncryptionKey{}, nil
 	}
 
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+
 	t.Run("recovery lock password status populates for macOS", func(t *testing.T) {
 		failedStatus := fleet.MDMDeliveryFailed
 		ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
