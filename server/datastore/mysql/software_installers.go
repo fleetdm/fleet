@@ -2888,12 +2888,8 @@ WHERE
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
-				// If this title previously had a custom (non-FMA) installer, it
-				// would otherwise remain alongside the new FMA rows with
-				// is_active = 1, causing setup experience to enqueue the app
-				// twice (see issue #43738). Re-point any policies that
-				// referenced the custom installer to the new FMA row, then
-				// delete the stale custom row(s).
+				// Re-point policies from any non-FMA installers for this title
+				// to the new FMA installer.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
@@ -2903,6 +2899,9 @@ WHERE
 				`, installerID, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
 				}
+				// Delete previous non-FMA installers for this title — unlike
+				// FMA installers, custom installers are not retained for the
+				// version pinning feature.
 				if _, err := tx.ExecContext(ctx, `
 					DELETE FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL

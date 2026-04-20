@@ -4612,10 +4612,9 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 	})
 }
 
-// testCustomToFMAInstallerReplacement regresses issue #43738: when a title
-// that previously had a custom (non-FMA) installer is replaced by an FMA
-// installer via GitOps, the stale custom row used to remain with is_active=1,
-// causing setup experience to enqueue the app twice.
+// testCustomToFMAInstallerReplacement verifies that when a title's custom
+// installer is replaced by an FMA installer via GitOps, the stale custom
+// row is cleaned up and policies are re-pointed to the new FMA row.
 func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
