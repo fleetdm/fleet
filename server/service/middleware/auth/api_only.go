@@ -60,10 +60,14 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 			return next(ctx, request)
 		}
 
-		if _, ok := v.User.APIEndpointFingerprintSet()[fp]; !ok {
-			return nil, permissionDenied(ctx)
+		// Check whether the requested endpoint matches any of the user's allowed endpoints.
+		for _, ep := range v.User.APIEndpoints {
+			if fleet.NewAPIEndpointFromTpl(ep.Method, ep.Path).Fingerprint() == fp {
+				return next(ctx, request)
+			}
 		}
-		return next(ctx, request)
+
+		return nil, permissionDenied(ctx)
 	}
 }
 

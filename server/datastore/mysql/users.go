@@ -363,7 +363,6 @@ func (ds *Datastore) loadAPIEndpointsForUsers(ctx context.Context, users []*flee
 	for _, u := range users {
 		if u.APIOnly {
 			u.APIEndpoints = byUserID[u.ID]
-			u.SetAPIEndpointFingerprintSet()
 		}
 	}
 	return nil

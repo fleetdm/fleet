@@ -80,31 +80,6 @@ type User struct {
 	// APIEndpoints if this user is an API-only user, this returns
 	// a list of all end-points the user has access to.
 	APIEndpoints []APIEndpointRef `json:"api_endpoints,omitempty"`
-
-	// apiEndpointFingerprintSet is a pre-computed fingerprint set of APIEndpoints,
-	// populated by SetAPIEndpointFingerprintSet at load time.
-	apiEndpointFingerprintSet map[string]struct{}
-}
-
-// SetAPIEndpointFingerprintSet pre-computes the fingerprint lookup set from APIEndpoints.
-func (u *User) SetAPIEndpointFingerprintSet() {
-	if len(u.APIEndpoints) == 0 {
-		u.apiEndpointFingerprintSet = nil
-		return
-	}
-	fps := make(map[string]struct{}, len(u.APIEndpoints))
-	for _, ep := range u.APIEndpoints {
-		fps[NewAPIEndpointFromTpl(ep.Method, ep.Path).Fingerprint()] = struct{}{}
-	}
-	u.apiEndpointFingerprintSet = fps
-}
-
-// APIEndpointFingerprintSet returns the pre-computed fingerprint set.
-func (u *User) APIEndpointFingerprintSet() map[string]struct{} {
-	if u.apiEndpointFingerprintSet == nil && len(u.APIEndpoints) > 0 {
-		u.SetAPIEndpointFingerprintSet()
-	}
-	return u.apiEndpointFingerprintSet
 }
 
 type UserSettings struct {
