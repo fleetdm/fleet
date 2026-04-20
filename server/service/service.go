@@ -77,7 +77,6 @@ type Service struct {
 
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
-
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.

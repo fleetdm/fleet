@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,12 +23,6 @@ func (c *Client) CreateGlobalPolicy(name, query, description, resolution, platfo
 // Fleet instance.
 func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
 	req := fleet.ApplyPolicySpecsRequest{Specs: specs}
-	// log out the specs marshalled to JSON for debugging purposes, since the API doesn't return the specs in the response body and it's hard to know if they were sent correctly otherwise.
-	specsJSON, err := json.MarshalIndent(specs, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling policy specs to JSON: %w", err)
-	}
-	fmt.Printf("Applying policy specs JSON: %s\n", specsJSON)
 	verb, path := "POST", "/api/latest/fleet/spec/policies"
 	var responseBody fleet.ApplyPolicySpecsResponse
 	return c.authenticatedRequest(req, verb, path, &responseBody)

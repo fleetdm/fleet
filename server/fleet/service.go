@@ -1483,7 +1483,6 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
-
 }
 
 type KeyValueStore interface {
