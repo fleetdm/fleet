@@ -1,0 +1,1 @@
+* Fixed the APNs `nanopush` provider spawning one goroutine per push when more pushes than configured workers were queued, instead of capping at `p.workers`.

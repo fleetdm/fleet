@@ -116,7 +116,7 @@ func (p *Provider) pushSerial(ctx context.Context, pushInfos []*mdm.Push) (map[s
 func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	// don't start more workers than we have pushes to send
 	workers := p.workers
-	if len(pushInfos) > workers {
+	if len(pushInfos) < workers {
 		workers = len(pushInfos)
 	}
 
