@@ -26,7 +26,7 @@ GitHub issue: [#41003](https://github.com/fleetdm/fleet/issues/41003)
 
 Fleet now supports Python scripts alongside shell (`.sh`) and PowerShell (`.ps1`) scripts. IT admins can upload `.py` files in **Controls > Scripts** and run them on macOS and Linux hosts — on demand, in bulk, or as a policy automation.
 
-Python scripts follow the same rules as other script types: they respect Fleet's [script timeout](TODO), support [custom variables](TODO), and can be defined in GitOps.
+Python scripts follow the same rules as other script types: they respect Fleet's [script timeout](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout), support [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), and can be defined in GitOps.
 
 GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 
@@ -52,7 +52,7 @@ Fleet now lets IT admins opt specific resources out of GitOps enforcement. When 
 
 This makes it easier to ramp up with GitOps incrementally: start by managing policies and profiles in git, then add software and labels later as the team gets comfortable. Exceptions are configured per resource type and require global admin permissions. If an exception is enabled and the corresponding key is present in a YAML file, GitOps will surface a clear error during the dry run to prevent the UI-managed changes from being silently overwritten.
 
-Heads up that after upgrading, existing Fleet instances will have the labels exception enabled automatically. If your GitOps YAML files include a `labels:` key, you may encounter new errors. To resolve, either remove `labels:` from your YAML files (to manage labels via the UI or API going forward) or disable the labels exception in **Settings > Integrations > GitOps** (to restore the previous behavior where GitOps manages labels). Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
+Heads up that after upgrading, existing Fleet instances will have the labels exception enabled automatically. This way, your next GitOps run after upgrade doesn't wipe any labels not defined in git. If your GitOps YAML files include a `labels:` key, you will encounter new errors. To resolve, either remove `labels:` from your YAML files (to manage labels via the UI or API going forward) or disable the labels exception in **Settings > Integrations > GitOps** (to manage labels via GitOps). Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
 
 GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 
