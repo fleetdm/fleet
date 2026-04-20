@@ -163,6 +163,8 @@ Whitepaper articles use a separate article template that requires additional `<m
   - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
 - Optional `<meta>` tags:
   - `introductionTextBlockTwo` - A optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+  - `formHeadline` - Put in a short phrase that will show immediately above the form fields. If not used, a default generic phrase will be use ("Get the white paper to learn more")
+
 
 **Example whitepaper article meta tag section**
 
@@ -177,6 +179,7 @@ Whitepaper articles use a separate article template that requires additional `<m
 <meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
 <meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
 <meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">
+<meta name="formHeadline" value="Learn more about modern IT device management">
 ```
 
 
