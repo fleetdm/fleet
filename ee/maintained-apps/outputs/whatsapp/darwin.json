@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "26.15.16",
+      "version": "26.15.20",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp' AND version_compare(bundle_short_version, '26.15.16') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp' AND version_compare(bundle_short_version, '26.15.20') < 0);"
       },
       "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?configuration=Release&src=whatsapp_downloads_page",
       "install_script_ref": "f2b910d2",
