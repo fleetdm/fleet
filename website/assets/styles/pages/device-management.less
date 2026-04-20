@@ -500,14 +500,7 @@
     &:last-of-type {
       margin-bottom: 0px;
     }
-    [purpose='feature-image'] {
-      max-width: 528px;
-      img {
-        width: 528px;
-      }
-    }
     [purpose='feature-text'] {
-      width: 468px;
       h2 {
         font-size: 28px;
         margin-bottom: 32px;
@@ -536,7 +529,7 @@
   }
 
   [purpose='three-column-features'] {
-    .three-column-features();
+    .responsive-feature-row();
     padding-top: 64px;
     [purpose='feature'] {
       margin-bottom: 0;
@@ -646,13 +639,6 @@
 
   @media (max-width: 1199px) {
 
-    [purpose='feature-with-image'] {
-      [purpose='feature-image'] {
-        img {
-          width: 455px;
-        }
-      }
-    }
     [purpose='calendar-feature'] {
       [purpose='feature-video'] {
         // width: 455px;
@@ -699,12 +685,6 @@
 
     [purpose='hero-text'] {
       width: 410px;
-    }
-
-    [purpose='feature-with-image'] {
-      [purpose='feature-text'] {
-        width: 410px;
-      }
     }
 
     [purpose='comparison-column'] {
@@ -785,11 +765,7 @@
     [purpose='feature-with-image'] {
       margin-bottom: 80px;
       [purpose='feature-image'] {
-        max-width: 100%;
         margin-bottom: 64px;
-        img {
-          width: 100%;
-        }
       }
     }
 
@@ -915,8 +891,6 @@
     }
     [purpose='three-column-features'] {
       [purpose='feature'] {
-        text-align: center;
-        max-width: 320px;
         margin-left: auto;
         margin-right: auto;
       }

@@ -311,11 +311,6 @@
   [purpose='feature-with-image'] {
     .feature-with-image();
     margin-bottom: 160px;
-    [purpose='feature-image'] {
-      img, video {
-        width: 578px;
-      }
-    }
     [purpose='feature-list-block'] {
       display: flex;
       flex-direction: row;
@@ -1121,8 +1116,13 @@
     }
 
     [purpose='feature-with-image'] {
-      flex-direction: column-reverse;
       margin-bottom: 128px;
+      // Between 576 and 768px, text sits above the image. The mixin's column
+      // mode uses DOM order (image first); flip with column-reverse here.
+      flex-direction: column-reverse;
+      &.reverse {
+        flex-direction: column-reverse;
+      }
       [purpose='feature-list-block'] {
         flex-direction: column;
         width: 33%;
@@ -1250,7 +1250,11 @@
       margin-bottom: 48px;
     }
     [purpose='feature-with-image'] {
+      // At ≤575px, image goes back above text (overrides the ≤768 reverse).
       flex-direction: column;
+      &.reverse {
+        flex-direction: column;
+      }
       [purpose='feature-list-block'] {
         flex-direction: row;
         width: 100%;
