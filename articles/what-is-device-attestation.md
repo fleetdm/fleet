@@ -28,17 +28,19 @@ Apple Silicon Macs include a Secure Enclave, a dedicated coprocessor that stores
 keys in hardware. Keys generated in the Secure Enclave can't be exported. Operations that use
 them happen inside the enclave itself.
 
-During attestation, the device generates a key pair inside the Secure Enclave. It then requests 
-a certificate from Apple's servers. That certificate binds the key to hardware attributes like 
-serial number, UDID, and chip type. Apple can verify these attributes because the device was 
-manufactured by Apple and its provenance is known.
+During attestation, the device generates a key pair inside the Secure Enclave. It then requests
+an attestation certificate from Apple. That certificate binds the key to hardware attributes
+like serial number, UDID, and chip type. Apple can verify these attributes because the device
+was manufactured by Apple and its provenance is known.
 
-The certificate Apple issues is signed by Apple's CA. Your MDM server can verify that chain,
-which means you're not just trusting the device's self-reported identity. You're trusting
-Apple's attestation of it.
+The attestation certificate Apple issues is rooted in Apple's Enterprise Attestation CA. Your
+MDM verifies that chain to confirm the device is genuine. The attestation certificate itself
+isn't the client certificate the device uses to identify itself to MDM. Once the attestation
+checks out, the MDM's own ACME server issues that client certificate.
 
-The result: you know the device is a genuine Apple device, and you know the hardware attributes
-in the certificate are accurate.
+The result: you know the device is a genuine Apple device, you know the hardware attributes
+are accurate, and the client certificate your MDM issued is bound to a hardware key that can't
+leave the Secure Enclave.
 
 ## The ACME protocol
 
@@ -52,13 +54,17 @@ devices that qualify, and it's the mechanism that makes hardware-attested enroll
 
 When Fleet sends an ACME configuration to an enrolling device, the device:
 
-1. Generates a key pair in the Secure Enclave
-2. Requests a certificate from Apple's ACME CA
-3. Apple verifies the device's hardware attributes and issues a signed certificate
-4. The device presents that certificate to Fleet
+1. Requests a challenge token from Fleet's ACME server
+2. Generates a key pair in the Secure Enclave
+3. Requests an attestation certificate from Apple that binds the key to the device's hardware
+   attributes
+4. Presents the attestation certificate back to Fleet for validation
 
-Fleet verifies the certificate against Apple's root CA. If it checks out, you have cryptographic
-proof of the device's identity, not just a claim.
+Fleet validates the response a few ways: the leaf certificate must chain up to Apple's
+Enterprise Attestation CA (however many intermediates sit in between), the certificate
+extensions must include the challenge token Fleet issued, and the hardware attributes in the
+extensions (like serial number) must match what Fleet expects. Once those checks pass, Fleet's
+ACME server issues the client certificate the device uses for MDM identity going forward.
 
 ## What attestation proves (and what it doesn't)
 
@@ -82,7 +88,7 @@ about proving the device is what it says it is.
 ## How Fleet supports device attestation
 
 Starting in Fleet 4.84, Fleet Premium customers can require hardware attestation for ADE
-enrollments on Apple Silicon Macs.
+enrollments on Apple Silicon Macs running macOS 14 or later.
 
 When you enable **Require hardware attestation** in Fleet's MDM settings, Fleet does two things:
 
@@ -92,13 +98,15 @@ When you enable **Require hardware attestation** in Fleet's MDM settings, Fleet 
 Devices that fail the attestation challenge aren't allowed to enroll. This is an explicit gate,
 not a soft check.
 
-Devices that already enrolled via SCEP don't need to re-enroll. Qualifying devices (Apple 
-Silicon Macs from ADE) receive ACME certificates on their next renewal cycle.
+Devices that already enrolled via SCEP don't need to re-enroll. Qualifying devices (Apple
+Silicon Macs on macOS 14+ from ADE) receive ACME certificates on their next renewal cycle.
 
-Intel Macs, iPhones, and iPads don't support hardware-bound keys in the same way and use SCEP
-enrollment regardless of this setting.
+Intel Macs fall back to SCEP because they don't have a Secure Enclave to bind keys to. Apple's
+ACME protocol also supports iPhones and iPads with an A11 Bionic chip or later, but Fleet's
+current implementation only covers Apple Silicon Macs. iPhones and iPads continue to enroll
+via SCEP for now.
 
-When a device enrolls with a hardware-attested certificate, Fleet shows **MDM attested: Yes**
+When a device enrolls with a hardware-attested certificate, Fleet shows **MDM attestation: Yes**
 in host vitals. If a host isn't attested, the field doesn't appear. That keeps the UI clear
 for devices where attestation actually applies.
 
