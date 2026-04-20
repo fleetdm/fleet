@@ -45,7 +45,7 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
       .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,
-        fleets: formData.fleets,
+        fleets: formData.fleets.map((f) => ({ id: f.id, role: f.role ?? "observer" })),
         api_endpoints: formData.api_endpoints,
       })
       .then((response) => {

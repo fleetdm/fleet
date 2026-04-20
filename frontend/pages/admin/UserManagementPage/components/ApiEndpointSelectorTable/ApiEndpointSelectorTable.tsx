@@ -261,6 +261,7 @@ const ApiEndpointSelectorTable = ({
             isAllPagesSelected={false}
             disableCount
             disablePagination
+            emptyComponent={() => <></>}
           />
         </div>
       )}

@@ -11,7 +11,7 @@ import {
   IUser,
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
-import { ITeamSummary, ITeam } from "interfaces/team";
+import { ITeamSummary, INewTeamUser } from "interfaces/team";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { IUserSettings } from "interfaces/config";
@@ -81,7 +81,7 @@ export default {
   createApiOnlyUser: (formData: {
     name: string;
     global_role?: string | null;
-    fleets?: ITeam[];
+    fleets?: INewTeamUser[];
     api_endpoints?: IApiEndpointRef[] | null;
   }): Promise<{ user: IUser; token?: string }> => {
     const { USERS_API_ONLY } = endpoints;
