@@ -127,12 +127,16 @@ At the OOBE screen, press **Shift+F10** to open a command prompt:
 2. Register directly with Intune (preferred):
 ```powershell
 powershell
+$DebugPreference = "Continue"
+$VerbosePreference = "Continue"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 Install-Script -Name Get-WindowsAutopilotInfo -Force
 Get-WindowsAutopilotInfo -Online
 ```
+The `$DebugPreference` and `$VerbosePreference` settings enable diagnostic output that helps troubleshoot issues with `Get-WindowsAutopilotInfo -Online`.
+
 Sign in with your Entra account when prompted.
 
 3. If `-Online` fails (auth errors, script errors), fall back to CSV:
