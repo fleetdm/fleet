@@ -1162,6 +1162,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeEnabledWindowsMDM{}
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
+
+			// Clean up all pending Windows MDM profile rows since hosts can no longer receive MDM commands.
+			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
+			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())

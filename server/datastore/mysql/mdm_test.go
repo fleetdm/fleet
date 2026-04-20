@@ -9209,6 +9209,29 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
+
+	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining profile rows when MDM is
+	// toggled off globally. At this point hosts still have pending remove profiles.
+
+	// Windows hosts have pending removes; cleanup should wipe them.
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host3.UUID)
+	assertHostProfileOpStatus(t, ds, host4.UUID)
+
+	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost1)
+
+	appleProfsHost2, err := ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost2)
+
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID)
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is

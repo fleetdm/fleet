@@ -3406,6 +3406,11 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "saving app config")
 	}
 
+	// Clean up all pending Apple MDM profile rows since hosts can no longer receive MDM commands.
+	if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin"); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up Apple host MDM profiles")
+	}
+
 	// If an install doesn't have a verification_at or verification_failed_at, then
 	// mark it as failed
 	if err := svc.ds.MarkAllPendingAppleVPPAndInHouseInstallsAsFailed(ctx, worker.AppleSoftwareJobName); err != nil {

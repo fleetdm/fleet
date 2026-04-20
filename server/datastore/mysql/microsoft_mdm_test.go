@@ -57,6 +57,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
+		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 	}
 
 	for _, c := range cases {
@@ -4685,4 +4686,42 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
 			"per-host membership mismatch for OSSettingsFilter=%s", filter)
 	}
+}
+
+// testMDMWindowsUnenrollCleansUpProfiles verifies that pending profile rows are cleaned up when a
+// Windows host unenrolls from MDM (issue #42427, scenario B).
+func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a Windows host and enroll it
+	host := test.NewHost(t, ds, "win-unenroll", "10.0.0.1", "win-key", "win-unenroll-uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	deviceID := windowsEnroll(t, ds, host)
+
+	// create a Windows profile and set it as pending install on the host
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES (?, ?, ?, ?, ?, UNHEX(MD5('test')), ?)`,
+			host.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, uuid.NewString(), "TestProfile", profUUID)
+		return err
+	})
+
+	// verify the profile row exists
+	winProfs, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, winProfs, 1)
+	require.Equal(t, profUUID, winProfs[0].ProfileUUID)
+
+	// unenroll the device
+	err = ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, deviceID)
+	require.NoError(t, err)
+
+	// verify the profile row has been cleaned up
+	winProfs, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, winProfs)
 }

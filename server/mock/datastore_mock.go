@@ -325,6 +325,8 @@ type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
+type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
+
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
 
 type CleanupOrphanedNanoRefetchCommandsFunc func(ctx context.Context) error
@@ -2314,6 +2316,9 @@ type DataStore struct {
 
 	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
 	CleanupHostMDMAppleProfilesFuncInvoked bool
+
+	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
+	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
 
 	CleanupStaleNanoRefetchCommandsFunc        CleanupStaleNanoRefetchCommandsFunc
 	CleanupStaleNanoRefetchCommandsFuncInvoked bool
@@ -5677,6 +5682,13 @@ func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	s.CleanupHostMDMAppleProfilesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupHostMDMAppleProfilesFunc(ctx)
+}
+
+func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
+	s.mu.Lock()
+	s.CleanupAllHostMDMProfilesForPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupAllHostMDMProfilesForPlatformFunc(ctx, platform)
 }
 
 func (s *DataStore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
