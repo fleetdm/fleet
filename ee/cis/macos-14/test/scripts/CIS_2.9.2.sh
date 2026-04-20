@@ -9,5 +9,3 @@
 # on Intel hardware.
 
 /usr/bin/sudo /usr/bin/pmset -a powernap 0
-/usr/bin/sudo /usr/bin/pmset -b powernap 0
-/usr/bin/sudo /usr/bin/pmset -c powernap 0

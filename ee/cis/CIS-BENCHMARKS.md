@@ -149,10 +149,14 @@ these, the test runner automatically:
 3. Waits for profile delivery
 4. Runs the query again to verify it now returns rows
 
-If a query already passes before its profile is delivered, the test is
-marked as FAIL with a warning that the query may not detect
-non-compliance. This is the equivalent of the "fail" direction for
-profile-only tests — the absence of the profile IS the fail condition.
+If a query already passes before its profile is delivered, the runner
+records a `note:` in the result details warning that the query may not
+detect non-compliance — the test can still PASS if the post-delivery
+query succeeds. Some queries (firewall, Gatekeeper) check OS state
+that may be compliant regardless of the profile, which is why the
+pre-delivery pass isn't automatically treated as a failure. An
+unexpected pre-delivery pass is worth investigating but not
+disqualifying.
 
 ### Test scripts
 

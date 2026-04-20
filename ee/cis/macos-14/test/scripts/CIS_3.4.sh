@@ -8,17 +8,21 @@
 # not root, so the write silently failed.
 
 AUDIT_FILE="/etc/security/audit_control"
-TMP_FILE="/tmp/audit_control.tmp"
+TMP_FILE="$(/usr/bin/mktemp /tmp/audit_control.XXXXXX)" || exit 1
+trap '/bin/rm -f "$TMP_FILE"' EXIT
 
 # If expire-after exists, replace it; otherwise append it.
 if /usr/bin/sudo /usr/bin/grep -q "^expire-after:" "$AUDIT_FILE"; then
-    /usr/bin/sudo /usr/bin/awk '
+    if ! /usr/bin/sudo /usr/bin/awk '
         /^expire-after:/ { print "expire-after:60d OR 5G"; next }
         { print }
-    ' "$AUDIT_FILE" > "$TMP_FILE"
+    ' "$AUDIT_FILE" > "$TMP_FILE"; then
+        echo "Failed to rewrite $AUDIT_FILE" >&2
+        exit 1
+    fi
     /usr/bin/sudo /bin/mv "$TMP_FILE" "$AUDIT_FILE"
 else
-    /usr/bin/sudo /usr/bin/cp "$AUDIT_FILE" "$TMP_FILE"
+    /usr/bin/sudo /usr/bin/cp "$AUDIT_FILE" "$TMP_FILE" || exit 1
     echo "expire-after:60d OR 5G" | /usr/bin/sudo /usr/bin/tee -a "$TMP_FILE" > /dev/null
     /usr/bin/sudo /bin/mv "$TMP_FILE" "$AUDIT_FILE"
 fi

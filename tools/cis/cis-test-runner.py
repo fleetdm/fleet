@@ -28,6 +28,11 @@ from urllib.request import Request, urlopen
 
 import yaml
 
+# Absolute temp directory, resolved relative to this file so the tool
+# works from any CWD (the --cis-dir flag explicitly supports running
+# outside the repo root).
+TMP_DIR = Path(__file__).resolve().parent.parent.parent / "tmp"
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -236,6 +241,7 @@ def log_error(msg: str) -> None:
 def parse_policies(yaml_path: Path) -> list[Policy]:
     """Parse the multi-document YAML policy file."""
     policies = []
+    missing_cis_id: list[str] = []
     with open(yaml_path) as f:
         for doc in yaml.safe_load_all(f):
             if not doc or doc.get("kind") != "policy":
@@ -245,9 +251,13 @@ def parse_policies(yaml_path: Path) -> list[Policy]:
             if not name.startswith("CIS -"):
                 continue
             query = spec.get("query", "").strip()
+            cis_id = spec.get("cis_id", "") or ""
+            if not cis_id:
+                missing_cis_id.append(name)
+                continue
             policies.append(
                 Policy(
-                    cis_id=spec.get("cis_id", ""),
+                    cis_id=cis_id,
                     name=name,
                     query=query,
                     resolution=spec.get("resolution", ""),
@@ -255,6 +265,12 @@ def parse_policies(yaml_path: Path) -> list[Policy]:
                     needs_mdm="managed_policies" in query,
                 )
             )
+    if missing_cis_id:
+        # Skip policies without cis_id — without it, the runner can't
+        # map to scripts/profiles and would generate paths like
+        # CIS__pass.sh. Warn so the author can fix the YAML.
+        for n in missing_cis_id:
+            log_error(f"Policy has no cis_id, skipping: {n}")
     return policies
 
 
@@ -645,8 +661,9 @@ def create_fleet_team(
         },
     }
 
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False, dir="tmp"
+        mode="w", suffix=".yml", delete=False, dir=str(TMP_DIR)
     ) as f:
         yaml.dump(team_yaml, f)
         tmp_path = f.name
@@ -732,8 +749,9 @@ def push_profiles_to_team(
         },
     }
 
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False, dir="tmp"
+        mode="w", suffix=".yml", delete=False, dir=str(TMP_DIR)
     ) as f:
         yaml.dump(team_yaml, f)
         tmp_path = f.name
@@ -1030,7 +1048,8 @@ def enroll_mdm(ip: str, fleet_url: str, identifier: str) -> None:
         )
 
     # Write to temp file, SCP to VM, open
-    tmp_profile = Path("tmp") / "mdm_profile.mobileconfig"
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_profile = TMP_DIR / "mdm_profile.mobileconfig"
     tmp_profile.write_bytes(content)
     scp_to_vm(ip, tmp_profile, "mdm_profile.mobileconfig")
     tmp_profile.unlink(missing_ok=True)
@@ -1063,6 +1082,23 @@ def enroll_mdm(ip: str, fleet_url: str, identifier: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def wait_for_query_pass(
+    query: str,
+    hostname: str,
+    fleetctl: str,
+    query_timeout: int,
+    deadline_seconds: int = 90,
+    poll_interval: int = 10,
+) -> bool:
+    """Poll run_query until it returns True or deadline elapses."""
+    deadline = time.time() + deadline_seconds
+    while time.time() < deadline:
+        if run_query(query, hostname, fleetctl, query_timeout):
+            return True
+        time.sleep(poll_interval)
+    return False
+
+
 def run_query(
     query: str, hostname: str, fleetctl: str, timeout: int = 60
 ) -> bool:
@@ -1078,6 +1114,10 @@ def run_query(
         timeout=timeout + 30,
         check=False,
     )
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip() or "(no output)"
+        raise RuntimeError(f"fleetctl query failed: {detail}")
 
     stdout = result.stdout or ""
     # fleetctl query outputs one JSON object per line per host:
@@ -1108,7 +1148,12 @@ def run_query(
 
 
 def run_script_on_vm(ip: str, script_path: Path) -> subprocess.CompletedProcess:
-    """Copy a script to the VM and execute it."""
+    """Copy a script to the VM and execute it.
+
+    Raises RuntimeError on non-zero exit so the caller surfaces the
+    failure as ERROR (with the script's stderr) rather than masking it
+    as a spurious PASS/FAIL on the follow-up query.
+    """
     remote_name = f"/tmp/{script_path.name}"
     scp_to_vm(ip, script_path, remote_name)
     ssh(ip, f"chmod +x {remote_name}", timeout=10)
@@ -1118,6 +1163,11 @@ def run_script_on_vm(ip: str, script_path: Path) -> subprocess.CompletedProcess:
         timeout=300,
     )
     log_verbose(f"Script exit code: {result.returncode}")
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip() or "(no output)"
+        raise RuntimeError(
+            f"Script {script_path.name} failed (exit {result.returncode}): {detail}"
+        )
     return result
 
 
@@ -1266,7 +1316,11 @@ def run_test(
                     "the OS state may satisfy this regardless of MDM"
                 )
 
-            if not run_query(policy.query, hostname, fleetctl, query_timeout):
+            # Poll instead of checking once — MDM delivery time varies
+            # and the fixed 30s wait in Phase 5 isn't always enough.
+            if not wait_for_query_pass(
+                policy.query, hostname, fleetctl, query_timeout
+            ):
                 return TestResult(
                     cis_id, name, "FAIL",
                     "Query returned no rows after MDM profile delivery",
@@ -1782,7 +1836,7 @@ def main() -> int:
         return 1
 
     # Ensure tmp dir exists for temp files
-    (repo_root / "tmp").mkdir(exist_ok=True)
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
 
     # Check prerequisites
     for tool in ["tart", "sshpass"]:
@@ -2135,8 +2189,11 @@ def main() -> int:
                 delete_fleet_host(fleet_url, fleet_token, team.host_id)
             if team.team_id:
                 delete_fleet_team(fleet_url, fleet_token, team.team_id)
-            if vm_proc:
-                delete_vm(vm_name)
+            # Delete the VM even if this process didn't start it
+            # (e.g., --keep-vm path that reused a running VM). The
+            # --cleanup flag promises to clean up the VM; ownership
+            # tracking via vm_proc was incorrect.
+            delete_vm(vm_name)
         elif not args.keep_vm:
             if vm_proc:
                 log("Cleaning up VM...")
