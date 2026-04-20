@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -145,11 +144,12 @@ func (e *endpointer) Service() any {
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
-	// Append RouteTemplateRequestFunc so auth.APIOnlyEndpointCheck (wired in
-	// the authMiddleware at the call site) can read the matched mux route
-	// template from context. Full-slice expression prevents aliasing into the
-	// caller's backing array if it happens to have spare capacity.
-	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(auth.RouteTemplateRequestFunc))
+	// Append RouteTemplateRequestFunc so the api_only endpoint middleware
+	// (wired in the authMiddleware at the call site) can read the matched
+	// mux route template from context. Full-slice expression prevents
+	// aliasing into the caller's backing array if it happens to have spare
+	// capacity.
+	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(eu.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,

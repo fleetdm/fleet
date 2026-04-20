@@ -10,6 +10,7 @@ import (
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -63,7 +64,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 	ctxWithMethod := func(method, tpl string) context.Context {
 		ctx := context.Background()
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, method)
-		ctx = context.WithValue(ctx, routeTemplateKey, tpl)
+		ctx = eu.WithRouteTemplate(ctx, tpl)
 		return ctx
 	}
 
@@ -186,7 +187,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		ac := &authzctx.AuthorizationContext{}
 		ctx := authzctx.NewContext(context.Background(), ac)
 		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, "GET")
-		ctx = context.WithValue(ctx, routeTemplateKey, muxTemplate("fleet/secret_admin_endpoint"))
+		ctx = eu.WithRouteTemplate(ctx, muxTemplate("fleet/secret_admin_endpoint"))
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{APIOnly: true}})
 
 		_, err := newEndpoint(next)(ctx, nil)
@@ -321,7 +322,7 @@ func TestRouteTemplateRequestFunc(t *testing.T) {
 	t.Run("stores the matched route template", func(t *testing.T) {
 		ctx, matched := newServedRequest(t, "/api/v1/fleet/hosts/{id:[0-9]+}", "/api/v1/fleet/hosts/42")
 		require.True(t, matched, "expected route to be matched")
-		tpl, ok := ctx.Value(routeTemplateKey).(string)
+		tpl, ok := eu.RouteTemplateFromContext(ctx)
 		require.True(t, ok, "route template must be stored in context")
 		require.Equal(t, "/api/v1/fleet/hosts/{id:[0-9]+}", tpl)
 	})
@@ -332,7 +333,7 @@ func TestRouteTemplateRequestFunc(t *testing.T) {
 		req := httptest.NewRequest("GET", "/whatever", nil)
 		ctx := context.Background()
 		got := RouteTemplateRequestFunc(ctx, req)
-		_, ok := got.Value(routeTemplateKey).(string)
+		_, ok := eu.RouteTemplateFromContext(got)
 		require.False(t, ok, "no route template should be stored when no route is matched")
 	})
 }

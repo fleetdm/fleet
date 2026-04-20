@@ -2,35 +2,21 @@ package auth
 
 import (
 	"context"
-	"net/http"
 
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
-// contextKeyRouteTemplate is the context key type for the mux route template.
-type contextKeyRouteTemplate struct{}
-
-var routeTemplateKey = contextKeyRouteTemplate{}
-
 // RouteTemplateRequestFunc captures the gorilla/mux route template for the
-// matched request and stores it in the context.
-func RouteTemplateRequestFunc(ctx context.Context, r *http.Request) context.Context {
-	route := mux.CurrentRoute(r)
-	if route == nil {
-		return ctx
-	}
-	tpl, err := route.GetPathTemplate()
-	if err != nil {
-		return ctx
-	}
-	return context.WithValue(ctx, routeTemplateKey, tpl)
-}
+// matched request and stores it in the context. Alias of the platform
+// implementation, re-exported so callers that already import this package can
+// continue to reference it here.
+var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
 
 // APIOnlyEndpointCheck returns an endpoint.Endpoint middleware that enforces
 // access control for API-only users (api_only=true). It must be wired inside
@@ -61,7 +47,7 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		}
 
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
-		routeTemplate, _ := ctx.Value(routeTemplateKey).(string)
+		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
 		fp := fleet.NewAPIEndpointFromTpl(requestMethod, routeTemplate).Fingerprint()
 
