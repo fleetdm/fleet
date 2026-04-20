@@ -169,6 +169,8 @@
   flex-direction: column;
 
   &__api-key-label {
+    color: $core-fleet-black;
+    font-size: $small;
     margin-bottom: $pad-large;
   }
 
