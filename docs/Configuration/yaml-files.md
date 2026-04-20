@@ -808,10 +808,10 @@ org_settings:
 ### org_info
 
 - `org_name` is the name of your organization (default: `""`)
-- `org_logo_path` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path` or `org_logo_url` may be specified. 
-- `org_logo_path_light_background` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path_light_background` or `org_logo_url_light_background` may be specified.
-- `org_logo_url` is a public URL of the logo for your organization (default: Fleet logo). Only one of `org_logo_path` or `org_logo_url` may be specified.
-- `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo). Only one of `org_logo_path_light_background` or `org_logo_url_light_background` may be specified.
+- `org_logo_path_dark_mode` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path_dark_mode` or `org_logo_url_dark_mode` may be specified. 
+- `org_logo_path_light_mode` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path_light_mode` or `org_logo_url_light_mode` may be specified.
+- `org_logo_url_dark_mode` is a public URL of the logo for your organization (default: Fleet logo). Only one of `org_logo_path_dark_mode` or `org_logo_url_dark_mode` may be specified.
+- `org_logo_url_light_mode` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo). Only one of `org_logo_path_light_mode` or `org_logo_url_light_mode` may be specified.
 - `contact_url` is a URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
 Can only be configured for "All fleets" (`org_settings`).
