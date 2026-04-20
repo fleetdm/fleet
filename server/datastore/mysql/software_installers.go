@@ -2899,9 +2899,8 @@ WHERE
 				`, installerID, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
 				}
-				// Delete previous non-FMA installers for this title — unlike
-				// FMA installers, custom installers are not retained for the
-				// version pinning feature.
+				// Delete previous custom installer for this title since they shouldn't
+				// be kept for rollback.
 				if _, err := tx.ExecContext(ctx, `
 					DELETE FROM software_installers
 					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
