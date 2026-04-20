@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "Build 2123",
+      "version": "Build 2125",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge' AND version_compare(bundle_short_version, 'Build 2123') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimemerge' AND version_compare(bundle_short_version, 'Build 2125') < 0);"
       },
-      "installer_url": "https://download.sublimetext.com/sublime_merge_build_2123_mac.zip",
+      "installer_url": "https://download.sublimetext.com/sublime_merge_build_2125_mac.zip",
       "install_script_ref": "9e3fcd9b",
       "uninstall_script_ref": "3113495c",
-      "sha256": "7c3e4ae8023538a551f44175811990c4076ca2bd31d71ef066c487b6a86bc360",
+      "sha256": "f1d766577d73e50f847ce596b86247a9f552d63575d267f880d9455c3ddc5156",
       "default_categories": [
         "Developer tools"
       ]

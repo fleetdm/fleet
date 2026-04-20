@@ -46,6 +46,7 @@ type AppleMDM struct {
 	Commander             *apple_mdm.MDMAppleCommander
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	VPPInstaller          fleet.AppleMDMVPPInstaller
+	NewActivityFn         fleet.NewActivityFunc
 }
 
 // Name returns the name of the job.
@@ -583,6 +584,7 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 
 			cmdUUID, err := a.installSoftwareFromVPP(ctx, host, vppApp, true, opts)
 
+			failedBeforeCommandSend := err != nil
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
@@ -597,6 +599,21 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 			}
 			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+			// Emit activity for the VPP app install failure, if one occurred
+			if failedBeforeCommandSend && a.NewActivityFn != nil {
+				failActivity := fleet.ActivityInstalledAppStoreApp{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       app.Name,
+					AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
+					Status:              string(fleet.SoftwareInstallFailed),
+					HostPlatform:        host.Platform,
+					FromSetupExperience: true,
+				}
+				if actErr := a.NewActivityFn(ctx, nil, failActivity); actErr != nil {
+					a.Log.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+				}
 			}
 		}
 	}

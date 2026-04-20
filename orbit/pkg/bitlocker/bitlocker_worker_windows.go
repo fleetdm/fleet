@@ -26,8 +26,19 @@ type comWorkResult struct {
 // COMWorker runs all BitLocker COM/WMI operations on a single dedicated OS
 // thread. This prevents deadlocks with other COM callers (MDM Bridge, Windows
 // Update) that share the global comshim singleton.
+//
+// Shutdown uses two channels to avoid a race between Close and exec:
+//   - stop: closed by Close() to tell the loop goroutine to exit.
+//   - done: closed by the loop goroutine after it has exited and cleaned up COM.
+//
+// Using a separate stop channel (instead of closing workCh) is necessary because
+// exec() sends on workCh. Closing a channel that another goroutine may send on
+// causes a panic. With this design, workCh is never closed -- it is garbage
+// collected along with the COMWorker once all references are dropped. When
+// exec() races with Close(), it sees <-w.done and returns ErrWorkerClosed.
 type COMWorker struct {
 	workCh    chan comWorkItem
+	stop      chan struct{}
 	done      chan struct{}
 	closeOnce sync.Once
 }
@@ -37,6 +48,7 @@ type COMWorker struct {
 func NewCOMWorker() (*COMWorker, error) {
 	w := &COMWorker{
 		workCh: make(chan comWorkItem),
+		stop:   make(chan struct{}),
 		done:   make(chan struct{}),
 	}
 	initErr := make(chan error, 1)
@@ -59,17 +71,22 @@ func (w *COMWorker) loop(initErr chan<- error) {
 	defer ole.CoUninitialize()
 	initErr <- nil
 
-	for item := range w.workCh {
-		val, err := item.fn()
-		item.result <- comWorkResult{val, err}
+	for {
+		select {
+		case item := <-w.workCh:
+			val, err := item.fn()
+			item.result <- comWorkResult{val, err}
+		case <-w.stop:
+			close(w.done)
+			return
+		}
 	}
-	close(w.done)
 }
 
 // Close shuts down the COM worker goroutine and waits for it to finish.
 func (w *COMWorker) Close() {
 	w.closeOnce.Do(func() {
-		close(w.workCh)
+		close(w.stop)
 	})
 	<-w.done
 }

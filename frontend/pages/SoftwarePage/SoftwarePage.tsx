@@ -175,10 +175,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
   );
-  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
-    null
-  );
-
   const {
     currentTeamId,
     isAllTeamsSelected,
@@ -427,7 +423,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           vulnFilters: softwareVulnFilters,
-          addedSoftwareToken,
           onAddFiltersClick: toggleSoftwareFiltersModal,
         })}
       </div>

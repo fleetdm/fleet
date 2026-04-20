@@ -929,12 +929,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   ranScript: (activity: IActivity) => {
-    const { script_name, host_display_name } = activity.details || {};
+    const { script_name, host_display_name, from_setup_experience } =
+      activity.details || {};
     return (
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        <b>{host_display_name}</b>.
+        <b>{host_display_name}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -1281,6 +1283,7 @@ const TAGGED_TEMPLATES = {
       software_title: title,
       status,
       source,
+      from_setup_experience,
     } = details;
 
     const showSoftwarePackage =
@@ -1293,7 +1296,8 @@ const TAGGED_TEMPLATES = {
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.
+        <b>{hostName}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -1497,12 +1501,27 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledInstallSoftware: (activity: IActivity) => {
+    const {
+      software_title: title,
+      host_display_name: hostName,
+      from_setup_experience: fromSetupExperience,
+    } = activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>
+        {fromSetupExperience ? " during setup experience" : ""}.
+      </>
+    );
+  },
+  canceledSetupExperience: (activity: IActivity) => {
     const { software_title: title, host_display_name: hostName } =
       activity.details || {};
     return (
       <>
         {" "}
-        canceled <b>{title}</b> install on <b>{hostName}</b>.
+        canceled setup experience on <b>{hostName}</b> because <b>{title}</b>{" "}
+        failed to install.
       </>
     );
   },
@@ -2158,6 +2177,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CanceledSetupExperience: {
+      return TAGGED_TEMPLATES.canceledSetupExperience(activity);
     }
     case ActivityType.CreatedSavedQuery: {
       return TAGGED_TEMPLATES.createdSavedQuery(activity);

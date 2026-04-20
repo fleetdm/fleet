@@ -2406,6 +2406,11 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*ExistingSoftwareInstaller, error)
 
+	// GetInstallerByTeamAndURL looks up an existing software installer by team
+	// and URL. Returns the most recently inserted installer matching the team and
+	// URL, including its storage_id (SHA256) and http_etag for conditional downloads.
+	GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*ExistingSoftwareInstaller, error)
+
 	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
 	// have the setup experience IdP (End user authentication) enabled. It uses
 	// id 0 to represent "No team", should IdP be enabled for that team.
@@ -2815,6 +2820,10 @@ type Datastore interface {
 	// DeleteHostCertificateTemplate deletes a single host_certificate_template record
 	// identified by host_uuid and certificate_template_id.
 	DeleteHostCertificateTemplate(ctx context.Context, hostUUID string, certificateTemplateID uint) error
+	// DeleteAllHostCertificateTemplates deletes all host_certificate_templates records for a host.
+	// Used during re-enrollment to clear stale cert records (including those from previous teams)
+	// before creating fresh pending records for the host's current team.
+	DeleteAllHostCertificateTemplates(ctx context.Context, hostUUID string) error
 	// ResendHostCertificateTemplate queues a certificate template to be resent to a device
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 

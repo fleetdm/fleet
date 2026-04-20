@@ -144,8 +144,8 @@ const VppPage = ({ router }: IVppPageProps) => {
           router={router}
           header="Turn on Apple MDM"
           buttonText="Turn on"
-          info=" To install Apple App Store apps purchased through Apple Business
-        Manager, first turn on Apple MDM."
+          info=" To install Apple App Store apps purchased through Apple Business,
+          first turn on Apple MDM."
         />
       );
     }
@@ -168,7 +168,7 @@ const VppPage = ({ router }: IVppPageProps) => {
         <>
           <PageDescription
             content="Add your VPP to install Apple App Store apps purchased through Apple
-            Business Manager."
+            Business."
           />
           <VppTable
             vppTokens={vppTokens}
@@ -210,7 +210,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showRenewModal && selectedToken.current && (
         <RenewVppModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

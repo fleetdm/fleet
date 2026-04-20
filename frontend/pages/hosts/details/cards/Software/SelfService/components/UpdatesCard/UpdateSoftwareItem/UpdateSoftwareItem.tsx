@@ -148,7 +148,7 @@ interface IInstallerStatusActionProps {
 }
 
 const InstallerStatusAction = ({
-  software: { id, status, software_package, app_store_app, ui_status },
+  software: { status, software_package, app_store_app, ui_status },
   onInstall,
   onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {

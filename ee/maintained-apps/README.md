@@ -28,7 +28,7 @@
 
 6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
-7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
+7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the [Fleet-maintained apps DRI](https://fleetdm.com/handbook/company/communications#:~:text=Fleet%2Dmaintained%20apps).
 
 8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 3 business days. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
