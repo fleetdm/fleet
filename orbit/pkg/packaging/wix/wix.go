@@ -33,6 +33,7 @@ func Heat(path string, native bool, localWixDir string) error {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -109,6 +110,7 @@ func Candle(path string, native bool, localWixDir string, arch string) error {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -166,6 +168,7 @@ func Light(path string, native bool, localWixDir string) error {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
