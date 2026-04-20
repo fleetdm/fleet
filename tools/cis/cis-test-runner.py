@@ -1940,6 +1940,11 @@ def main() -> int:
 
     vm_proc = None
     results = list(skip_results)
+    # Tracks fatal setup/runtime errors that happen outside of
+    # per-test execution. print_summary alone returns 0 when `results`
+    # has no FAIL/ERROR entries, which would mask a crash that killed
+    # the run before any tests executed.
+    fatal_exit_code = 0
 
     try:
         # Phase 3 & 4: VM setup and enrollment
@@ -2180,11 +2185,13 @@ def main() -> int:
 
     except KeyboardInterrupt:
         log("\nInterrupted by user")
+        fatal_exit_code = 130
     except Exception as e:
         log_error(f"Fatal error: {e}")
         if VERBOSE:
             import traceback
             traceback.print_exc()
+        fatal_exit_code = 1
     finally:
         # Phase 8: Cleanup
         if args.cleanup:
@@ -2203,7 +2210,7 @@ def main() -> int:
                 delete_vm(vm_name)
 
     # Phase 7: Report
-    return print_summary(results, team)
+    return max(fatal_exit_code, print_summary(results, team))
 
 
 if __name__ == "__main__":
