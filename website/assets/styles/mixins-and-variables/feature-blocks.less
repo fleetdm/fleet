@@ -25,11 +25,14 @@
   }
   [purpose='feature-image'] {
     // Cap the image at half the container in row layout so both sides shrink
-    // proportionally on narrow viewports. Pages set their own `max-width: Xpx`
-    // inside `@media (max-width: 768px)` to control the column-mode size.
+    // proportionally on narrow viewports.
     max-width: 50%;
     img, video {
-      width: 100%;
+      // Use max-width (not width) so images scale DOWN to fit narrower
+      // containers but never stretch beyond their natural source size.
+      // This avoids blurry upscaling in column mode at ≤768px, where the
+      // container width can exceed the image's intrinsic dimensions.
+      max-width: 100%;
       height: auto;
       border-radius: 16px;
     }
