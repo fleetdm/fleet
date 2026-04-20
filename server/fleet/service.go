@@ -1345,6 +1345,10 @@ type Service interface {
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
 
+	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
+	// password for the given host UUID only if it has a verified status.
+	GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*HostManagedLocalAccountPassword, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
 	//

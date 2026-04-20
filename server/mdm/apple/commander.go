@@ -332,50 +332,16 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-// AdminAccount holds the parameters for an AutoSetupAdminAccounts entry in
-// an AccountConfiguration MDM command.
-type AdminAccount struct {
-	ShortName    string // e.g. "_fleetadmin"
-	FullName     string // e.g. "Fleet Admin"
-	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
-	Hidden       bool   // true → hidden from login window (UID ≤ 499)
-}
-
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool, adminAccount *AdminAccount) error {
-	var autoSetupAdminAccounts string
-	if adminAccount != nil {
-		hiddenStr := "false"
-		if adminAccount.Hidden {
-			hiddenStr = "true"
-		}
-		autoSetupAdminAccounts = fmt.Sprintf(`
-      <key>AutoSetupAdminAccounts</key>
-      <array>
-        <dict>
-          <key>shortName</key>
-          <string>%s</string>
-          <key>fullName</key>
-          <string>%s</string>
-          <key>hidden</key>
-          <%s />
-          <key>passwordHash</key>
-          <data>%s</data>
-        </dict>
-      </array>`, adminAccount.ShortName, adminAccount.FullName, hiddenStr, base64.StdEncoding.EncodeToString(adminAccount.PasswordHash))
-	}
-
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
+	payload string,
+	uuid string,
+) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
     <key>Command</key>
-    <dict>
-      <key>PrimaryAccountFullName</key>
-      <string>%s</string>
-      <key>PrimaryAccountUserName</key>
-      <string>%s</string>
-      <key>LockPrimaryAccountInfo</key>
-      <%t />%s
+    <dict>%s
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -383,8 +349,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, lockPrimaryAccountInfo, autoSetupAdminAccounts, uuid)
-
+</plist>`, payload, uuid)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 

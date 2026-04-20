@@ -239,6 +239,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledManagedLocalAccount{},
 	ActivityTypeDisabledManagedLocalAccount{},
 
+
 	ActivityTypeCanceledSetupExperience{},
 }
 

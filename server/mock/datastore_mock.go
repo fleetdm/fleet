@@ -1093,7 +1093,7 @@ type GetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID str
 
 type SetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus) error
 
-type GetManagedLocalAccountByCommandUUIDFunc func(ctx context.Context, commandUUID string) (hostUUID string, err error)
+type GetManagedLocalAccountByCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
 
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
@@ -8407,7 +8407,7 @@ func (s *DataStore) SetHostManagedLocalAccountStatus(ctx context.Context, hostUU
 	return s.SetHostManagedLocalAccountStatusFunc(ctx, hostUUID, status)
 }
 
-func (s *DataStore) GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (hostUUID string, err error) {
+func (s *DataStore) GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *fleet.Host, err error) {
 	s.mu.Lock()
 	s.GetManagedLocalAccountByCommandUUIDFuncInvoked = true
 	s.mu.Unlock()

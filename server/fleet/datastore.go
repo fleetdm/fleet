@@ -1649,7 +1649,7 @@ type Datastore interface {
 	// GetManagedLocalAccountByCommandUUID looks up the host UUID associated with a managed
 	// local account command UUID. Returns notFoundError if no matching record (i.e. SSO-only
 	// AccountConfiguration).
-	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (hostUUID string, err error)
+	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).

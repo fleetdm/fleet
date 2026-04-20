@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -207,19 +208,23 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
 
+	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
+	var ssoAccount *fleet.MDMIdPAccount
+	var adminAccount *AdminAccount
+
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
 		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 			return err
 		}
 
-		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
+		ssoAccount, err = a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
 		}
 
-		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-		lockPrimaryAccountInfo := appCfg.MDM.MacOSSetup.LockEndUserInfo.Value
+		ssoEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		lockPrimaryAccountInfo = appCfg.MDM.MacOSSetup.LockEndUserInfo.Value
 		if args.TeamID != nil {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
@@ -227,26 +232,54 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 			lockPrimaryAccountInfo = team.Config.MDM.MacOSSetup.LockEndUserInfo.Value
 		}
+	}
 
-		if ssoEnabled {
-			fullName, err := a.getIdPDisplayName(ctx, acct, args)
+	if isMacOS(args.Platform) && license.IsPremium(ctx) {
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
+			}
+			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount != nil && *appCfg.MDM.MacOSSetup.EnableManagedLocalAccount
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
+			}
+			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount != nil && *team.Config.MDM.MacOSSetup.EnableManagedLocalAccount
+		}
+	}
+
+	const (
+		fleetAdminShortName = "_fleetadmin"
+		fleetAdminFullName  = "Fleet Admin"
+	)
+
+	if ssoEnabled || managedAdminAccountEnabled {
+		var password string
+		if managedAdminAccountEnabled {
+			password = apple_mdm.GenerateManagedAccountPassword()
+			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting idp account display name")
+				return err
 			}
-			a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
-			cmdUUID := uuid.New().String()
-			if err := a.Commander.AccountConfiguration(
-				ctx,
-				[]string{args.HostUUID},
-				cmdUUID,
-				fullName,
-				acct.Username,
-				lockPrimaryAccountInfo,
-				nil, // no managed local account admin (handled separately in sub-issue 2)
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+			adminAccount = &AdminAccount{
+				ShortName:    fleetAdminShortName,
+				FullName:     fleetAdminFullName,
+				PasswordHash: passwordHash,
+				Hidden:       true,
 			}
-			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+		}
+
+		cmdUUID, err := a.createManagedAccounts(ctx, &args, ssoAccount, adminAccount, lockPrimaryAccountInfo)
+		if err != nil {
+			return err
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+
+		if managedAdminAccountEnabled {
+			err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -874,4 +907,96 @@ func QueueAppleMDMJob(
 	}
 	logger.DebugContext(ctx, "queued Apple MDM job", "job_id", job.ID)
 	return nil
+}
+
+// createManagedAccounts enqueues an AccountConfiguration command for an sso and/or
+// a breakglass admin account.
+func (a *AppleMDM) createManagedAccounts(
+	ctx context.Context,
+	args *appleMDMArgs,
+	ssoAccount *fleet.MDMIdPAccount,
+	adminAccount *AdminAccount,
+	lockPrimaryAccountInfo bool,
+) (string, error) {
+
+	// we can keep the base command as is
+	// if managed account is disabled, check sso
+	// 		- if sso is enabled, send the base command
+	// if managed account is enabled, check sso
+	// 		- if sso is enabled, send the base command, PLUS AutoSetupAdminAccounts payload
+	// 		- if sso is disabled, add DontAutoPopulatePrimaryAccountInfo=false, LockPrimaryAccountInfo=false
+	// 			and send the AutoSetupAdminAccounts payload
+
+	// call a.Commander.AccountConfiguration() here?
+	var ssoAccountPayload, managedAccountPayload string
+
+	if ssoAccount != nil {
+		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting idp account display name")
+		}
+
+		// TODO(JK): use plist.Marshal() instead?
+		ssoAccountPayload = fmt.Sprintf(`
+      <key>PrimaryAccountFullName</key>
+      <string>%s</string>
+      <key>PrimaryAccountUserName</key>
+      <string>%s</string>
+      <key>LockPrimaryAccountInfo</key>
+      <%t />
+`, fullName, ssoAccount.Username, lockPrimaryAccountInfo)
+	}
+
+	if adminAccount != nil {
+		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
+		// TODO(JK): use plist.Marshal() instead?
+		managedAccountPayload = fmt.Sprintf(`
+      <key>AutoSetupAdminAccount</key>
+      <dict>
+        <key>hidden</key>
+        <true/>
+        <key>passwordHash</key>
+        <data>%s</data>
+        <key>shortName</key>
+        <string>%s</string>
+        <key>fullName</key>
+        <string>%s</string>
+     </dict>
+`, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+	}
+
+	var payload string
+	if adminAccount != nil {
+		if ssoAccount != nil {
+			payload = ssoAccountPayload
+		}
+		payload += managedAccountPayload
+
+	} else {
+		if ssoAccount != nil {
+			payload = ssoAccountPayload
+		} else {
+			// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
+			return "", ctxerr.New(ctx, "unreachable")
+		}
+	}
+
+	if ssoAccount != nil {
+		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
+	}
+	cmdUUID := uuid.New().String()
+	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, payload, cmdUUID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+	}
+
+	return cmdUUID, nil
+}
+
+// AdminAccount holds the parameters for an AutoSetupAdminAccounts entry in
+// an AccountConfiguration MDM command.
+type AdminAccount struct {
+	ShortName    string // e.g. "_fleetadmin"
+	FullName     string // e.g. "Fleet Admin"
+	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden       bool   // true → hidden from login window (UID ≤ 499)
 }

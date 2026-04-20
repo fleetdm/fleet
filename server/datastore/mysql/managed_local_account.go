@@ -93,16 +93,27 @@ func (ds *Datastore) SetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	return nil
 }
 
-func (ds *Datastore) GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (string, error) {
+func (ds *Datastore) GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (*fleet.Host, error) {
 	const stmt = `SELECT host_uuid FROM host_managed_local_account_passwords WHERE command_uuid = ?`
 
 	var hostUUID string
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostUUID, stmt, commandUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", ctxerr.Wrap(ctx, notFound("ManagedLocalAccount").
+			return nil, ctxerr.Wrap(ctx, notFound("ManagedLocalAccount").
 				WithMessage(fmt.Sprintf("for command %s", commandUUID)))
 		}
-		return "", ctxerr.Wrap(ctx, err, "getting managed local account by command uuid")
+		return nil, ctxerr.Wrap(ctx, err, "getting managed local account by command uuid")
 	}
-	return hostUUID, nil
+
+	const hostStmt = `SELECT id FROM hosts WHERE uuid = ?`
+
+	var hostID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, hostStmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host id by host uuid")
+	}
+	host, err := ds.Host(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host")
+	}
+	return host, nil
 }

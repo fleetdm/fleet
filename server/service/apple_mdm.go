@@ -4240,6 +4240,25 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err := svc.runCommandHandlers(r.Context, fleet.SetRecoveryLockCmdName, res); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "SetRecoveryLock: calling handlers")
 		}
+
+	case fleet.AccountConfigurationCmdName:
+		// Look up managed local account by command_uuid to distinguish from SSO-only AccountConfiguration
+		host, err := svc.ds.GetManagedLocalAccountByCommandUUID(r.Context, cmdResult.CommandUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(r.Context, err, "get managed local account for command")
+		}
+		if host != nil && host.UUID != "" {
+			// This AccountConfiguration included a managed local account
+			switch cmdResult.Status {
+			case fleet.MDMAppleStatusAcknowledged:
+				svc.ds.SetHostManagedLocalAccountStatus(r.Context, host.UUID, fleet.MDMDeliveryVerified)
+				svc.newActivityFn(r.Context, nil, fleet.ActivityTypeCreatedManagedLocalAccount{HostID: host.ID, HostDisplayName: host.DisplayName()})
+
+			case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+				svc.ds.SetHostManagedLocalAccountStatus(r.Context, host.UUID, fleet.MDMDeliveryFailed)
+			}
+		}
+		// No matching row = SSO-only AccountConfiguration → no-op
 	}
 
 	return nil, nil

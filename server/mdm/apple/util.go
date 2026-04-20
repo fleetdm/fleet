@@ -190,11 +190,13 @@ type pbkdf2Dict struct {
 }
 
 // GenerateSaltedSHA512PBKDF2Hash generates the password hash structure required by
-// Apple's AutoSetupAdminAccountItem.passwordHash field.
+// Apple's [AutoSetupAdminAccountItem.passwordHash][1] field.
 //
 // Returns a plist-encoded byte slice containing a SALTED-SHA512-PBKDF2 dictionary
 // with 32-byte salt, 128-byte derived key (entropy), and 40,000 iterations.
 // The caller should base64-encode this into the <data> field of the AccountConfiguration plist.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/passwordhash/salted-sha512-pbkdf2-data.dictionary
 func GenerateSaltedSHA512PBKDF2Hash(password string) ([]byte, error) {
 	salt := make([]byte, pbkdf2SaltLen)
 	if _, err := rand.Read(salt); err != nil {

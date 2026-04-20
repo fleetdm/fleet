@@ -708,7 +708,13 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 		return false, nil
 	}
 
-	t.Run("nil admin account produces standard plist", func(t *testing.T) {
+	t.Run("payload is wrapped in AccountConfiguration plist", func(t *testing.T) {
+		payload := `
+      <key>PrimaryAccountFullName</key>
+      <string>Test User</string>
+      <key>PrimaryAccountUserName</key>
+      <string>testuser</string>`
+
 		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 			raw := string(cmd.Raw)
 			require.Contains(t, raw, "AccountConfiguration")
@@ -716,42 +722,12 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 			require.Contains(t, raw, "<string>Test User</string>")
 			require.Contains(t, raw, "<key>PrimaryAccountUserName</key>")
 			require.Contains(t, raw, "<string>testuser</string>")
-			require.NotContains(t, raw, "AutoSetupAdminAccounts")
+			require.Contains(t, raw, "<key>CommandUUID</key>")
 			return nil, nil
 		}
 		mdmStorage.EnqueueCommandFuncInvoked = false
 
-		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID, "Test User", "testuser", true, nil)
-		require.NoError(t, err)
-		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-	})
-
-	t.Run("admin account adds AutoSetupAdminAccounts", func(t *testing.T) {
-		admin := &AdminAccount{
-			ShortName:    "_fleetadmin",
-			FullName:     "Fleet Admin",
-			PasswordHash: []byte("fake-hash-data"),
-			Hidden:       true,
-		}
-
-		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
-			raw := string(cmd.Raw)
-			require.Contains(t, raw, "AccountConfiguration")
-			require.Contains(t, raw, "<key>PrimaryAccountFullName</key>")
-			require.Contains(t, raw, "<key>AutoSetupAdminAccounts</key>")
-			require.Contains(t, raw, "<key>shortName</key>")
-			require.Contains(t, raw, "<string>_fleetadmin</string>")
-			require.Contains(t, raw, "<key>fullName</key>")
-			require.Contains(t, raw, "<string>Fleet Admin</string>")
-			require.Contains(t, raw, "<key>hidden</key>")
-			require.Contains(t, raw, "<true />")
-			require.Contains(t, raw, "<key>passwordHash</key>")
-			require.Contains(t, raw, "<data>")
-			return nil, nil
-		}
-		mdmStorage.EnqueueCommandFuncInvoked = false
-
-		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID, "Test User", "testuser", false, admin)
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, payload, cmdUUID)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	})

@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1531,6 +1532,160 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 
 		// check all commands that were enqueued
 		require.ElementsMatch(t, []string{"InstallProfile", "DeclarativeManagement", "InstallProfile", "InstallProfile", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("createManagedAccounts with SSO and admin account", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		ssoAccount := &fleet.MDMIdPAccount{
+			UUID:     uuid.New().String(),
+			Username: "sso_user",
+			Fullname: "SSO User",
+			Email:    "sso@example.com",
+		}
+
+		adminAccount := &AdminAccount{
+			ShortName:    "_fleetadmin",
+			FullName:     "Fleet Admin",
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
+			Hidden:       true,
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, ssoAccount, adminAccount, true)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmdUUID)
+
+		// Read the enqueued command XML from nano_commands
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// Verify the command contains SSO account fields
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.Contains(t, rawCommand, "<string>SSO User</string>")
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.Contains(t, rawCommand, "<string>sso_user</string>")
+		assert.Contains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+		assert.Contains(t, rawCommand, "<true />")
+
+		// Verify the command contains admin account fields
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
+		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
+
+		// Verify the command structure
+		assert.Contains(t, rawCommand, "<string>AccountConfiguration</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<string>%s</string>", cmdUUID))
+	})
+
+	t.Run("createManagedAccounts with SSO only", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		ssoAccount := &fleet.MDMIdPAccount{
+			UUID:     uuid.New().String(),
+			Username: "sso_user",
+			Fullname: "SSO User",
+			Email:    "sso@example.com",
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, ssoAccount, nil, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmdUUID)
+
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// SSO fields present
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.Contains(t, rawCommand, "<string>SSO User</string>")
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.Contains(t, rawCommand, "<string>sso_user</string>")
+		assert.Contains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+		assert.Contains(t, rawCommand, "<false />")
+
+		// Admin fields NOT present
+		assert.NotContains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		assert.NotContains(t, rawCommand, "_fleetadmin")
+	})
+
+	t.Run("createManagedAccounts with admin only", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		adminAccount := &AdminAccount{
+			ShortName:    "_fleetadmin",
+			FullName:     "Fleet Admin",
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
+			Hidden:       true,
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID, err := mdmWorker.createManagedAccounts(ctx, args, nil, adminAccount, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmdUUID)
+
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// Admin fields present
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccount</key>")
+		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
+		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
+
+		// SSO fields NOT present
+		assert.NotContains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.NotContains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.NotContains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
 	})
 }
 

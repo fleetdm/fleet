@@ -203,7 +203,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -272,6 +272,21 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableManagedLocalAccount != nil {
+		if ac.MDM.MacOSSetup.EnableManagedLocalAccount == nil || *ac.MDM.MacOSSetup.EnableManagedLocalAccount != *payload.EnableManagedLocalAccount {
+			ac.MDM.MacOSSetup.EnableManagedLocalAccount = payload.EnableManagedLocalAccount
+			didUpdateManagedLocalAccount = true
+			didUpdate = true
+		}
+	}
+
+	if payload.EndUserLocalAccountType != nil {
+		if ac.MDM.MacOSSetup.EndUserLocalAccountType == nil || *ac.MDM.MacOSSetup.EndUserLocalAccountType != *payload.EndUserLocalAccountType {
+			ac.MDM.MacOSSetup.EndUserLocalAccountType = payload.EndUserLocalAccountType
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -280,6 +295,9 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
 				return err
 			}
+		}
+		if didUpdateManagedLocalAccount {
+			svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *ac.MDM.MacOSSetup.EnableManagedLocalAccount, nil, nil)
 		}
 	}
 	return nil
@@ -298,6 +316,19 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for macos enable end user auth change")
+	}
+	return nil
+}
+
+func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	var act fleet.ActivityDetails
+	if enable {
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	} else {
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
 	}
 	return nil
 }

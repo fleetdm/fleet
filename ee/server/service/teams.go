@@ -2012,7 +2012,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 }
 
 func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 
 	if payload.EnableEndUserAuthentication != nil {
 		if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
@@ -2082,6 +2082,21 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.EnableManagedLocalAccount != nil {
+		if tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount == nil || *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount != *payload.EnableManagedLocalAccount {
+			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.EnableManagedLocalAccount
+			didUpdateManagedLocalAccount = true
+			didUpdate = true
+		}
+	}
+
+	if payload.EndUserLocalAccountType != nil {
+		if tm.Config.MDM.MacOSSetup.EndUserLocalAccountType == nil || *tm.Config.MDM.MacOSSetup.EndUserLocalAccountType != *payload.EndUserLocalAccountType {
+			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.EndUserLocalAccountType
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
@@ -2090,6 +2105,9 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &tm.ID, &tm.Name); err != nil {
 				return err
 			}
+		}
+		if didUpdateManagedLocalAccount {
+			svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount, &tm.ID, &tm.Name)
 		}
 	}
 	return nil

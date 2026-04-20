@@ -620,19 +620,6 @@ type HostMDMRecoveryLockPassword struct {
 	operationType MDMOperationType   `json:"-" db:"-" csv:"-"`
 }
 
-// HostMDMManagedLocalAccount represents the managed local account status for a host.
-type HostMDMManagedLocalAccount struct {
-	Status            *string `json:"status" db:"-" csv:"-"`             // nil (no record), "pending", "verified", "failed"
-	PasswordAvailable bool    `json:"password_available" db:"-" csv:"-"` // true only when status is "verified"
-}
-
-// HostManagedLocalAccountPassword is the API response for the managed local account password.
-type HostManagedLocalAccountPassword struct {
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 // RecoveryLockStatus represents the status of recovery lock password enforcement.
 type RecoveryLockStatus string
 
@@ -1776,4 +1763,17 @@ type DeletedHostDetails struct {
 	DisplayName      string
 	Serial           string
 	HostExpiryWindow int
+}
+
+// HostMDMManagedLocalAccount represents the managed local account status for a host.
+type HostMDMManagedLocalAccount struct {
+	Status            *string `json:"status" db:"-" csv:"-"`             // nil (no record), "pending", "verified", "failed"
+	PasswordAvailable bool    `json:"password_available" db:"-" csv:"-"` // true only when status is "verified"
+}
+
+// HostManagedLocalAccountPassword is the API response for the managed local account password.
+type HostManagedLocalAccountPassword struct {
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
