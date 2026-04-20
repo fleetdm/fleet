@@ -118,6 +118,7 @@ policies:
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
+  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
@@ -261,30 +262,28 @@ software:
         - Browsers
     - slug: firefox/darwin # Mozilla Firefox for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Firefox installed
       categories:
         - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Brave Browser installed
       categories:
         - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Docker Desktop installed
       categories:
         - Developer tools
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Visual Studio Code installed
       categories:
         - Developer tools
-    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
-      self_service: true
-      categories:
-        - Communication
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
@@ -308,74 +307,110 @@ software:
         - Productivity
     - slug: github/darwin # GitHub Desktop for macOS
       self_service: true
+      labels_include_any:
+        - Macs with GitHub Desktop installed
       categories:
         - Developer tools
     - slug: utm/darwin # UTM for macOS
       self_service: true
+      labels_include_any:
+        - Macs with UTM installed
       categories:
         - Productivity
     - slug: postman/darwin # Postman for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Postman installed
       categories:
         - Developer tools
     - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Grammarly Desktop installed
       categories:
         - Productivity
     - slug: iterm2/darwin # iTerm2 for macOS
       self_service: true
+      labels_include_any:
+        - Macs with iTerm2 installed
       categories:
         - Developer tools
     - slug: sublime-text/darwin # Sublime Text for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Sublime Text installed
       categories:
         - Developer tools
     - slug: parallels/darwin # Parallels Desktop for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Parallels Desktop installed
       categories:
         - Productivity
     - slug: loom/darwin # Loom for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Loom installed
       categories:
         - Productivity
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Spotify installed
       categories:
         - Productivity
     - slug: rectangle/darwin # Rectangle for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Rectangle installed
       categories:
         - Productivity
     - slug: logi-options+/darwin # Logi Options+ for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Logi Options+ installed
       categories:
         - Productivity
     - slug: figma/darwin # Figma for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Figma installed
       categories:
         - Productivity
     - slug: whatsapp/darwin # WhatsApp for macOS
       self_service: true
+      labels_include_any:
+        - Macs with WhatsApp installed
       categories:
         - Communication
     - slug: android-studio/darwin # Android Studio for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Android Studio installed
       categories:
         - Developer tools
     - slug: zed/darwin # Zed for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Zed installed
       categories:
         - Developer tools
     - slug: obsidian/darwin # Obsidian for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Obsidian installed
       categories:
         - Productivity
     - slug: google-drive/darwin # Google Drive for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Google Drive installed
       categories:
         - Productivity
     - slug: cursor/darwin # Cursor for macOS
       self_service: true
+      labels_include_any:
+        - Macs with Cursor installed
       categories:
         - Developer tools
     # Windows apps
@@ -398,7 +433,7 @@ software:
       categories:
         - Browsers
       labels_include_any:
-        - "x86-based Windows hosts"
+        - "x86 Windows hosts with Firefox installed"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       setup_experience: true
@@ -415,5 +450,7 @@ software:
         - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
