@@ -5037,6 +5037,27 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting hardware_attested")
 			}
+
+			// Soft-delete the recovery lock password: Apple wipes the device-side recovery lock
+			// whenever the MDM profile is removed, and any subsequent Authenticate means the
+			// device went through an unenroll/re-enroll (or wipe/restore). Keep the row as a
+			// support diagnostic but null out rotation/view state, because
+			// SetHostsRecoveryLockPasswords' ON DUPLICATE KEY UPDATE does not touch those
+			// columns and would otherwise leak them into a future re-enrolled password. Also
+			// unsticks rows whose SetRecoveryLock command was abandoned by nanomdm's
+			// ClearQueue (same Authenticate fires both cleanups). Table is keyed by host_uuid.
+			_, err = tx.ExecContext(ctx, `
+				UPDATE host_recovery_key_passwords
+				SET deleted = 1,
+				    pending_encrypted_password = NULL,
+				    pending_error_message = NULL,
+				    auto_rotate_at = NULL
+				WHERE host_uuid = ? AND deleted = 0`,
+				hostUUID,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "soft-delete recovery lock password on mdm re-enrollment")
+			}
 		}
 
 		// reset the enrolled_from_migration value. We only get to this
