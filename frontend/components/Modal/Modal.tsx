@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -52,6 +52,8 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const isDownOnBackgroundRef = useRef(false);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -111,12 +113,21 @@ const Modal = ({
   return (
     <div
       className={backgroundClasses}
-      onClick={disableClosingModal ? undefined : onExit}
+      onMouseDown={() => {
+        isDownOnBackgroundRef.current = true;
+      }}
+      onMouseUp={() => {
+        if (!disableClosingModal && isDownOnBackgroundRef.current) {
+          onExit();
+        }
+        isDownOnBackgroundRef.current = false;
+      }}
     >
       <div
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
-        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
