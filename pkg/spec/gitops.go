@@ -1884,11 +1884,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				}
 				// Script file becomes the install script for a script-only package
 				scriptSpec := fleet.SoftwarePackageSpec{
-					InstallScript:      fleet.TeamSpecSoftwareAsset{Path: resolvedPath},
 					ReferencedYamlPath: resolvedPath,
+					Icon:               teamLevelPackage.Icon,
 				}
-				// Get the icon from the team level yaml
-				scriptSpec.Icon.Path = resolveApplyRelativePath(baseDir, teamLevelPackage.Icon.Path)
+				// Icon path needs to be resolved, but since this function will set
+				// the install script it needs to be set to the correct path again.
+				scriptSpec = scriptSpec.ResolveSoftwarePackagePaths(baseDir)
+				scriptSpec.InstallScript.Path = resolvedPath
+
 				scriptSpec, err = teamLevelPackage.HydrateToPackageLevel(scriptSpec, ext)
 				if err != nil {
 					multiError = multierror.Append(multiError, err)
