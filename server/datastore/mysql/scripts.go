@@ -2329,7 +2329,10 @@ func updateHostLockWipeStatusFromResultAndHostUUID(
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get rows affected for host lock/wipe status update")
+	}
 	return n, nil
 }
 
