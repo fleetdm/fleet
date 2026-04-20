@@ -797,11 +797,18 @@ var brewProbeCache = map[string]bool{}
 func tryHomebrewShortcut(p candidateEntry) *recipe {
 	product := strings.ToLower(p.Product)
 
-	// --- Stage 1: formula probe (exact name + versioned variants) ---
+	// --- Stage 1: formula probe (exact name + underscore→hyphen + versioned) ---
+	hyphenated := strings.ReplaceAll(product, "_", "-")
 	formulaCandidates := []string{product}
+	if hyphenated != product {
+		formulaCandidates = append(formulaCandidates, hyphenated)
+	}
 	// Only try versioned variants when vendor==product (strong "this is a library" signal).
 	if strings.EqualFold(p.Vendor, p.Product) {
 		formulaCandidates = append(formulaCandidates, product+"@3", product+"@2", product+"@1")
+		if hyphenated != product {
+			formulaCandidates = append(formulaCandidates, hyphenated+"@3", hyphenated+"@2", hyphenated+"@1")
+		}
 	}
 	for _, name := range formulaCandidates {
 		if probeHomebrew("formula", name) {
@@ -820,10 +827,16 @@ func tryHomebrewShortcut(p candidateEntry) *recipe {
 	}
 
 	// --- Stage 2: cask probe ---
-	// Try the product name, then vendor-product hyphenated (e.g., "google-chrome").
+	// Try: product, underscores→hyphens, vendor-product hyphenated.
 	caskCandidates := []string{product}
+	if hyphenated != product {
+		caskCandidates = append(caskCandidates, hyphenated)
+	}
 	if !strings.EqualFold(p.Vendor, p.Product) {
 		caskCandidates = append(caskCandidates, strings.ToLower(p.Vendor)+"-"+product)
+		if hyphenated != product {
+			caskCandidates = append(caskCandidates, strings.ToLower(p.Vendor)+"-"+hyphenated)
+		}
 	}
 	for _, name := range caskCandidates {
 		if probeHomebrew("cask", name) {
