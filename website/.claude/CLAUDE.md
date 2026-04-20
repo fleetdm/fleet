@@ -68,7 +68,7 @@ Use EJS when the data is static from the server. Use Vue templates when the valu
 ### Reusable components
 Several Parasails components are used across multiple pages:
 - `<scrollable-tweets>` — testimonial carousel. Requires `testimonialsForScrollableTweets` data from the view action (see Testimonials below).
-- `<parallax-city>` — animated city skyline banner, used at the bottom of landing pages.
+- `<parallax-city>` — animated city skyline banner, used at the bottom of landing pages. Must sit at the top level of the page, outside `page-container`/`page-content`, so it can span the full viewport width with no padding. Typically appears just after a `bottom-gradient` section. See `views/pages/landing-pages/linux-management.ejs` for the full end-of-page structure.
 - `<logo-carousel>` — rotating customer logo strip, typically placed in hero sections.
 - `<modal>` — modal dialog. Control visibility with `v-if="modal === 'modal-name'"` and `@close="closeModal()"`. Commonly used for video embeds.
 
@@ -139,7 +139,12 @@ Some pages use a `-page` suffix (e.g., `#software-management-page` instead of `#
 ### Variables and mixins
 All colors, fonts, weights, and mixins live in `mixins-and-variables/`. Always use variable names instead of raw hex (e.g., `@core-fleet-black` not `#192147`). Common mixins: `.page-container()`, `.page-content()`, `.btn-reset()`, `.fade-in()`.
 
+Don't use `@core-vibrant-blue` in new code — it's deprecated.
+
 Primary CTA buttons should use the `btn btn-primary` Bootstrap classes — this adds pseudo-element shine effects on hover (defined in `bootstrap-overrides.less`). The default color is `@core-vibrant-green` but can be overridden per page; the key benefit is the shine, not the color.
+
+### Page backgrounds
+Pages don't set their own section backgrounds. The page background is a gradient defined in `layout.less` and overridden per-page. Pages with a `<parallax-city>` footer typically end with a dedicated `bottom-gradient` section just before the component.
 
 ### Responsive breakpoints
 Max-width media queries, typically nested inside the page's root ID selector:
