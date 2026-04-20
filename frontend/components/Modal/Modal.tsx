@@ -133,8 +133,15 @@ const Modal = ({
         tabIndex={-1} // Make focusable
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
-        onInput={(e) => {
-          if ((e.target as HTMLElement).closest("form")) {
+        onInput={() => {
+          isFormDirtyRef.current = true;
+        }}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          const isCheckbox =
+            target instanceof HTMLInputElement && target.type === "checkbox";
+          const isToggle = !!target.closest('button[role="switch"]');
+          if (isCheckbox || isToggle) {
             isFormDirtyRef.current = true;
           }
         }}

@@ -64,6 +64,62 @@ describe("Modal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  it("does not call onExit when clicking the background if a text input outside a form has been interacted with", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <div>
+          <input type="text" />
+        </div>
+      </Modal>
+    );
+
+    const input = screen.getByRole("textbox");
+    fireEvent.input(input, { target: { value: "hello" } });
+
+    const background = container.querySelector(".modal__background");
+    clickBackground(background);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("does not call onExit when clicking the background if a checkbox has been checked", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <div>
+          <input type="checkbox" />
+        </div>
+      </Modal>
+    );
+
+    const checkbox = screen.getByRole("checkbox");
+    fireEvent.click(checkbox);
+
+    const background = container.querySelector(".modal__background");
+    clickBackground(background);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("does not call onExit when clicking the background if a toggle has been clicked", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <div>
+          <button type="button" role="switch" aria-checked={false}>
+            Toggle
+          </button>
+        </div>
+      </Modal>
+    );
+
+    const toggle = screen.getByRole("switch");
+    fireEvent.click(toggle);
+
+    const background = container.querySelector(".modal__background");
+    clickBackground(background);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
   it("calls onExit when clicking the background if a form inside has not been interacted with", () => {
     const onExit = jest.fn();
     const { container } = render(
