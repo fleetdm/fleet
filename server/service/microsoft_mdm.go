@@ -2694,7 +2694,18 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
-	for profUUID, target := range installTargets {
+	// Iterate installTargets in a stable order so profiles reach the device
+	// deterministically. Some CSP nodes use LastWrite conflict resolution,
+	// so map-range order could otherwise change the effective value run to
+	// run when two profiles target the same LocURI (#42225).
+	installUUIDs := make([]string, 0, len(installTargets))
+	for uuid := range installTargets {
+		installUUIDs = append(installUUIDs, uuid)
+	}
+	slices.Sort(installUUIDs)
+
+	for _, profUUID := range installUUIDs {
+		target := installTargets[profUUID]
 		p, ok := profileContents[profUUID]
 		if !ok {
 			// this should never happen
@@ -2783,7 +2794,15 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	}
 
 	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
-	for profUUID, target := range removeTargets {
+	// Same deterministic-iteration rationale as the install loop above.
+	removeUUIDs := make([]string, 0, len(removeTargets))
+	for uuid := range removeTargets {
+		removeUUIDs = append(removeUUIDs, uuid)
+	}
+	slices.Sort(removeUUIDs)
+
+	for _, profUUID := range removeUUIDs {
+		target := removeTargets[profUUID]
 		p, ok := profileContents[profUUID]
 		if !ok {
 			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)

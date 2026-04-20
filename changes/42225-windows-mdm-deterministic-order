@@ -1,0 +1,1 @@
+* Fixed Windows MDM profiles delivered in non-deterministic order when multiple profiles target the same LocURI by sorting install/remove targets by profile UUID in `ReconcileWindowsProfiles`.
