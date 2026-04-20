@@ -74,7 +74,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("no viewer in context passes through", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user, endpoint in catalog, no restrictions", func(t *testing.T) {
@@ -97,7 +97,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user, empty APIEndpoints slice treated same as nil (no restrictions)", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user, endpoint with placeholder in catalog, no restrictions", func(t *testing.T) {
@@ -123,7 +123,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user, endpoint not in catalog", func(t *testing.T) {
@@ -133,10 +133,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-
-		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.False(t, *called)
+		require.ErrorAs(t, err, &fleet.PermissionError{})
 	})
 
 	t.Run("api-only user, missing route template in context is rejected", func(t *testing.T) {
@@ -148,10 +146,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-
-		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.False(t, *called)
+		require.ErrorAs(t, err, &fleet.PermissionError{})
 	})
 
 	t.Run("api-only user, missing method and template are both rejected", func(t *testing.T) {
@@ -162,10 +158,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-
-		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.False(t, *called)
+		require.ErrorAs(t, err, &fleet.PermissionError{})
 	})
 
 	t.Run("api-only user, method normalization is case-insensitive", func(t *testing.T) {
@@ -179,7 +173,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user, rejection marks authz context as checked", func(t *testing.T) {
@@ -194,8 +188,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-		assert.True(t, ac.Checked(), "authz context must be marked checked on denial")
+		require.False(t, *called)
+		require.True(t, ac.Checked(), "authz context must be marked checked on denial")
 	})
 
 	t.Run("api-only user with restrictions, accessing allowed endpoint", func(t *testing.T) {
@@ -210,7 +204,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user with restrictions, accessing allowed placeholder endpoint", func(t *testing.T) {
@@ -226,7 +220,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 
 	t.Run("api-only user with restrictions, accessing disallowed endpoint", func(t *testing.T) {
@@ -241,7 +235,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
+		require.False(t, *called)
 
 		var permErr *fleet.PermissionError
 		assert.True(t, errors.As(err, &permErr))
@@ -261,10 +255,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-
-		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.False(t, *called)
+		require.ErrorAs(t, err, &fleet.PermissionError{})
 	})
 
 	t.Run("api-only user, wrong method for catalog endpoint is rejected at catalog step", func(t *testing.T) {
@@ -280,10 +272,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
-		assert.False(t, *called)
-
-		var permErr *fleet.PermissionError
-		assert.True(t, errors.As(err, &permErr))
+		require.False(t, *called)
+		require.ErrorAs(t, err, &fleet.PermissionError{})
 	})
 
 	t.Run("api-only user with multiple allowed endpoints, accessing one of them", func(t *testing.T) {
@@ -299,7 +289,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 
 		_, err := newEndpoint(next)(ctx, nil)
 		require.NoError(t, err)
-		assert.True(t, *called)
+		require.True(t, *called)
 	})
 }
 
@@ -328,7 +318,7 @@ func TestRouteTemplateRequestFunc(t *testing.T) {
 		require.True(t, matched, "expected route to be matched")
 		tpl, ok := ctx.Value(routeTemplateKey).(string)
 		require.True(t, ok, "route template must be stored in context")
-		assert.Equal(t, "/api/v1/fleet/hosts/{id:[0-9]+}", tpl)
+		require.Equal(t, "/api/v1/fleet/hosts/{id:[0-9]+}", tpl)
 	})
 
 	t.Run("no matched route leaves context unchanged", func(t *testing.T) {
@@ -338,6 +328,6 @@ func TestRouteTemplateRequestFunc(t *testing.T) {
 		ctx := context.Background()
 		got := RouteTemplateRequestFunc(ctx, req)
 		_, ok := got.Value(routeTemplateKey).(string)
-		assert.False(t, ok, "no route template should be stored when no route is matched")
+		require.False(t, ok, "no route template should be stored when no route is matched")
 	})
 }

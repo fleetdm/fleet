@@ -19,9 +19,7 @@ type contextKeyRouteTemplate struct{}
 var routeTemplateKey = contextKeyRouteTemplate{}
 
 // RouteTemplateRequestFunc captures the gorilla/mux route template for the
-// matched request and stores it in the context. It must be registered as a
-// kithttp.ServerBefore option on any endpointer that uses APIOnlyEndpointCheck;
-// without it, APIOnlyEndpointCheck fails closed (denies) for all api_only users.
+// matched request and stores it in the context.
 func RouteTemplateRequestFunc(ctx context.Context, r *http.Request) context.Context {
 	route := mux.CurrentRoute(r)
 	if route == nil {
@@ -29,8 +27,6 @@ func RouteTemplateRequestFunc(ctx context.Context, r *http.Request) context.Cont
 	}
 	tpl, err := route.GetPathTemplate()
 	if err != nil {
-		// This only happens when a route has no path, which Fleet never registers.
-		// Returning ctx unchanged causes APIOnlyEndpointCheck to fail closed (denied).
 		return ctx
 	}
 	return context.WithValue(ctx, routeTemplateKey, tpl)
@@ -57,12 +53,9 @@ func APIOnlyEndpointCheck(next endpoint.Endpoint) endpoint.Endpoint {
 	return apiOnlyEndpointCheck(apiendpoints.IsInCatalog, next)
 }
 
-// apiOnlyEndpointCheck is the testable inner implementation. isInCatalog is
-// injectable so unit tests can supply a controlled catalog without O(N) allocation.
 func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		v, ok := viewer.FromContext(ctx)
-		// v.User == nil is defensive — AuthenticatedUser always sets a non-nil User.
 		if !ok || v.User == nil || !v.User.APIOnly {
 			return next(ctx, request)
 		}
@@ -92,10 +85,6 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 	}
 }
 
-// permissionDenied marks the authorization context as checked (so authzcheck
-// middleware does not emit a spurious "Missing authorization check" log and
-// does not replace our error with a generic forbidden response) and returns
-// an opaque 403 to avoid leaking information about the user's api_only status.
 func permissionDenied(ctx context.Context) error {
 	if ac, ok := authz.FromContext(ctx); ok {
 		ac.SetChecked()
