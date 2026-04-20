@@ -1,20 +1,17 @@
-{{- if and .Values.gatewayApi.enabled .Values.ingress.enabled }}
-{{- fail "gatewayApi.enabled and ingress.enabled are mutually exclusive — enable one or the other, not both" }}
-{{- end }}
-{{- if .Values.gatewayApi.enabled -}}
+{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.grpcRoute.enabled -}}
 {{- $serviceName := include "fleet.servicename" . -}}
 {{- $svcPort := ternary .Values.fleet.listenPort .Values.fleet.servicePort (eq .Values.fleet.servicePort nil) -}}
 apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
+kind: GRPCRoute
 metadata:
-  name: {{ include "fleet.fullname" . }}
+  name: {{ include "fleet.fullname" . }}-grpc
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "fleet.labels" . | nindent 4 }}
-    {{- with .Values.gatewayApi.httpRoute.labels }}
+    {{- with .Values.gatewayApi.grpcRoute.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with .Values.gatewayApi.httpRoute.annotations }}
+  {{- with .Values.gatewayApi.grpcRoute.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -23,11 +20,11 @@ spec:
     {{- if .Values.gatewayApi.gateway.enabled }}
     - name: {{ include "fleet.fullname" . }}-gateway
       namespace: {{ .Release.Namespace }}
-      {{- with .Values.gatewayApi.httpRoute.sectionName }}
+      {{- with .Values.gatewayApi.grpcRoute.sectionName }}
       sectionName: {{ . }}
       {{- end }}
     {{- else }}
-    {{- range .Values.gatewayApi.httpRoute.parentRefs }}
+    {{- range .Values.gatewayApi.grpcRoute.parentRefs }}
     - name: {{ .name }}
       {{- with .namespace }}
       namespace: {{ . }}
@@ -40,26 +37,18 @@ spec:
       {{- end }}
     {{- end }}
     {{- end }}
-  {{- if .Values.gatewayApi.httpRoute.hostnames }}
+  {{- if .Values.gatewayApi.grpcRoute.hostnames }}
   hostnames:
-    {{- range .Values.gatewayApi.httpRoute.hostnames }}
+    {{- range .Values.gatewayApi.grpcRoute.hostnames }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
   rules:
-    {{- if .Values.gatewayApi.httpRoute.rules }}
-    {{- toYaml .Values.gatewayApi.httpRoute.rules | nindent 4 }}
+    {{- if .Values.gatewayApi.grpcRoute.rules }}
+    {{- toYaml .Values.gatewayApi.grpcRoute.rules | nindent 4 }}
     {{- else }}
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
+    - backendRefs:
         - name: {{ $serviceName }}
           port: {{ $svcPort }}
-      {{- with .Values.gatewayApi.httpRoute.timeouts }}
-      timeouts:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
     {{- end }}
 {{- end }}

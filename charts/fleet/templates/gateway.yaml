@@ -6,12 +6,19 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "fleet.labels" . | nindent 4 }}
+    {{- with .Values.gatewayApi.gateway.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- with .Values.gatewayApi.gateway.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
   gatewayClassName: {{ .Values.gatewayApi.gateway.className }}
+  {{- with .Values.gatewayApi.gateway.addresses }}
+  addresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   listeners:
     {{- if .Values.gatewayApi.gateway.listeners }}
     {{- toYaml .Values.gatewayApi.gateway.listeners | nindent 4 }}
