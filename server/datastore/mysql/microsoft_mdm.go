@@ -685,12 +685,14 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			wipeSucceeded := strings.HasPrefix(wipeCmdStatus, "2")
-			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
+			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
 				"wipe_ref", wipeCmdUUID, wipeSucceeded, false,
-			); err != nil {
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
-			if !wipeSucceeded {
+
+			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
 				result = &fleet.MDMWindowsSaveResponseResult{
 					WipeFailed: &fleet.MDMWindowsWipeResult{
 						HostUUID: enrolledDevice.HostUUID,

@@ -3566,6 +3566,136 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			assert.Nil(t, replaceProfileStatus) // We want nil here, as the retry kicks in on failures
 		})
 	})
+
+	t.Run("wipe failure returns WipeFailed result", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create a real host and enroll it in Windows MDM.
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        "test-wipe-host",
+			OsqueryHostID:   ptr.String("osquery-wipe-" + uuid.NewString()),
+			NodeKey:         ptr.String("nodekey-wipe-" + uuid.NewString()),
+			UUID:            uuid.NewString(),
+			Platform:        "windows",
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		deviceID := windowsEnroll(t, ds, host)
+
+		// buildWipeResponse constructs an EnrichedSyncML that contains a status
+		// entry for the given wipe command UUID. It sets Cmd to nil so that the
+		// profile-payload builder is not triggered (wipe commands are not profiles).
+		buildWipeResponse := func(t *testing.T, cmdUUID string, statusCode string) fleet.EnrichedSyncML {
+			t.Helper()
+			enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+			require.NoError(t, err)
+
+			// Start from a minimal valid response (the helper gives us the SyncHdr ack).
+			resp := createResponseAsEnrichedSyncML(t, enrolled, []enrichResponseEntry{})
+			// Add the wipe command UUID with the desired status but without Cmd
+			// so BuildMDMWindowsProfilePayloadFromMDMResponse is not invoked.
+			resp.CmdRefUUIDs = append(resp.CmdRefUUIDs, cmdUUID)
+			if statusCode != "" {
+				resp.CmdRefUUIDToStatus[cmdUUID] = fleet.SyncMLCmd{
+					Data: &statusCode,
+					// Cmd intentionally nil — wipe is not a profile command.
+				}
+			}
+			return resp
+		}
+
+		t.Run("status 500 signals wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, "500"), []string{})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.NotNil(t, result.WipeFailed)
+			assert.Equal(t, host.UUID, result.WipeFailed.HostUUID)
+		})
+
+		t.Run("duplicate response does not signal wipe failure again", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			// First response — failure, clears wipe_ref.
+			resp := buildWipeResponse(t, wipeCmdUUID, "500")
+			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, resp, []string{})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.NotNil(t, result.WipeFailed)
+
+			// Re-enqueue the command (only the queue entry was deleted, the
+			// command itself stays in windows_mdm_commands). Do NOT restore
+			// wipe_ref — it was cleared by the first failure.
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+				if err != nil {
+					return err
+				}
+				_, err = q.ExecContext(ctx,
+					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
+					enrolled.ID, wipeCmdUUID)
+				return err
+			})
+
+			// Second response — wipe_ref is already NULL, so 0 rows affected.
+			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
+			result, err = ds.MDMWindowsSaveResponse(ctx, deviceID, resp2, []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
+		})
+
+		t.Run("status 200 does not signal wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, "200"), []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
+		})
+
+		t.Run("empty status does not signal wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			// Pass empty status — the command UUID is in CmdRefUUIDs but has
+			// no entry in CmdRefUUIDToStatus, so statusCode stays "".
+			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, ""), []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
+		})
+	})
 }
 
 type enrichResponseEntry struct {
