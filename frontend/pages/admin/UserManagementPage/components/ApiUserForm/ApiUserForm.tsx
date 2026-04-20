@@ -11,7 +11,6 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import validatePresence from "components/forms/validators/validate_presence";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import PageDescription from "components/PageDescription";
 
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import ApiAccessSection from "../ApiAccessSection";
@@ -232,29 +231,8 @@ const ApiUserForm = ({
     </>
   );
 
-  const renderPageHeader = () => {
-    const pageDesc = `This user will have access to the Fleet API, but will not be able to log
-      into the UI.`;
-
-    return (
-      <div>
-        {isNewUser ? (
-          <>
-            <h1>New API-only user</h1>
-            <PageDescription content={pageDesc} />
-          </>
-        ) : (
-          <>
-            <h1>Edit API-only user</h1>
-          </>
-        )}
-      </div>
-    );
-  };
-
   return (
     <>
-      {renderPageHeader()}
       <div>
         <form autoComplete="off" onSubmit={handleSubmit}>
           <InputField

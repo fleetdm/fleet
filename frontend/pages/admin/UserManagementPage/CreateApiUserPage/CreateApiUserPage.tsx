@@ -11,6 +11,7 @@ import usersAPI from "services/entities/users";
 
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
 import ApiUserForm from "../components/ApiUserForm";
 import { IApiUserFormData } from "../components/ApiUserForm/ApiUserForm";
 import ApiKeyDisplay from "../components/ApiKeyDisplay";
@@ -45,7 +46,10 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
       .createApiOnlyUser({
         name: formData.name,
         global_role: formData.global_role,
-        fleets: formData.fleets.map((f) => ({ id: f.id, role: f.role ?? "observer" })),
+        fleets: formData.fleets.map((f) => ({
+          id: f.id,
+          role: f.role ?? "observer",
+        })),
         api_endpoints: formData.api_endpoints,
       })
       .then((response) => {
@@ -83,13 +87,19 @@ const CreateApiUserPage = ({ router }: ICreateApiUserPageProps) => {
           onDone={handleDone}
         />
       ) : (
-        <ApiUserForm
-          isPremiumTier={isPremiumTier}
-          onCancel={() => router.push(PATHS.ADMIN_USERS)}
-          onSubmit={handleSubmit}
-          availableTeams={teams || []}
-          isSubmitting={isSubmitting}
-        />
+        <>
+          <div>
+            <h1>New API-only user</h1>
+            <PageDescription content="This user will have access to the Fleet API, but will not be able to log into the UI." />
+          </div>
+          <ApiUserForm
+            isPremiumTier={isPremiumTier}
+            onCancel={() => router.push(PATHS.ADMIN_USERS)}
+            onSubmit={handleSubmit}
+            availableTeams={teams || []}
+            isSubmitting={isSubmitting}
+          />
+        </>
       )}
     </MainContent>
   );

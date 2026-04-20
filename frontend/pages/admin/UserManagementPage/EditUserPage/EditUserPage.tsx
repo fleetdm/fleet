@@ -173,7 +173,10 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       .updateApiOnlyUser(entityId, {
         name: formData.name,
         global_role: formData.global_role,
-        fleets: formData.fleets.map((f) => ({ id: f.id, role: f.role ?? "observer" })),
+        fleets: formData.fleets.map((f) => ({
+          id: f.id,
+          role: f.role ?? "observer",
+        })),
         api_endpoints: formData.api_endpoints,
       })
       .then(() => {
@@ -215,19 +218,22 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     <MainContent className={baseClass}>
       <BackButton text="Back to users" path={PATHS.ADMIN_USERS} />
       {showApiForm ? (
-        <ApiUserForm
-          onCancel={() => router.push(PATHS.ADMIN_USERS)}
-          onSubmit={handleApiUserSubmit}
-          availableTeams={teams || []}
-          defaultData={{
-            name: entityData.name,
-            global_role: entityData.global_role,
-            fleets: entityData.teams,
-            api_endpoints: (entityData as IUser).api_endpoints,
-          }}
-          isSubmitting={isSubmitting}
-          isPremiumTier={isPremiumTier}
-        />
+        <>
+          <h1>Edit API-only user</h1>
+          <ApiUserForm
+            onCancel={() => router.push(PATHS.ADMIN_USERS)}
+            onSubmit={handleApiUserSubmit}
+            availableTeams={teams || []}
+            defaultData={{
+              name: entityData.name,
+              global_role: entityData.global_role,
+              fleets: entityData.teams,
+              api_endpoints: (entityData as IUser).api_endpoints,
+            }}
+            isSubmitting={isSubmitting}
+            isPremiumTier={isPremiumTier}
+          />
+        </>
       ) : (
         <>
           <h1>Edit user</h1>
