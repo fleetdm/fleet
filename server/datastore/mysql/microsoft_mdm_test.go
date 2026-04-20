@@ -3268,7 +3268,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 
 	// Do test
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
 	// Verify results
@@ -3296,7 +3296,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, cmdEntries)
 
 	// Do test on the second device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
 	require.NoError(t, err)
 
 	// Verify results for the second device
@@ -3320,7 +3320,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	enrichedSyncML3 := createResponseAsEnrichedSyncML(t, enrolledDevice3, cmdEntries)
 
 	// Do test on the third device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3.MDMDeviceID, enrichedSyncML3, []string{atomicCommandUUID})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3.MDMDeviceID, enrichedSyncML3, []string{atomicCommandUUID})
 	require.NoError(t, err)
 
 	// Verify results does not exist for the third device
@@ -3379,7 +3379,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 
 		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 		// Do test
-		err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 		require.NoError(t, err)
 
 		// Verify results
@@ -3471,7 +3471,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-success', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 			require.NoError(t, err)
 
 			// Verify results
@@ -3532,7 +3532,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-failure', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
 			require.NoError(t, err)
 
 			// Verify results

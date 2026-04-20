@@ -1237,6 +1237,23 @@ This activity contains the following fields:
 }
 ```
 
+## wipe_failed_host
+
+Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
 ## created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a team (or no team).
