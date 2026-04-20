@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -175,7 +176,9 @@ func TestIngestCustomAPIBaseURL(t *testing.T) {
 			URL:     "https://example.com/default",
 			Version: "1.0",
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(cask))
+		// Use assert (not require) inside handlers: require's FailNow only
+		// exits the handler goroutine, not the test. testifylint go-require.
+		assert.NoError(t, json.NewEncoder(w).Encode(cask))
 	}))
 	t.Cleanup(defaultSrv.Close)
 
@@ -183,7 +186,7 @@ func TestIngestCustomAPIBaseURL(t *testing.T) {
 		overrideHits++
 		// Ensure the path layout matches what the ingester constructs:
 		// "<baseURL>/cask/<token>.json"
-		require.True(t, strings.HasPrefix(r.URL.Path, "/cask/"), "unexpected path: %s", r.URL.Path)
+		assert.True(t, strings.HasPrefix(r.URL.Path, "/cask/"), "unexpected path: %s", r.URL.Path)
 		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
 		cask := brewCask{
 			Token:   appToken,
@@ -191,7 +194,7 @@ func TestIngestCustomAPIBaseURL(t *testing.T) {
 			URL:     "https://example.com/override",
 			Version: "2.0",
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(cask))
+		assert.NoError(t, json.NewEncoder(w).Encode(cask))
 	}))
 	t.Cleanup(overrideSrv.Close)
 
