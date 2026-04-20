@@ -219,7 +219,8 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "getting re-enrolled Android host")
 		}
 		if host == nil {
-			return ctxerr.New(ctx, "re-enrolled Android host not found")
+			return ctxerr.Errorf(ctx, "re-enrolled Android host not found: enterpriseSpecificId=%s",
+				device.HardwareInfo.EnterpriseSpecificId)
 		}
 	}
 	err = svc.updateHost(ctx, &device, host, false)
