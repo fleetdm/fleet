@@ -1180,6 +1180,8 @@ module.exports.routes = {
   'GET /learn-more-about/setup-abm': '/guides/apple-mdm-setup#apple-business-ab',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
   'GET /learn-more-about/renew-abm': '/guides/apple-mdm-setup#renew-ab',
+  'GET /learn-more-about/add-vpp': '/guides/apple-mdm-setup#volume-purchasing-program-vpp',
+  'GET /learn-more-about/renew-vpp': '/guides/apple-mdm-setup#renew-vpp',
   'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',

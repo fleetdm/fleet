@@ -2,7 +2,7 @@
 # They are preserved for reference and for use by other tooling.
 # Affected fields: purpose, tags, contributors, platforms
 
-- name: CIS - Ensure 'Enforce password history' is set to '24' or more passwords
+- name: "[Win 10] CIS - Ensure 'Enforce password history' is set to '24' or more passwords"
   # platforms: win10
   platform: windows
   description: |
@@ -17,7 +17,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'
+- name: "[Win 10] CIS - Ensure 'Maximum password age' is set to '365 or fewer days, but not 0'"
   # platforms: win10
   platform: windows
   description: |
@@ -32,7 +32,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Minimum password age' is set to '1 or more days'
+- name: "[Win 10] CIS - Ensure 'Minimum password age' is set to '1 or more days'"
   # platforms: win10
   platform: windows
   description: |
@@ -48,7 +48,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Minimum password length' is set to '14 or more characters'
+- name: "[Win 10] CIS - Ensure 'Minimum password length' is set to '14 or more characters'"
   # platforms: win10
   platform: windows
   description: |
@@ -63,7 +63,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Password must meet complexity requirements' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -80,7 +80,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Relax minimum password length limits' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Relax minimum password length limits' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -95,7 +95,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Store passwords using reversible encryption' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Store passwords using reversible encryption' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -113,7 +113,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Account lockout duration' is set to '15 or more minute(s)'
+- name: "[Win 10] CIS - Ensure 'Account lockout duration' is set to '15 or more minute(s)'"
   # platforms: win10
   platform: windows
   description: |
@@ -131,7 +131,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'
+- name: "[Win 10] CIS - Ensure 'Account lockout threshold' is set to '5 or fewer invalid logon attempt(s), but not 0'"
   # platforms: win10
   platform: windows
   description: |
@@ -148,7 +148,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'
+- name: "[Win 10] CIS - Ensure 'Reset account lockout counter after' is set to '15 or more minute(s)'"
   # platforms: win10
   platform: windows
   description: |
@@ -166,7 +166,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Access Credential Manager as a trusted caller' is set to 'No One'
+- name: "[Win 10] CIS - Ensure 'Access Credential Manager as a trusted caller' is set to 'No One'"
   # platforms: win10
   platform: windows
   description: |
@@ -183,7 +183,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Access this computer from the network' is set to 'Administrators, Remote Desktop Users'
+- name: "[Win 10] CIS - Ensure 'Access this computer from the network' is set to 'Administrators, Remote Desktop Users'"
   # platforms: win10
   platform: windows
   description: |
@@ -200,7 +200,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Act as part of the operating system' is set to 'No One'
+- name: "[Win 10] CIS - Ensure 'Act as part of the operating system' is set to 'No One'"
   # platforms: win10
   platform: windows
   description: |
@@ -217,7 +217,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE'
+- name: "[Win 10] CIS - Ensure 'Adjust memory quotas for a process' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -233,7 +233,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Allow log on locally' is set to 'Administrators, Users'
+- name: "[Win 10] CIS - Ensure 'Allow log on locally' is set to 'Administrators, Users'"
   # platforms: win10
   platform: windows
   description: |
@@ -256,7 +256,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'
+- name: "[Win 10] CIS - Ensure 'Allow log on through Remote Desktop Services' is set to 'Administrators, Remote Desktop Users'"
   # platforms: win10
   platform: windows
   description: |
@@ -275,7 +275,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Back up files and directories' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Back up files and directories' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -292,7 +292,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Change the system time' is set to 'Administrators, LOCAL SERVICE'
+- name: "[Win 10] CIS - Ensure 'Change the system time' is set to 'Administrators, LOCAL SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -310,7 +310,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users'
+- name: "[Win 10] CIS - Ensure 'Change the time zone' is set to 'Administrators, LOCAL SERVICE, Users'"
   # platforms: win10
   platform: windows
   description: |
@@ -325,7 +325,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Create a pagefile' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Create a pagefile' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -340,7 +340,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Create a token object' is set to an empty list
+- name: "[Win 10] CIS - Ensure 'Create a token object' is set to an empty list"
   # platforms: win10
   platform: windows
   description: |
@@ -355,7 +355,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Create global objects' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
+- name: "[Win 10] CIS - Ensure 'Create global objects' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -370,7 +370,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Create permanent shared objects' is set to an empty list
+- name: "[Win 10] CIS - Ensure 'Create permanent shared objects' is set to an empty list"
   # platforms: win10
   platform: windows
   description: |
@@ -387,7 +387,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Create symbolic links' is set to 'Administrators or NT VIRTUAL MACHINE\Virtual Machines'
+- name: "[Win 10] CIS - Ensure 'Create symbolic links' is set to 'Administrators or NT VIRTUAL MACHINE\\Virtual Machines'"
   # platforms: win10
   platform: windows
   description: |
@@ -412,7 +412,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Debug programs' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Debug programs' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -430,7 +430,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Deny access to this computer from the network' includes 'Guest'
+- name: "[Win 10] CIS - Ensure 'Deny access to this computer from the network' includes 'Guest'"
   # platforms: win10
   platform: windows
   description: |
@@ -449,7 +449,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Deny log on as a batch job' includes 'Guests'
+- name: "[Win 10] CIS - Ensure 'Deny log on as a batch job' includes 'Guests'"
   # platforms: win10
   platform: windows
   description: |
@@ -465,7 +465,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Deny log on as a service' includes 'Guests'
+- name: "[Win 10] CIS - Ensure 'Deny log on as a service' includes 'Guests'"
   # platforms: win10
   platform: windows
   description: |
@@ -481,7 +481,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Deny log on locally' includes 'Guest'
+- name: "[Win 10] CIS - Ensure 'Deny log on locally' includes 'Guest'"
   # platforms: win10
   platform: windows
   description: |
@@ -498,7 +498,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Deny log on through Remote Desktop Services' includes 'Guest'
+- name: "[Win 10] CIS - Ensure 'Deny log on through Remote Desktop Services' includes 'Guest'"
   # platforms: win10
   platform: windows
   description: |
@@ -513,7 +513,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to an empty list
+- name: "[Win 10] CIS - Ensure 'Enable computer and user accounts to be trusted for delegation' is set to an empty list"
   # platforms: win10
   platform: windows
   description: |
@@ -528,7 +528,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Force shutdown from a remote system' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Force shutdown from a remote system' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -547,7 +547,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Generate security audits' is set to 'LOCAL SERVICE, NETWORK SERVICE'
+- name: "[Win 10] CIS - Ensure 'Generate security audits' is set to 'LOCAL SERVICE, NETWORK SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -562,7 +562,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Impersonate a client after authentication' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
+- name: "[Win 10] CIS - Ensure 'Impersonate a client after authentication' is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -581,7 +581,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Increase scheduling priority' is set to 'Administrators, Window Manager\Window Manager Group'
+- name: "[Win 10] CIS - Ensure 'Increase scheduling priority' is set to 'Administrators, Window Manager\\Window Manager Group'"
   # platforms: win10
   platform: windows
   description: |
@@ -598,7 +598,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Load and unload device drivers' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Load and unload device drivers' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -616,7 +616,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Lock pages in memory' is set to an empty list
+- name: "[Win 10] CIS - Ensure 'Lock pages in memory' is set to an empty list"
   # platforms: win10
   platform: windows
   description: |
@@ -631,7 +631,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Log on as a batch job' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Log on as a batch job' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -650,7 +650,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Configure 'Log on as a service'
+- name: "[Win 10] CIS - Configure 'Log on as a service'"
   # platforms: win10
   platform: windows
   description: |
@@ -669,7 +669,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Manage auditing and security log' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Manage auditing and security log' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -684,7 +684,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Modify an object label' is set to an empty list
+- name: "[Win 10] CIS - Ensure 'Modify an object label' is set to an empty list"
   # platforms: win10
   platform: windows
   description: |
@@ -701,7 +701,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Modify firmware environment values' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Modify firmware environment values' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -718,7 +718,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Perform volume maintenance tasks' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Perform volume maintenance tasks' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -733,7 +733,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Profile single process' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Profile single process' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -753,7 +753,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Profile system performance' is set to 'Administrators, NT SERVICE\WdiServiceHost'
+- name: "[Win 10] CIS - Ensure 'Profile system performance' is set to 'Administrators, NT SERVICE\\WdiServiceHost'"
   # platforms: win10
   platform: windows
   description: |
@@ -770,7 +770,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Replace a process level token' is set to 'LOCAL SERVICE, NETWORK SERVICE'
+- name: "[Win 10] CIS - Ensure 'Replace a process level token' is set to 'LOCAL SERVICE, NETWORK SERVICE'"
   # platforms: win10
   platform: windows
   description: |
@@ -786,7 +786,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Restore files and directories' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Restore files and directories' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -805,7 +805,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Shut down the system' is set to 'Administrators, Users'
+- name: "[Win 10] CIS - Ensure 'Shut down the system' is set to 'Administrators, Users'"
   # platforms: win10
   platform: windows
   description: |
@@ -821,7 +821,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Take ownership of files or other objects' is set to 'Administrators'
+- name: "[Win 10] CIS - Ensure 'Take ownership of files or other objects' is set to 'Administrators'"
   # platforms: win10
   platform: windows
   description: |
@@ -837,7 +837,7 @@
   # tags: compliance, CIS, CIS_Level1, english-support-only
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'
+- name: "[Win 10] CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'"
   # platforms: win10
   platform: windows
   description: |
@@ -852,7 +852,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Accounts Guest account status' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Accounts Guest account status' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -867,7 +867,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Accounts Limit local account use of blank passwords to console logon only' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Accounts Limit local account use of blank passwords to console logon only' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -882,7 +882,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Configure 'Accounts Rename administrator account'
+- name: "[Win 10] CIS - Configure 'Accounts Rename administrator account'"
   # platforms: win10
   platform: windows
   description: |
@@ -899,7 +899,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Configure 'Accounts Rename guest account'
+- name: "[Win 10] CIS - Configure 'Accounts Rename guest account'"
   # platforms: win10
   platform: windows
   description: |
@@ -916,7 +916,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Audit Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Audit Force audit policy subcategory settings (Windows Vista or later) to override audit policy category settings' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -931,7 +931,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Audit Shut down system immediately if unable to log security audits' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Audit Shut down system immediately if unable to log security audits' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -949,7 +949,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Devices Prevent users from installing printer drivers' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Devices Prevent users from installing printer drivers' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -966,7 +966,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -988,7 +988,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Digitally encrypt secure channel data (when possible)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1010,7 +1010,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Digitally sign secure channel data (when possible)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Digitally sign secure channel data (when possible)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1033,7 +1033,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Disable machine account password changes' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Disable machine account password changes' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1059,7 +1059,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Maximum machine account password age' is set to '30 or fewer days, but not 0'
+- name: "[Win 10] CIS - Ensure 'Maximum machine account password age' is set to '30 or fewer days, but not 0'"
   # platforms: win10
   platform: windows
   description: |
@@ -1086,7 +1086,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Require strong (Windows 2000 or later) session key' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Require strong (Windows 2000 or later) session key' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1114,7 +1114,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Interactive logon Do not require CTRL+ALT+DEL' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Interactive logon Do not require CTRL+ALT+DEL' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1129,7 +1129,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Interactive logon Don't display last signed-in' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Interactive logon Don't display last signed-in' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1146,7 +1146,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Interactive logon Machine account lockout threshold' is set to '10 or fewer invalid logon attempts, but not 0'
+- name: "[Win 10] CIS - Ensure 'Interactive logon Machine account lockout threshold' is set to '10 or fewer invalid logon attempts, but not 0'"
   # platforms: win10
   platform: windows
   description: |
@@ -1161,7 +1161,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Interactive logon Machine inactivity limit' is set to '900 or fewer second(s), but not 0'
+- name: "[Win 10] CIS - Ensure 'Interactive logon Machine inactivity limit' is set to '900 or fewer second(s), but not 0'"
   # platforms: win10
   platform: windows
   description: |
@@ -1176,7 +1176,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Configure 'Interactive logon Message text for users attempting to log on'
+- name: "[Win 10] CIS - Configure 'Interactive logon Message text for users attempting to log on'"
   # platforms: win10
   platform: windows
   description: |
@@ -1194,7 +1194,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Configure 'Interactive logon Message title for users attempting to log on'
+- name: "[Win 10] CIS - Configure 'Interactive logon Message title for users attempting to log on'"
   # platforms: win10
   platform: windows
   description: |
@@ -1212,7 +1212,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Interactive logon Prompt user to change password before expiration' is set to 'between 5 and 14 days'
+- name: "[Win 10] CIS - Ensure 'Interactive logon Prompt user to change password before expiration' is set to 'between 5 and 14 days'"
   # platforms: win10
   platform: windows
   description: |
@@ -1229,7 +1229,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Interactive logon Smart card removal behavior' is set to 'Lock Workstation' or higher
+- name: "[Win 10] CIS - Ensure 'Interactive logon Smart card removal behavior' is set to 'Lock Workstation' or higher"
   # platforms: win10
   platform: windows
   description: |
@@ -1245,7 +1245,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network client Digitally sign communications (always)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network client Digitally sign communications (always)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1260,7 +1260,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network client Digitally sign communications (if server agrees)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network client Digitally sign communications (if server agrees)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1275,7 +1275,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network client Send unencrypted password to third-party SMB servers' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network client Send unencrypted password to third-party SMB servers' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1290,7 +1290,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network server Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network server Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'"
   # platforms: win10
   platform: windows
   description: |
@@ -1308,7 +1308,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network server Digitally sign communications (always)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network server Digitally sign communications (always)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1325,7 +1325,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network server Digitally sign communications (if client agrees)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network server Digitally sign communications (if client agrees)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1342,7 +1342,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network server Disconnect clients when logon hours expire' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network server Disconnect clients when logon hours expire' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1359,7 +1359,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure that 'Microsoft network server Server SPN target name validation level' is set to 'Accept if provided by client'
+- name: "[Win 10] CIS - Ensure that 'Microsoft network server Server SPN target name validation level' is set to 'Accept if provided by client'"
   # platforms: win10
   platform: windows
   description: |
@@ -1377,7 +1377,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Network access : Allow anonymous SID/Name translation' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1394,7 +1394,7 @@
   # contributors: marcosd4h  
 
 - name: >
-    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1413,7 +1413,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts and shares' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Network access: Do not allow anonymous enumeration of SAM accounts and shares' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1431,7 +1431,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Do not allow storage of passwords and credentials for network authentication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Network access: Do not allow storage of passwords and credentials for network authentication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1448,7 +1448,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Let Everyone permissions apply to anonymous users' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Network access: Let Everyone permissions apply to anonymous users' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1464,7 +1464,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Named Pipes that can be accessed anonymously' is set to 'None'
+    [Win 10] CIS - Ensure 'Network access: Named Pipes that can be accessed anonymously' is set to 'None'
   # platforms: win10
   platform: windows
   description: |
@@ -1481,7 +1481,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Remotely accessible registry paths' is configured
+    [Win 10] CIS - Ensure 'Network access: Remotely accessible registry paths' is configured
   # platforms: win10
   platform: windows
   description: |
@@ -1501,7 +1501,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Remotely accessible registry paths and sub-paths' is configured
+    [Win 10] CIS - Ensure 'Network access: Remotely accessible registry paths and sub-paths' is configured
   # platforms: win10
   platform: windows
   description: |
@@ -1529,7 +1529,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Restrict anonymous access to Named Pipes and Shares' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Network access: Restrict anonymous access to Named Pipes and Shares' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1551,7 +1551,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Restrict clients allowed to make remote calls to SAM' is set to 'Administrators: Remote Access: Allow'
+    [Win 10] CIS - Ensure 'Network access: Restrict clients allowed to make remote calls to SAM' is set to 'Administrators: Remote Access: Allow'
   # platforms: win10
   platform: windows
   description: |
@@ -1567,7 +1567,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None'
+    [Win 10] CIS - Ensure 'Network access: Shares that can be accessed anonymously' is set to 'None'
   # platforms: win10
   platform: windows
   description: |
@@ -1585,7 +1585,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Network access: Sharing and security model for local accounts' is set to 'Classic - local users authenticate as themselves'
+    [Win 10] CIS - Ensure 'Network access: Sharing and security model for local accounts' is set to 'Classic - local users authenticate as themselves'
   # platforms: win10
   platform: windows
   description: |
@@ -1604,7 +1604,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: rachelelysia
 
-- name: CIS - Ensure 'Network security Allow Local System to use computer identity for NTLM' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Network security Allow Local System to use computer identity for NTLM' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1619,7 +1619,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network security Allow LocalSystem NULL session fallback' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Network security Allow LocalSystem NULL session fallback' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1634,7 +1634,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network Security Allow PKU2U authentication requests to this computer to use online identities' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Network Security Allow PKU2U authentication requests to this computer to use online identities' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1649,7 +1649,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network security Configure encryption types allowed for Kerberos' is set to 'AES128_HMAC_SHA1, AES256_HMAC_SHA1, Future encryption types'
+- name: "[Win 10] CIS - Ensure 'Network security Configure encryption types allowed for Kerberos' is set to 'AES128_HMAC_SHA1, AES256_HMAC_SHA1, Future encryption types'"
   # platforms: win10
   platform: windows
   description: |
@@ -1664,7 +1664,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network security Do not store LAN Manager hash value on next password change' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Network security Do not store LAN Manager hash value on next password change' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1683,7 +1683,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network security Force logoff when logon hours expire' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Network security Force logoff when logon hours expire' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1700,7 +1700,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Network security LAN Manager authentication level' is set to 'Send NTLMv2 response only. Refuse LM & NTLM'
+- name: "[Win 10] CIS - Ensure 'Network security LAN Manager authentication level' is set to 'Send NTLMv2 response only. Refuse LM & NTLM'"
   # platforms: win10
   platform: windows
   description: |
@@ -1719,7 +1719,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Network security LDAP client signing requirements' is set to 'Negotiate signing or higher'
+- name: "[Win 10] CIS - Ensure 'Network security LDAP client signing requirements' is set to 'Negotiate signing or higher'"
   # platforms: win10
   platform: windows
   description: |
@@ -1735,7 +1735,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'
+    [Win 10] CIS - Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'
   # platforms: win10
   platform: windows
   description: |
@@ -1750,7 +1750,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers' is set to 'Audit all' or higher
+    [Win 10] CIS - Ensure 'Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers' is set to 'Audit all' or higher
   # platforms: win10
   platform: windows
   description: |
@@ -1767,7 +1767,7 @@
   # purpose: Informational
   # tags: compliance, CIS, CIS_Level1
 
-- name: CIS - Ensure 'System cryptography Force strong key protection for user keys stored on the computer' is set to 'User is prompted when the key is first used or higher'
+- name: "[Win 10] CIS - Ensure 'System cryptography Force strong key protection for user keys stored on the computer' is set to 'User is prompted when the key is first used or higher'"
   # platforms: win10
   platform: windows
   description: |
@@ -1782,7 +1782,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'System objects Require case insensitivity for non Windows subsystems' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'System objects Require case insensitivity for non Windows subsystems' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1804,7 +1804,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'System objects Strengthen default permissions of internal system objects (e.g. Symbolic Links)' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'System objects Strengthen default permissions of internal system objects (e.g. Symbolic Links)' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1824,7 +1824,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Admin Approval Mode for the Built-in Administrator account' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1840,7 +1840,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode' is set to 'Prompt for consent on the secure desktop'
+    [Win 10] CIS - Ensure 'User Account Control: Behavior of the elevation prompt for administrators in Admin Approval Mode' is set to 'Prompt for consent on the secure desktop'
   # platforms: win10
   platform: windows
   description: |
@@ -1856,7 +1856,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Behavior of the elevation prompt for standard users' is set to 'Automatically deny elevation requests'
+    [Win 10] CIS - Ensure 'User Account Control: Behavior of the elevation prompt for standard users' is set to 'Automatically deny elevation requests'
   # platforms: win10
   platform: windows
   description: |
@@ -1872,7 +1872,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Detect application installations and prompt for elevation' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Detect application installations and prompt for elevation' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1888,7 +1888,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Only elevate UIAccess applications that are installed in secure locations' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Only elevate UIAccess applications that are installed in secure locations' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1906,7 +1906,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Run all administrators in Admin Approval Mode' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Run all administrators in Admin Approval Mode' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1922,7 +1922,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Switch to the secure desktop when prompting for elevation' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Switch to the secure desktop when prompting for elevation' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1938,7 +1938,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'User Account Control: Virtualize file and registry write failures to per-user locations' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'User Account Control: Virtualize file and registry write failures to per-user locations' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -1957,7 +1957,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: rachelelysia
 
-- name: CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Bluetooth Audio Gateway Service (BTAGService)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1973,7 +1973,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Bluetooth Support Service (bthserv)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -1989,7 +1989,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Computer Browser (Browser)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Computer Browser (Browser)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2009,7 +2009,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Downloaded Maps Manager (MapsBroker)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2024,7 +2024,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2040,7 +2040,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'IIS Admin Service (IISADMIN)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2062,7 +2062,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Infrared monitor service (irmon)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Infrared monitor service (irmon)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2081,7 +2081,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2097,7 +2097,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2113,7 +2113,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'LxssManager (LxssManager)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2133,7 +2133,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Microsoft FTP Service (FTPSVC)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2153,7 +2153,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Microsoft iSCSI Initiator Service (MSiSCSI)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2169,7 +2169,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' or 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'OpenSSH SSH Server (sshd)' is set to 'Disabled' or 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2189,7 +2189,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2205,7 +2205,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2221,7 +2221,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2237,7 +2237,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2253,7 +2253,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Print Spooler (Spooler)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2269,7 +2269,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Problem Reports and Solutions Control Panel Support (wercplsupport)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2285,7 +2285,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Access Auto Connection Manager (RasAuto)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2301,7 +2301,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Desktop Configuration (SessionEnv)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2317,7 +2317,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Desktop Services (TermService)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2333,7 +2333,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Desktop Services UserMode Port Redirector (UmRdpService)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2348,7 +2348,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Remote Procedure Call (RPC) Locator (RpcLocator)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Procedure Call (RPC) Locator (RpcLocator)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2365,7 +2365,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Remote Registry (RemoteRegistry)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2380,7 +2380,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Routing and Remote Access (RemoteAccess)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Routing and Remote Access (RemoteAccess)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2395,7 +2395,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Server (LanmanServer)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2410,7 +2410,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Simple TCP/IP Services (simptcp)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2429,7 +2429,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'SNMP Service (SNMP)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2448,7 +2448,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Special Administration Console Helper (sacsvr)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Special Administration Console Helper (sacsvr)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2467,7 +2467,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'SSDP Discovery (SSDPSRV)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'SSDP Discovery (SSDPSRV)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2483,7 +2483,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'UPnP Device Host (upnphost)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'UPnP Device Host (upnphost)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2498,7 +2498,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Web Management Service (WMSvc)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Web Management Service (WMSvc)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2517,7 +2517,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows Error Reporting Service (WerSvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2534,7 +2534,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows Event Collector (Wecsvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2551,7 +2551,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Media Player Network Sharing Service (WMPNetworkSvc)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'Windows Media Player Network Sharing Service (WMPNetworkSvc)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2570,7 +2570,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Mobile Hotspot Service (icssvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows Mobile Hotspot Service (icssvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2585,7 +2585,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows Push Notifications System Service (WpnService)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2600,7 +2600,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows PushToInstall Service (PushToInstall)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2615,7 +2615,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Windows Remote Management (WSManagement) (WinRM)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2632,7 +2632,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'World Wide Web Publishing Service (W3SVC)' is set to 'Disabled' or to 'Not Installed'
+- name: "[Win 10] CIS - Ensure 'World Wide Web Publishing Service (W3SVC)' is set to 'Disabled' or to 'Not Installed'"
   # platforms: win10
   platform: windows
   description: |
@@ -2651,7 +2651,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Xbox Accessory Management Service (XboxGipSvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Xbox Accessory Management Service (XboxGipSvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2666,7 +2666,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Xbox Live Auth Manager (XblAuthManager)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Xbox Live Auth Manager (XblAuthManager)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2681,7 +2681,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Xbox Live Game Save (XblGameSave)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Xbox Live Game Save (XblGameSave)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2696,7 +2696,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Xbox Live Networking Service (XboxNetApiSvc)' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Xbox Live Networking Service (XboxNetApiSvc)' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -2712,7 +2712,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Firewall state' is set to 'On (recommended)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Firewall state' is set to 'On (recommended)'
   # platforms: win10
   platform: windows
   description: |
@@ -2728,7 +2728,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Inbound connections' is set to 'Block (default)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Inbound connections' is set to 'Block (default)'
   # platforms: win10
   platform: windows
   description: |
@@ -2744,7 +2744,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Settings: Display a notification' is set to 'No'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Settings: Display a notification' is set to 'No'
   # platforms: win10
   platform: windows
   description: |
@@ -2760,7 +2760,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\domainfw.log'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\domainfw.log'
   # platforms: win10
   platform: windows
   description: |
@@ -2776,7 +2776,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Logging: Size limit (KB)' is set to '16,384 KB or greater'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Logging: Size limit (KB)' is set to '16,384 KB or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -2792,7 +2792,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Logging: Log dropped packets' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Logging: Log dropped packets' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -2808,7 +2808,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Domain: Logging: Log successful connections' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Domain: Logging: Log successful connections' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -2824,7 +2824,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Firewall state' is set to 'On (recommended)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Firewall state' is set to 'On (recommended)'
   # platforms: win10
   platform: windows
   description: |
@@ -2840,7 +2840,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Inbound connections' is set to 'Block (default)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Inbound connections' is set to 'Block (default)'
   # platforms: win10
   platform: windows
   description: |
@@ -2856,7 +2856,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Settings: Display a notification' is set to 'No'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Settings: Display a notification' is set to 'No'
   # platforms: win10
   platform: windows
   description: |
@@ -2872,7 +2872,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\privatefw.log'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\privatefw.log'
   # platforms: win10
   platform: windows
   description: |
@@ -2888,7 +2888,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Logging: Size limit (KB)' is set to '16,384 KB or greater'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Logging: Size limit (KB)' is set to '16,384 KB or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -2904,7 +2904,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Logging: Log dropped packets' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Logging: Log dropped packets' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -2920,7 +2920,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Private: Logging: Log successful connections' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Private: Logging: Log successful connections' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -2936,7 +2936,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Firewall state' is set to 'On (recommended)'
   # platforms: win10
   platform: windows
   description: |
@@ -2952,7 +2952,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Inbound connections' is set to 'Block (default)'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Inbound connections' is set to 'Block (default)'
   # platforms: win10
   platform: windows
   description: |
@@ -2968,7 +2968,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Display a notification' is set to 'No'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Settings: Display a notification' is set to 'No'
   # platforms: win10
   platform: windows
   description: |
@@ -2984,7 +2984,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local firewall rules' is set to 'No'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Settings: Apply local firewall rules' is set to 'No'
   # platforms: win10
   platform: windows
   description: |
@@ -3000,7 +3000,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Settings: Apply local connection security rules' is set to 'No'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Settings: Apply local connection security rules' is set to 'No'
   # platforms: win10
   platform: windows
   description: |
@@ -3016,7 +3016,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\publicfw.log'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Logging: Name' is set to '%SystemRoot%\System32\logfiles\firewall\publicfw.log'
   # platforms: win10
   platform: windows
   description: |
@@ -3032,7 +3032,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Size limit (KB)' is set to '16,384 KB or greater'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Logging: Size limit (KB)' is set to '16,384 KB or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -3048,7 +3048,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Log dropped packets' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Logging: Log dropped packets' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -3066,7 +3066,7 @@
   # contributors: RachelElysia
 
 - name: >
-    CIS - Ensure 'Windows Firewall: Public: Logging: Log successful connections' is set to 'Yes'
+    [Win 10] CIS - Ensure 'Windows Firewall: Public: Logging: Log successful connections' is set to 'Yes'
   # platforms: win10
   platform: windows
   description: |
@@ -3081,7 +3081,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: RachelElysia
 
-- name: CIS - Ensure 'Audit Credential Validation' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Credential Validation' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3099,7 +3099,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Audit Application Group Management' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Application Group Management' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3117,7 +3117,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Audit Security Group Management' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Security Group Management' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3135,7 +3135,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Audit PNP Activity' is set to 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit PNP Activity' is set to 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3154,7 +3154,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Audit PNP Activity' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit PNP Activity' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3174,7 +3174,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: artemist-work
 
-- name: CIS - Ensure 'Audit Process Creation' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Process Creation' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3193,7 +3193,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Audit Account Lockout' is set to include 'Failure'
+    [Win 10] CIS - Ensure 'Audit Account Lockout' is set to include 'Failure'
   # platforms: win10
   platform: windows
   description: |
@@ -3209,7 +3209,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Audit Group Membership' is set to include 'Success'
+    [Win 10] CIS - Ensure 'Audit Group Membership' is set to include 'Success'
   # platforms: win10
   platform: windows
   description: |
@@ -3224,7 +3224,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Audit Logoff' is set to include 'Success'
+    [Win 10] CIS - Ensure 'Audit Logoff' is set to include 'Success'
   # platforms: win10
   platform: windows
   description: |
@@ -3241,7 +3241,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Audit Logon' is set to 'Success and Failure'
+    [Win 10] CIS - Ensure 'Audit Logon' is set to 'Success and Failure'
   # platforms: win10
   platform: windows
   description: |
@@ -3260,7 +3260,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Audit Other Logon/Logoff Events' is set to 'Success and Failure'
+    [Win 10] CIS - Ensure 'Audit Other Logon/Logoff Events' is set to 'Success and Failure'
   # platforms: win10
   platform: windows
   description: |
@@ -3285,7 +3285,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Audit Special Logon' is set to include 'Success'
+    [Win 10] CIS - Ensure 'Audit Special Logon' is set to include 'Success'
   # platforms: win10
   platform: windows
   description: |
@@ -3300,7 +3300,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h  
 
-- name: CIS - Ensure 'Audit Detailed File Share' is set to include 'Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Detailed File Share' is set to include 'Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3318,7 +3318,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit File Share' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit File Share' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3335,7 +3335,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Other Object Access Events' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Other Object Access Events' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3362,7 +3362,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Removable Storage' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Removable Storage' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3379,7 +3379,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Audit Policy Change' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Audit Policy Change' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3405,7 +3405,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Authentication Policy Change' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Authentication Policy Change' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3433,7 +3433,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Authorization Policy Change' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Authorization Policy Change' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3455,7 +3455,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit MPSSVC Rule-Level Policy Change' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit MPSSVC Rule-Level Policy Change' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3486,7 +3486,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Sensitive Privilege Use' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Sensitive Privilege Use' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3520,7 +3520,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit IPsec Driver' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit IPsec Driver' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3548,7 +3548,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Other System Events' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Other System Events' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3578,7 +3578,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Security State Change' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Security State Change' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3600,7 +3600,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Security System Extension' is set to include 'Success'
+- name: "[Win 10] CIS - Ensure 'Audit Security System Extension' is set to include 'Success'"
   # platforms: win10
   platform: windows
   description: |
@@ -3622,7 +3622,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit System Integrity' is set to 'Success and Failure'
+- name: "[Win 10] CIS - Ensure 'Audit System Integrity' is set to 'Success and Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3649,7 +3649,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: sharon-fdm
 
-- name: CIS - Ensure 'Audit Other Policy Change Events' is set to include 'Failure'
+- name: "[Win 10] CIS - Ensure 'Audit Other Policy Change Events' is set to include 'Failure'"
   # platforms: win10
   platform: windows
   description: |
@@ -3677,7 +3677,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent enabling lock screen camera' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3693,7 +3693,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent enabling lock screen slide show' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent enabling lock screen slide show' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3709,7 +3709,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow users to enable online speech recognition services' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow users to enable online speech recognition services' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3725,7 +3725,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Online Tips' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Online Tips' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3741,7 +3741,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Apply UAC restrictions to local accounts on network logons' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3761,7 +3761,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure SMB v1 client driver' is set to 'Enabled: Disable driver (recommended)'
+    [Win 10] CIS - Ensure 'Configure SMB v1 client driver' is set to 'Enabled: Disable driver (recommended)'
   # platforms: win10
   platform: windows
   description: |
@@ -3777,7 +3777,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure SMB v1 server' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure SMB v1 server' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3793,7 +3793,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable Certificate Padding' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable Certificate Padding' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3812,7 +3812,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Enable Structured Exception Handling Overwrite Protection (SEHOP)' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable Structured Exception Handling Overwrite Protection (SEHOP)' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3828,7 +3828,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'NetBT NodeType configuration' is set to 'Enabled: P-node (recommended)'
+    [Win 10] CIS - Ensure 'NetBT NodeType configuration' is set to 'Enabled: P-node (recommended)'
   # platforms: win10
   platform: windows
   description: |
@@ -3849,7 +3849,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'WDigest Authentication' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'WDigest Authentication' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3867,7 +3867,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3883,7 +3883,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure RPC packet level privacy setting for incoming connections' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Configure RPC packet level privacy setting for incoming connections' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3899,7 +3899,7 @@
   # contributors: defensivedepth
 
 - name: >
-    CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
+    [Win 10] CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3915,7 +3915,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+    [Win 10] CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3931,7 +3931,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (DisableSavePassword) Prevent the dial-up password from being saved' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'MSS: (DisableSavePassword) Prevent the dial-up password from being saved' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3947,7 +3947,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3963,7 +3963,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'LSA Protection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'LSA Protection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3979,7 +3979,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -3995,7 +3995,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4011,7 +4011,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4032,7 +4032,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires' is set to 'Enabled: 5 or fewer seconds'
+    [Win 10] CIS - Ensure 'MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires' is set to 'Enabled: 5 or fewer seconds'
   # platforms: win10
   platform: windows
   description: |
@@ -4048,7 +4048,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
+    [Win 10] CIS - Ensure 'MSS: (TcpMaxDataRetransmissions IPv6) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
   # platforms: win10
   platform: windows
   description: |
@@ -4064,7 +4064,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
+    [Win 10] CIS - Ensure 'MSS: (TcpMaxDataRetransmissions) How many times unacknowledged data is retransmitted' is set to 'Enabled: 3'
   # platforms: win10
   platform: windows
   description: |
@@ -4080,7 +4080,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or less'
+    [Win 10] CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or less'
   # platforms: win10
   platform: windows
   description: |
@@ -4096,7 +4096,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off multicast name resolution' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off multicast name resolution' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4112,7 +4112,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Enable Font Providers' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable Font Providers' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4128,7 +4128,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
+    [Win 10] CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
   # platforms: win10
   platform: windows
   description: |
@@ -4144,7 +4144,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable insecure guest logons' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable insecure guest logons' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4160,7 +4160,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Turn on Mapper I/O (LLTDIO) driver' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn on Mapper I/O (LLTDIO) driver' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4176,7 +4176,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Turn on Responder (RSPNDR) driver' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn on Responder (RSPNDR) driver' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4192,7 +4192,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Turn off Microsoft Peer-to-Peer Networking Services' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Microsoft Peer-to-Peer Networking Services' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4208,7 +4208,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Prohibit installation and configuration of Network Bridge on your DNS domain network' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prohibit installation and configuration of Network Bridge on your DNS domain network' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4224,7 +4224,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4240,7 +4240,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4256,7 +4256,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Hardened UNC Paths' is set to 'Enabled, with "Require Mutual Authentication", "Require Integrity", and “Require Privacy” set for all NETLOGON and SYSVOL shares'
+    [Win 10] CIS - Ensure 'Hardened UNC Paths' is set to 'Enabled, with "Require Mutual Authentication", "Require Integrity", and “Require Privacy” set for all NETLOGON and SYSVOL shares'
   # platforms: win10
   platform: windows
   description: |
@@ -4277,7 +4277,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Allow Print Spooler to accept client connections' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Print Spooler to accept client connections' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4292,7 +4292,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Point and Print Restrictions: When installing drivers for a new connection' is set to 'Enabled: Show warning and elevation prompt'
+    [Win 10] CIS - Ensure 'Point and Print Restrictions: When installing drivers for a new connection' is set to 'Enabled: Show warning and elevation prompt'
   # platforms: win10
   platform: windows
   description: |
@@ -4307,7 +4307,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Point and Print Restrictions: When updating drivers for an existing connection' is set to 'Enabled: Show warning and elevation prompt'
+    [Win 10] CIS - Ensure 'Point and Print Restrictions: When updating drivers for an existing connection' is set to 'Enabled: Show warning and elevation prompt'
   # platforms: win10
   platform: windows
   description: |
@@ -4322,7 +4322,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure NetBIOS settings' is set to 'Enabled: Disable NetBIOS name resolution on public networks'
+    [Win 10] CIS - Ensure 'Configure NetBIOS settings' is set to 'Enabled: Disable NetBIOS name resolution on public networks'
   # platforms: win10
   platform: windows
   description: |
@@ -4337,7 +4337,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Turn off notifications network usage' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off notifications network usage' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4352,7 +4352,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Redirection Guard' is set to 'Enabled: Redirection Guard Enabled' 
+    [Win 10] CIS - Ensure 'Configure Redirection Guard' is set to 'Enabled: Redirection Guard Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4368,7 +4368,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Configure RPC connection settings: Protocol to use for outgoing RPC connections' is set to 'Enabled: RPC over TCP' 
+    [Win 10] CIS - Ensure 'Configure RPC connection settings: Protocol to use for outgoing RPC connections' is set to 'Enabled: RPC over TCP'
   # platforms: win10
   platform: windows
   description: |
@@ -4384,7 +4384,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Configure RPC connection settings: Use authentication for outgoing RPC connections' is set to 'Enabled: Default' 
+    [Win 10] CIS - Ensure 'Configure RPC connection settings: Use authentication for outgoing RPC connections' is set to 'Enabled: Default'
   # platforms: win10
   platform: windows
   description: |
@@ -4400,7 +4400,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Configure RPC listener settings: Protocols to allow for incoming RPC connections' is set to 'Enabled: RPC over TCP'
+    [Win 10] CIS - Ensure 'Configure RPC listener settings: Protocols to allow for incoming RPC connections' is set to 'Enabled: RPC over TCP'
   # platforms: win10
   platform: windows
   description: |
@@ -4416,7 +4416,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections:' is set to 'Enabled: Negotiate' or higher
+    [Win 10] CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections:' is set to 'Enabled: Negotiate' or higher
   # platforms: win10
   platform: windows
   description: |
@@ -4432,7 +4432,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Manage processing of Queue-specific files' is set to 'Enabled: Limit Queue-specific files to Color profiles'
+    [Win 10] CIS - Ensure 'Manage processing of Queue-specific files' is set to 'Enabled: Limit Queue-specific files to Color profiles'
   # platforms: win10
   platform: windows
   description: |
@@ -4448,7 +4448,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4464,7 +4464,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Include command line in process creation events' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Include command line in process creation events' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4479,7 +4479,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Encryption Oracle Remediation' is set to 'Enabled: Force Updated Clients'
+    [Win 10] CIS - Ensure 'Encryption Oracle Remediation' is set to 'Enabled: Force Updated Clients'
   # platforms: win10
   platform: windows
   description: |
@@ -4494,7 +4494,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Remote host allows delegation of non-exportable credentials' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Remote host allows delegation of non-exportable credentials' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4509,7 +4509,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4524,7 +4524,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security: Select Platform Security Level' is set to 'Secure Boot and DMA Protection'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security: Select Platform Security Level' is set to 'Secure Boot and DMA Protection'
   # platforms: win10
   platform: windows
   description: |
@@ -4539,7 +4539,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity' is set to 'Enabled with UEFI lock'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity' is set to 'Enabled with UEFI lock'
   # platforms: win10
   platform: windows
   description: |
@@ -4554,7 +4554,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security: Require UEFI Memory Attributes Table' is set to 'True (checked)'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security: Require UEFI Memory Attributes Table' is set to 'True (checked)'
   # platforms: win10
   platform: windows
   description: |
@@ -4569,7 +4569,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security: Credential Guard Configuration' is set to 'Enabled with UEFI lock'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security: Credential Guard Configuration' is set to 'Enabled with UEFI lock'
   # platforms: win10
   platform: windows
   description: |
@@ -4584,7 +4584,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn On Virtualization Based Security: Secure Launch Configuration' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn On Virtualization Based Security: Secure Launch Configuration' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4599,7 +4599,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent installation of devices that match any of these device IDs' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4616,7 +4616,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Prevent installation of devices that match any of these device IDs' is set to 'PCI\CC_0C0A'
+    [Win 10] CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Prevent installation of devices that match any of these device IDs' is set to 'PCI\CC_0C0A'
   # platforms: win10
   platform: windows
   description: |
@@ -4633,7 +4633,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Also apply to matching devices that are already installed.' is set to 'True' (checked)
+    [Win 10] CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Also apply to matching devices that are already installed.' is set to 'True' (checked)
   # platforms: win10
   platform: windows
   description: |
@@ -4650,7 +4650,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4667,7 +4667,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes: Prevent installation of devices using drivers for these device setup' is set to 'IEEE 1394 device setup classes'
+    [Win 10] CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes: Prevent installation of devices using drivers for these device setup' is set to 'IEEE 1394 device setup classes'
   # platforms: win10
   platform: windows
   description: |
@@ -4684,7 +4684,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes: Also apply to matching devices that are already installed.' is set to 'True' (checked)
+    [Win 10] CIS - Ensure 'Prevent installation of devices using drivers that match these device setup classes: Also apply to matching devices that are already installed.' is set to 'True' (checked)
   # platforms: win10
   platform: windows
   description: |
@@ -4701,7 +4701,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent device metadata retrieval from the Internet' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent device metadata retrieval from the Internet' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4716,7 +4716,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Boot-Start Driver Initialization Policy' is set to 'Enabled: Good, unknown and bad but critical' (Automated)
+    [Win 10] CIS - Ensure 'Boot-Start Driver Initialization Policy' is set to 'Enabled: Good, unknown and bad but critical' (Automated)
   # platforms: win10
   platform: windows
   description: |
@@ -4737,7 +4737,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure registry policy processing: Do not apply during periodic background processing' is set to 'Enabled: FALSE'
+    [Win 10] CIS - Ensure 'Configure registry policy processing: Do not apply during periodic background processing' is set to 'Enabled: FALSE'
   # platforms: win10
   platform: windows
   description: |
@@ -4753,7 +4753,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure registry policy processing: Process even if the Group Policy objects have not changed' is set to 'Enabled: TRUE'
+    [Win 10] CIS - Ensure 'Configure registry policy processing: Process even if the Group Policy objects have not changed' is set to 'Enabled: TRUE'
   # platforms: win10
   platform: windows
   description: |
@@ -4769,7 +4769,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Continue experiences on this device' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Continue experiences on this device' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4785,7 +4785,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Turn off background refresh of Group Policy' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off background refresh of Group Policy' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4807,7 +4807,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off access to the Store' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4823,7 +4823,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off downloading of print drivers over HTTP' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off downloading of print drivers over HTTP' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4839,7 +4839,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off handwriting personalization data sharing' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off handwriting personalization data sharing' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4856,7 +4856,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off handwriting recognition error reporting' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off handwriting recognition error reporting' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4873,7 +4873,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Internet Connection Wizard if URL connection is referring to Microsoft.com' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4889,7 +4889,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Internet download for Web publishing and online ordering wizards' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Internet download for Web publishing and online ordering wizards' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4905,7 +4905,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off printing over HTTP' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4921,7 +4921,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Registration if URL connection is referring to Microsoft.com' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4937,7 +4937,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Search Companion content file updates' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4953,7 +4953,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the "Order Prints" picture task' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4970,7 +4970,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the "Publish to Web" task for files and folders' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -4985,7 +4985,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the Windows Messenger Customer Experience Improvement Program' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5000,7 +5000,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Windows Customer Experience Improvement Program' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5016,7 +5016,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Windows Error Reporting' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5031,7 +5031,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Support device authentication using certificate' is set to 'Enabled: Automatic'
+    [Win 10] CIS - Ensure 'Support device authentication using certificate' is set to 'Enabled: Automatic'
   # platforms: win10
   platform: windows
   description: |
@@ -5048,7 +5048,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enumeration policy for external devices incompatible with Kernel DMA Protection' is set to 'Enabled: Block All'
+    [Win 10] CIS - Ensure 'Enumeration policy for external devices incompatible with Kernel DMA Protection' is set to 'Enabled: Block All'
   # platforms: win10
   platform: windows
   description: |
@@ -5064,7 +5064,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure password backup directory' is set to 'Enabled: Active Directory' or 'Enabled: Azure Active Directory'
+    [Win 10] CIS - Ensure 'Configure password backup directory' is set to 'Enabled: Active Directory' or 'Enabled: Azure Active Directory'
   # platforms: win10
   platform: windows
   description: |
@@ -5085,7 +5085,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Do not allow password expiration time longer than required by policy' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow password expiration time longer than required by policy' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5105,7 +5105,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Enable password encryption' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable password encryption' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5126,7 +5126,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Password Settings: Password Complexity' is set to 'Enabled: Large letters + small letters + numbers + special characters'
+    [Win 10] CIS - Ensure 'Password Settings: Password Complexity' is set to 'Enabled: Large letters + small letters + numbers + special characters'
   # platforms: win10
   platform: windows
   description: |
@@ -5163,7 +5163,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Password Settings: Password Length' is set to 'Enabled: 15 or more'
+    [Win 10] CIS - Ensure 'Password Settings: Password Length' is set to 'Enabled: 15 or more'
   # platforms: win10
   platform: windows
   description: |
@@ -5198,7 +5198,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Password Settings: Password Age (Days)' is set to 'Enabled: 30 or fewer'
+    [Win 10] CIS - Ensure 'Password Settings: Password Age (Days)' is set to 'Enabled: 30 or fewer'
   # platforms: win10
   platform: windows
   description: |
@@ -5233,7 +5233,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Post-authentication actions: Grace period (hours)' is set to 'Enabled: 8 or fewer hours, but not 0'
+    [Win 10] CIS - Ensure 'Post-authentication actions: Grace period (hours)' is set to 'Enabled: 8 or fewer hours, but not 0'
   # platforms: win10
   platform: windows
   description: |
@@ -5258,7 +5258,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Post-authentication actions: Actions' is set to 'Enabled: Reset the password and logoff the managed account' or higher
+    [Win 10] CIS - Ensure 'Post-authentication actions: Actions' is set to 'Enabled: Reset the password and logoff the managed account' or higher
   # platforms: win10
   platform: windows
   description: |
@@ -5290,7 +5290,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
+    [Win 10] CIS - Ensure 'Disallow copying of user input methods to the system account for sign-in' is set to 'Enabled' (Automated)
   # platforms: win10
   platform: windows
   description: |
@@ -5306,7 +5306,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Block user from showing account details on sign-in' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Block user from showing account details on sign-in' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5321,7 +5321,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Do not display network selection UI' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not display network selection UI' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5336,7 +5336,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Do not enumerate connected users on domain-joined computers' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not enumerate connected users on domain-joined computers' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5351,7 +5351,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enumerate local users on domain-joined computers' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enumerate local users on domain-joined computers' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5366,7 +5366,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off app notifications on the lock screen' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off app notifications on the lock screen' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5381,7 +5381,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off picture password sign-in' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off picture password sign-in' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5396,7 +5396,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn on convenience PIN sign-in' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn on convenience PIN sign-in' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5411,7 +5411,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Clipboard synchronization across devices' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Clipboard synchronization across devices' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5426,7 +5426,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow upload of User Activities' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow upload of User Activities' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5441,7 +5441,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow network connectivity during connected-standby (on battery)' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow network connectivity during connected-standby (on battery)' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5456,7 +5456,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow network connectivity during connected-standby (plugged in)' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow network connectivity during connected-standby (plugged in)' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5471,7 +5471,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow standby states (S1-S3) when sleeping (on battery)' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow standby states (S1-S3) when sleeping (on battery)' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5486,7 +5486,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow standby states (S1-S3) when sleeping (plugged in)' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow standby states (S1-S3) when sleeping (plugged in)' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5501,7 +5501,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Require a password when a computer wakes (on battery)' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require a password when a computer wakes (on battery)' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5516,7 +5516,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Require a password when a computer wakes (plugged in)' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require a password when a computer wakes (plugged in)' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5531,7 +5531,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Offer Remote Assistance' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure Offer Remote Assistance' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5546,7 +5546,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Solicited Remote Assistance' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure Solicited Remote Assistance' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5561,7 +5561,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable RPC Endpoint Mapper Client Authentication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable RPC Endpoint Mapper Client Authentication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5577,7 +5577,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Restrict Unauthenticated RPC clients' is set to 'Enabled: Authenticated'
+    [Win 10] CIS - Ensure 'Restrict Unauthenticated RPC clients' is set to 'Enabled: Authenticated'
   # platforms: win10
   platform: windows
   description: |
@@ -5598,7 +5598,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Microsoft Support Diagnostic Tool: Turn on MSDT interactive communication with support provider' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5614,7 +5614,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable/Disable PerfTrack' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable/Disable PerfTrack' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5630,7 +5630,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the advertising ID' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the advertising ID' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5646,7 +5646,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable Windows NTP Client' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable Windows NTP Client' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5662,7 +5662,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable Windows NTP Server' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable Windows NTP Server' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5677,7 +5677,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: rachelelysia
 
-- name: CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'
+- name: "[Win 10] CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -5694,7 +5694,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Prevent non-admin users from installing packaged Windows apps' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Prevent non-admin users from installing packaged Windows apps' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -5709,7 +5709,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Let Windows apps activate with voice while the system is locked' is set to 'Enabled Force Deny'
+- name: "[Win 10] CIS - Ensure 'Let Windows apps activate with voice while the system is locked' is set to 'Enabled Force Deny'"
   # platforms: win10
   platform: windows
   description: |
@@ -5724,7 +5724,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Allow Microsoft accounts to be optional' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Allow Microsoft accounts to be optional' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -5740,7 +5740,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Block launching Universal Windows apps with Windows Runtime API access from hosted content' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -5755,7 +5755,7 @@
   # tags: compliance, CIS, CIS_Level2
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Disallow Autoplay for non-volume devices' is set to 'Enabled'
+- name: "[Win 10] CIS - Ensure 'Disallow Autoplay for non-volume devices' is set to 'Enabled'"
   # platforms: win10
   platform: windows
   description: |
@@ -5770,7 +5770,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Set the default behavior for AutoRun' is set to 'Enabled Do not execute any autorun commands'
+- name: "[Win 10] CIS - Ensure 'Set the default behavior for AutoRun' is set to 'Enabled Do not execute any autorun commands'"
   # platforms: win10
   platform: windows
   description: |
@@ -5786,7 +5786,7 @@
   # tags: compliance, CIS, CIS_Level1
   # contributors: marcosd4h
 
-- name: CIS - Ensure 'Turn off Autoplay' is set to 'Enabled All drives'
+- name: "[Win 10] CIS - Ensure 'Turn off Autoplay' is set to 'Enabled All drives'"
   # platforms: win10
   platform: windows
   description: |
@@ -5803,7 +5803,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure enhanced anti-spoofing' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Configure enhanced anti-spoofing' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5819,7 +5819,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow access to BitLocker-protected fixed data drives from earlier versions of Windows' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow access to BitLocker-protected fixed data drives from earlier versions of Windows' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5835,7 +5835,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5856,7 +5856,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Allow data recovery agent' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Allow data recovery agent' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -5873,7 +5873,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password'
   # platforms: win10
   platform: windows
   description: |
@@ -5890,7 +5890,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key' or higher
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key' or higher
   # platforms: win10
   platform: windows
   description: |
@@ -5907,7 +5907,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -5924,7 +5924,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Save BitLocker recovery information to AD DS for fixed data drives' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Save BitLocker recovery information to AD DS for fixed data drives' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -5941,7 +5941,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Configure storage of BitLocker recovery information to AD DS' is set to 'Enabled: Backup recovery passwords and key packages'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Configure storage of BitLocker recovery information to AD DS' is set to 'Enabled: Backup recovery passwords and key packages'
   # platforms: win10
   platform: windows
   description: |
@@ -5958,7 +5958,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for fixed data drives' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for fixed data drives' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -5975,7 +5975,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of hardware-based encryption for fixed data drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of hardware-based encryption for fixed data drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -5992,7 +5992,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of passwords for fixed data drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of passwords for fixed data drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6009,7 +6009,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of smart cards on fixed data drives' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Configure use of smart cards on fixed data drives' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6026,7 +6026,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of smart cards on fixed data drives: Require use of smart cards on fixed data drives' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Configure use of smart cards on fixed data drives: Require use of smart cards on fixed data drives' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6043,7 +6043,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow enhanced PINs for startup' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Allow enhanced PINs for startup' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6060,7 +6060,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Secure Boot for integrity validation' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Allow Secure Boot for integrity validation' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6077,7 +6077,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6098,7 +6098,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Allow data recovery agent' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Allow data recovery agent' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -6115,7 +6115,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password' or higher
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password' or higher
   # platforms: win10
   platform: windows
   description: |
@@ -6132,7 +6132,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Recovery Key' is set to 'Enabled: Do not allow 256-bit recovery key'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Recovery Key' is set to 'Enabled: Do not allow 256-bit recovery key'
   # platforms: win10
   platform: windows
   description: |
@@ -6149,7 +6149,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6166,7 +6166,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS for operating system drives' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Save BitLocker recovery information to AD DS for operating system drives' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6183,7 +6183,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Configure storage of BitLocker recovery information to AD DS:' is set to 'Enabled: Store recovery passwords and key packages'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Configure storage of BitLocker recovery information to AD DS:' is set to 'Enabled: Store recovery passwords and key packages'
   # platforms: win10
   platform: windows
   description: |
@@ -6200,7 +6200,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for operating system drives' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected operating system drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for operating system drives' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6217,7 +6217,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of hardware-based encryption for operating system drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of hardware-based encryption for operating system drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6234,7 +6234,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of passwords for operating system drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of passwords for operating system drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6251,7 +6251,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Require additional authentication at startup' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require additional authentication at startup' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6267,7 +6267,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Require additional authentication at startup: Allow BitLocker without a compatible TPM' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Require additional authentication at startup: Allow BitLocker without a compatible TPM' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -6283,7 +6283,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow access to BitLocker-protected removable data drives from earlier versions of Windows' is set to 'Disabled' (Automated)
+    [Win 10] CIS - Ensure 'Allow access to BitLocker-protected removable data drives from earlier versions of Windows' is set to 'Disabled' (Automated)
   # platforms: win10
   platform: windows
   description: |
@@ -6299,7 +6299,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6320,7 +6320,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Allow data recovery agent' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Allow data recovery agent' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6337,7 +6337,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Password' is set to 'Enabled: Do not allow 48- digit recovery password'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Password' is set to 'Enabled: Do not allow 48- digit recovery password'
   # platforms: win10
   platform: windows
   description: |
@@ -6354,7 +6354,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Key' is set to 'Enabled: Do not allow 256-bit recovery key'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Recovery Key' is set to 'Enabled: Do not allow 256-bit recovery key'
   # platforms: win10
   platform: windows
   description: |
@@ -6371,7 +6371,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Omit recovery options from the BitLocker setup wizard' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6388,7 +6388,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Save BitLocker recovery information to AD DS for removable data drives' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Save BitLocker recovery information to AD DS for removable data drives' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -6405,7 +6405,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Configure storage of BitLocker recovery information to AD DS:' is set to 'Enabled: Backup recovery passwords and key packages'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Configure storage of BitLocker recovery information to AD DS:' is set to 'Enabled: Backup recovery passwords and key packages'
   # platforms: win10
   platform: windows
   description: |
@@ -6422,7 +6422,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for removable data drives' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Choose how BitLocker-protected removable drives can be recovered: Do not enable BitLocker until recovery information is stored to AD DS for removable data drives' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -6439,7 +6439,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of hardware-based encryption for removable data drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of hardware-based encryption for removable data drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6456,7 +6456,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of passwords for removable data drives' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure use of passwords for removable data drives' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6472,7 +6472,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of smart cards on removable data drives' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Configure use of smart cards on removable data drives' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6489,7 +6489,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure use of smart cards on removable data drives: Require use of smart cards on removable data drives' is set to 'Enabled: True'
+    [Win 10] CIS - Ensure 'Configure use of smart cards on removable data drives: Require use of smart cards on removable data drives' is set to 'Enabled: True'
   # platforms: win10
   platform: windows
   description: |
@@ -6506,7 +6506,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Deny write access to removable drives not protected by BitLocker' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6523,7 +6523,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization' is set to 'Enabled: False'
+    [Win 10] CIS - Ensure 'Deny write access to removable drives not protected by BitLocker: Do not allow write access to devices configured in another organization' is set to 'Enabled: False'
   # platforms: win10
   platform: windows
   description: |
@@ -6539,7 +6539,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Disable new DMA devices when this computer is locked' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Disable new DMA devices when this computer is locked' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6555,7 +6555,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Use of Camera' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Use of Camera' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6571,7 +6571,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off cloud consumer account state content' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off cloud consumer account state content' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6586,7 +6586,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Turn off cloud optimized content' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off cloud optimized content' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6601,7 +6601,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Microsoft consumer experiences' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Microsoft consumer experiences' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6616,7 +6616,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Require pin for pairing' is set to 'Enabled: First Time' OR 'Enabled: Always'
+    [Win 10] CIS - Ensure 'Require pin for pairing' is set to 'Enabled: First Time' OR 'Enabled: Always'
   # platforms: win10
   platform: windows
   description: |
@@ -6631,7 +6631,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Do not display the password reveal button' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not display the password reveal button' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6646,7 +6646,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enumerate administrator accounts on elevation' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enumerate administrator accounts on elevation' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6661,7 +6661,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent the use of security questions for local accounts' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent the use of security questions for local accounts' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6676,7 +6676,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Diagnostic Data' is set to 'Enabled: Diagnostic data off (not recommended)' or 'Enabled: Send required diagnostic data'
+    [Win 10] CIS - Ensure 'Allow Diagnostic Data' is set to 'Enabled: Diagnostic data off (not recommended)' or 'Enabled: Send required diagnostic data'
   # platforms: win10
   platform: windows
   description: |
@@ -6695,7 +6695,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service' is set to 'Enabled: Disable Authenticated Proxy usage'
+    [Win 10] CIS - Ensure 'Configure Authenticated Proxy usage for the Connected User Experience and Telemetry service' is set to 'Enabled: Disable Authenticated Proxy usage'
   # platforms: win10
   platform: windows
   description: |
@@ -6710,7 +6710,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Disable OneSettings Downloads' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Disable OneSettings Downloads' is set to 'Enabled'
   # platforms: win11
   platform: windows
   description: |
@@ -6726,7 +6726,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Do not show feedback notifications' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not show feedback notifications' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6741,7 +6741,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable OneSettings Auditing' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable OneSettings Auditing' is set to 'Enabled'
   # platforms: win11
   platform: windows
   description: |
@@ -6757,7 +6757,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Limit Diagnostic Log Collection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Limit Diagnostic Log Collection' is set to 'Enabled'
   # platforms: win11
   platform: windows
   description: |
@@ -6773,7 +6773,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Limit Dump Collection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Limit Dump Collection' is set to 'Enabled'
   # platforms: win11
   platform: windows
   description: |
@@ -6789,7 +6789,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6804,7 +6804,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Download Mode' is NOT set to 'Enabled: Internet'
+    [Win 10] CIS - Ensure 'Download Mode' is NOT set to 'Enabled: Internet'
   # platforms: win10
   platform: windows
   description: |
@@ -6826,7 +6826,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow Custom SSPs and APs to be loaded into LSASS' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Custom SSPs and APs to be loaded into LSASS' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6842,7 +6842,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Application: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Application: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6859,7 +6859,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Application: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+    [Win 10] CIS - Ensure 'Application: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -6876,7 +6876,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Security: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Security: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6893,7 +6893,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Security: Specify the maximum log file size (KB)' is set to 'Enabled: 196,608 or greater'
+    [Win 10] CIS - Ensure 'Security: Specify the maximum log file size (KB)' is set to 'Enabled: 196,608 or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -6910,7 +6910,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Setup: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Setup: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6927,7 +6927,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Setup: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+    [Win 10] CIS - Ensure 'Setup: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -6944,7 +6944,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'System: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'System: Control Event Log behavior when the log file reaches its maximum size' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6961,7 +6961,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'System: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
+    [Win 10] CIS - Ensure 'System: Specify the maximum log file size (KB)' is set to 'Enabled: 32,768 or greater'
   # platforms: win10
   platform: windows
   description: |
@@ -6978,7 +6978,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Data Execution Prevention for Explorer' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off Data Execution Prevention for Explorer' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -6994,7 +6994,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off heap termination on corruption' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off heap termination on corruption' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7010,7 +7010,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off shell protocol protected mode' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off shell protocol protected mode' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7026,7 +7026,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off location' is set to 'Enabled
+    [Win 10] CIS - Ensure 'Turn off location' is set to 'Enabled
   # platforms: win10
   platform: windows
   description: |
@@ -7042,7 +7042,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Block all consumer Microsoft account user authentication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Block all consumer Microsoft account user authentication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7058,7 +7058,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Configure local setting override for reporting to Microsoft MAPS' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure local setting override for reporting to Microsoft MAPS' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7074,7 +7074,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Join Microsoft MAPS' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7096,7 +7096,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure Attack Surface Reduction Rules' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Configure Attack Surface Reduction Rules' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7112,7 +7112,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure Attack Surface Reduction rules: Set the state for each ASR rule' is configured
+    [Win 10] CIS - Ensure 'Configure Attack Surface Reduction rules: Set the state for each ASR rule' is configured
   # platforms: win10
   platform: windows
   description: |
@@ -7167,7 +7167,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Prevent users and apps from accessing dangerous websites' is set to 'Enabled: Block'
+    [Win 10] CIS - Ensure 'Prevent users and apps from accessing dangerous websites' is set to 'Enabled: Block'
   # platforms: win10
   platform: windows
   description: |
@@ -7183,7 +7183,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow Message Service Cloud Sync' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Message Service Cloud Sync' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7199,7 +7199,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable file hash computation feature' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Enable file hash computation feature' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7215,7 +7215,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Scan all downloaded files and attachments' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Scan all downloaded files and attachments' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7232,7 +7232,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn off real-time protection' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off real-time protection' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7250,7 +7250,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn on behavior monitoring' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn on behavior monitoring' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7267,7 +7267,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn on script scanning' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn on script scanning' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7284,7 +7284,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure Watson events' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Configure Watson events' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7301,7 +7301,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Scan packed executables' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Scan packed executables' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7319,7 +7319,7 @@
   # tags: compliance, CIS, CIS_Level1
 
 - name: >
-    CIS - Ensure 'Scan removable drives' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Scan removable drives' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7336,7 +7336,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn on e-mail scanning' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn on e-mail scanning' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7353,7 +7353,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Configure detection for potentially unwanted applications' is set to 'Enabled: Block'
+    [Win 10] CIS - Ensure 'Configure detection for potentially unwanted applications' is set to 'Enabled: Block'
   # platforms: win10
   platform: windows
   description: |
@@ -7369,7 +7369,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7385,7 +7385,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow auditing events in Microsoft Defender Application Guard' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Allow auditing events in Microsoft Defender Application Guard' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7401,7 +7401,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow camera and microphone access in Microsoft Defender Application Guard' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow camera and microphone access in Microsoft Defender Application Guard' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7417,7 +7417,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow data persistence for Microsoft Defender Application Guard' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow data persistence for Microsoft Defender Application Guard' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7433,7 +7433,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow files to download and save to the host operating system from Microsoft Defender Application Guard' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow files to download and save to the host operating system from Microsoft Defender Application Guard' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7449,7 +7449,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Microsoft Defender Application Guard clipboard settings: Clipboard behavior setting' is set to 'Enabled: Enable clipboard operation from an isolated session to the host'
+    [Win 10] CIS - Ensure 'Configure Microsoft Defender Application Guard clipboard settings: Clipboard behavior setting' is set to 'Enabled: Enable clipboard operation from an isolated session to the host'
   # platforms: win10
   platform: windows
   description: |
@@ -7465,7 +7465,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn on Microsoft Defender Application Guard in Managed Mode' is set to 'Enabled: 1'
+    [Win 10] CIS - Ensure 'Turn on Microsoft Defender Application Guard in Managed Mode' is set to 'Enabled: 1'
   # platforms: win10
   platform: windows
   description: |
@@ -7486,7 +7486,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enable news and interests on the taskbar' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable news and interests on the taskbar' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7503,7 +7503,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Prevent the usage of OneDrive for file storage' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent the usage of OneDrive for file storage' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7521,7 +7521,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Push To Install service' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7538,7 +7538,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Allow UI Automation redirection' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow UI Automation redirection' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7553,7 +7553,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Do not allow location redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow location redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7568,7 +7568,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Prevent downloading of enclosures' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent downloading of enclosures' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7583,7 +7583,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow Cloud Search' is set to 'Enabled: Disable Cloud Search'
+    [Win 10] CIS - Ensure 'Allow Cloud Search' is set to 'Enabled: Disable Cloud Search'
   # platforms: win10
   platform: windows
   description: |
@@ -7598,7 +7598,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow Cortana' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Cortana' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7613,7 +7613,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow Cortana above lock screen' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Cortana above lock screen' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7627,7 +7627,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow indexing of encrypted files' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow indexing of encrypted files' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7642,7 +7642,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Allow search and Cortana to use location' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow search and Cortana to use location' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7657,7 +7657,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not allow passwords to be saved' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow passwords to be saved' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7675,7 +7675,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Allow users to connect remotely by using Remote Desktop Services' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow users to connect remotely by using Remote Desktop Services' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7690,7 +7690,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not allow COM port redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow COM port redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7705,7 +7705,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not allow drive redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow drive redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7720,7 +7720,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not allow LPT port redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow LPT port redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7735,7 +7735,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not allow supported Plug and Play device redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow supported Plug and Play device redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7750,7 +7750,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Always prompt for password upon connection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Always prompt for password upon connection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7765,7 +7765,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Require secure RPC communication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require secure RPC communication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7780,7 +7780,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Require use of specific security layer for remote (RDP) connections' is set to 'Enabled: SSL'
+    [Win 10] CIS - Ensure 'Require use of specific security layer for remote (RDP) connections' is set to 'Enabled: SSL'
   # platforms: win10
   platform: windows
   description: |
@@ -7795,7 +7795,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Require user authentication for remote connections by using Network Level Authentication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Require user authentication for remote connections by using Network Level Authentication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7810,7 +7810,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Set client connection encryption level' is set to 'Enabled: High Level'
+    [Win 10] CIS - Ensure 'Set client connection encryption level' is set to 'Enabled: High Level'
   # platforms: win10
   platform: windows
   description: |
@@ -7828,7 +7828,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Set time limit for active but idle Remote Desktop Services sessions' is set to 'Enabled: 15 minutes or less, but not Never (0)'
+    [Win 10] CIS - Ensure 'Set time limit for active but idle Remote Desktop Services sessions' is set to 'Enabled: 15 minutes or less, but not Never (0)'
   # platforms: win10
   platform: windows
   description: |
@@ -7844,7 +7844,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Set time limit for disconnected sessions' is set to 'Enabled: 1 minute'
+    [Win 10] CIS - Ensure 'Set time limit for disconnected sessions' is set to 'Enabled: 1 minute'
   # platforms: win10
   platform: windows
   description: |
@@ -7859,7 +7859,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Do not delete temp folders upon exit' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Do not delete temp folders upon exit' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7874,7 +7874,7 @@
   # contributors: artemist-work
 
 - name: >
-    CIS - Ensure 'Turn off KMS Client Online AVS Validation' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off KMS Client Online AVS Validation' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7890,7 +7890,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Disable all apps from Microsoft Store' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Disable all apps from Microsoft Store' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7906,7 +7906,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7922,7 +7922,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7938,7 +7938,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the offer to update to the latest version of Windows' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the offer to update to the latest version of Windows' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7954,7 +7954,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off the Store application' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7970,7 +7970,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow widgets' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow widgets' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -7986,7 +7986,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
+    [Win 10] CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled: Warn and prevent bypass'
   # platforms: win10
   platform: windows
   description: |
@@ -8005,7 +8005,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8021,7 +8021,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow suggested apps in Windows Ink Workspace' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8037,7 +8037,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Allow user control over installs' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow user control over installs' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8054,7 +8054,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8070,7 +8070,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent Internet Explorer security prompt for Windows Installer scripts' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Prevent Internet Explorer security prompt for Windows Installer scripts' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8087,7 +8087,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Sign-in and lock last interactive user automatically after a restart' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Sign-in and lock last interactive user automatically after a restart' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8104,7 +8104,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn on PowerShell Script Block Logging' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn on PowerShell Script Block Logging' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8120,7 +8120,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Basic authentication' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8135,7 +8135,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow unencrypted traffic' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8150,7 +8150,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Disallow Digest authentication' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Disallow Digest authentication' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8165,7 +8165,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow Basic authentication' in WinRM service is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Basic authentication' in WinRM service is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8180,7 +8180,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow remote server management through WinRM' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow remote server management through WinRM' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8197,7 +8197,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow unencrypted traffic' in WinRM service is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow unencrypted traffic' in WinRM service is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8212,7 +8212,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Disallow WinRM from storing RunAs credentials' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Disallow WinRM from storing RunAs credentials' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8228,7 +8228,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow Remote Shell Access' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow Remote Shell Access' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8243,7 +8243,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow clipboard sharing with Windows Sandbox' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow clipboard sharing with Windows Sandbox' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8259,7 +8259,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Allow networking in Windows Sandbox' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow networking in Windows Sandbox' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8275,7 +8275,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Prevent users from modifying settings' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent users from modifying settings' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8291,7 +8291,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'No auto-restart with logged on users for scheduled automatic updates installations' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'No auto-restart with logged on users for scheduled automatic updates installations' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8306,7 +8306,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure Automatic Updates' is set to 'Enabled: 3'
+    [Win 10] CIS - Ensure 'Configure Automatic Updates' is set to 'Enabled: 3'
   # platforms: win10
   platform: windows
   description: |
@@ -8325,7 +8325,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Configure Automatic Updates: Scheduled install day' is set to '0 - Every day'
+    [Win 10] CIS - Ensure 'Configure Automatic Updates: Scheduled install day' is set to '0 - Every day'
   # platforms: win10
   platform: windows
   description: |
@@ -8343,7 +8343,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Remove access to "Pause updates" feature' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Remove access to "Pause updates" feature' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8358,7 +8358,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Manage preview builds' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Manage preview builds' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8373,7 +8373,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Select when Preview Builds and Feature Updates are received' is set to 'Enabled: 180 or more days'
+    [Win 10] CIS - Ensure 'Select when Preview Builds and Feature Updates are received' is set to 'Enabled: 180 or more days'
   # platforms: win10
   platform: windows
   description: |
@@ -8391,7 +8391,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Select when Quality Updates are received' is set to 'Enabled: 0 days'
+    [Win 10] CIS - Ensure 'Select when Quality Updates are received' is set to 'Enabled: 0 days'
   # platforms: win10
   platform: windows
   description: |
@@ -8409,7 +8409,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Enable App Installer' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable App Installer' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8425,7 +8425,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Enable App Installer Experimental Features' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable App Installer Experimental Features' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8441,7 +8441,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Enable App Installer Hash Override' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Enable App Installer Hash Override' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8457,7 +8457,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Enable App Installer ms-appinstaller protocol' is set to 'Disabled' 
+    [Win 10] CIS - Ensure 'Enable App Installer ms-appinstaller protocol' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8473,7 +8473,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Disable Internet Explorer 11 as a standalone browser' is set to 'Enabled: Always'
+    [Win 10] CIS - Ensure 'Disable Internet Explorer 11 as a standalone browser' is set to 'Enabled: Always'
   # platforms: win10
   platform: windows
   description: |
@@ -8489,7 +8489,7 @@
   # contributors: defensivedepth
 
 - name: >
-    CIS - Ensure 'Do not allow WebAuthn redirection' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not allow WebAuthn redirection' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8505,7 +8505,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Allow search highlights' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Allow search highlights' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8521,7 +8521,7 @@
   # contributors: DefensiveDepth
 
 - name: >
-    CIS - Ensure 'Allow Windows Ink Workspace' is set to 'Enabled: On, but disallow access above lock' OR 'Enabled: Disabled'
+    [Win 10] CIS - Ensure 'Allow Windows Ink Workspace' is set to 'Enabled: On, but disallow access above lock' OR 'Enabled: Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8537,7 +8537,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn on PowerShell Transcription' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8553,7 +8553,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Turn off toast notifications on the lock screen' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off toast notifications on the lock screen' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8570,7 +8570,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Turn off Help Experience Improvement Program' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Help Experience Improvement Program' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8587,7 +8587,7 @@
   # contributors: sharon-fdm
 
 - name: >
-    CIS - Ensure 'Do not preserve zone information in file attachments' is set to 'Disabled'
+    [Win 10] CIS - Ensure 'Do not preserve zone information in file attachments' is set to 'Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8603,7 +8603,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Notify antivirus programs when opening attachments' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Notify antivirus programs when opening attachments' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8619,7 +8619,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Configure Windows spotlight on lock screen' is set to Disabled'
+    [Win 10] CIS - Ensure 'Configure Windows spotlight on lock screen' is set to Disabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8635,7 +8635,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Do not suggest third-party content in Windows spotlight' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not suggest third-party content in Windows spotlight' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8651,7 +8651,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Do not use diagnostic data for tailored experiences' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Do not use diagnostic data for tailored experiences' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8667,7 +8667,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off all Windows spotlight features' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off all Windows spotlight features' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8683,7 +8683,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Turn off Spotlight collection on Desktop' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Turn off Spotlight collection on Desktop' is set to 'Enabled'
   # platforms: win11
   platform: windows
   description: |
@@ -8700,7 +8700,7 @@
   # contributors: marcosd4h
 
 - name: >
-    CIS - Ensure 'Prevent users from sharing files within their profile.' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent users from sharing files within their profile.' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |
@@ -8716,7 +8716,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled' (User Configuration)
+    [Win 10] CIS - Ensure 'Always install with elevated privileges' is set to 'Disabled' (User Configuration)
   # platforms: win10
   platform: windows
   description: |
@@ -8733,7 +8733,7 @@
   # contributors: rachelelysia
 
 - name: >
-    CIS - Ensure 'Prevent Codec Download' is set to 'Enabled'
+    [Win 10] CIS - Ensure 'Prevent Codec Download' is set to 'Enabled'
   # platforms: win10
   platform: windows
   description: |

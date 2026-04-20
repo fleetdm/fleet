@@ -28,6 +28,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
+|[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |<nobr>Apr-15-2026</nobr> |
 
 ### Sales enablement
 
@@ -57,10 +58,10 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 ## Webinar Recordings
 
-| Asset | Description | Author | Date updated |
-| --- | --- | --- | --- |
-| [Device management that actually works for IT](https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e) | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> |
-| [Beyond the Hype: Practical AI for Device Management](https://player.mediadelivery.net/play/637410/cb9dd085-6316-48cb-b9d0-9a0257673ff9) | Moving from manual MDM engineering workflows to AI | Allen Houchins - Fleet, Harley Williams and Mike Meyer - Foursquare | <nobr>2026-04-02</nobr>|
+| Asset | Description | Speakers | Date updated |  Social Sharing /Registration | Direct Replay | 
+| --- | --- | --- | --- | --- | --- |
+| **Device management that actually works for IT** | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> | [Registration]() | [Direct Replay](https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e) |
+| **Beyond the Hype: Practical AI for Device Management** | Moving from manual MDM engineering workflows to AI | Allen Houchins - Fleet, Harley Williams and Mike Meyer - Foursquare | <nobr>2026-04-02</nobr>| [Registration](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management) | [Direct Replay](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management/watch) |
 
 
 
