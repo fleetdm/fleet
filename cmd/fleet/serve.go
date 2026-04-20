@@ -1935,9 +1935,13 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		activityACLAdapter,
 		logger,
 	)
-	// Create auth middleware for activity bounded context
+	// Create auth middleware for activity bounded context. Wrap with
+	// APIOnlyEndpointCheck so api_only users are subject to endpoint
+	// restrictions on activity routes. The activity endpointer appends
+	// auth.RouteTemplateRequestFunc to opts so the route template is in
+	// context when the check runs.
 	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
 	return activitySvc, activityRoutes
