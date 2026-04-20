@@ -2587,11 +2587,12 @@ func (svc *Service) setHostConditionalAccess(
 		)
 		logger.DebugContext(ctx, "set compliance status message sent")
 		startTime := time.Now()
-		// time.Tick never releases its underlying ticker, so every
-		// invocation that exits via `return` or `break` would leak the
-		// goroutine and channel for the lifetime of the process. With
-		// active macOS hosts this accumulates one leaked ticker per
-		// checkin (#42901). Own the ticker explicitly and defer Stop.
+		// time.Tick is fire-and-forget and only became GC-collectable in
+		// Go 1.23; time.NewTicker + defer Stop makes cleanup deterministic
+		// as soon as this function returns instead of relying on runtime
+		// GC, which still matters because this runs per macOS checkin and
+		// used to accumulate leaked tickers under earlier Go runtimes
+		// (#42901).
 		ticker := time.NewTicker(conditionalAccessSetWaitTime)
 		defer ticker.Stop()
 		for range ticker.C {
