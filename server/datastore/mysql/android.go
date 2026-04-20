@@ -50,17 +50,30 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			"uuid":              host.UUID,
 		}
 
-		var existingID uint
-		err := sqlx.GetContext(ctx, tx, &existingID,
-			`SELECT id FROM hosts WHERE uuid = ? AND (platform = 'android' OR platform = '') ORDER BY id LIMIT 1`,
-			host.UUID,
+		// Only look up an existing host when we have a non-empty UUID. An empty UUID
+		// would match every hosts row with uuid='' and falsely dedupe unrelated hosts.
+		// When multiple rows share this uuid (e.g. one orbit-enrolled with
+		// node_key=<orbitKey> and one Android with node_key=android/<uuid>), prefer the
+		// row whose node_key already matches host.NodeKey. Updating that row's node_key
+		// to itself is a no-op and avoids colliding with the UNIQUE idx_host_unique_nodekey
+		// constraint that would fire if we picked the other duplicate and tried to flip
+		// its node_key over to an already-taken value.
+		var (
+			existingID uint
+			foundHost  bool
 		)
-		notExist := errors.Is(err, sql.ErrNoRows)
-		if err != nil && !notExist {
-			return ctxerr.Wrap(ctx, err, "check for existing orbit-enrolled Android host")
+		if host.UUID != "" {
+			err := sqlx.GetContext(ctx, tx, &existingID,
+				`SELECT id FROM hosts WHERE uuid = ? AND platform IN ('android', '') ORDER BY (node_key = ?) DESC, id LIMIT 1`,
+				host.UUID, host.NodeKey,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "check for existing orbit-enrolled Android host")
+			}
+			foundHost = err == nil
 		}
 
-		if notExist {
+		if !foundHost {
 			// No orbit-enrolled host for this uuid. Insert as usual.
 			// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
 			insertStmt := `

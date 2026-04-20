@@ -214,6 +214,54 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 			require.Equal(t, 1, deviceCount)
 		})
 	}
+
+	// Two hosts already exist with the same uuid -- one orbit-enrolled
+	// (node_key=orbitKey) and one Android (node_key=android/<id>). A NewAndroidHost call
+	// with node_key=android/<id> must pick the Android row (not the orbit-enrolled one),
+	// otherwise the UPDATE would try to flip the orbit row's node_key to a value already
+	// held by the Android row and hit idx_host_unique_nodekey.
+	t.Run("Android orphan duplicates, prefers matching node_key", func(t *testing.T) {
+		ctx := testCtx()
+		enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+		orbitHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   enterpriseSpecificID,
+				HardwareSerial: enterpriseSpecificID,
+				Platform:       "android",
+				Hostname:       "orbit",
+				ComputerName:   "orbit",
+				HardwareModel:  "TestModel",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Insert a second hosts row directly, with the same uuid but the Android-derived
+		// node_key, to simulate the duplicate state the dedupe must handle.
+		androidNodeKey := "android/" + enterpriseSpecificID
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO hosts (node_key, uuid, platform, hostname, computer_name, hardware_serial,
+				detail_updated_at, label_updated_at, policy_updated_at)
+			 VALUES (?, ?, 'android', 'android-dup', 'android-dup', 'serial-dup', NOW(), NOW(), NOW())`,
+			androidNodeKey, enterpriseSpecificID,
+		)
+		require.NoError(t, err)
+		androidDupID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		// NewAndroidHost must pick the existing Android row (not the orbit-enrolled one
+		// with the lower id). Otherwise the UPDATE would hit the UNIQUE node_key index.
+		newHost := createAndroidHost(enterpriseSpecificID)
+		require.Equal(t, androidNodeKey, *newHost.NodeKey,
+			"createAndroidHost is expected to build node_key=android/<uuid>")
+		returned, err := ds.NewAndroidHost(ctx, newHost, false)
+		require.NoError(t, err, "must not violate UNIQUE node_key when duplicate hosts share this uuid")
+		require.EqualValues(t, androidDupID, returned.Host.ID,
+			"NewAndroidHost should pick the row whose node_key matches, leaving the orbit-enrolled row alone")
+		require.NotEqual(t, orbitHost.ID, returned.Host.ID)
+	})
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
