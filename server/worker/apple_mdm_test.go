@@ -1108,7 +1108,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {
@@ -1279,7 +1279,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {
@@ -1349,6 +1349,71 @@ INSERT INTO setup_experience_status_results (
 		}
 
 		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
+	})
+
+	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		test.CreateInsertGlobalVPPToken(t, ds)
+		defer mysql.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		vppApp := &fleet.VPPApp{
+			Name: "fail-app", LatestVersion: "1.0.0",
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "fail-adam-id", Platform: fleet.IOSPlatform}},
+			BundleIdentifier: "com.example.fail",
+		}
+		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+		require.NoError(t, err)
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `
+INSERT INTO setup_experience_status_results (host_uuid, name, status, vpp_app_team_id)
+VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPending, vppAppWithTeam.VPPAppTeam.AppTeamID)
+			return err
+		})
+
+		appInstallResponses := map[string]installAppResponse{
+			vppAppWithTeam.AdamID: {CommandUUID: "bad-cmd", Error: errors.New("no available licenses")},
+		}
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
+
+		var capturedActivities []fleet.ActivityDetails
+		mdmWorker := &AppleMDM{
+			VPPInstaller: vppInstaller,
+			Datastore:    ds,
+			Log:          slogLog,
+			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			NewActivityFn: func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+				capturedActivities = append(capturedActivities, activity)
+				return nil
+			},
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// Exactly one activity should have been emitted for the failed VPP install
+		require.Len(t, capturedActivities, 1)
+		act, ok := capturedActivities[0].(fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok, "expected ActivityInstalledAppStoreApp, got %T", capturedActivities[0])
+
+		assert.Equal(t, h.ID, act.HostID)
+		assert.Equal(t, h.DisplayName(), act.HostDisplayName)
+		assert.Equal(t, vppAppWithTeam.Name, act.SoftwareTitle)
+		assert.Equal(t, vppAppWithTeam.AdamID, act.AppStoreID)
+		assert.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		assert.Equal(t, h.Platform, act.HostPlatform)
+		assert.True(t, act.FromSetupExperience)
+		assert.False(t, act.SelfService)
 	})
 
 	t.Run("treats NotNow status as a finished command status that does not block device release", func(t *testing.T) {

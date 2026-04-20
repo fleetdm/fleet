@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { InjectedRouter } from "react-router";
+
 import { Row } from "react-table";
 
 import { isAndroid } from "interfaces/platform";
@@ -26,7 +26,7 @@ interface IPoliciesProps {
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
   hostPlatform: string;
-  router: InjectedRouter;
+
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
@@ -42,7 +42,7 @@ const Policies = ({
   deviceUser,
   togglePolicyDetailsModal,
   hostPlatform,
-  router,
+
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
@@ -59,7 +59,7 @@ const Policies = ({
     (row: IHostPoliciesRowProps) => {
       togglePolicyDetailsModal(row.original);
     },
-    [router]
+    [togglePolicyDetailsModal]
   );
 
   const renderBanner = () => {
@@ -68,7 +68,7 @@ const Policies = ({
     }
     if (conditionalAccessBypassed) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
+        <InfoBanner borderRadius="xlarge">
           <IconStatusMessage
             iconName="clock"
             iconColor="ui-fleet-black-50"

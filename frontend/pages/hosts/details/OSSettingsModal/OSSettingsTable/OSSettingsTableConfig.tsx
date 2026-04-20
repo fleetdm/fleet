@@ -17,7 +17,7 @@ import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsErrorCell from "./OSSettingsErrorCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
 
 import {
   generateLinuxDiskEncryptionSetting,
@@ -85,12 +85,13 @@ const generateTableConfig = (
             profileName={cellProps.row.original.name}
             hostPlatform={cellProps.row.original.platform}
             profileUUID={cellProps.row.original.profile_uuid}
+            profile={cellProps.row.original}
           />
         );
       },
     },
     {
-      Header: "Error",
+      Header: <span className="sr-only">Actions</span>,
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -109,7 +110,7 @@ const generateTableConfig = (
           REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
         return (
-          <OSSettingsErrorCell
+          <OSSettingsResendCell
             canResendProfiles={
               canResendProfiles &&
               (isWindowsProfile ||
@@ -185,12 +186,12 @@ const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
 
 const makeDarwinRows = ({
   profiles,
-  macos_settings,
+  apple_settings,
   os_settings,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
-  if (macos_settings?.disk_encryption === "action_required") {
+  if (apple_settings?.disk_encryption === "action_required") {
     const dERow = profiles?.find(
       (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
     );

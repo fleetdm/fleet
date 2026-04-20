@@ -125,7 +125,7 @@ func run(cfg Config) error {
 	}
 
 	// Load changed CVE files for delta generation
-	var todayCVEFiles, yesterdayCVEFiles map[string]bool
+	var todayCVEFiles, yesterdayCVEFiles map[string]struct{}
 	generateTodayDeltas := cfg.ChangedFilesToday != ""
 	generateYesterdayDeltas := cfg.ChangedFilesYesterday != ""
 
@@ -382,7 +382,7 @@ func buildVersionFilter(versions, excludeVersions string) (targetVersions, exclu
 	return nil, nil
 }
 
-func shouldIncludeInDelta(inputDir, filePath string, changedFiles map[string]bool) bool {
+func shouldIncludeInDelta(inputDir, filePath string, changedFiles map[string]struct{}) bool {
 	relPath, err := filepath.Rel(inputDir, filePath)
 	if err != nil {
 		return false
@@ -391,7 +391,8 @@ func shouldIncludeInDelta(inputDir, filePath string, changedFiles map[string]boo
 	normalizedRelPath := strings.TrimPrefix(filepath.ToSlash(relPath), "osv/cve/")
 	fullRelPath := "osv/cve/" + normalizedRelPath
 
-	return changedFiles[fullRelPath]
+	_, exists := changedFiles[fullRelPath]
+	return exists
 }
 
 func parseOSVFile(path string) (*OSVData, error) {
@@ -491,14 +492,14 @@ func writeArtifact(path string, artifact *ArtifactData) (err error) {
 	return nil
 }
 
-func loadChangedFiles(changedFilesPath string) (map[string]bool, error) {
+func loadChangedFiles(changedFilesPath string) (map[string]struct{}, error) {
 	file, err := os.Open(changedFilesPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open changed files list: %w", err)
 	}
 	defer file.Close()
 
-	changedFiles := make(map[string]bool)
+	changedFiles := make(map[string]struct{})
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
@@ -507,7 +508,7 @@ func loadChangedFiles(changedFilesPath string) (map[string]bool, error) {
 			continue
 		}
 
-		changedFiles[line] = true
+		changedFiles[line] = struct{}{}
 	}
 
 	if err := scanner.Err(); err != nil {

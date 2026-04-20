@@ -5,7 +5,6 @@ import { IWebhookActivities } from "interfaces/webhook";
 import Modal from "components/Modal";
 import validURL from "components/forms/validators/valid_url";
 import Slider from "components/forms/fields/Slider";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";

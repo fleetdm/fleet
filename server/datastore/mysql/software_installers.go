@@ -553,6 +553,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
@@ -2104,6 +2112,14 @@ WHERE
   team_id = ?
 `
 
+	const deleteAllPatchPolicies = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	type = 'patch'
+`
+
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -2248,6 +2264,14 @@ WHERE
   )
 `
 
+	const deletePatchPoliciesWithInstallersNotInList = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	patch_software_title_id NOT IN (?)
+`
+
 	const countInstallDuringSetupNotInList = `
 SELECT
   COUNT(*)
@@ -2307,10 +2331,12 @@ INSERT INTO software_installers (
 	install_during_setup,
 	fleet_maintained_app_id,
 	is_active,
+	http_etag,
 	patch_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?, ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
+  ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2330,6 +2356,7 @@ ON DUPLICATE KEY UPDATE
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
   is_active = VALUES(is_active),
+  http_etag = VALUES(http_etag),
   patch_query = VALUES(patch_query)
 `
 
@@ -2478,6 +2505,10 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
+			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
@@ -2576,6 +2607,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
@@ -2742,6 +2781,7 @@ WHERE
 				isActive = 1
 			}
 
+			// Args match insertNewOrEditedInstaller column order.
 			args := []interface{}{
 				tmID,
 				globalOrTeamID,
@@ -2758,15 +2798,16 @@ WHERE
 				installer.UpgradeCode,
 				titleID,
 				installer.UserID,
-				installer.UserID,
-				installer.UserID,
+				installer.UserID, // user_name subselect
+				installer.UserID, // user_email subselect
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
 				isActive,
+				installer.HTTPETag,
 				installer.PatchQuery,
-				installer.InstallDuringSetup,
+				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets
@@ -2875,7 +2916,7 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
@@ -3511,15 +3552,17 @@ func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, ur
 	stmt := `
 SELECT
 	si.id AS installer_id,
-	si.team_id AS team_id,
-	si.filename AS filename,
-	si.extension AS extension,
-	si.version AS version,
-	si.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	si.team_id,
+	si.storage_id,
+	si.http_etag,
+	si.filename,
+	si.extension,
+	si.version,
+	si.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids AS package_ids
+	si.package_ids
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3530,13 +3573,15 @@ UNION ALL
 
 SELECT
 	iha.id AS installer_id,
-	iha.team_id AS team_id,
-	iha.filename AS filename,
+	iha.team_id,
+	iha.storage_id,
+	NULL AS http_etag,
+	iha.filename,
 	'ipa' AS extension,
-	iha.version AS version,
-	iha.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	iha.version,
+	iha.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
 	'' AS package_ids
 FROM
@@ -3577,6 +3622,45 @@ WHERE
 	}
 
 	return byTeam, nil
+}
+
+func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	stmt := `
+SELECT
+	si.id AS installer_id,
+	si.team_id AS team_id,
+	si.storage_id AS storage_id,
+	si.filename AS filename,
+	si.extension AS extension,
+	si.version AS version,
+	si.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title,
+	si.package_ids AS package_ids,
+	si.http_etag AS http_etag
+FROM
+	software_installers si
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
+ORDER BY si.id DESC
+LIMIT 1
+`
+	var installer fleet.ExistingSoftwareInstaller
+	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
+	// runs, the replica may be slightly stale, which results in a cache miss (full download)
+	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get installer by team and URL")
+	}
+	if installer.PackageIDList != "" {
+		installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
+	}
+	return &installer, nil
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {

@@ -215,47 +215,7 @@
     }
   }
   [purpose='powershell-note'] {
-    display: flex;
-    padding: 16px 24px;
-    align-items: center;
-    gap: 8px;
-    align-self: stretch;
-    border-radius: 8px;
-    border: 1px solid #B4B2FE;
-    background: #F7F7FC;
-    margin-bottom: 40px;
-    img {
-      min-width: 16px;
-      height: 16px;
-    }
-    p {
-      margin-bottom: 0px;
-      color: #515774;
-
-      /* Body SM (FKA Card text) */
-      font-family: Inter;
-      font-size: 14px;
-      font-weight: 400;
-      line-height: 150%;
-    }
-    [purpose='note-text'] {
-      margin-left: 8px;
-    }
-    code {
-      color: #515774;
-      font-family: 'Source Code Pro';
-      font-size: 14px;
-      line-height: 16px; /* 114.286% */
-      border-radius: 2px;
-      background: #F1F0FF;
-      padding: 2px 1px;
-    }
-    a {
-      font-size: 14px;
-      font-weight: 400;
-      line-height: 150%; /* 150% */
-      text-underline-offset: 3px;
-    }
+    .tip-block();
   }
   [purpose='query-check'] {
     [purpose='codeblock'] {
@@ -356,12 +316,18 @@
       background: #F9FAFC;
       border-radius: 0px 0px 4px 4px;
       .ps, .sh {
+        color: #ff5850;
         .hljs-keyword,
         .hljs-selector-tag,
         .hljs-name {
-          color: #AE6DDF;
+          color: #515774;
         }
-
+        .hljs-built_in {
+          color: #4271ae;
+        }
+        .hljs-variable {
+          color: #c82829;
+        }
         .hljs-symbol,
         .hljs-attribute,
         .hljs-function-keyword,
@@ -375,7 +341,6 @@
         .hljs-selector-attr,
         .hljs-selector-pseudo,
         .hljs-addition,
-        .hljs-variable,
         .hljs-template-variable {
           color: #4fd061;
         }
@@ -399,11 +364,15 @@
         font-weight: 400;
         line-height: 150%;
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #AE6DDF;
+          color: #515774;
         }
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
         }
+        .hljs-operator {
+          color: #3e999f;
+        }
+
         .hljs-attr { // For table and column names
           .hljs-keyword {
             color: #FFF;

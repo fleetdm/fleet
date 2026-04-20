@@ -51,8 +51,10 @@ const DataError = ({
             `${baseClass}__vertical-${verticalPaddingSize}`
           }`}
         >
-          <div className="info">
-            <span className="info__header-single-line">
+          <div className={`${baseClass}__content`}>
+            <span
+              className={`${baseClass}__header ${baseClass}__header--single-line`}
+            >
               <Icon name="error" />
               {description}
             </span>
@@ -77,9 +79,11 @@ const DataError = ({
           </div>
           {children || (
             <>
-              <div className={`${baseClass}__data`}>Refresh to try again.</div>
+              <div className={`${baseClass}__description`}>
+                Refresh to try again.
+              </div>
               {!excludeIssueLink && (
-                <div className={`${baseClass}__data`}>
+                <div className={`${baseClass}__file-issue`}>
                   If this keeps happening please&nbsp;
                   <CustomLink
                     url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -102,8 +106,8 @@ const DataError = ({
           verticalPaddingSize && `${baseClass}__vertical-${verticalPaddingSize}`
         }`}
       >
-        <div className="info">
-          <span className="info__header">
+        <div className={`${baseClass}__content`}>
+          <span className={`${baseClass}__header`}>
             <Icon name="error" />
             Something&apos;s gone wrong.
           </span>
@@ -112,10 +116,12 @@ const DataError = ({
             {children || (
               <>
                 {description && (
-                  <span className="info__data">{description}</span>
+                  <span className={`${baseClass}__description`}>
+                    {description}
+                  </span>
                 )}
                 {!excludeIssueLink && (
-                  <span className="info__data">
+                  <span className={`${baseClass}__file-issue`}>
                     If this keeps happening, please&nbsp;
                     <CustomLink
                       url="https://github.com/fleetdm/fleet/issues/new/choose"

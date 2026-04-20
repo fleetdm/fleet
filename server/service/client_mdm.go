@@ -32,12 +32,20 @@ func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
 	return responseBody.AppleMDM, err
 }
 
-// GetAppleBM retrieves the Apple Business Manager information.
+// GetAppleBM retrieves the Apple Business information.
 func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
 	var responseBody getAppleBMResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.AppleBM, err
+}
+
+// GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
+func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
+	var responseBody getVPPTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
 }
 
 func (c *Client) CountABMTokens() (int, error) {

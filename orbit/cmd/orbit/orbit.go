@@ -228,6 +228,12 @@ func main() {
 			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
 			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
 		},
+		&cli.StringFlag{
+			Name:    "eua-token",
+			Hidden:  true,
+			Usage:   "EUA token from Windows MDM enrollment, used during orbit enrollment to link IdP account",
+			EnvVars: []string{"ORBIT_EUA_TOKEN"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-keystore",
 			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
@@ -1149,6 +1155,12 @@ func orbitAction(c *cli.Context) error {
 		}
 		return nil
 	})
+
+	// Set the EUA token from the MSI installer (Windows MDM enrollment).
+	// Must be set before any authenticated request triggers enrollment.
+	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != unusedFlagKeyword {
+		orbitClient.SetEUAToken(euaToken)
+	}
 
 	// If the server can't be reached, we want to fail quickly on any blocking network calls
 	// so that desktop can be launched as soon as possible.

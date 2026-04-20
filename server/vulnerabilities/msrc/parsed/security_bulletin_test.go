@@ -1,6 +1,7 @@
 package parsed
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -38,7 +39,7 @@ func TestSecurityBulletin(t *testing.T) {
 			require.Equal(t, a.Products["980"], NewProductFromFullName("Windows 10 D"))
 		})
 
-		t.Run(".Vulnerabities", func(t *testing.T) {
+		t.Run(".Vulnerabilities", func(t *testing.T) {
 			cve1 := NewVulnerability(ptr.Int64(123))
 			cve1.ProductIDs = map[string]bool{"111": true, "222": true}
 			cve1.RemediatedBy = map[uint]bool{1: true}
@@ -56,29 +57,29 @@ func TestSecurityBulletin(t *testing.T) {
 			cve3.RemediatedBy = map[uint]bool{4: true}
 
 			a := NewSecurityBulletin("Windows 10")
-			a.Vulnerabities["cve-1"] = cve1
-			a.Vulnerabities["cve-2"] = cve2
+			a.Vulnerabilities["cve-1"] = cve1
+			a.Vulnerabilities["cve-2"] = cve2
 
 			b := NewSecurityBulletin("Windows 10")
-			b.Vulnerabities["cve-3"] = cve3
-			b.Vulnerabities["cve-4"] = cve4
+			b.Vulnerabilities["cve-3"] = cve3
+			b.Vulnerabilities["cve-4"] = cve4
 
 			require.NoError(t, a.Merge(b))
 
-			require.Equal(t, *a.Vulnerabities["cve-1"].PublishedEpoch, int64(123))
-			require.Equal(t, *a.Vulnerabities["cve-2"].PublishedEpoch, int64(456))
-			require.Equal(t, *a.Vulnerabities["cve-3"].PublishedEpoch, int64(555))
-			require.Equal(t, *a.Vulnerabities["cve-4"].PublishedEpoch, int64(777))
+			require.Equal(t, *a.Vulnerabilities["cve-1"].PublishedEpoch, int64(123))
+			require.Equal(t, *a.Vulnerabilities["cve-2"].PublishedEpoch, int64(456))
+			require.Equal(t, *a.Vulnerabilities["cve-3"].PublishedEpoch, int64(555))
+			require.Equal(t, *a.Vulnerabilities["cve-4"].PublishedEpoch, int64(777))
 
-			require.Equal(t, a.Vulnerabities["cve-1"].ProductIDs, cve1.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-2"].ProductIDs, cve2.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-3"].ProductIDs, cve3.ProductIDs)
-			require.Equal(t, a.Vulnerabities["cve-4"].ProductIDs, cve4.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-1"].ProductIDs, cve1.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-2"].ProductIDs, cve2.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-3"].ProductIDs, cve3.ProductIDs)
+			require.Equal(t, a.Vulnerabilities["cve-4"].ProductIDs, cve4.ProductIDs)
 
-			require.Equal(t, a.Vulnerabities["cve-1"].RemediatedBy, cve1.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-2"].RemediatedBy, cve2.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-3"].RemediatedBy, cve3.RemediatedBy)
-			require.Equal(t, a.Vulnerabities["cve-4"].RemediatedBy, cve4.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-1"].RemediatedBy, cve1.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-2"].RemediatedBy, cve2.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-3"].RemediatedBy, cve3.RemediatedBy)
+			require.Equal(t, a.Vulnerabilities["cve-4"].RemediatedBy, cve4.RemediatedBy)
 		})
 
 		t.Run(".VendorFixes", func(t *testing.T) {
@@ -103,6 +104,52 @@ func TestSecurityBulletin(t *testing.T) {
 
 			require.Equal(t, a.VendorFixes[1].ProductIDs, vf1.ProductIDs)
 			require.Equal(t, a.VendorFixes[2].ProductIDs, vf2.ProductIDs)
+		})
+	})
+
+	t.Run("#UnmarshalJSON", func(t *testing.T) {
+		t.Run("accepts new Vulnerabilities key", func(t *testing.T) {
+			data := `{
+				"ProductName": "Windows 10",
+				"Vulnerabilities": {
+					"CVE-2024-0001": {
+						"PublishedEpoch": 1706659200,
+						"ProductIDs": {"123": true},
+						"RemediatedBy": {"456": true}
+					}
+				}
+			}`
+			var b SecurityBulletin
+			require.NoError(t, json.Unmarshal([]byte(data), &b))
+			require.Len(t, b.Vulnerabilities, 1)
+			require.Contains(t, b.Vulnerabilities, "CVE-2024-0001")
+		})
+
+		t.Run("accepts old misspelled Vulnerabities key", func(t *testing.T) {
+			data := `{
+				"ProductName": "Windows 10",
+				"Vulnerabities": {
+					"CVE-2024-0001": {
+						"PublishedEpoch": 1706659200,
+						"ProductIDs": {"123": true},
+						"RemediatedBy": {"456": true}
+					}
+				}
+			}`
+			var b SecurityBulletin
+			require.NoError(t, json.Unmarshal([]byte(data), &b))
+			require.Len(t, b.Vulnerabilities, 1)
+			require.Contains(t, b.Vulnerabilities, "CVE-2024-0001")
+		})
+
+		t.Run("marshal uses correct spelling", func(t *testing.T) {
+			b := NewSecurityBulletin("Windows 10")
+			b.Vulnerabilities["CVE-2024-0001"] = NewVulnerability(ptr.Int64(123))
+
+			data, err := json.Marshal(b)
+			require.NoError(t, err)
+			require.Contains(t, string(data), `"Vulnerabilities"`)
+			require.NotContains(t, string(data), `"Vulnerabities"`)
 		})
 	})
 }

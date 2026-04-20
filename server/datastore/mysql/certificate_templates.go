@@ -306,7 +306,8 @@ SELECT
 	name,
 	status,
 	detail,
-	operation_type
+	operation_type,
+	certificate_template_id
 FROM host_certificate_templates
 WHERE host_uuid = ?`
 
@@ -386,14 +387,21 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE
-		    -- allow 'remove' to transition to 'pending install', generating new uuid
-			uuid = IF(operation_type = '%s', UUID_TO_BIN(UUID(), true), uuid),
-			status = IF(operation_type = '%s', '%s', status),
-			operation_type = IF(operation_type = '%s', '%s', operation_type)
+		    -- Unconditionally reset to pending install with a new UUID so the certificate is
+		    -- re-delivered. This handles re-enrollment after work profile removal, where the device
+		    -- lost all certs but the old records may still exist. Clear stale certificate metadata
+		    -- from the previous lifecycle to match ResendHostCertificateTemplate behavior.
+			uuid = UUID_TO_BIN(UUID(), true),
+			status = '%s',
+			operation_type = '%s',
+			retry_count = 0,
+			fleet_challenge = NULL,
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			detail = NULL
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
-		fleet.MDMOperationTypeRemove,
-		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
-		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+		fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")
@@ -401,28 +409,60 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 	return result.RowsAffected()
 }
 
+// ResendHostCertificateTemplate resets a certificate template for re-delivery. It sets retry_count
+// to MaxCertificateInstallRetries so that the next failure is terminal with no automatic retry,
+// giving the resend exactly one attempt. This matches Apple resend behavior.
 func (ds *Datastore) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
-	const stmt = `
+	stmt := fmt.Sprintf(`
 		UPDATE
 			host_certificate_templates hct
 		INNER JOIN
 			hosts h ON h.uuid = hct.host_uuid
 		SET
 			hct.uuid = UUID_TO_BIN(UUID(), true),
+			hct.fleet_challenge = NULL,
+			hct.not_valid_before = NULL,
+			hct.not_valid_after = NULL,
+			hct.serial = NULL,
+			hct.detail = NULL,
+			hct.retry_count = %d,
 			hct.status = ?
 		WHERE
 			h.id = ? AND
 			hct.certificate_template_id = ?
-	`
+		`, fleet.MaxCertificateInstallRetries)
 
-	results, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
-	}
+	const deleteChallenge = `
+		DELETE c FROM
+			challenges c
+		INNER JOIN
+			host_certificate_templates hct ON hct.fleet_challenge = c.challenge
+		INNER JOIN
+			hosts h ON h.uuid = hct.host_uuid
+		WHERE
+			h.id = ? AND
+			hct.certificate_template_id = ?
+		`
 
-	affected, _ := results.RowsAffected()
-	if affected == 0 {
-		return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, deleteChallenge, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting challenges associated with resent certificate template")
+		}
+
+		results, err := tx.ExecContext(ctx, stmt, fleet.CertificateTemplatePending, hostID, templateID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host certificate template uuid")
+		}
+
+		affected, _ := results.RowsAffected()
+		if affected == 0 {
+			return ctxerr.Wrapf(ctx, notFound("HostCertificateTemplate"), "template %d does not exist for host %d", templateID, hostID)
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting host certificate template for resend")
 	}
 
 	return nil
