@@ -1,5 +1,7 @@
 # CLAUDE.md — Fleet Website
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in the `website/` folder.
+
 ## About
 
 Sails.js 1.5.17 web application. Node.js 20+, PostgreSQL, EJS templates, Vue.js/Parasails frontend, LESS styles, Grunt build system.
