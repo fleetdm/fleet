@@ -2107,7 +2107,9 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount, &tm.ID, &tm.Name)
+			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount, &tm.ID, &tm.Name); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
