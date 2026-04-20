@@ -134,7 +134,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		require.ErrorAs(t, err, &fleet.PermissionError{})
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user, missing route template in context is rejected", func(t *testing.T) {
@@ -147,7 +148,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		require.ErrorAs(t, err, &fleet.PermissionError{})
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user, missing method and template are both rejected", func(t *testing.T) {
@@ -159,7 +161,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		require.ErrorAs(t, err, &fleet.PermissionError{})
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user, method normalization is case-insensitive", func(t *testing.T) {
@@ -256,7 +259,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		require.ErrorAs(t, err, &fleet.PermissionError{})
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user, wrong method for catalog endpoint is rejected at catalog step", func(t *testing.T) {
@@ -273,7 +277,8 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		_, err := newEndpoint(next)(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
-		require.ErrorAs(t, err, &fleet.PermissionError{})
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
 	})
 
 	t.Run("api-only user with multiple allowed endpoints, accessing one of them", func(t *testing.T) {

@@ -28992,6 +28992,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 	defer func() { s.token = s.getTestAdminToken() }()
 
 	createAPIOnlyUser := func(name string, endpoints []map[string]any) string {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+
 		body := map[string]any{
 			"name":        name,
 			"global_role": "observer",
@@ -29014,6 +29018,18 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	})
+
+	// Paths not registered in the API endpoint catalog are always rejected for
+	// api-only users, regardless of whether they have endpoint restrictions.
+	t.Run("non-catalog path is rejected", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-unrestricted", nil)
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
 	})
 
 	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
