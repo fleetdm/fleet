@@ -53,6 +53,7 @@ const Modal = ({
   className,
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
+  const isFormDirtyRef = useRef(false);
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
@@ -117,7 +118,11 @@ const Modal = ({
         isDownOnBackgroundRef.current = true;
       }}
       onMouseUp={() => {
-        if (!disableClosingModal && isDownOnBackgroundRef.current) {
+        if (
+          !disableClosingModal &&
+          isDownOnBackgroundRef.current &&
+          !isFormDirtyRef.current
+        ) {
           onExit();
         }
         isDownOnBackgroundRef.current = false;
@@ -128,6 +133,11 @@ const Modal = ({
         tabIndex={-1} // Make focusable
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
+        onInput={(e) => {
+          if ((e.target as HTMLElement).closest("form")) {
+            isFormDirtyRef.current = true;
+          }
+        }}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>

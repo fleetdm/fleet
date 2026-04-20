@@ -4,6 +4,12 @@ import { render, screen, fireEvent } from "@testing-library/react";
 
 import Modal from "./Modal";
 
+const clickBackground = (background: Element | null) => {
+  if (!background) throw new Error("Background element not found");
+  fireEvent.mouseDown(background);
+  fireEvent.mouseUp(background);
+};
+
 describe("Modal", () => {
   it("renders title", () => {
     render(
@@ -24,7 +30,7 @@ describe("Modal", () => {
     );
 
     const background = container.querySelector(".modal__background");
-    fireEvent.click(background!);
+    clickBackground(background);
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
@@ -40,6 +46,39 @@ describe("Modal", () => {
     expect(onExit).not.toHaveBeenCalled();
   });
 
+  it("does not call onExit when clicking the background if a form inside has been interacted with", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <form>
+          <input type="text" />
+        </form>
+      </Modal>
+    );
+
+    const input = screen.getByRole("textbox");
+    fireEvent.input(input, { target: { value: "hello" } });
+
+    const background = container.querySelector(".modal__background");
+    clickBackground(background);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("calls onExit when clicking the background if a form inside has not been interacted with", () => {
+    const onExit = jest.fn();
+    const { container } = render(
+      <Modal title="Test" onExit={onExit}>
+        <form>
+          <input type="text" />
+        </form>
+      </Modal>
+    );
+
+    const background = container.querySelector(".modal__background");
+    clickBackground(background);
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it("does not call onExit when clicking the background if disableClosingModal is true", () => {
     const onExit = jest.fn();
     const { container } = render(
@@ -49,7 +88,7 @@ describe("Modal", () => {
     );
 
     const background = container.querySelector(".modal__background");
-    fireEvent.click(background!);
+    clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 });
