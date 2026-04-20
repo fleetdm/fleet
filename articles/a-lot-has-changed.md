@@ -8,9 +8,9 @@ This isn't a release notes post. It's a summary of our push to close the distanc
 
 ## First, the foundation: devices managed like infrastructure
 
-The most important thing that changed at Fleet wasn't a feature. It was the architecture becoming the product.
+The most important change at Fleet isn't a feature. It is the architecture becoming the product.
 
-Fleet has always been open source. We're transparent about almost everything. But over the past year, the declarative, GitOps-native management model moved from a design principle to a production reality for many teams. Configuration lives in YAML. Changes go through pull requests. CI/CD validates and deploys. The change advisory board, the approval bottleneck that slows down every IT org operating at scale, peer review replaces it.
+Fleet has always been open source. We're transparent about almost everything. But over the past year, the declarative, GitOps-native management model moved from a design principle to a production reality for many teams. Configuration lives in YAML. Changes go through pull requests. CI/CD validates and deploys. The change advisory board, the approval bottleneck that slows down every IT org operating at scale, now, peer reviews can replace the CAB.
 
 That shift matters because it's what makes everything else possible. When your device management layer is expressed as code, you can audit it, version it, and roll it back. You can also wire it into your infrastructure team's existing automation pipelines. [Dan Jackson at Fastly put it simply](https://fleetdm.com/case-study/fastly): "The shift to infrastructure as code has modernized our operations."
 
@@ -20,9 +20,9 @@ It's also the foundation for AI workflows at the device layer, because agents ne
 
 For a long time, "cross-platform MDM" was marketing language for "macOS-first with varying degrees of Windows support." Fleet spent the past year making the claim real.
 
-Windows and Linux are now first-class citizens. Zero-touch enrollment, configuration profiles, policy enforcement, script deployment, and software management all work across macOS, Windows, and Linux. Mobile (iOS, iPadOS, and Android) has seen the most accelerated development.
+iOS/iPadOS, Windows, Android, and Linux are now first-class citizens. Zero-touch enrollment, configuration profiles, policy enforcement, script deployment, and software management all work across macOS, iOS/iPadOS, Windows, Android, and Linux. Mobile (iOS/iPadOS and Android) has seen the most accelerated development.
 
-On iOS and iPadOS, Fleet added account-based BYOD enrollment, self-service software catalogs, and customizable first-time device setup. Fleet also supports company-owned apps, including in-house apps your team builds internally. On Android, Fleet now manages personal BYOD devices with work profile enforcement and is shipping full support for company-owned, fully managed Android devices.
+On iOS and iPadOS, Fleet added Account-based User Enrollment for BYOD devices, self-service software catalogs, and customizable first-time device setup. Fleet also supports company-owned apps, including in-house apps your team builds internally. On Android, Fleet now manages personal BYOD devices with work profile enforcement and full support for company-owned, fully managed Android devices.
 
 The practical result: one platform, every OS. The device management stack stops being a collection of tools for each operating system. It becomes infrastructure: one interface, one data model, and one automation layer.
 
@@ -36,15 +36,15 @@ BYOD enrollment: Fleet fully supports account-based personal device enrollment f
 
 ## Software management that works at scale
 
-Fleet's software management capabilities crossed a threshold in the past year. The Fleet-maintained app catalog covers Chrome, Office, Firefox, Slack, Zoom, and more across macOS and Windows. Fleet tests, packages, and keeps each app current. New apps are shipping regularly.
+Fleet's software management capabilities crossed a threshold in the past year. The [Fleet-maintained app catalog](https://fleetdm.com/software-catalog) covers Chrome, Office, Firefox, Slack, Zoom, and more across macOS and Windows. Fleet tests, packages, and keeps each app current. New apps are shipping regularly.
 
-But the more important story is what happens around software. Fleet connects patch status to CVE data. You can query which devices are running a vulnerable version and automate the response. Patch policies now auto-fill minimum version requirements, you define the rule, Fleet resolves the version. Fleet can automatically generate compliance evidence and export it to whatever ticketing or reporting system your team uses.
+But the more important story is what happens around software. Fleet connects patch status to CVE data. You can query which devices are running a vulnerable version and automate the response. Patch policies now auto-fill minimum version requirements, you define the rule, and Fleet resolves the version. Fleet can automatically generate compliance evidence and export it to whatever ticketing or reporting system your team uses.
 
 The self-service layer matters too. Employees can now install approved apps on macOS, Linux, and Windows from a Fleet-managed portal, without filing a ticket. IT capacity stays on harder problems. Patch rates improve as IT removes the manual steps from the process.
 
 ## Identity-aware device management
 
-One of the most significant additions in early 2026: Okta integration for conditional access on macOS. Fleet also added Okta as a certificate authority for dynamic challenge authentication. This closes the loop between identity posture and device posture, a capability security teams running zero trust architecture have long needed.
+One of the most significant additions in early 2026: Okta integration for conditional access on macOS. Fleet also added Okta as a certificate authority for dynamic challenge authentication. This closes the loop between identity posture and device posture, a capability that security teams running zero trust architecture have long needed.
 
 The practical implication: you can use device compliance state as a condition for access decisions. A device out of patch compliance or missing a required configuration gets blocked at the identity layer. Fleet doesn't just flag it in a dashboard. The enforcement is automatic, not dependent on someone reviewing a report.
 
@@ -54,7 +54,8 @@ The [roadmap in the next 180 days](https://fleetdm.com/announcements/roadmap-pre
 
 The direction is consistent: more automation, less manual work, tighter integration with the identity and infrastructure layers that modern IT teams already run.
 
-If your device management stack feels like it was designed for a different era, a lot has changed here. One tool per OS, manual change processes, compliance as an annual exercise: none of that is required anymore. Fleet is worth a look.  
+If your device management stack feels like it was designed for a different era, a lot has changed here. One tool per OS, manual change processes, compliance as an annual exercise: none of that is required anymore. Fleet is worth a look.
+
 
 
 <meta name="articleTitle" value="A lot has changed.">
