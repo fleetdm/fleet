@@ -92,8 +92,9 @@ func NewPrivateKey() (*rsa.PrivateKey, error) {
 }
 
 type FleetWebsiteError struct {
-	Status  int
-	message string
+	Status   int
+	message  string
+	ExitType string // populated from x-exit response header
 }
 
 func (e FleetWebsiteError) Error() string {
@@ -142,7 +143,11 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		return FleetWebsiteError{Status: resp.StatusCode, message: string(b)}
+		return FleetWebsiteError{
+			Status:   resp.StatusCode,
+			message:  string(b),
+			ExitType: resp.Header.Get("x-exit"),
+		}
 	}
 	return nil
 }
@@ -188,7 +193,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 		return nil, fmt.Errorf("parsing CSR body response from fleetdm api: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
+		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes), ExitType: resp.Header.Get("x-exit")}
 	}
 
 	var csrResp websiteSignCSRResponse

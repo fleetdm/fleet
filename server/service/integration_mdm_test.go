@@ -559,9 +559,14 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
-		w.WriteHeader(status.(int))
-		resp := []byte(fmt.Sprintf("status: %d", status))
-		if status == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
+		statusCode := status.(int)
+		// Set x-exit header for invalid email domain errors (400 or 422 status)
+		if statusCode == http.StatusBadRequest || statusCode == http.StatusUnprocessableEntity {
+			w.Header().Set("x-exit", "invalidEmailDomain")
+		}
+		w.WriteHeader(statusCode)
+		resp := []byte(fmt.Sprintf("status: %d", statusCode))
+		if statusCode == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
 			rawBody, err := io.ReadAll(r.Body)
 			require.NoError(s.T(), err)
 			var req struct {

@@ -182,22 +182,13 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
 		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
 			status := http.StatusBadGateway
-			if ferr.Status >= 400 && ferr.Status <= 499 {
+			if ferr.ExitType == "invalidEmailDomain" {
 				domain := "@" + strings.SplitN(email, "@", 2)[1]
-				// TODO: fleetdm.com returns a genereric "Bad
-				// Request" message, we should coordinate and
-				// stablish a response schema from which we can get
-				// the invalid field and use
-				// fleet.NewInvalidArgumentError instead
-				//
-				// For now, since we have already validated
-				// everything else, we assume that a 4xx
-				// response is an email with an invalid domain
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.:%v", domain, err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}
@@ -3131,7 +3122,7 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
 			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
-			if fwe.Status >= 400 && fwe.Status <= 499 {
+			if fwe.ExitType == "invalidEmailDomain" {
 				domain := "@" + strings.SplitN(vc.Email(), "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
