@@ -10,10 +10,7 @@ export interface IAddCustomVariableFormValidation {
 
 type IMessageFunc = (formData: IAddCustomVariableFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<
-  IAddCustomVariableFormData,
-  "isValid"
->;
+type IFormValidationKey = keyof Omit<IAddCustomVariableFormData, "isValid">;
 
 interface IValidation {
   name: string;

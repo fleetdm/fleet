@@ -19,7 +19,10 @@ export interface IAddCustomVariableFormData {
   value: string;
 }
 
-const AddCustomVariableModal = ({ onCancel, onSave }: AddCustomVariableModalProps) => {
+const AddCustomVariableModal = ({
+  onCancel,
+  onSave,
+}: AddCustomVariableModalProps) => {
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
