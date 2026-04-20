@@ -207,6 +207,10 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	locURI := string(el)
 
+	if err := validateLocURIFormat(locURI); err != nil {
+		return err
+	}
+
 	if v.isInExec() {
 		if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
 			return err
@@ -218,6 +222,29 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	}
 
 	return validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates)
+}
+
+// validateLocURIFormat rejects malformed OMA-DM URIs before the
+// fleet/SCEP-specific checks look at them. The device would reject these
+// anyway - they just turn into silent per-host failures when the
+// reconciler tries to deliver the profile. Catch them at upload time.
+func validateLocURIFormat(locURI string) error {
+	trimmed := strings.TrimSpace(locURI)
+	if trimmed == "" {
+		return errors.New("LocURI must not be empty.")
+	}
+	if strings.Contains(trimmed, "../") {
+		return errors.New("LocURI must not contain \"../\" path traversal sequences.")
+	}
+	// OMA-DM Configuration Service Provider URIs always start with one of
+	// these roots; see https://learn.microsoft.com/en-us/windows/client-management/mdm/
+	validPrefixes := []string{"./Device/", "./User/", "./Vendor/", "./vendor/"}
+	for _, prefix := range validPrefixes {
+		if strings.HasPrefix(trimmed, prefix) {
+			return nil
+		}
+	}
+	return fmt.Errorf("LocURI %q must start with \"./Device/\", \"./User/\", or \"./Vendor/\".", trimmed)
 }
 
 func (v *windowsProfileValidator) isAtTopLevel() bool {

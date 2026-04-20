@@ -1,0 +1,1 @@
+* Fixed Windows MDM profile upload accepting `LocURI` values missing the `./Device/`/`./User/`/`./Vendor/` OMA-DM prefix or containing `../` path traversal sequences.
