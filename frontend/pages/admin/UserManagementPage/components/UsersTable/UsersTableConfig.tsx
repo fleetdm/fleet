@@ -164,7 +164,10 @@ const generateTableHeaders = (
         const isApiOnly = cellProps.row.original.api_only;
         if (isApiOnly) {
           return (
-            <TooltipWrapper tipContent="API-only users do not receive emails or log into the UI.">
+            <TooltipWrapper
+              tipContent="API-only users do not receive emails or log into the UI."
+              underline={false}
+            >
               ---
             </TooltipWrapper>
           );
