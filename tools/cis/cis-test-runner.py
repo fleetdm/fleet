@@ -1920,7 +1920,10 @@ def main() -> int:
             active_plans.append(plan)
 
     any_needs_mdm = any(
-        p.policy.needs_mdm or p.test_type == "PROFILE" for p in active_plans
+        p.policy.needs_mdm
+        or p.test_type == "PROFILE"
+        or p.test_type == "ORG_DECISION"
+        for p in active_plans
     )
 
     log(
