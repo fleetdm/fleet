@@ -79,6 +79,13 @@
     "frozen": {
       "type": "boolean",
       "description": "If true, the app will not be processed during ingestion and no new output will be created."
+    },
+    "api_base_url": {
+      "type": "string",
+      "description": "Overrides the brew API base URL for this app only (default: https://formulae.brew.sh/api/). Must serve cask metadata at <api_base_url>/cask/<token>.json in the same schema as formulae.brew.sh. Used to ingest casks from third-party taps.",
+      "format": "uri",
+      "minLength": 1,
+      "pattern": "^https?://"
     }
   },
   "not": {
