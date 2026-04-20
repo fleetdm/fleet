@@ -1,0 +1,1 @@
+* Fixed Windows MDM profile upload accepting plain-text or element-less XML by requiring at least one `<Replace>`, `<Add>`, `<Exec>`, or `<Atomic>` top-level SyncML element.

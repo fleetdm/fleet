@@ -60,6 +60,12 @@ type windowsProfileValidator struct {
 	// can be empty if not within a top-level element.
 	currentTopLevelElement string
 
+	// Set to true the first time we see a valid top-level SyncML element.
+	// Plain text and pure-comment inputs pass xml.Decoder as well-formed,
+	// so without this flag we'd accept content that carries no profile
+	// payload at all (#42219).
+	sawTopLevelElement bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
 
@@ -130,6 +136,10 @@ func (v *windowsProfileValidator) validate() error {
 		}
 	}
 
+	if !v.sawTopLevelElement {
+		return errors.New("The file should include valid SyncML XML with at least one <Replace>, <Add>, <Exec>, or <Atomic> top-level element.")
+	}
+
 	return v.scepValidator.finalizeValidation()
 }
 
@@ -176,6 +186,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 		}
 
 		v.currentTopLevelElement = elementName
+		v.sawTopLevelElement = true
 		if v.isAtomicProfile == nil {
 			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
 			v.isAtomicProfile = ptr.Bool(false)
