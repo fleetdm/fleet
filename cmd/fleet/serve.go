@@ -114,7 +114,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -1249,7 +1249,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
 	}); err != nil {
 		initFatal(err, "failed to register apple_mdm_worker schedule")
 	}

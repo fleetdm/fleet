@@ -84,3 +84,44 @@
   /*   opacity:1; */
   }
 }
+
+.cta-button() {
+  background-color: @core-vibrant-green;
+  border: none;
+  cursor: pointer;
+  color: #FFF;
+  overflow: hidden;
+  text-decoration: none;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 700;
+  border-radius: 8px;
+  &:hover {
+    color: #FFF;
+    text-decoration: none;
+  }
+  &:before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 1;
+    content: ' ';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 50%;
+    height: 100%;
+    transform: skew(-10deg);
+    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+  }
+  &:hover:before {
+    opacity: 0;
+    left: 160px;
+    width: 110%;
+  }
+  &:focus:before {
+    opacity: 0;
+    left: 160px;
+    width: 110%;
+  }
+}

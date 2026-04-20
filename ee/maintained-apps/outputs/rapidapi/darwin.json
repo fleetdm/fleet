@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.5.4",
+      "version": "4.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw' AND version_compare(bundle_short_version, '4.5.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw' AND version_compare(bundle_short_version, '4.5.5') < 0);"
       },
-      "installer_url": "https://cdn-builds.paw.cloud/paw/RapidAPI-4.5.4.zip",
+      "installer_url": "https://cdn-builds.paw.cloud/paw/RapidAPI-4.5.5.zip",
       "install_script_ref": "1c8ec07f",
       "uninstall_script_ref": "eb82b992",
-      "sha256": "cc8953efdde6eb142c294001d4dec30b49d1389513a7cecd7ad87eaf7c1f7991",
+      "sha256": "d5447b2e3ff87dd870608be55a3b28f2d1833bed2c1fc5e48b2b173768baffbf",
       "default_categories": [
         "Developer tools"
       ]

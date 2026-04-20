@@ -387,14 +387,21 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE
-		    -- allow 'remove' to transition to 'pending install', generating new uuid
-			uuid = IF(operation_type = '%s', UUID_TO_BIN(UUID(), true), uuid),
-			status = IF(operation_type = '%s', '%s', status),
-			operation_type = IF(operation_type = '%s', '%s', operation_type)
+		    -- Unconditionally reset to pending install with a new UUID so the certificate is
+		    -- re-delivered. This handles re-enrollment after work profile removal, where the device
+		    -- lost all certs but the old records may still exist. Clear stale certificate metadata
+		    -- from the previous lifecycle to match ResendHostCertificateTemplate behavior.
+			uuid = UUID_TO_BIN(UUID(), true),
+			status = '%s',
+			operation_type = '%s',
+			retry_count = 0,
+			fleet_challenge = NULL,
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			detail = NULL
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
-		fleet.MDMOperationTypeRemove,
-		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
-		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+		fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")

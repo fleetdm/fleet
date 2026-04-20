@@ -49,6 +49,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 
 	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -72,6 +73,19 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname, fleet.FleetVarSCEPRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
+}
+
+// fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
+// supported in Apple DDM declarations.
+var fleetVarsSupportedInDDMDeclarations = []fleet.FleetVarName{
+	fleet.FleetVarHostHardwareSerial,
+	fleet.FleetVarHostEndUserIDPUsername,
+	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+	fleet.FleetVarHostEndUserIDPGroups,
+	fleet.FleetVarHostEndUserIDPDepartment,
+	fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarHostUUID,
+	fleet.FleetVarHostPlatform,
 }
 
 type getMDMAppleCommandResultsRequest struct {
@@ -860,9 +874,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
+	// Get license for team lookup and variable validation
+	lic, _ := license.FromContext(ctx)
+
 	var teamName string
 	if teamID > 0 {
-		lic, _ := license.FromContext(ctx)
 		if lic == nil || !lic.IsPremium() {
 			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
 		}
@@ -874,7 +890,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	}
 
 	var tmID *uint
-	if teamID >= 1 {
+	if teamID > 0 {
 		tmID = &teamID
 	}
 
@@ -888,8 +904,19 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
-	if err := validateDeclarationFleetVariables(dataWithSecrets); err != nil {
-		return nil, err
+	declVars, err := validateDeclarationFleetVariables(dataWithSecrets, lic)
+	if err != nil {
+		var badReqErr *fleet.BadRequestError
+		if errors.As(err, &badReqErr) {
+			badReqErr.Message = "Couldn't upload profile. " + badReqErr.Message
+			err = badReqErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+	}
+
+	varNames := make([]fleet.FleetVarName, 0, len(declVars))
+	for _, v := range declVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
 	}
 
 	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
@@ -918,7 +945,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		d.LabelsIncludeAll = validatedLabels
 	}
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
 	}
@@ -948,11 +975,177 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-func validateDeclarationFleetVariables(contents string) error {
-	if variables.Contains(contents) {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in DDM profiles"}
+func validateDeclarationFleetVariables(contents string, lic license.LicenseChecker) ([]string, error) {
+	fleetVars := variables.Find(contents)
+	if len(fleetVars) == 0 {
+		return nil, nil
 	}
-	return nil
+
+	// Check premium license
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	// Validate against allowed list
+	for _, fleetVar := range fleetVars {
+		if !slices.Contains(fleetVarsSupportedInDDMDeclarations, fleet.FleetVarName(fleetVar)) {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in DDM profiles.", fleetVar),
+			}
+		}
+	}
+
+	return fleetVars, nil
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	// strip surrounding quotes
+	return string(b[1 : len(b)-1])
+}
+
+// replaceDeclarationFleetVariables replaces $FLEET_VAR_* placeholders in a
+// DDM declaration with host-specific values. Values are JSON-string-escaped
+// so they are safe inside JSON string fields.
+func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
+	ctx context.Context, contents string, hostUUID string,
+) (string, error) {
+	fleetVars := variables.Find(contents)
+	if len(fleetVars) == 0 {
+		return contents, nil
+	}
+
+	var hostLite fleet.Host
+	hostLite.UUID = hostUUID
+	hostHydrated := false
+
+	hydrateHost := func() error {
+		if hostHydrated {
+			return nil
+		}
+		h, ok, err := profiles.HydrateHost(ctx, svc.ds, hostLite, func(n int) error {
+			return fmt.Errorf("unexpected number of hosts (%d) for UUID %s", n, hostUUID)
+		})
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("host not found for UUID %s", hostUUID)
+		}
+		hostLite = h
+		hostHydrated = true
+		return nil
+	}
+
+	var idpUser *fleet.HostEndUser
+	resolveIDPUser := func(varName string) (*fleet.HostEndUser, error) {
+		if idpUser != nil {
+			return idpUser, nil
+		}
+		if err := hydrateHost(); err != nil {
+			return nil, err
+		}
+		users, err := fleet.GetEndUsers(ctx, svc.ds, hostLite.ID)
+		if err != nil {
+			return nil, fmt.Errorf("get end users for host: %w", err)
+		}
+		if len(users) == 0 || users[0].IdpUserName == "" {
+			return nil, fmt.Errorf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", varName)
+		}
+		idpUser = &users[0]
+		return idpUser, nil
+	}
+
+	for _, fleetVar := range fleetVars {
+		var value string
+		switch fleet.FleetVarName(fleetVar) {
+		case fleet.FleetVarHostUUID:
+			value = hostUUID
+
+		case fleet.FleetVarHostHardwareSerial:
+			if err := hydrateHost(); err != nil {
+				return "", err
+			}
+			if strings.TrimSpace(hostLite.HardwareSerial) == "" {
+				return "", fmt.Errorf("There is no serial number for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+			}
+			value = hostLite.HardwareSerial
+
+		case fleet.FleetVarHostPlatform:
+			if err := hydrateHost(); err != nil {
+				return "", err
+			}
+			value = hostLite.Platform
+			if value == "darwin" {
+				value = "macos"
+			}
+
+		case fleet.FleetVarHostEndUserIDPUsername:
+			user, err := resolveIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			value = user.IdpUserName
+
+		case fleet.FleetVarHostEndUserIDPUsernameLocalPart:
+			user, err := resolveIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			local, _, _ := strings.Cut(user.IdpUserName, "@")
+			value = local
+
+		case fleet.FleetVarHostEndUserIDPGroups:
+			user, err := resolveIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			if len(user.IdpGroups) == 0 {
+				return "", fmt.Errorf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+			}
+			value = strings.Join(user.IdpGroups, ",")
+
+		case fleet.FleetVarHostEndUserIDPDepartment:
+			user, err := resolveIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			if user.Department == "" {
+				return "", fmt.Errorf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+			}
+			value = user.Department
+
+		case fleet.FleetVarHostEndUserIDPFullname:
+			user, err := resolveIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			if strings.TrimSpace(user.IdpFullName) == "" {
+				return "", fmt.Errorf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+			}
+			value = strings.TrimSpace(user.IdpFullName)
+
+		default:
+			return "", fmt.Errorf("Fleet variable $FLEET_VAR_%s is not supported in DDM declarations.", fleetVar)
+		}
+
+		contents = variables.Replace(contents, fleetVar, jsonEscapeString(value))
+	}
+
+	return contents, nil
+}
+
+// markDeclarationFailed marks a DDM declaration as failed for a specific host.
+func (svc *MDMAppleDDMService) markDeclarationFailed(ctx context.Context, hostUUID string, d *fleet.MDMAppleDeclaration, detail string) error {
+	status := fleet.MDMDeliveryFailed
+	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, d.DeclarationUUID, &status, detail, nil)
 }
 
 func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string, teamID uint) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -3960,7 +4153,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				HostUUID:      cmdResult.Identifier(),
 				CommandUUID:   cmdResult.CommandUUID,
 				CommandStatus: cmdResult.Status,
-			}, true); err != nil {
+			}, fleet.NewActivityFunc(svc.newActivityFn)); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				// TODO: call next step of setup experience?
@@ -5967,31 +6160,34 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			}
 			continue
 		}
+		effectiveToken := fleet.EffectiveDDMToken(d.ServerToken, d.VariablesUpdatedAt)
 		configurations = append(configurations, fleet.MDMAppleDDMManifest{
 			Identifier:  d.Identifier,
-			ServerToken: d.ServerToken,
+			ServerToken: effectiveToken,
 		})
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
-			ServerToken: d.ServerToken,
+			ServerToken: effectiveToken,
 		})
 	}
 
 	// Calculate token based on count and concatenated tokens for install items
 	var count int
 	type tokenSorting struct {
-		token           string
-		uploadedAt      time.Time
-		declarationUUID string
+		token              string
+		variablesUpdatedAt *time.Time
+		uploadedAt         time.Time
+		declarationUUID    string
 	}
 	var tokens []tokenSorting
 	for _, d := range di {
 		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
 			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
 			sorting := tokenSorting{
-				token:           d.ServerToken,
-				uploadedAt:      d.UploadedAt,
-				declarationUUID: d.DeclarationUUID,
+				token:              d.ServerToken,
+				variablesUpdatedAt: d.VariablesUpdatedAt,
+				uploadedAt:         d.UploadedAt,
+				declarationUUID:    d.DeclarationUUID,
 			}
 			tokens = append(tokens, sorting)
 			count++
@@ -6007,6 +6203,11 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	var tokenBuilder strings.Builder
 	for _, t := range tokens {
 		tokenBuilder.WriteString(t.token)
+		if t.variablesUpdatedAt != nil {
+			// Must match MySQL's DATETIME(6) string representation used in
+			// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+			tokenBuilder.WriteString(t.variablesUpdatedAt.Format("2006-01-02 15:04:05.000000"))
+		}
 	}
 
 	var token string
@@ -6080,7 +6281,7 @@ func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, 
   },
   "ServerToken": "%s",
   "Type": "com.apple.activation.simple"
-}`, parts[2], references, d.Token)
+}`, parts[2], references, fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt))
 
 	return []byte(response), nil
 }
@@ -6099,11 +6300,21 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expanding embedded secrets for identifier:%s hostUUID:%s", parts[2], hostUUID))
 	}
 
+	// Replace Fleet variables with host-specific values
+	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
+	if err != nil {
+		// Mark this declaration as failed for this host, return empty 200
+		if err := svc.markDeclarationFailed(ctx, hostUUID, d, err.Error()); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
+		}
+		return nil, nil
+	}
+
 	var tempd map[string]any
 	if err := json.Unmarshal([]byte(expanded), &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
 	}
-	tempd["ServerToken"] = d.Token
+	tempd["ServerToken"] = fleet.EffectiveDDMToken(d.Token, d.VariablesUpdatedAt) //nolint:nilaway // tempd is non-nil after successful json.Unmarshal
 
 	b, err := json.Marshal(tempd)
 	if err != nil {
