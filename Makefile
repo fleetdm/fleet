@@ -889,7 +889,17 @@ vex-report:
 
 # make update-go version=1.24.4
 UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
-UPDATE_GO_MODS := go.mod ./tools/mdm/windows/bitlocker/go.mod ./tools/snapshot/go.mod ./tools/terraform/go.mod
+UPDATE_GO_MODS := \
+	go.mod \
+	./tools/mdm/windows/bitlocker/go.mod \
+	./tools/snapshot/go.mod \
+	./tools/terraform/go.mod \
+	./third_party/vuln-check/go.mod \
+	./tools/ci/setboolcheck/go.mod \
+	./tools/github-manage/go.mod \
+	./tools/qacheck/go.mod \
+	./third_party/goval-dictionary/go.mod \
+	./tools/fleet-mcp/go.mod
 update-go:
 	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
