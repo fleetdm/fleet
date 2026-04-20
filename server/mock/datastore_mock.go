@@ -1159,6 +1159,8 @@ type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (ho
 
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
+type SetHostMDMAppleDeclarationStatusFunc func(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error
+
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
 type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
@@ -1297,9 +1299,9 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
-type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
+type SetOrUpdateMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -3567,6 +3569,9 @@ type DataStore struct {
 
 	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
 	MDMAppleStoreDDMStatusReportFuncInvoked bool
+
+	SetHostMDMAppleDeclarationStatusFunc        SetHostMDMAppleDeclarationStatusFunc
+	SetHostMDMAppleDeclarationStatusFuncInvoked bool
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
@@ -8603,6 +8608,13 @@ func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID s
 	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
 }
 
+func (s *DataStore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error {
+	s.mu.Lock()
+	s.SetHostMDMAppleDeclarationStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostMDMAppleDeclarationStatusFunc(ctx, hostUUID, declarationUUID, status, detail, variablesUpdatedAt)
+}
+
 func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
 	s.mu.Lock()
 	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
@@ -9086,18 +9098,18 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
 }
 
-func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
 }
 
-func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.SetOrUpdateMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration)
+	return s.SetOrUpdateMDMAppleDeclarationFunc(ctx, declaration, usesFleetVars)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

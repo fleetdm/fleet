@@ -2655,7 +2655,7 @@ INSERT INTO
 					FleetVariables: usesFleetVars,
 				},
 			}
-			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
 			}
 		}
