@@ -23287,10 +23287,8 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotEmpty(t, originalPassword)
 
 		// Simulate device re-enrollment (MDM profile was removed, device re-enrolls).
-		// Apple's Authenticate check-in triggers MDMResetEnrollment, which must soft-delete
-		// the recovery lock row (Apple wipes the device-side lock on profile removal).
-		require.NoError(t, mdmClient.Authenticate())
-		require.NoError(t, mdmClient.TokenUpdate(false))
+		// macOS clears the recovery lock password on MDM profile renewal or wipe.
+		require.NoError(t, mdmClient.Reenroll())
 
 		// Host detail API should now report no recovery lock state — same as a fresh host.
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
