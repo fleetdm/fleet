@@ -18,14 +18,15 @@ import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
-import AddSecretModal from "./components/AddSecretModal";
-import DeleteSecretModal from "./components/DeleteSecretModal";
+import PageDescription from "components/PageDescription";
+import AddCustomVariableModal from "./components/AddCustomVariableModal";
+import DeleteCustomVariableModal from "./components/DeleteCustomVariableModal";
 
-const baseClass = "secrets-batch-paginated-list";
+const baseClass = "variables";
 
 export const SECRETS_PAGE_SIZE = 20;
 
-const Secrets = () => {
+const Variables = () => {
   const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
 
   const [copyMessage, setCopyMessage] = useState("");
@@ -47,6 +48,21 @@ const Secrets = () => {
     Error,
     IListSecretsResponse
   >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
+
+  // Open add modal via query param (e.g. from command palette)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("add_variable") === "1") {
+      setShowAddModal(true);
+      params.delete("add_variable");
+      const qs = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+      );
+    }
+  }, []);
 
   const onClickAddSecret = () => {
     setShowAddModal(true);
@@ -145,18 +161,44 @@ const Secrets = () => {
     </>
   );
 
+  const renderPageDescription = () => (
+    <PageDescription
+      variant="tab-panel"
+      content={
+        <>
+          Manage custom variables that will be available in scripts and
+          profiles.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+            newTab
+          />
+        </>
+      }
+    />
+  );
+
   if (isLoading) {
     return (
-      <div className={`${baseClass}__loading`}>
-        <Spinner />
+      <div className={baseClass}>
+        <div className={`${baseClass}__page-header`}>
+          {renderPageDescription()}
+        </div>
+        <div className={`${baseClass}__loading`}>
+          <Spinner />
+        </div>
       </div>
     );
   }
+
   if (data?.count === 0) {
     return (
-      <>
+      <div className={baseClass}>
+        <div className={`${baseClass}__page-header`}>
+          {renderPageDescription()}
+        </div>
         <EmptyTable
-          header="No custom variables created yet"
+          header="No custom variables"
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
             canEdit ? (
@@ -165,24 +207,36 @@ const Secrets = () => {
           }
         />
         {showAddModal && (
-          <AddSecretModal
+          <AddCustomVariableModal
             onCancel={() => setShowAddModal(false)}
             onSave={onSaveSecret}
           />
         )}
-      </>
+      </div>
     );
   }
+
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Manage custom variables that will be available in scripts and profiles.{" "}
-        <CustomLink
-          text="Learn more"
-          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-          newTab
-        />
-      </p>
+      <div className={`${baseClass}__page-header`}>
+        {renderPageDescription()}
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            entityType="secrets"
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="inverse"
+                size="small"
+                onClick={onClickAddSecret}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" />
+                <span>Add custom variable</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
@@ -195,23 +249,6 @@ const Secrets = () => {
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
-            {canEdit && (
-              <GitOpsModeTooltipWrapper
-                entityType="secrets"
-                renderChildren={(disableChildren) => (
-                  <span>
-                    <Button
-                      variant="inverse"
-                      onClick={onClickAddSecret}
-                      disabled={disableChildren}
-                    >
-                      <Icon name="plus" />
-                      <span>Add custom variable</span>
-                    </Button>
-                  </span>
-                )}
-              />
-            )}
           </div>
         }
         helpText={
@@ -226,13 +263,13 @@ const Secrets = () => {
         }
       />
       {showAddModal && (
-        <AddSecretModal
+        <AddCustomVariableModal
           onCancel={() => setShowAddModal(false)}
           onSave={onSaveSecret}
         />
       )}
       {showDeleteModal && (
-        <DeleteSecretModal
+        <DeleteCustomVariableModal
           secret={secretToDelete}
           onExit={() => setShowDeleteModal(false)}
           onDeleteSecret={onDeleteSecret}
@@ -242,4 +279,4 @@ const Secrets = () => {
   );
 };
 
-export default Secrets;
+export default Variables;

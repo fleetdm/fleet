@@ -5111,8 +5111,9 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 	incomingNames := make([]string, len(incomingDeclarations))
 	incomingDeclarationsMap := make(map[string]*fleet.MDMAppleDeclaration, len(incomingDeclarations))
 	for i, p := range incomingDeclarations {
-		incomingNames[i] = p.Name
-		incomingDeclarationsMap[p.Name] = p
+		name := strings.ToLower(p.Name)
+		incomingNames[i] = name
+		incomingDeclarationsMap[name] = p
 	}
 
 	teamIDOrZero := ds.teamIDPtrToUint(tmID)
@@ -5124,8 +5125,9 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 	// figure out which declarations we should not delete, and put those into keepNames list
 	keepNames := make([]string, 0, len(existingDecls)+len(fleetmdm.ListFleetReservedMacOSDeclarationNames()))
 	for _, p := range existingDecls {
-		if newP := incomingDeclarationsMap[p.Name]; newP != nil {
+		if newP := incomingDeclarationsMap[strings.ToLower(p.Name)]; newP != nil {
 			keepNames = append(keepNames, p.Name)
+			newP.DeclarationUUID = p.DeclarationUUID
 		}
 	}
 	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
@@ -5183,9 +5185,9 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 		}
 
 		for _, newlyInsertedDecl := range newlyInsertedDecls {
-			incomingDecl, ok := incomingDeclarationsMap[newlyInsertedDecl.Name]
+			incomingDecl, ok := incomingDeclarationsMap[strings.ToLower(newlyInsertedDecl.Name)]
 			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming",
+				return false, ctxerr.Errorf(ctx, "declaration %q is in the database but was not incoming",
 					newlyInsertedDecl.Name)
 			}
 
@@ -5295,6 +5297,7 @@ ON DUPLICATE KEY UPDATE
   raw_json = VALUES(raw_json)
 `
 
+	updatedDeclarationUUIDs := make([]string, 0, len(incomingDeclarations))
 	for _, d := range incomingDeclarations {
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		var result sql.Result
@@ -5308,7 +5311,29 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
+
+		if insertOnDuplicateDidInsertOrUpdate(result) {
+			updatedDeclarationUUIDs = append(updatedDeclarationUUIDs, d.DeclarationUUID)
+		}
 	}
+
+	// If we updated any declarations, make sure to update the associated host entries with the new name
+	// since other changes should not trigger an update but rather a full replace, name does not.
+	if len(updatedDeclarationUUIDs) > 0 {
+		const updateHostDeclarationsName = `
+		UPDATE host_mdm_apple_declarations hmad
+		JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
+		SET hmad.declaration_name = mad.name
+		WHERE hmad.declaration_uuid IN (?)`
+		updateHostDeclarationsNameStmt, args, err := sqlx.In(updateHostDeclarationsName, updatedDeclarationUUIDs)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build query to update host declaration names")
+		}
+		if _, err := tx.ExecContext(ctx, updateHostDeclarationsNameStmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "update host declaration names")
+		}
+	}
+
 	return updatedDB, nil
 }
 

@@ -8,19 +8,19 @@ import { NotificationContext } from "context/notification";
 import formatErrorResponse from "utilities/format_error_response";
 import secretsAPI from "services/entities/secrets";
 
-interface DeleteSecretModalProps {
+interface DeleteCustomVariableModalProps {
   secret: ISecret | undefined;
   onExit: () => void;
   onDeleteSecret: () => void;
 }
 
-const baseClass = "fleet-delete-secret-modal";
+const baseClass = "delete-custom-variable-modal";
 
-const DeleteSecretModal = ({
+const DeleteCustomVariableModal = ({
   secret,
   onExit,
   onDeleteSecret,
-}: DeleteSecretModalProps) => {
+}: DeleteCustomVariableModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -87,4 +87,4 @@ const DeleteSecretModal = ({
   );
 };
 
-export default DeleteSecretModal;
+export default DeleteCustomVariableModal;

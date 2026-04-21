@@ -7,7 +7,7 @@ import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 
-import Secrets from "./Secrets";
+import Variables from "./Variables";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -53,11 +53,9 @@ describe("Custom variables", () => {
       });
       mockServer.use(secretsHandler);
 
-      render(<Secrets />);
+      render(<Variables />);
       await waitFor(() => {
-        expect(
-          screen.getByText("No custom variables created yet")
-        ).toBeInTheDocument();
+        expect(screen.getByText("No custom variables")).toBeInTheDocument();
         expect(
           screen.getByRole("button", { name: "Add custom variable" })
         ).toBeInTheDocument();
@@ -133,7 +131,7 @@ describe("Custom variables", () => {
     });
 
     it("renders when secrets are saved", async () => {
-      render(<Secrets />);
+      render(<Variables />);
       await waitFor(
         () => {
           expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
@@ -147,7 +145,7 @@ describe("Custom variables", () => {
 
     describe("gitops mode", () => {
       it("renders the add button disabled in GitOps mode", async () => {
-        renderInGOM(<Secrets />);
+        renderInGOM(<Variables />);
 
         let addSecretButton;
         await waitFor(() => {
@@ -168,7 +166,7 @@ describe("Custom variables", () => {
       });
 
       it("deleting a secret is successful in GitOps mode", async () => {
-        const { user } = renderInGOM(<Secrets />);
+        const { user } = renderInGOM(<Variables />);
         await waitFor(() => {
           expect(screen.getByText("Add custom variable")).toBeInTheDocument();
         });
@@ -239,7 +237,7 @@ describe("Custom variables", () => {
 
       let user: UserEvent;
       beforeEach(async () => {
-        ({ user } = render(<Secrets />));
+        ({ user } = render(<Variables />));
         let addSecretButton;
         await waitFor(() => {
           addSecretButton = screen.getByRole("button", {
@@ -310,7 +308,7 @@ describe("Custom variables", () => {
     });
 
     it("deleting a secret is successful", async () => {
-      const { user } = render(<Secrets />);
+      const { user } = render(<Variables />);
       await waitFor(() => {
         expect(screen.getByText("Add custom variable")).toBeInTheDocument();
       });

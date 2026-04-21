@@ -4,6 +4,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { AppContext } from "context/app";
 
 import SideNav from "pages/admin/components/SideNav";
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
@@ -53,9 +54,10 @@ const SetupExperience = ({
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Customize the end user&apos;s setup experience.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Customize the end user's setup experience."
+      />
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({
