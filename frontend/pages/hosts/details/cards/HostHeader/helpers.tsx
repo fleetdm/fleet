@@ -1,6 +1,7 @@
 import React from "react";
 import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+import CustomLink from "components/CustomLink";
 
 interface IDeviceStatusTag {
   title: string;
@@ -116,9 +117,24 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
 
 // We exclude "unlocked" as we dont display a tooltip for it.
 export const REFETCH_TOOLTIP_MESSAGES: Record<
-  HostMdmDeviceStatusUIStateNoUnlock | "offline",
+  HostMdmDeviceStatusUIStateNoUnlock | "offline" | "android",
   JSX.Element
 > = {
+  android: (
+    <>
+      Android hosts sync data automatically when they
+      <br />
+      change, but changes may not appear immediately
+      <br />
+      due to Google rate limiting.{" "}
+      <CustomLink
+        url="https://fleetdm.com/learn-more-about/android-manual-sync"
+        text="Learn how to manually sync"
+        variant="tooltip-link"
+        newTab
+      />
+    </>
+  ),
   offline: (
     <>
       You can&apos;t fetch data from <br /> an offline host.

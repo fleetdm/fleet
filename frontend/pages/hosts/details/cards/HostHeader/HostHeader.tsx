@@ -93,7 +93,14 @@ const HostHeader = ({
 
   const renderRefetch = () => {
     if (isAndroid(platform)) {
-      return null;
+      return (
+        <RefetchButton
+          isDisabled
+          isFetching={false}
+          tooltip={REFETCH_TOOLTIP_MESSAGES.android}
+          onRefetchHost={onRefetchHost}
+        />
+      );
     }
 
     const isOnline = summaryData.status === "online";

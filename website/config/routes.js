@@ -1277,6 +1277,7 @@ module.exports.routes = {
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
+  'GET /learn-more-about/android-manual-sync': '/guides/how-to-manually-sync-an-android-device'
 
   // Sitemap
   // =============================================================================================================
