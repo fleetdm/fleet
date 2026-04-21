@@ -2888,26 +2888,6 @@ WHERE
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
-				// Re-point policies from any non-FMA installers for this title
-				// to the new FMA installer.
-				if _, err := tx.ExecContext(ctx, `
-					UPDATE policies SET software_installer_id = ?
-					WHERE software_installer_id IN (
-						SELECT id FROM software_installers
-						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
-					)
-				`, installerID, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
-				}
-				// Delete previous custom installer for this title since they shouldn't
-				// be kept for rollback.
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
-				`, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete custom installer replaced by FMA %q", installer.Filename)
-				}
-
 				// Determine which installer should be "active" for this FMA+team.
 				// If RollbackVersion is specified, find the cached installer with that version;
 				// otherwise default to the newest (just inserted/updated).
@@ -2994,6 +2974,26 @@ WHERE
 					WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
 				`, activeInstallerID, globalOrTeamID, installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
+				}
+
+				// Re-point policies from any non-FMA installers for this title
+				// to the active FMA installer.
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE policies SET software_installer_id = ?
+					WHERE software_installer_id IN (
+						SELECT id FROM software_installers
+						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+					)
+				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
+				}
+				// Delete previous custom installer for this title since they shouldn't
+				// be kept for rollback.
+				if _, err := tx.ExecContext(ctx, `
+					DELETE FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+				`, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete custom installer replaced by FMA %q", installer.Filename)
 				}
 			}
 
