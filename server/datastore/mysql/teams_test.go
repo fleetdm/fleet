@@ -927,14 +927,13 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// No teams exist → notFound for any name.
+	// No teams exist → (nil, nil).
 	conflict, err := ds.TeamConflictsWithName(ctx, "anything", 0)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err), err)
+	require.NoError(t, err)
 	require.Nil(t, conflict)
 
 	// Create a team and confirm excludeID=0 returns it, excludeID=team.ID
-	// returns notFound.
+	// returns (nil, nil).
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ABC"})
 	require.NoError(t, err)
 
@@ -944,8 +943,7 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, conflict.ID)
 
 	conflict, err = ds.TeamConflictsWithName(ctx, "ABC", team.ID)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err), err)
+	require.NoError(t, err)
 	require.Nil(t, conflict)
 
 	// Collation-equal variants: ASCII case.

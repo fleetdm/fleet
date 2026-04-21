@@ -284,13 +284,14 @@ func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, exc
 	nameUnicode := norm.NFC.String(name)
 	stmt := `SELECT id, name FROM teams WHERE name = ? AND id != ? LIMIT 1`
 	team := &fleet.Team{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithName(nameUnicode))
-		}
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); {
+	case err == nil:
+		return team, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, nil
+	default:
 		return nil, ctxerr.Wrap(ctx, err, "check team name conflict")
 	}
-	return team, nil
 }
 
 func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {

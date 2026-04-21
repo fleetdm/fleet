@@ -26,7 +26,7 @@ func TestNewTeamNameValidation(t *testing.T) {
 		return team, nil
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, &notFoundError{}
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -164,7 +164,7 @@ func TestModifyTeamNameValidation(t *testing.T) {
 		return team, nil
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, &notFoundError{}
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -284,7 +284,7 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, &notFoundError{}
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -467,7 +467,7 @@ func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
 	t.Run("case-only self rename succeeds", func(t *testing.T) {
 		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
 			require.Equal(t, uint(5), excludeID)
-			return nil, &notFoundError{}
+			return nil, nil
 		}
 
 		team, err := svc.ModifyTeam(ctx, 5, fleet.TeamPayload{Name: ptr.String("abc")})
@@ -519,7 +519,7 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 			return nil, &notFoundError{}
 		}
 		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-			return nil, &notFoundError{}
+			return nil, nil
 		}
 
 		mockSvc := &svcmock.Service{}
@@ -550,7 +550,7 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 			conflictCalls++
 			require.Equal(t, uint(7), excludeID,
 				"conflict check must exclude the team matched by filename so a case-only rename succeeds")
-			return nil, &notFoundError{}
+			return nil, nil
 		}
 		var savedTeam *fleet.Team
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

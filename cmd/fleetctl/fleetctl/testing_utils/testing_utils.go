@@ -455,7 +455,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 				return *tm, nil
 			}
 		}
-		return nil, &notFoundError{}
+		return nil, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeams[team.Name] = &team

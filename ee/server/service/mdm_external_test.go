@@ -207,7 +207,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return team, nil
 				}
 			}
-			return nil, ctxerr.Wrap(ctx, &eeservice.NotFoundError{})
+			return nil, nil
 		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamStore[id]

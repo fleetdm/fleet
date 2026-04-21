@@ -72,7 +72,7 @@ func TestTeamAuth(t *testing.T) {
 		}
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, &notFoundError{}
+		return nil, nil
 	}
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
@@ -222,7 +222,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, newNotFoundError()
+		return nil, nil
 	}
 	baseFeatures := fleet.Features{
 		EnableHostUsers:         true,

@@ -173,7 +173,7 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 		return nil, nil
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-		return nil, &gitopsTestNotFoundError{}
+		return nil, nil
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{}, nil

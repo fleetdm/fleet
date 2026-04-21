@@ -94,15 +94,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 
 	conflict, err := svc.ds.TeamConflictsWithName(ctx, *p.Name, 0)
-	switch {
-	case err == nil:
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
+	}
+	if conflict != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
 			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 		})
-	case fleet.IsNotFound(err):
-		// No conflict; continue.
-	default:
-		return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 	}
 
 	team.Name = *p.Name
@@ -172,15 +170,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		conflict, err := svc.ds.TeamConflictsWithName(ctx, *payload.Name, teamID)
-		switch {
-		case err == nil:
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
+		}
+		if conflict != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
 				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 			})
-		case fleet.IsNotFound(err):
-			// No conflict; continue.
-		default:
-			return nil, ctxerr.Wrap(ctx, err, "check team name uniqueness")
 		}
 
 		team.Name = *payload.Name
@@ -1176,16 +1172,14 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		// with a different team.
 		if team != nil {
 			conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, team.ID)
-			switch {
-			case err == nil:
+			if err != nil {
+				return nil, err
+			}
+			if conflict != nil {
 				return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 					"fleet name %q conflicts with existing fleet %q. %s",
 					spec.Name, conflict.Name, teamNameConflictErrMsg,
 				)})
-			case fleet.IsNotFound(err):
-				// No conflict; continue.
-			default:
-				return nil, err
 			}
 		}
 
