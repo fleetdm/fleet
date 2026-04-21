@@ -451,6 +451,12 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 		opt.MDMBootstrapPackageFilter = nil
 		// including vulnerability details on software is premium-only
 		opt.PopulateSoftwareVulnerabilityDetails = false
+		// the dep profile error filter is premium-only
+		opt.DEPProfileErrorFilter = nil
+		// the dep assign profile response filter is premium-only
+		opt.DEPAssignProfileResponseFilter = nil
+
+		// Missing fleet_id filter?
 	}
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
@@ -1797,6 +1803,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
+
 			}
 		}
 	}
@@ -1863,6 +1870,9 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get conditional access bypass status")
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
+
+	// since dep_profile_error is part of the parent MDM tree
+	// we need to filter it out here
 
 	return &fleet.HostDetail{
 		Host:                          *host,
