@@ -72,9 +72,7 @@
     }
   }
 
-  &__results-loading,
-  &__results-error,
-  &__results-empty {
+  &__results-status {
     padding: $pad-medium;
     text-align: center;
     font-size: $x-small;

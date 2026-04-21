@@ -54,10 +54,10 @@ const getDataset = (name: string): IDataSet =>
   DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const hasActiveFilters = (filters: IChartFilterState): boolean => {
+  const hasHostFilter =
+    filters.hostFilterMode !== "none" && filters.selectedHosts.length > 0;
   return (
-    filters.labelIDs.length > 0 ||
-    filters.platforms.length > 0 ||
-    filters.selectedHosts.length > 0
+    filters.labelIDs.length > 0 || filters.platforms.length > 0 || hasHostFilter
   );
 };
 
@@ -97,7 +97,7 @@ const ChartCard = (): JSX.Element => {
     };
   }, [chartFilters]);
 
-  const { data: chartData, isFetching, error } = useQuery<
+  const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,
     Error,
     IChartResponse,
@@ -126,7 +126,7 @@ const ChartCard = (): JSX.Element => {
   }, [chartData]);
 
   const renderChart = () => {
-    if (isFetching) {
+    if (isLoading) {
       return <Spinner includeContainer={false} verticalPadding="small" />;
     }
     if (error) {
@@ -194,6 +194,7 @@ const ChartCard = (): JSX.Element => {
             type="button"
             variant="inverse"
             className={`${baseClass}__settings-btn`}
+            ariaLabel="Configure chart filters"
             onClick={() => setShowFilterModal(true)}
           >
             <Icon name="settings" />

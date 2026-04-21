@@ -69,6 +69,7 @@ const ChartFilterModal = ({
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageCount, setPageCount] = useState(1);
+  const [searchFieldKey, setSearchFieldKey] = useState(0);
 
   const listRef = useRef<HTMLDivElement>(null);
   const selectedHostIds = new Set(selectedHosts.map((h) => h.id));
@@ -157,6 +158,7 @@ const ChartFilterModal = ({
     setSearchInput("");
     setSearchQuery("");
     setPageCount(1);
+    setSearchFieldKey((k) => k + 1);
     debouncedSetSearchQuery.cancel();
   };
 
@@ -187,6 +189,7 @@ const ChartFilterModal = ({
   const renderHostSearch = () => (
     <div className={`${baseClass}__host-search`}>
       <SearchField
+        key={searchFieldKey}
         placeholder="Search name, hostname, or serial number"
         defaultValue={searchInput}
         onChange={handleSearchChange}

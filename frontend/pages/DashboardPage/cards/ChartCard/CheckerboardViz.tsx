@@ -314,6 +314,8 @@ const CheckerboardViz = ({
                   className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
                     cell.percentage
                   )}`}
+                  role="img"
+                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}
                   onMouseLeave={handleMouseLeave}
                 />
