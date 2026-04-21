@@ -165,7 +165,7 @@ const SelectQueryModal = ({
       return (
         <EmptyState
           variant="list"
-          header="You have no saved reports."
+          header="You have no saved reports"
           info="Expecting to see reports? Try again in a few seconds as the system catches up."
         />
       );
@@ -221,7 +221,7 @@ const SelectQueryModal = ({
           </div>
           <EmptyState
             variant="list"
-            header="No reports match the current search criteria."
+            header="No reports match the current search criteria"
             info="Expecting to see reports? Try again in a few seconds as the system catches up."
           />
         </>

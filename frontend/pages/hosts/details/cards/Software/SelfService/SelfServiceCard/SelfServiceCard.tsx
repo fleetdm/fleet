@@ -135,7 +135,7 @@ const SelfServiceCard = ({
   if (isError)
     return (
       <EmptyState
-        header="Error loading software."
+        header="Error loading software"
         {...(isMobileView && { variant: "list" })}
       />
     );

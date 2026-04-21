@@ -192,7 +192,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         currentPage === 0 &&
         !scripts?.length &&
         (isTechnician ? (
-          <EmptyState variant="header-list" header="No scripts uploaded." />
+          <EmptyState variant="header-list" header="No scripts uploaded" />
         ) : (
           <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
         ))}

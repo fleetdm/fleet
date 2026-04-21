@@ -44,7 +44,7 @@ const PolicyErrorsTable = ({
           variant: "inverse",
         }}
         emptyComponent={() => (
-          <EmptyState header="No hosts are online." />
+          <EmptyState header="No hosts are online" />
         )}
         onQueryChange={noop}
         disableCount

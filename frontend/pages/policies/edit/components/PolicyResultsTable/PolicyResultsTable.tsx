@@ -43,7 +43,7 @@ const PolicyResultsTable = ({
           variant: "inverse",
         }}
         emptyComponent={() => (
-          <EmptyState header="No hosts are online." />
+          <EmptyState header="No hosts are online" />
         )}
         onQueryChange={noop}
         disableCount

@@ -38,15 +38,12 @@ interface IEnableVppMessage {
 }
 
 const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
-  <div className={`${baseClass}__enable-vpp-message`}>
-    <p className={`${baseClass}__enable-vpp-title`}>
-      Volume Purchasing Program (VPP) isn&apos;t enabled
-    </p>
-    <p className={`${baseClass}__enable-vpp-description`}>
-      To add App Store apps, first enable VPP.
-    </p>
-    <Button onClick={onEnableVpp}>Enable VPP</Button>
-  </div>
+  <EmptyState
+    variant="list"
+    header="Volume Purchasing Program (VPP) isn't enabled"
+    info="To add App Store apps, first enable VPP."
+    primaryButton={<Button onClick={onEnableVpp}>Enable VPP</Button>}
+  />
 );
 
 interface IAddTeamToVppMessage {

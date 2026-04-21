@@ -121,7 +121,7 @@ const SelectTargetsMenuWrapper = (
             renderTargetGroups
           ) : (
             <EmptyState
-              header="You have no hosts to run this report against."
+              header="You have no hosts to run this report against"
               info="Expecting to see hosts? Try again in a few seconds as the system catches up."
             />
           )}

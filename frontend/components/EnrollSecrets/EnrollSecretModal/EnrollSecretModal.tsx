@@ -96,7 +96,7 @@ const EnrollSecretModal = ({
       ) : (
         <EmptyState
           variant="list"
-          header="You have no enroll secrets."
+          header="You have no enroll secrets"
           info={
             <>
               Add secret(s) to enroll hosts

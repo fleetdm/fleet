@@ -112,7 +112,7 @@ const PackQueriesTable = ({
         />
       ) : (
         <EmptyState
-          header="Your pack has no reports."
+          header="Your pack has no reports"
           primaryButton={
             <Button
               onClick={onAddPackQuery}

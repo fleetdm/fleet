@@ -106,7 +106,7 @@ const TargetsInput = ({
               isLoading={isTargetsLoading}
               emptyComponent={() => (
                 <EmptyState
-                  header="No matching hosts."
+                  header="No matching hosts"
                   info="Expecting to see hosts? Try again in a few seconds as the system catches up."
                 />
               )}
