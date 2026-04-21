@@ -501,14 +501,14 @@ ExpedITioners is Fleet's podcast, hosted by Zach Wasserman. Episodes feature gue
 
 ## Press Coverage
 
-| Date | Publication | Headline | Journalist |
+| Publication | Headline | Journalist | Date |
 |---|---|---|---|
-| 4/20 | CRN | [Five Companies That Came To Win This Week](https://www.crn.com/news/channel-news/2026/five-companies-that-came-to-win-this-week-april-17-2026) | Rick Whiting |
-| 4/17 | Cyber Defense Wire | [Fleet Announces New Partner Program and Names MobileIron Co-founder Suresh Batchu to Board](https://cyberdefensewire.com/fleet-announces-new-partner-program-and-names-mobileiron-co-founder-suresh-batchu-to-board/) | Staff |
-| 4/17 | Channele2e | [Channel Brief: MSP Growth Is Getting Harder to Win](https://www.channele2e.com/news/channel-brief-its-less-about-tools-more-about-running-them) | Suparna Chawla Bhasin |
-| 4/16 | CRN | [Fleet Launches Inaugural Partner Program As It Adopts A 100 Percent Channel Sales Model: Exclusive](https://www.crn.com/news/channel-news/2026/fleet-launches-inaugural-partner-program-as-it-adopts-a-100-percent-channel-sales-model-exclusive) | Rick Whiting |
-| 4/16 | Channelvision | [Fleet Launches Partner Program for its Device Management](https://channelvisionmag.com/fleet-launches-partner-program-for-its-device-management/) | Martin Vilaboy |
-| 4/16 | Apple Must | [Fleet launches partner program, appoints MobileIron co-founder to its board](https://www.applemust.com/fleet-launches-partner-program-appoints-mobileiron-co-founder-to-its-board/) | Jonny Evans |
+| CRN | [Five Companies That Came To Win This Week](https://www.crn.com/news/channel-news/2026/five-companies-that-came-to-win-this-week-april-17-2026) | Rick Whiting | <nobr>2026‑04‑20</nobr> |
+| Cyber Defense Wire | [Fleet Announces New Partner Program and Names MobileIron Co-founder Suresh Batchu to Board](https://cyberdefensewire.com/fleet-announces-new-partner-program-and-names-mobileiron-co-founder-suresh-batchu-to-board/) | Staff | <nobr>2026‑04‑17</nobr> |
+| Channele2e | [Channel Brief: MSP Growth Is Getting Harder to Win](https://www.channele2e.com/news/channel-brief-its-less-about-tools-more-about-running-them) | Suparna Chawla Bhasin | <nobr>2026‑04‑17</nobr> |
+| CRN | [Fleet Launches Inaugural Partner Program As It Adopts A 100 Percent Channel Sales Model: Exclusive](https://www.crn.com/news/channel-news/2026/fleet-launches-inaugural-partner-program-as-it-adopts-a-100-percent-channel-sales-model-exclusive) | Rick Whiting | <nobr>2026‑04‑16</nobr> |
+| Channelvision | [Fleet Launches Partner Program for its Device Management](https://channelvisionmag.com/fleet-launches-partner-program-for-its-device-management/) | Martin Vilaboy | <nobr>2026‑04‑16</nobr> |
+| Apple Must | [Fleet launches partner program, appoints MobileIron co-founder to its board](https://www.applemust.com/fleet-launches-partner-program-appoints-mobileiron-co-founder-to-its-board/) | Jonny Evans | <nobr>2026‑04‑16</nobr> |
 
 
 ## Release notes
