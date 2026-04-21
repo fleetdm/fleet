@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -2001,11 +2000,6 @@ func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 	require.Equal(t, script.ScriptContents, string(b))
 }
 
-// testSetSetupExperienceTitlesOnlyMarksActiveInstaller verifies that when a
-// title has multiple cached FMA installer versions, SetSetupExperienceSoftwareTitles
-// only sets install_during_setup=true on the active one. Previously an
-// inactive/cached row could also get marked, which would cause it to be picked
-// up by setup experience if the FMA were later rolled back to that version.
 func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2025,7 +2019,7 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 
 	// Create two cached FMA versions via successive GitOps runs. v1.0 ends
 	// up inactive, v2.0 active.
-	for i, version := range []string{"1.0", "2.0"} {
+	for _, version := range []string{"1.0", "2.0"} {
 		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 			{
 				FleetMaintainedAppID: &fma.ID,
@@ -2037,7 +2031,7 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 				PostInstallScript:    "echo post install",
 				UninstallScript:      "echo uninstall",
 				InstallerFile:        tfr,
-				StorageID:            fmt.Sprintf("storage_%d", i),
+				StorageID:            "storage_id",
 				Filename:             "pkg_active.pkg",
 				Version:              version,
 				UserID:               user.ID,
@@ -2052,11 +2046,11 @@ func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Data
 
 	// Grab the two installer IDs so we can assert per-row.
 	type row struct {
-		ID       uint `db:"id"`
-		Active   bool `db:"is_active"`
-		InSetup  bool `db:"install_during_setup"`
-		TitleID  uint `db:"title_id"`
-		Version  string
+		ID      uint `db:"id"`
+		Active  bool `db:"is_active"`
+		InSetup bool `db:"install_during_setup"`
+		TitleID uint `db:"title_id"`
+		Version string
 	}
 	var rows []row
 	tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID}
