@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -1946,7 +1947,8 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 		initFatal(err, "initializing chart authorizer")
 	}
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, logger)
+	chartViewer := chartacl.NewFleetViewerAdapter()
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
 	// Create auth middleware for chart bounded context
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {

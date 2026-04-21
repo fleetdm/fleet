@@ -102,13 +102,35 @@ func buildHostCountFilterClauses(filter *types.HostFilter) (string, []any) {
 	var clauses []string
 	var args []any
 
-	if filter.TeamID != nil {
-		// *TeamID == 0 means "hosts with no team assignment" — Fleet's convention.
-		if *filter.TeamID == 0 {
-			clauses = append(clauses, "h.team_id IS NULL")
+	if filter.TeamIDs != nil {
+		// Empty non-nil: caller is team-scoped with zero accessible teams;
+		// emit a guaranteed-empty clause so we never run IN () and never return
+		// hosts the caller can't see.
+		if len(filter.TeamIDs) == 0 {
+			clauses = append(clauses, "1=0")
 		} else {
-			clauses = append(clauses, "h.team_id = ?")
-			args = append(args, *filter.TeamID)
+			// Split "no team" (id 0) from real team ids — the two map to
+			// different SQL (IS NULL vs = ?), so they're OR-ed together when
+			// both are present.
+			var positive []uint
+			includesNoTeam := false
+			for _, tid := range filter.TeamIDs {
+				if tid == 0 {
+					includesNoTeam = true
+				} else {
+					positive = append(positive, tid)
+				}
+			}
+			switch {
+			case includesNoTeam && len(positive) > 0:
+				clauses = append(clauses, "(h.team_id IS NULL OR h.team_id IN (?))")
+				args = append(args, positive)
+			case includesNoTeam:
+				clauses = append(clauses, "h.team_id IS NULL")
+			default:
+				clauses = append(clauses, "h.team_id IN (?)")
+				args = append(args, positive)
+			}
 		}
 	}
 

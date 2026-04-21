@@ -11,12 +11,16 @@ import (
 // HostFilter is the internal filter used by the service and datastore to narrow
 // SCD queries to a specific set of hosts.
 //
-// TeamID semantics:
-//   - nil: no team filter applied (all hosts).
-//   - *TeamID == 0: hosts with no team assignment (team_id IS NULL).
-//   - *TeamID > 0: hosts in that team.
+// TeamIDs semantics — the distinction between nil and empty matters:
+//   - nil: no team filter applied (all hosts across all teams, including no-team).
+//     This is the global-user-no-explicit-team-id case.
+//   - empty non-nil ([]uint{}): caller is team-scoped but has zero accessible
+//     teams. SQL falls through to a no-match clause so the user sees nothing.
+//   - single 0 ([]uint{0}): hosts with no team assignment (team_id IS NULL).
+//   - other values: team_id IN (list). Mixed with a 0 entry yields
+//     "(team_id IS NULL OR team_id IN (non-zero list))".
 type HostFilter struct {
-	TeamID         *uint
+	TeamIDs        []uint
 	LabelIDs       []uint
 	Platforms      []string
 	IncludeHostIDs []uint

@@ -148,9 +148,11 @@ type RequestOpts struct {
 	DatasetFilters map[string]string
 }
 
-// Filters captures the applied filters for a chart request.
+// Filters captures the applied filters for a chart request. The JSON keys are
+// the public API surface; Go field names stay aligned with the codebase's
+// TeamID convention even though the wire name is fleet_id (teams→fleets).
 type Filters struct {
-	TeamID         *uint    `json:"team_id,omitempty"`
+	TeamID         *uint    `json:"fleet_id,omitempty"`
 	LabelIDs       []uint   `json:"label_ids,omitempty"`
 	Platforms      []string `json:"platforms,omitempty"`
 	IncludeHostIDs []uint   `json:"include_host_ids,omitempty"`

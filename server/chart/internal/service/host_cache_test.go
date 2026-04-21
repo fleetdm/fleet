@@ -30,15 +30,20 @@ func TestHashHostFilterDeterministic(t *testing.T) {
 		assert.Equal(t, hashHostFilter(a), hashHostFilter(b))
 	})
 
-	t.Run("team distinguishes nil, zero, and non-zero", func(t *testing.T) {
-		zero := uint(0)
-		five := uint(5)
+	t.Run("teams distinguishes nil, empty, zero-team, and specific teams", func(t *testing.T) {
+		// Four semantically distinct values that must not share a cache key:
+		//   nil         — no team filter (global user, no team_id)
+		//   empty slice — match nothing (team user with zero accessible teams)
+		//   [0]         — no-team hosts (team_id=0 query)
+		//   [5]         — specific team
 		keys := map[string]struct{}{
-			hashHostFilter(&types.HostFilter{}):                {},
-			hashHostFilter(&types.HostFilter{TeamID: &zero}):   {},
-			hashHostFilter(&types.HostFilter{TeamID: &five}):   {},
+			hashHostFilter(&types.HostFilter{TeamIDs: nil}):        {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{}}):   {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{0}}):  {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{5}}):  {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{1, 2}}): {},
 		}
-		assert.Len(t, keys, 3, "nil vs team=0 vs team=5 must produce distinct keys")
+		assert.Len(t, keys, 5, "all five team-scope variants must produce distinct keys")
 	})
 
 	t.Run("label vs include collision guard", func(t *testing.T) {
@@ -88,11 +93,9 @@ func TestHostFilterCacheDistinctFiltersMissSeparately(t *testing.T) {
 		return []byte{0xFF}, nil
 	}
 
-	teamA := uint(1)
-	teamB := uint(2)
-	_, err := cache.Get(t.Context(), &types.HostFilter{TeamID: &teamA}, fetch)
+	_, err := cache.Get(t.Context(), &types.HostFilter{TeamIDs: []uint{1}}, fetch)
 	require.NoError(t, err)
-	_, err = cache.Get(t.Context(), &types.HostFilter{TeamID: &teamB}, fetch)
+	_, err = cache.Get(t.Context(), &types.HostFilter{TeamIDs: []uint{2}}, fetch)
 	require.NoError(t, err)
 
 	assert.Equal(t, int32(2), calls.Load(), "different filter keys should each trigger a fetch")

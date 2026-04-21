@@ -19,16 +19,18 @@ import (
 type Service struct {
 	authz     platform_authz.Authorizer
 	store     types.Datastore
+	viewer    api.ViewerProvider
 	datasets  map[string]api.Dataset
 	hostCache *hostFilterCache
 	logger    *slog.Logger
 }
 
 // NewService creates a new chart service.
-func NewService(authz platform_authz.Authorizer, store types.Datastore, logger *slog.Logger) *Service {
+func NewService(authz platform_authz.Authorizer, store types.Datastore, viewerProvider api.ViewerProvider, logger *slog.Logger) *Service {
 	return &Service{
 		authz:     authz,
 		store:     store,
+		viewer:    viewerProvider,
 		datasets:  make(map[string]api.Dataset),
 		hostCache: newHostFilterCache(hostFilterCacheTTL),
 		logger:    logger,
@@ -53,10 +55,29 @@ func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
 }
 
 func (s *Service) GetChartData(ctx context.Context, metric string, opts api.RequestOpts) (*api.Response, error) {
-	// Authorize against a Host carrying the requested team scope. With opts.TeamID
-	// unset, rego's team rules can't match (object.team_id undefined), so only
-	// global-role users pass — a team observer must specify their team_id.
-	if err := s.authz.Authorize(ctx, &api.Host{TeamID: opts.TeamID}, platform_authz.ActionRead); err != nil {
+	// Resolve scope first: for authz we need the right action + subject, and
+	// for data we need the effective team set. Fail closed if there's no
+	// viewer — the authenticated middleware should have placed one in ctx.
+	isGlobal, viewerTeamIDs, err := s.viewer.ViewerScope(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build the authz subject + action. Two distinct cases:
+	//   - Explicit team_id: Host{TeamID: opts.TeamID} + ActionRead. Rego's
+	//     read rule for hosts requires team_role(subject, object.team_id) to
+	//     match, so a team user asking for a team they don't have a role on
+	//     is rejected by policy (not by us). Global users pass via the
+	//     global-role rules, which don't care about team_id.
+	//   - No team_id: Host{} + ActionList. Rego's list rules pass global
+	//     users unconditionally and pass team users who have a list-capable
+	//     role on any of their teams. The service then scopes data below.
+	authzSubject := &api.Host{TeamID: opts.TeamID}
+	authzAction := platform_authz.ActionRead
+	if opts.TeamID == nil {
+		authzAction = platform_authz.ActionList
+	}
+	if err := s.authz.Authorize(ctx, authzSubject, authzAction); err != nil {
 		return nil, err
 	}
 
@@ -90,11 +111,11 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 
 	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 
-	// Build the host filter. Always non-nil so the bitmap mask encodes "currently
-	// visible hosts" — this both applies team/label scoping and drops hosts that
-	// have been deleted since the SCD rows were written.
+	// Build the host filter. The bitmap mask always encodes "currently visible
+	// hosts" — team scoping, label/platform/include/exclude, and incidentally
+	// dropping hosts deleted since the SCD rows were written.
 	hostFilter := &types.HostFilter{
-		TeamID:         opts.TeamID,
+		TeamIDs:        effectiveTeamIDs(opts.TeamID, isGlobal, viewerTeamIDs),
 		LabelIDs:       opts.LabelIDs,
 		Platforms:      opts.Platforms,
 		IncludeHostIDs: opts.IncludeHostIDs,
@@ -132,6 +153,30 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		},
 		Data: data,
 	}, nil
+}
+
+// effectiveTeamIDs decides the team scope applied at SQL time.
+//
+//	explicit team_id? → just that team (authz rule above already ensured
+//	                    the caller has access to it, or is global)
+//	global user, no team_id → nil, meaning "no team filter"
+//	team user, no team_id   → the viewer's accessible teams. Empty-but-non-nil
+//	                          here means the user has no teams at all; SQL
+//	                          emits 1=0 so they see nothing.
+func effectiveTeamIDs(requestedTeamID *uint, isGlobal bool, viewerTeamIDs []uint) []uint {
+	if requestedTeamID != nil {
+		return []uint{*requestedTeamID}
+	}
+	if isGlobal {
+		return nil
+	}
+	// Return a non-nil slice even when empty — the SQL builder treats non-nil
+	// as "scoped" and emits a no-match clause, which is what we want for a
+	// team user with zero team memberships.
+	if viewerTeamIDs == nil {
+		return []uint{}
+	}
+	return viewerTeamIDs
 }
 
 func (s *Service) CleanupData(ctx context.Context, days int) error {

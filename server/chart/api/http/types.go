@@ -9,9 +9,11 @@ type GetChartDataRequest struct {
 	Days       int    `query:"days,optional"`
 	Downsample int    `query:"downsample,optional"`
 	TZOffset   int    `query:"tz_offset,optional"`
-	// TeamID is a pointer so we can distinguish "absent" (global view) from
-	// team_id=0 (hosts with no team assignment, a valid Fleet filter).
-	TeamID         *uint  `query:"team_id,optional"`
+	// TeamID is a pointer so we can distinguish "absent" (auto-scope to the
+	// viewer) from fleet_id=0 (no-team hosts, a valid Fleet filter).
+	// Exposed as fleet_id on the wire per the teams→fleets rename; the Go
+	// field name stays TeamID to match the rest of the codebase.
+	TeamID         *uint  `query:"fleet_id,optional"`
 	LabelIDs       string `query:"label_ids,optional"`
 	Platforms      string `query:"platforms,optional"`
 	IncludeHostIDs string `query:"include_host_ids,optional"`

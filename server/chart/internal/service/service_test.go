@@ -38,6 +38,22 @@ func (r *recordingAuthorizer) Authorize(_ context.Context, subject platform_auth
 	return errors.New("forbidden")
 }
 
+// mockViewerProvider returns pre-programmed viewer scope. Default (zero
+// value) represents a global user — convenient for the many tests that don't
+// care about team scoping.
+type mockViewerProvider struct {
+	isGlobal bool
+	teamIDs  []uint
+	err      error
+}
+
+func (m *mockViewerProvider) ViewerScope(_ context.Context) (bool, []uint, error) {
+	return m.isGlobal, m.teamIDs, m.err
+}
+
+// globalViewer returns a viewer provider for a global user (sees everything).
+func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: true} }
+
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
@@ -82,7 +98,7 @@ func (m *mockDatastore) CleanupSCDData(_ context.Context, _ int) error {
 
 func TestGetChartDataUnknownMetric(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 
 	_, err := svc.GetChartData(t.Context(), "nonexistent", api.RequestOpts{Days: 7})
 	require.Error(t, err)
@@ -91,7 +107,7 @@ func TestGetChartDataUnknownMetric(t *testing.T) {
 
 func TestGetChartDataInvalidDays(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 5})
@@ -101,7 +117,7 @@ func TestGetChartDataInvalidDays(t *testing.T) {
 
 func TestGetChartDataInvalidDownsample(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	cases := []struct {
@@ -123,7 +139,7 @@ func TestGetChartDataInvalidDownsample(t *testing.T) {
 
 func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	// Drive TotalHosts via the host-ID list: bitmap popcount = 200.
@@ -177,7 +193,7 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 	} {
 		t.Run(tc.resolution, func(t *testing.T) {
 			ds := &mockDatastore{}
-			svc := NewService(&mockAuthorizer{}, ds, nil)
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 			svc.RegisterDataset(&chart.UptimeDataset{})
 
 			var gotBucketSize time.Duration
@@ -196,7 +212,7 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 
 func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 
 	var gotBucketSize time.Duration
@@ -216,7 +232,7 @@ func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	var gotFilter *types.HostFilter
@@ -239,22 +255,21 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, gotFilter)
-	require.NotNil(t, gotFilter.TeamID)
-	assert.Equal(t, uint(5), *gotFilter.TeamID)
+	assert.Equal(t, []uint{5}, gotFilter.TeamIDs, "explicit team_id becomes a single-element scope")
 	assert.Equal(t, []uint{1, 2}, gotFilter.LabelIDs)
 	assert.Equal(t, []string{"darwin"}, gotFilter.Platforms)
 
 	assert.Equal(t, 2, resp.TotalHosts, "TotalHosts is now popcount of filter mask")
 	require.NotNil(t, resp.Filters.TeamID)
-	assert.Equal(t, uint(5), *resp.Filters.TeamID)
+	assert.Equal(t, uint(5), *resp.Filters.TeamID, "response echoes what the caller asked for")
 	assert.Equal(t, []uint{1, 2}, resp.Filters.LabelIDs)
 	assert.Equal(t, []string{"darwin"}, resp.Filters.Platforms)
 }
 
-func TestGetChartDataAuthzReceivesTeamID(t *testing.T) {
-	t.Run("absent team_id authorizes with empty Host", func(t *testing.T) {
+func TestGetChartDataAuthzScope(t *testing.T) {
+	t.Run("no fleet_id → ActionList with Host{} (rego allows team users)", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: true}
-		svc := NewService(auth, &mockDatastore{}, nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -262,13 +277,14 @@ func TestGetChartDataAuthzReceivesTeamID(t *testing.T) {
 
 		host, ok := auth.gotSubject.(*api.Host)
 		require.True(t, ok, "authz subject should be *api.Host")
-		assert.Nil(t, host.TeamID, "team_id absent should yield a nil TeamID on the Host — rego then rejects team-only users")
-		assert.Equal(t, platform_authz.ActionRead, auth.gotAction)
+		assert.Nil(t, host.TeamID, "without an explicit fleet_id, the subject's TeamID stays nil")
+		assert.Equal(t, platform_authz.ActionList, auth.gotAction,
+			"no fleet_id uses ActionList so rego's team-list rule can pass team users")
 	})
 
-	t.Run("team_id=5 authorizes with Host{TeamID:5}", func(t *testing.T) {
+	t.Run("explicit fleet_id=5 → ActionRead with Host{TeamID:5} (rego enforces exact team)", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: true}
-		svc := NewService(auth, &mockDatastore{}, nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		teamID := uint(5)
@@ -279,16 +295,105 @@ func TestGetChartDataAuthzReceivesTeamID(t *testing.T) {
 		require.True(t, ok)
 		require.NotNil(t, host.TeamID)
 		assert.Equal(t, uint(5), *host.TeamID)
+		assert.Equal(t, platform_authz.ActionRead, auth.gotAction,
+			"explicit fleet_id uses ActionRead so rego's team-read rule can enforce exact-team access")
 	})
 
 	t.Run("authz denial propagates", func(t *testing.T) {
 		auth := &recordingAuthorizer{allow: false}
-		svc := NewService(auth, &mockDatastore{}, nil)
+		svc := NewService(auth, &mockDatastore{}, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "forbidden")
+	})
+
+	t.Run("viewer provider error propagates before authz", func(t *testing.T) {
+		auth := &recordingAuthorizer{allow: true}
+		viewer := &mockViewerProvider{err: errors.New("no viewer in context")}
+		svc := NewService(auth, &mockDatastore{}, viewer, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no viewer")
+		assert.Nil(t, auth.gotSubject, "authz must not run when viewer resolution failed")
+	})
+}
+
+func TestGetChartDataScopesDataByViewer(t *testing.T) {
+	t.Run("global user, no fleet_id → nil TeamIDs (no team filter)", func(t *testing.T) {
+		ds := &mockDatastore{}
+		var gotFilter *types.HostFilter
+		ds.getHostIDsForFilterFunc = func(_ context.Context, f *types.HostFilter) ([]uint, error) {
+			gotFilter = f
+			return []uint{1, 2, 3}, nil
+		}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+		require.NotNil(t, gotFilter)
+		assert.Nil(t, gotFilter.TeamIDs, "global user with no fleet_id gets no team filter")
+	})
+
+	t.Run("team user, no fleet_id → their accessible teams", func(t *testing.T) {
+		ds := &mockDatastore{}
+		var gotFilter *types.HostFilter
+		ds.getHostIDsForFilterFunc = func(_ context.Context, f *types.HostFilter) ([]uint, error) {
+			gotFilter = f
+			return []uint{10, 11}, nil
+		}
+		viewer := &mockViewerProvider{isGlobal: false, teamIDs: []uint{3, 7}}
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+		require.NotNil(t, gotFilter)
+		assert.Equal(t, []uint{3, 7}, gotFilter.TeamIDs,
+			"team user without explicit fleet_id is scoped to the union of their teams")
+	})
+
+	t.Run("team user with zero accessible teams → empty non-nil TeamIDs (SQL no-match)", func(t *testing.T) {
+		ds := &mockDatastore{}
+		var gotFilter *types.HostFilter
+		ds.getHostIDsForFilterFunc = func(_ context.Context, f *types.HostFilter) ([]uint, error) {
+			gotFilter = f
+			return nil, nil
+		}
+		viewer := &mockViewerProvider{isGlobal: false, teamIDs: nil}
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+		require.NotNil(t, gotFilter)
+		require.NotNil(t, gotFilter.TeamIDs, "empty-not-nil signals 'team-scoped with no teams'")
+		assert.Empty(t, gotFilter.TeamIDs)
+		assert.Equal(t, 0, resp.TotalHosts, "no accessible teams means no hosts and no data")
+	})
+
+	t.Run("explicit fleet_id overrides viewer scope", func(t *testing.T) {
+		ds := &mockDatastore{}
+		var gotFilter *types.HostFilter
+		ds.getHostIDsForFilterFunc = func(_ context.Context, f *types.HostFilter) ([]uint, error) {
+			gotFilter = f
+			return []uint{1}, nil
+		}
+		// Viewer sees teams 3, 7 — but caller explicitly asks for team 3.
+		viewer := &mockViewerProvider{isGlobal: false, teamIDs: []uint{3, 7}}
+		svc := NewService(&mockAuthorizer{}, ds, viewer, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		teamID := uint(3)
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7, TeamID: &teamID})
+		require.NoError(t, err)
+		require.NotNil(t, gotFilter)
+		assert.Equal(t, []uint{3}, gotFilter.TeamIDs,
+			"explicit fleet_id narrows to that team; authz (not the filter) enforced access above")
 	})
 }
 
@@ -325,7 +430,7 @@ func TestComputeBucketRange(t *testing.T) {
 
 func TestCollectDatasetsUptime(t *testing.T) {
 	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, nil)
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)

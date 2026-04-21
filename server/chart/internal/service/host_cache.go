@@ -92,10 +92,16 @@ func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fet
 // fields are sorted and copied so caller mutations can't affect keying; a
 // shared separator that can't appear in the encoded values keeps distinct
 // filters from collapsing to the same key.
+//
+// TeamIDs specifically distinguishes nil from empty-non-nil — the two have
+// different semantics (no filter vs match nothing) and must never share a
+// cache entry.
 func hashHostFilter(f *types.HostFilter) string {
 	if f == nil {
 		return "nil"
 	}
+	teams := slices.Clone(f.TeamIDs)
+	slices.Sort(teams)
 	labels := slices.Clone(f.LabelIDs)
 	slices.Sort(labels)
 	platforms := slices.Clone(f.Platforms)
@@ -106,10 +112,10 @@ func hashHostFilter(f *types.HostFilter) string {
 	slices.Sort(exclude)
 
 	var b strings.Builder
-	if f.TeamID != nil {
-		fmt.Fprintf(&b, "team=%d", *f.TeamID)
+	if f.TeamIDs == nil {
+		b.WriteString("teams=nil")
 	} else {
-		b.WriteString("team=nil")
+		fmt.Fprintf(&b, "teams=%v", teams)
 	}
 	fmt.Fprintf(&b, "|labels=%v|platforms=%s|include=%v|exclude=%v",
 		labels, strings.Join(platforms, ","), include, exclude)
