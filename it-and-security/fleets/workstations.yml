@@ -169,12 +169,10 @@ software:
       self_service: true
       categories:
         - Utilities
-    - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo (script-only)
+    - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
       self_service: true
       categories:
         - Security
-      icon:
-        path: ../lib/all/icons/touch-id.png
     # Linux apps
     - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
       self_service: true
