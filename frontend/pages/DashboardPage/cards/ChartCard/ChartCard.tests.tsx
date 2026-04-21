@@ -128,15 +128,15 @@ describe("ChartCard", () => {
     await screen.findByText("No chart data available yet.");
   });
 
-  it("renders the days and dataset dropdowns", async () => {
+  it("renders the current dataset heading", async () => {
     mockServer.use(chartHandler);
     const render = createCustomRenderer({ withBackendMock: true });
     render(<ChartCard />);
 
-    // Default selections should be visible
+    // Only one dataset is wired up today, so it renders as a heading rather
+    // than a dropdown. Days selection is fixed at 30 and has no UI yet.
     await waitFor(() => {
-      expect(screen.getByText("Last 30 days")).toBeInTheDocument();
+      expect(screen.getByText("Hosts activity")).toBeInTheDocument();
     });
-    expect(screen.getByText("Check-in activity")).toBeInTheDocument();
   });
 });

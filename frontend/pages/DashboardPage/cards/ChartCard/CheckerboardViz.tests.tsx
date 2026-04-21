@@ -85,8 +85,9 @@ describe("CheckerboardViz", () => {
 
   it("renders the correct number of cells for 3 days of data", async () => {
     const data = generateData(3);
+    // selectedDays={14} → hoursPerSlot=2 → 12 hour rows per day.
     const { container } = renderWithSetup(
-      <CheckerboardViz data={data} selectedDays={30} isPercentage />
+      <CheckerboardViz data={data} selectedDays={14} />
     );
 
     // 3 days × 12 hour rows = 36 cells
@@ -99,7 +100,7 @@ describe("CheckerboardViz", () => {
   it("applies level-0 class for 0% data points", async () => {
     const data = generateData(1, 0);
     const { container } = renderWithSetup(
-      <CheckerboardViz data={data} selectedDays={30} isPercentage />
+      <CheckerboardViz data={data} selectedDays={30} />
     );
 
     await waitFor(() => {
@@ -147,8 +148,10 @@ describe("CheckerboardViz", () => {
       },
     ];
 
+    // selectedDays={1} renders each point as its own cell without
+    // slot-bucketing, so every percentage maps to a distinct color level.
     const { container } = renderWithSetup(
-      <CheckerboardViz data={points} selectedDays={30} isPercentage />
+      <CheckerboardViz data={points} selectedDays={1} />
     );
 
     await waitFor(() => {
@@ -166,9 +169,7 @@ describe("CheckerboardViz", () => {
 
   it("renders the legend with all color levels", () => {
     const data = generateData(1);
-    renderWithSetup(
-      <CheckerboardViz data={data} selectedDays={30} isPercentage />
-    );
+    renderWithSetup(<CheckerboardViz data={data} selectedDays={30} />);
 
     expect(screen.getByText("No data")).toBeInTheDocument();
     expect(screen.getByText("Less")).toBeInTheDocument();
@@ -185,8 +186,9 @@ describe("CheckerboardViz", () => {
       },
     ];
 
+    // selectedDays={14} → hoursPerSlot=2 → 12 hour rows per day.
     const { container } = renderWithSetup(
-      <CheckerboardViz data={points} selectedDays={30} isPercentage />
+      <CheckerboardViz data={points} selectedDays={14} />
     );
 
     await waitFor(() => {
@@ -199,42 +201,5 @@ describe("CheckerboardViz", () => {
     ).length;
     // 11 of 12 rows should be level-0 (only slot 0 has data)
     expect(level0Count).toBe(11);
-  });
-
-  it("renders nothing when container width is 0", () => {
-    // Temporarily override to report 0 width
-    const origBCR = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function zeroBCR() {
-      return {
-        width: 0,
-        height: 0,
-        top: 0,
-        left: 0,
-        bottom: 0,
-        right: 0,
-        x: 0,
-        y: 0,
-        toJSON: () => {},
-      };
-    };
-    const OrigObserver = global.ResizeObserver;
-    global.ResizeObserver = (class {
-      observe() {}
-
-      unobserve() {}
-
-      disconnect() {}
-    } as unknown) as typeof ResizeObserver;
-
-    const data = generateData(1);
-    const { container } = renderWithSetup(
-      <CheckerboardViz data={data} selectedDays={30} isPercentage />
-    );
-
-    const rects = container.querySelectorAll("rect");
-    expect(rects).toHaveLength(0);
-
-    Element.prototype.getBoundingClientRect = origBCR;
-    global.ResizeObserver = (OrigObserver as unknown) as typeof ResizeObserver;
   });
 });

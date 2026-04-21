@@ -24,25 +24,17 @@ import { IDataSet, IFormattedDataPoint } from "./types";
 
 const baseClass = "chart-card";
 
+// All charts are currently fixed at a 30-day window. When the server supports
+// configurable ranges we'll add UI and request-param plumbing for this.
+const CHART_DAYS = 30;
+const DOWNSAMPLE_HOURS = 3;
+
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
     label: "Hosts activity",
-    isPercentage: true,
     defaultChartType: "checkerboard",
   },
-  // {
-  //   name: "policy",
-  //   label: "Policy compliance",
-  //   isPercentage: true,
-  //   defaultChartType: "line",
-  // },
-  // {
-  //   name: "cve",
-  //   label: "Vulnerabilities",
-  //   isPercentage: false,
-  //   defaultChartType: "line",
-  // },
 ];
 
 const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
@@ -62,9 +54,7 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
 };
 
 const ChartCard = (): JSX.Element => {
-  const [selectedDays] = useState(30);
   const [selectedMetric, setSelectedMetric] = useState("uptime");
-  const [filterParams, setFilterParams] = useState<IChartRequestParams>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
     labelIDs: [],
@@ -76,16 +66,9 @@ const ChartCard = (): JSX.Element => {
   const currentDataset = getDataset(selectedMetric);
 
   const queryParams: IChartRequestParams = useMemo(() => {
-    let downsample: number | undefined;
-    if (selectedDays === 30) {
-      downsample = 3;
-    } else if (selectedDays >= 7) {
-      downsample = 2;
-    }
     return {
-      ...filterParams,
-      days: selectedDays,
-      downsample,
+      days: CHART_DAYS,
+      downsample: DOWNSAMPLE_HOURS,
       tz_offset: new Date().getTimezoneOffset(),
       label_ids: chartFilters.labelIDs.length
         ? chartFilters.labelIDs.join(",")
@@ -104,7 +87,7 @@ const ChartCard = (): JSX.Element => {
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
     };
-  }, [filterParams, selectedDays, chartFilters]);
+  }, [chartFilters]);
 
   const { data: chartData, isFetching, error } = useQuery<
     IChartResponse,
@@ -125,15 +108,14 @@ const ChartCard = (): JSX.Element => {
     const totalHosts = chartData.total_hosts || 1;
     return chartData.data.map((point) => {
       const date = parseISO(point.timestamp);
-      const labelFormat = selectedDays === 1 ? "h:mm a" : "MMM d, h:mm a";
       return {
         timestamp: point.timestamp,
-        label: format(date, labelFormat),
+        label: format(date, "MMM d, h:mm a"),
         value: point.value,
         percentage: Math.round((point.value / totalHosts) * 100),
       };
     });
-  }, [chartData, selectedDays]);
+  }, [chartData]);
 
   const renderChart = () => {
     if (isFetching) {
@@ -152,8 +134,7 @@ const ChartCard = (): JSX.Element => {
 
     const vizProps = {
       data: formattedData,
-      selectedDays,
-      isPercentage: currentDataset.isPercentage,
+      selectedDays: CHART_DAYS,
     };
 
     switch (currentDataset.defaultChartType) {

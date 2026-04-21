@@ -78,7 +78,10 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ChartCard from "./cards/ChartCard";
-import { HostsEnrolledCard } from "./cards/HostsEnrolledCard";
+import {
+  HostsEnrolledCard,
+  IHostPlatformCounts,
+} from "./cards/HostsEnrolledCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -282,16 +285,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     }
   );
 
-  const totalCounts = useMemo(() => {
+  const totalCounts = useMemo<IHostPlatformCounts>(() => {
+    const base: IHostPlatformCounts = {
+      darwin: 0,
+      windows: 0,
+      linux: 0,
+      chrome: 0,
+      ios: 0,
+      ipados: 0,
+      android: 0,
+    };
     if (!hostSummaryTotals?.platforms) {
-      return {};
+      return base;
     }
-    return hostSummaryTotals.platforms.reduce(
-      (acc: any, item) => {
-        acc[item.platform] = item.hosts_count || 0;
+    return hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
+      (acc, item) => {
+        if (item.platform in acc) {
+          acc[item.platform as keyof IHostPlatformCounts] =
+            item.hosts_count || 0;
+        }
         return acc;
       },
       {
+        ...base,
         linux: hostSummaryTotals.all_linux_count || 0,
       }
     );

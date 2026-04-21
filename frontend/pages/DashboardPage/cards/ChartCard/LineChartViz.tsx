@@ -17,13 +17,15 @@ const baseClass = "chart-card";
 interface ILineChartVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
-  isPercentage: boolean;
 }
+
+// Use the design-system accent token via CSS custom property so recharts
+// picks up the themed value for the SVG stroke.
+const LINE_STROKE = "var(--core-vibrant-blue)";
 
 const LineChartViz = ({
   data,
   selectedDays,
-  isPercentage,
 }: ILineChartVizProps): JSX.Element => {
   const formatXAxis = useCallback(
     (timestamp: string) => {
@@ -37,34 +39,21 @@ const LineChartViz = ({
     [selectedDays]
   );
 
-  const formatYAxisTick = (val: number): string => {
-    if (isPercentage) {
-      return `${val}%`;
-    }
-    if (val >= 1000) {
-      return `${(val / 1000).toFixed(1)}k`;
-    }
-    return String(val);
-  };
+  const formatYAxisTick = (val: number): string => `${val}%`;
 
-  const renderTooltip = useCallback(
-    (props: any) => {
-      const { active, payload } = props;
-      if (!active || !payload?.length) return null;
-      const point = payload[0].payload as IFormattedDataPoint;
-      return (
-        <div className={`${baseClass}__tooltip`}>
-          <div className={`${baseClass}__tooltip-label`}>{point.label}</div>
-          <div className={`${baseClass}__tooltip-value`}>
-            {isPercentage
-              ? `${point.percentage}% (${point.value.toLocaleString()} hosts)`
-              : `${point.value.toLocaleString()} hosts`}
-          </div>
+  const renderTooltip = useCallback((props: any) => {
+    const { active, payload } = props;
+    if (!active || !payload?.length) return null;
+    const point = payload[0].payload as IFormattedDataPoint;
+    return (
+      <div className={`${baseClass}__tooltip`}>
+        <div className={`${baseClass}__tooltip-label`}>{point.label}</div>
+        <div className={`${baseClass}__tooltip-value`}>
+          {point.percentage}% ({point.value.toLocaleString()} hosts)
         </div>
-      );
-    },
-    [isPercentage]
-  );
+      </div>
+    );
+  }, []);
 
   const tickInterval = Math.max(1, Math.floor(data.length / 8));
 
@@ -81,14 +70,14 @@ const LineChartViz = ({
         <YAxis
           tick={{ fontSize: 12 }}
           width={50}
-          domain={isPercentage ? [0, 100] : undefined}
+          domain={[0, 100]}
           tickFormatter={formatYAxisTick}
         />
         <Tooltip content={renderTooltip} />
         <Line
           type="monotone"
-          dataKey={isPercentage ? "percentage" : "value"}
-          stroke="#6A67CE"
+          dataKey="percentage"
+          stroke={LINE_STROKE}
           strokeWidth={2}
           dot={false}
           activeDot={{ r: 4 }}

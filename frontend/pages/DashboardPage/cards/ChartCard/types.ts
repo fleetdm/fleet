@@ -3,7 +3,6 @@ export type ChartType = "line" | "checkerboard";
 export interface IDataSet {
   name: string;
   label: string;
-  isPercentage: boolean;
   defaultChartType: ChartType;
 }
 

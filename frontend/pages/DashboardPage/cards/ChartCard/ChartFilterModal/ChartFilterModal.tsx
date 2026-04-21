@@ -1,6 +1,7 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+import { useDebouncedCallback } from "use-debounce";
 
 import { IHost } from "interfaces/host";
 import { ILabelSummary } from "interfaces/label";
@@ -46,6 +47,7 @@ interface IChartFilterModalProps {
 }
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const ChartFilterModal = ({
   filters,
@@ -64,11 +66,25 @@ const ChartFilterModal = ({
   const [selectedHosts, setSelectedHosts] = useState<IHost[]>(
     filters.selectedHosts
   );
+  const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageCount, setPageCount] = useState(1);
 
   const listRef = useRef<HTMLDivElement>(null);
   const selectedHostIds = new Set(selectedHosts.map((h) => h.id));
+
+  const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+    setSearchQuery(value);
+    setPageCount(1);
+    if (listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, SEARCH_DEBOUNCE_MS);
+
+  // Flush pending debounced call on unmount so it doesn't fire after teardown.
+  useEffect(() => {
+    return () => debouncedSetSearchQuery.cancel();
+  }, [debouncedSetSearchQuery]);
 
   // Fetch hosts with pagination — load all pages up to pageCount
   const { data: hostsData, isLoading: isLoadingHosts } = useQuery<
@@ -100,14 +116,13 @@ const ChartFilterModal = ({
     }
   }, [hasMore, isLoadingHosts]);
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value);
-    setPageCount(1);
-    // Scroll list back to top on new search
-    if (listRef.current) {
-      listRef.current.scrollTop = 0;
-    }
-  }, []);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchInput(value);
+      debouncedSetSearchQuery(value);
+    },
+    [debouncedSetSearchQuery]
+  );
 
   const { data: labels } = useQuery<ILabelSummary[]>(
     ["labelsSummary"],
@@ -139,7 +154,10 @@ const ChartFilterModal = ({
     setSelectedPlatforms([]);
     setHostFilterMode("none");
     setSelectedHosts([]);
+    setSearchInput("");
     setSearchQuery("");
+    setPageCount(1);
+    debouncedSetSearchQuery.cancel();
   };
 
   const handleTabChange = (index: number) => {
@@ -170,7 +188,7 @@ const ChartFilterModal = ({
     <div className={`${baseClass}__host-search`}>
       <SearchField
         placeholder="Search name, hostname, or serial number"
-        defaultValue={searchQuery}
+        defaultValue={searchInput}
         onChange={handleSearchChange}
       />
       {selectedHosts.length > 0 && (
@@ -263,8 +281,10 @@ const ChartFilterModal = ({
                 <TabText>Specific hosts</TabText>
               </Tab>
             </TabList>
-            <TabPanel>{renderHostSearch()}</TabPanel>
-            <TabPanel>{renderHostSearch()}</TabPanel>
+            {/* Only render the active tab to avoid two parallel host lists
+                fighting over the shared listRef and duplicating API requests. */}
+            <TabPanel>{tabIndex === 0 && renderHostSearch()}</TabPanel>
+            <TabPanel>{tabIndex === 1 && renderHostSearch()}</TabPanel>
           </Tabs>
         </TabNav>
       </div>

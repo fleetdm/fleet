@@ -11,18 +11,22 @@ import {
 
 const baseClass = "hosts-enrolled-card";
 
-const BAR_COLOR = "#009a7d";
+// Use the design-system color token via CSS custom property so recharts
+// picks up the themed value for the SVG fill.
+const BAR_COLOR = "var(--core-fleet-green)";
+
+export interface IHostPlatformCounts {
+  darwin: number;
+  windows: number;
+  linux: number;
+  chrome: number;
+  ios: number;
+  ipados: number;
+  android: number;
+}
 
 interface IHostsEnrolledCardProps {
-  counts: {
-    darwin: number;
-    windows: number;
-    linux: number;
-    chrome: number;
-    ios: number;
-    ipados: number;
-    android: number;
-  };
+  counts: IHostPlatformCounts;
 }
 
 interface IPlatformDatum {

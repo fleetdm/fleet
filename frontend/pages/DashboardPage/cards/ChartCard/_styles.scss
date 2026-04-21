@@ -77,8 +77,7 @@
 
   &__settings-btn {
     display: flex;
-    // align-items: flex-start;
-    margin-top: -25%;
+    align-items: center;
     justify-content: center;
     border: none;
     background: transparent;
@@ -120,6 +119,7 @@
 
 .checkerboard-viz {
   width: 100%;
+  position: relative;
 
   &__scroll-wrapper {
     overflow-x: auto;
@@ -141,7 +141,18 @@
   }
 
   &__y-axis-icon {
+    position: absolute;
+    left: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     opacity: 0.6;
+  }
+
+  &__floating-tooltip {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    pointer-events: none;
   }
 
   &__x-axis {
@@ -187,39 +198,41 @@
     }
   }
 
-  // Color levels for cells (SVG fill) and legend swatches (background-color)
+  // Color levels for cells (SVG fill) and legend swatches (background-color).
+  // Scale colors don't exist in the shared palette, so they stay as literal
+  // hex values; level-4 matches $core-fleet-green and is aliased accordingly.
   &__cell {
-    stroke: #ffffff;
+    stroke: $core-fleet-white;
     stroke-width: 1px;
 
     &--level-0 {
-        fill: #ebedf0;
-        background-color: #ebedf0;
+      fill: #ebedf0;
+      background-color: #ebedf0;
     }
 
     &--level-1 {
-      fill: #E4F1EC;
-      background-color: #E4F1EC;
+      fill: #e4f1ec;
+      background-color: #e4f1ec;
     }
-  
+
     &--level-2 {
-      fill: #BADECF;
-      background-color: #BADECF;
+      fill: #badecf;
+      background-color: #badecf;
     }
-  
+
     &--level-3 {
-      fill: #82D2B9;
-      background-color: #82D2B9;
+      fill: #82d2b9;
+      background-color: #82d2b9;
     }
-  
+
     &--level-4 {
-      fill: #009A7D;
-      background-color: #009A7D;
+      fill: $core-fleet-green;
+      background-color: $core-fleet-green;
     }
-  
+
     &--level-5 {
-      fill: #005B4A;
-      background-color: #005B4A;
-    }  
+      fill: #005b4a;
+      background-color: #005b4a;
+    }
   }
 }

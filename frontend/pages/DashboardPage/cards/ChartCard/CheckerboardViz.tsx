@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 
 import Moon from "components/icons/Moon";
@@ -9,13 +9,15 @@ import { IFormattedDataPoint } from "./types";
 
 const baseClass = "checkerboard-viz";
 
-// Returns a CSS class suffix for the color level (0-5)
+// Returns a CSS class suffix for the color level (0-5). Buckets match the
+// six legend swatches declared in _styles.scss (level-0 is the no-data swatch).
 const getColorLevel = (percentage: number): number => {
   if (percentage === 0) return 0;
-  if (percentage <= 25) return 1;
-  if (percentage <= 50) return 2;
-  if (percentage <= 75) return 3;
-  return 4;
+  if (percentage <= 20) return 1;
+  if (percentage <= 40) return 2;
+  if (percentage <= 60) return 3;
+  if (percentage <= 80) return 4;
+  return 5;
 };
 
 const formatHourLabel = (hourVal: number): string => {
@@ -36,7 +38,6 @@ interface ICellData {
 interface ICheckerboardVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
-  isPercentage: boolean;
 }
 
 const CELL_W = 16;
@@ -67,20 +68,18 @@ const CheckerboardViz = ({
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
-  const measuredRef = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      (containerRef as React.MutableRefObject<HTMLDivElement>).current = node;
-      const observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (entry) {
-          setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
-        }
-      });
-      observer.observe(node);
-      setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
-      return () => observer.disconnect();
-    }
-    return undefined;
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+    setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
+      }
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   // Hours per slot: 3 for 30-day, 2 for 7/14-day, 1 for 24-hour
@@ -234,11 +233,7 @@ const CheckerboardViz = ({
   const iconSize = pickIconSize(16 * scale);
 
   return (
-    <div
-      className={baseClass}
-      ref={measuredRef}
-      style={{ position: "relative" }}
-    >
+    <div className={baseClass} ref={containerRef}>
       <div className={`${baseClass}__scroll-wrapper`}>
         <div className={`${baseClass}__grid-area`}>
           {/* Y-axis icons */}
@@ -257,14 +252,9 @@ const CheckerboardViz = ({
                     key={`${section.type}-${section.startRow}`}
                     className={`${baseClass}__y-axis-icon`}
                     style={{
-                      position: "absolute",
                       top: topPx,
-                      left: 0,
                       width: leftMargin,
                       height: sectionHeight,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
                     }}
                   >
                     {section.type === "day" ? (
@@ -326,14 +316,8 @@ const CheckerboardViz = ({
 
       {hoveredCell && (
         <div
-          className="chart-card__tooltip"
-          style={{
-            position: "absolute",
-            left: tooltipPos.x,
-            top: tooltipPos.y,
-            transform: "translate(-50%, -100%)",
-            pointerEvents: "none",
-          }}
+          className={`chart-card__tooltip ${baseClass}__floating-tooltip`}
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="chart-card__tooltip-label">
             {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
