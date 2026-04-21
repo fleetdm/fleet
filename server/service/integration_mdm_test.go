@@ -9215,8 +9215,16 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err = d.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands
@@ -9480,8 +9488,16 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err = device.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands
