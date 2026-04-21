@@ -900,6 +900,12 @@ type Service interface {
 	// If ABM returns an error, dep_device is nil and the error is logged.
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
 
+	// HostDeviceURL returns the full "My device" end-user URL for a host
+	// (including the device auth token). Global admin only — the URL grants
+	// device-user access to that host's My device page.
+	// Returns a NotFoundError if the host has no device auth token yet.
+	HostDeviceURL(ctx context.Context, hostID uint) (string, error)
+
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.

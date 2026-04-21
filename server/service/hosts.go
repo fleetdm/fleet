@@ -2459,6 +2459,70 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get host device URL (end-user "My device" page link)
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDeviceURLRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDeviceURLResponse struct {
+	HostID    uint   `json:"host_id"`
+	DeviceURL string `json:"device_url"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r getHostDeviceURLResponse) Error() error { return r.Err }
+
+func getHostDeviceURLEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDeviceURLRequest)
+	url, err := svc.HostDeviceURL(ctx, req.ID)
+	if err != nil {
+		return getHostDeviceURLResponse{Err: err}, nil
+	}
+	return getHostDeviceURLResponse{HostID: req.ID, DeviceURL: url}, nil
+}
+
+// HostDeviceURL returns the full "My device" page URL for a given host,
+// embedding the host's current device auth token. Restricted to global admins
+// because the returned URL is effectively a credential: anyone holding it can
+// view and interact with that host as the end user.
+func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, error) {
+	// Satisfy the authz middleware with a baseline host check, then tighten
+	// to global admin only below.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+	if vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
+		return "", fleet.NewPermissionError("only global admins can retrieve a host's device URL")
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host for device url")
+	}
+
+	token, err := svc.ds.GetDeviceAuthToken(ctx, host.ID)
+	if err != nil {
+		// A notFound from the datastore flows through to a 404 response.
+		return "", ctxerr.Wrap(ctx, err, "get device auth token")
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+	}
+
+	base := strings.TrimRight(ac.ServerSettings.ServerURL, "/")
+	return fmt.Sprintf("%s/device/%s", base, token), nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // MDM
 ////////////////////////////////////////////////////////////////////////////////
 
