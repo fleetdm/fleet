@@ -115,12 +115,15 @@ func TestGetChartDataBlobHourly(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
+	// Pick a day inside the 7-day window the service computes from time.Now().
+	blobDay := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
+
 	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		assert.Nil(t, entityIDs)
 		// Return a blob for one hour: hosts 1, 2, 3 were online.
 		return []chart.BlobDataPoint{
-			{ChartDate: time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC), Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
+			{ChartDate: blobDay, Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil
 	}
 	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
@@ -136,15 +139,18 @@ func TestGetChartDataBlobHourly(t *testing.T) {
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
 
-	// Verify that the hour 10 data point has value 3 (three hosts).
+	// Verify that the hour 10 data point on blobDay has value 3 (three hosts).
 	var found bool
 	for _, dp := range resp.Data {
-		if dp.Timestamp.Hour() == 10 && dp.Timestamp.Day() == 7 {
+		if dp.Timestamp.Year() == blobDay.Year() &&
+			dp.Timestamp.Month() == blobDay.Month() &&
+			dp.Timestamp.Day() == blobDay.Day() &&
+			dp.Timestamp.Hour() == 10 {
 			assert.Equal(t, 3, dp.Value)
 			found = true
 		}
 	}
-	assert.True(t, found, "expected data point at hour 10")
+	assert.True(t, found, "expected data point at hour 10 on %s", blobDay.Format("2006-01-02"))
 }
 
 func TestGetChartDataBlobDownsample(t *testing.T) {
@@ -200,10 +206,13 @@ func TestGetChartDataBlobWithHostFilters(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
+	// Pick a day inside the 7-day window the service computes from time.Now().
+	blobDay := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
+
 	// Blob has hosts 1, 2, 3 online.
 	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
 		return []chart.BlobDataPoint{
-			{ChartDate: time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC), Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
+			{ChartDate: blobDay, Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil
 	}
 	// Filter returns only hosts 1, 3 (simulating a label filter).
@@ -223,15 +232,18 @@ func TestGetChartDataBlobWithHostFilters(t *testing.T) {
 	assert.Equal(t, []uint{1, 2}, resp.Filters.LabelIDs)
 	assert.Equal(t, []string{"darwin"}, resp.Filters.Platforms)
 
-	// Hour 10 should have value 2 (AND of {1,2,3} with {1,3} = {1,3}).
+	// Hour 10 on blobDay should have value 2 (AND of {1,2,3} with {1,3} = {1,3}).
 	var found bool
 	for _, dp := range resp.Data {
-		if dp.Timestamp.Hour() == 10 && dp.Timestamp.Day() == 7 {
+		if dp.Timestamp.Year() == blobDay.Year() &&
+			dp.Timestamp.Month() == blobDay.Month() &&
+			dp.Timestamp.Day() == blobDay.Day() &&
+			dp.Timestamp.Hour() == 10 {
 			assert.Equal(t, 2, dp.Value)
 			found = true
 		}
 	}
-	assert.True(t, found, "expected filtered data point at hour 10")
+	assert.True(t, found, "expected filtered data point at hour 10 on %s", blobDay.Format("2006-01-02"))
 }
 
 func TestFillZeroValues(t *testing.T) {
