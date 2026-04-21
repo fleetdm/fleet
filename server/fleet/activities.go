@@ -1014,7 +1014,7 @@ type ActivityTypeWipeFailedHost struct {
 }
 
 func (a ActivityTypeWipeFailedHost) ActivityName() string {
-	return "wipe_failed_host"
+	return "failed_wipe"
 }
 
 func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
