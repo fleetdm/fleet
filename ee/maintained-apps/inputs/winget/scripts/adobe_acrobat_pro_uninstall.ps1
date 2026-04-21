@@ -1,6 +1,7 @@
-# Locate Adobe Acrobat Pro uninstaller from registry and execute it silently
+# Locate Adobe Acrobat Pro uninstaller from registry and execute it silently.
+# DisplayName is "Adobe Acrobat DC (64-bit)" on DC installs and may be "Adobe Acrobat (64-bit)" on others.
 
-$displayName = "Adobe Acrobat (64-bit)"
+$displayNames = @("Adobe Acrobat (64-bit)", "Adobe Acrobat DC (64-bit)")
 $publisher = "Adobe"
 
 $paths = @(
@@ -12,7 +13,13 @@ $paths = @(
 $uninstall = $null
 foreach ($p in $paths) {
     $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-        $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like "$displayName*") -and ($publisher -eq "" -or $_.Publisher -eq $publisher)
+        $dn = $_.DisplayName
+        if (-not $dn) { return $false }
+        if ($publisher -ne "" -and $_.Publisher -ne $publisher) { return $false }
+        foreach ($d in $displayNames) {
+            if ($dn -eq $d -or $dn -like "$d*") { return $true }
+        }
+        $false
     }
     if ($items) { $uninstall = $items | Select-Object -First 1; break }
 }
