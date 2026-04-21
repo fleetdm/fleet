@@ -515,12 +515,21 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 	return allIDs, nil
 }
 
-// MDMWindowsGetPendingCommands retrieves all commands awaiting execution for a
-// given device ID.
-func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
-	var commands []*fleet.MDMWindowsCommand
+// MDMWindowsGetPendingCommands retrieves all commands awaiting execution for the given enrollment.
+func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+	// Fast path: probe the queue. An MDM management session runs this query on every
+	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
+	// before paying for the full scan + anti-join.
+	const probe = `SELECT 1 FROM windows_mdm_command_queue WHERE enrollment_id = ? LIMIT 1`
+	var exists int
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, probe, enrollmentID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "probe pending Windows MDM commands")
+	}
 
-	query := `
+	const query = `
 SELECT
 	wmc.command_uuid,
 	wmc.raw_command,
@@ -530,15 +539,11 @@ SELECT
 FROM
 	windows_mdm_command_queue wmcq
 INNER JOIN
-	mdm_windows_enrollments mwe
-ON
-	mwe.id = wmcq.enrollment_id
-INNER JOIN
 	windows_mdm_commands wmc
 ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
-	mwe.mdm_device_id = ? AND
+	wmcq.enrollment_id = ? AND
 	NOT EXISTS (
 		SELECT 1
 		FROM
@@ -551,8 +556,9 @@ ORDER BY
 	wmc.created_at ASC
 `
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
+	var commands []*fleet.MDMWindowsCommand
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, enrollmentID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by enrollment id")
 	}
 
 	return commands, nil
