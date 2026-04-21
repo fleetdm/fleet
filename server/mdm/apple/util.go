@@ -97,9 +97,14 @@ func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
 //
 // Known error signature:
 // - MDMClientError (89): "Profile with identifier '...' not found."
+// - MDMErrorDomain (12075): "The profile '...' is not installed."
 func IsProfileNotFoundError(chain []mdm.ErrorChain) bool {
 	for _, e := range chain {
 		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 89 {
+			return true
+		}
+
+		if e.ErrorDomain == "MDMErrorDomain" && e.ErrorCode == 12075 {
 			return true
 		}
 	}
