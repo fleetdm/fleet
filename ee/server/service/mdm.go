@@ -348,7 +348,8 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	}
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
-	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
+		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 

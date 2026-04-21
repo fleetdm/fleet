@@ -275,7 +275,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 
-		if err := a.sendManagedAccounts(ctx, &args, ssoAccount, adminAccount, lockPrimaryAccountInfo, cmdUUID); err != nil {
+		// Only include the SSO account in the payload if SSO is actually enabled.
+		// ssoAccount may be non-nil (fetched from enroll reference) even when SSO is disabled.
+		var ssoAccountForPayload *fleet.MDMIdPAccount
+		if ssoEnabled {
+			ssoAccountForPayload = ssoAccount
+		}
+		if err := a.sendManagedAccounts(ctx, &args, ssoAccountForPayload, adminAccount, lockPrimaryAccountInfo, cmdUUID); err != nil {
 			return err
 		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)

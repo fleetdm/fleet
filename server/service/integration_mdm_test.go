@@ -23386,8 +23386,10 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
 
 		// Existing host's password is still readable
+		pwdResp = getHostManagedAccountPasswordResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
 		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		require.NotEmpty(t, pwdResp.ManagedLocalAccount.Password)
 
 		// Second host enrolled after disable — should NOT get a managed account
 		s.runDEPSchedule()
