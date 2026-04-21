@@ -18,24 +18,24 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
       throw {badConfig: 'builtStaticContent.queries'};
     }
-    let policies = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
-    let macOsQueries = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(', ');
-      return _.includes(platformsForThisPolicy, 'darwin');
+    let reports = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
+    let macOsReports = _.filter(reports, (report)=>{
+      let platformsForThisReport = report.platform.split(', ');
+      return _.includes(platformsForThisReport, 'darwin');
     });
-    let windowsQueries = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(', ');
-      return _.includes(platformsForThisPolicy, 'windows');
+    let windowsReports = _.filter(reports, (report)=>{
+      let platformsForThisReport = report.platform.split(', ');
+      return _.includes(platformsForThisReport, 'windows');
     });
-    let linuxQueries = _.filter(policies, (policy)=>{
-      let platformsForThisPolicy = policy.platform.split(', ');
-      return _.includes(platformsForThisPolicy, 'linux');
+    let linuxReports = _.filter(reports, (report)=>{
+      let platformsForThisReport = report.platform.split(', ');
+      return _.includes(platformsForThisReport, 'linux');
     });
     // Respond with view.
     return {
-      macOsQueries,
-      windowsQueries,
-      linuxQueries,
+      macOsReports,
+      windowsReports,
+      linuxReports,
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 

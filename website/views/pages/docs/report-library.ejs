@@ -33,7 +33,7 @@
       <div purpose="selected-queries">
         <div v-if="selectedPlatform === 'macos'">
           <% // macOS policies (server-side-rendered)
-            for(let report of macOsQueries) {
+            for(let report of macOsReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
@@ -48,7 +48,7 @@
         </div>
         <div v-else-if="selectedPlatform === 'linux'">
           <% // Linux policies (server-side-rendered)
-            for(let report of linuxQueries) {
+            for(let report of windowsReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
@@ -63,7 +63,7 @@
         </div>
         <div v-else-if="selectedPlatform === 'windows'">
           <% // Windows policies (server-side-rendered)
-            for(let report of windowsQueries) {
+            for(let report of linuxReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
