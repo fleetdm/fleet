@@ -48,11 +48,8 @@ Add a policy with `type: patch` and specify the `fleet_maintained_app_slug`. Wit
 ```yaml
 policies:
   - name: Zoom up to date
-    description: Outdated software might introduce security vulnerabilities or compatibility issues.
-    resolution: Install the latest version from self-service.
     type: patch
     fleet_maintained_app_slug: zoom/darwin
-    install_software: true
 ```
 
 For all available options, see the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#patch-policy).

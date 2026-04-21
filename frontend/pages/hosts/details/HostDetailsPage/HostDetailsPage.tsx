@@ -139,6 +139,7 @@ import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
+import ClearPasscodeModal from "./modals/ClearPasscodeModal";
 
 const baseClass = "host-details";
 
@@ -237,6 +238,7 @@ const HostDetailsPage = ({
     boolean | undefined
   >(false);
   const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
+  const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -682,6 +684,10 @@ const HostDetailsPage = ({
     setShowMDMStatusModal(!showMDMStatusModal);
   }, [showMDMStatusModal, setShowMDMStatusModal]);
 
+  const toggleClearPasscodeModal = useCallback(() => {
+    setShowClearPasscodeModal(!showClearPasscodeModal);
+  }, [showClearPasscodeModal, setShowClearPasscodeModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -959,6 +965,9 @@ const HostDetailsPage = ({
         break;
       case "wipe":
         setShowWipeModal(true);
+        break;
+      case "clearPasscode":
+        setShowClearPasscodeModal(true);
         break;
       default: // do nothing
     }
@@ -1760,6 +1769,9 @@ const HostDetailsPage = ({
             router={router}
             onExit={toggleMDMStatusModal}
           />
+        )}
+        {showClearPasscodeModal && (
+          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
         )}
       </>
     );

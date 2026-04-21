@@ -431,6 +431,19 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	return hosts, nil
 }
 
+// sanitizeNonPremiumHostListOptions clears filter fields that are only valid
+// on a Fleet Premium license so that free-tier callers see unfiltered results.
+func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOptions) {
+	if isPremium {
+		return
+	}
+	opt.LowDiskSpaceFilter = nil
+	opt.MDMBootstrapPackageFilter = nil
+	opt.PopulateSoftwareVulnerabilityDetails = false
+	opt.DEPProfileErrorFilter = nil
+	opt.DEPAssignProfileResponseFilter = nil
+}
+
 func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
@@ -442,16 +455,8 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	// TODO(Sarah): Are we missing any other filters here?
 	premiumLicense := license.IsPremium(ctx)
-	if !premiumLicense {
-		// the low disk space filter is premium-only
-		opt.LowDiskSpaceFilter = nil
-		// the bootstrap package filter is premium-only
-		opt.MDMBootstrapPackageFilter = nil
-		// including vulnerability details on software is premium-only
-		opt.PopulateSoftwareVulnerabilityDetails = false
-	}
+	sanitizeNonPremiumHostListOptions(premiumLicense, &opt)
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
 	if err != nil {
@@ -727,10 +732,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	if !license.IsPremium(ctx) {
-		// the low disk space filter is premium-only
-		opt.LowDiskSpaceFilter = nil
-	}
+	sanitizeNonPremiumHostListOptions(license.IsPremium(ctx), &opt)
 
 	var count int
 	var err error
@@ -1788,7 +1790,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, mdmHardwareAttested, err = svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				if details != nil {
+					mdmLastCheckedIn = details.LastMDMSeenTime
+					mdmLastEnrollment = details.LastMDMEnrollmentTime
+					mdmHardwareAttested = details.HardwareAttested
+				}
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -3569,23 +3576,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 	return nil
 }
 
-type removeLabelsFromHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type removeLabelsFromHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r removeLabelsFromHostResponse) Error() error { return r.Err }
-
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*removeLabelsFromHostRequest)
+	req := request.(*fleet.RemoveLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
-		return removeLabelsFromHostResponse{Err: err}, nil
+		return fleet.RemoveLabelsFromHostResponse{Err: err}, nil
 	}
-	return removeLabelsFromHostResponse{}, nil
+	return fleet.RemoveLabelsFromHostResponse{}, nil
 }
 
 func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {

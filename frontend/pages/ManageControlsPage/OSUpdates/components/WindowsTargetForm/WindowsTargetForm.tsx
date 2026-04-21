@@ -9,7 +9,6 @@ import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";

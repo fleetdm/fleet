@@ -477,6 +477,65 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	assert.Empty(t, payload.InstallScript)
 	assert.Empty(t, payload.UninstallScript)
 	assert.False(t, payload.FleetMaintained)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+			TitleID:          new(uint(1)),
+		}, nil
+	}
+
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 1, Version: "26.0.0"}}, nil
+	}
+
+	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+
+	versionPinValidationTests := []struct {
+		name    string
+		version string
+		wantErr string
+	}{
+		{
+			name:    "valid",
+			version: "^26",
+		},
+		{
+			name:    "no version",
+			version: "^",
+			wantErr: "no version number provided",
+		},
+		{
+			name:    "invalid version",
+			version: "^26.0",
+			wantErr: errNonMajorVersion.Error(),
+		},
+	}
+
+	for _, vt := range versionPinValidationTests {
+		t.Run(vt.name, func(t *testing.T) {
+			payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin"), RollbackVersion: vt.version}
+			err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+			if vt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, vt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestGetInHouseAppManifest(t *testing.T) {
@@ -957,6 +1016,156 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
 		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
 		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+	}
+}
+
+func TestConditionalGETBehavior(t *testing.T) {
+	t.Parallel()
+
+	content := []byte("#!/bin/bash\necho 'test'\n")
+	etag := fmt.Sprintf(`"%x"`, sha256.Sum256(content))
+
+	tests := []struct {
+		name          string
+		ifNoneMatch   string
+		handler       http.HandlerFunc
+		expectStatus  int
+		expectBodyNil bool
+		expectErr     bool
+	}{
+		{
+			name:        "no If-None-Match, normal 200 response",
+			ifNoneMatch: "",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Empty(t, r.Header.Get("If-None-Match"))
+				w.Header().Set("ETag", etag)
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				_, _ = w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+		{
+			name:        "If-None-Match sent, server returns 304",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, etag, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			expectStatus:  304,
+			expectBodyNil: true,
+		},
+		{
+			name:        "If-None-Match sent, server returns 200 (ETag changed)",
+			ifNoneMatch: `"old-etag"`,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, `"old-etag"`, r.Header.Get("If-None-Match"))
+				w.Header().Set("ETag", etag)
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				_, _ = w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+		{
+			name:        "If-None-Match sent, server returns 403",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusForbidden)
+			},
+			expectStatus: 0,
+			expectErr:    true,
+		},
+		{
+			name:        "If-None-Match sent, server returns 500",
+			ifNoneMatch: etag,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+			},
+			expectStatus: 0,
+			expectErr:    true,
+		},
+		{
+			name:        "If-None-Match with S3 multipart ETag",
+			ifNoneMatch: `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, r.Header.Get("If-None-Match"))
+				w.WriteHeader(http.StatusNotModified)
+			},
+			expectStatus:  304,
+			expectBodyNil: true,
+		},
+		{
+			name:        "server returns no ETag, normal download",
+			ifNoneMatch: "",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Disposition", `attachment; filename="app.sh"`)
+				_, _ = w.Write(content)
+			},
+			expectStatus:  200,
+			expectBodyNil: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(tt.handler)
+			t.Cleanup(srv.Close)
+
+			const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+			resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/test.sh", tt.ifNoneMatch, maxSize)
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expectStatus, resp.StatusCode)
+			if tt.expectBodyNil {
+				assert.Nil(t, tfr)
+			} else {
+				require.NotNil(t, tfr)
+				t.Cleanup(func() { tfr.Close() })
+			}
+		})
+	}
+}
+
+func TestValidETag(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		valid bool
+	}{
+		{"strong ETag", `"abc123"`, true},
+		{"weak ETag rejected", `W/"abc123"`, false},
+		{"empty quotes", `""`, true},
+		{"S3 multipart", `"8fabd6dcf50afffcafbd5c1dbc5f49a4-20"`, true},
+		{"unquoted", `abc123`, false},
+		{"single quote", `"`, false},
+		{"empty string", ``, false},
+		{"missing closing quote", `"abc`, false},
+		{"control char (newline)", "\"abc\n\"", false},
+		{"control char (carriage return)", "\"abc\r\"", false},
+		{"control char (null)", "\"abc\x00\"", false},
+		{"DEL character", "\"abc\x7f\"", false},
+		{"tab rejected per RFC 7232", "\"abc\t123\"", false},
+		{"inner double-quote rejected", `"abc"def"`, false},
+		{"inner space rejected per RFC 7232", `"abc def"`, false},
+		{"weak prefix unquoted inner", `W/abc123`, false},
+		{"oversized (>512)", `"` + strings.Repeat("a", 512) + `"`, false},
+		{"exactly 511 bytes", `"` + strings.Repeat("a", 509) + `"`, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.valid, validETag(tt.input))
+		})
 	}
 }
 

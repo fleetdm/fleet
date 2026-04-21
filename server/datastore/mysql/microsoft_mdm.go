@@ -66,6 +66,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
 		created_at,
@@ -99,6 +101,8 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		enroll_proto_version,
 		enroll_client_version,
 		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
 		created_at,
@@ -132,11 +136,13 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version,
 			enroll_client_version,
 			not_in_oobe,
+			awaiting_configuration,
+			awaiting_configuration_at,
 			host_uuid,
 			credentials_hash,
 			credentials_acknowledged)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			mdm_device_id         = VALUES(mdm_device_id),
 			device_state          = VALUES(device_state),
@@ -147,6 +153,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			enroll_proto_version  = VALUES(enroll_proto_version),
 			enroll_client_version = VALUES(enroll_client_version),
 			not_in_oobe           = VALUES(not_in_oobe),
+			awaiting_configuration = VALUES(awaiting_configuration),
+			awaiting_configuration_at = VALUES(awaiting_configuration_at),
 			host_uuid             = VALUES(host_uuid),
 			credentials_hash      = VALUES(credentials_hash),
 			credentials_acknowledged = VALUES(credentials_acknowledged)
@@ -164,6 +172,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 		device.MDMEnrollProtoVersion,
 		device.MDMEnrollClientVersion,
 		device.MDMNotInOOBE,
+		device.AwaitingConfiguration,
+		device.AwaitingConfigurationAt,
 		device.HostUUID,
 		device.CredentialsHash,
 		device.CredentialsAcknowledged)
@@ -222,20 +232,42 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given
 // MDMWindowsEnrolledDevice entry from the database using the device id.
+// It also cleans up all host_mdm_windows_profiles rows for the host since
+// the device can no longer receive MDM commands after unenrollment.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
-	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?"
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Look up host_uuid before deleting the enrollment so we can clean up profile rows.
+		// Use sql.NullString since host_uuid may be NULL if the enrollment hasn't been linked to a host yet.
+		var hostUUID sql.NullString
+		err := sqlx.GetContext(ctx, tx,
+			&hostUUID, `SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`, mdmDeviceID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+			}
+			return ctxerr.Wrap(ctx, err, "looking up host_uuid for enrolled device")
+		}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete MDMWindowsDeleteEnrolledDeviceWithDeviceID")
-	}
+		res, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting Windows enrolled device")
+		}
 
-	deleted, _ := res.RowsAffected()
-	if deleted == 1 {
+		deleted, _ := res.RowsAffected()
+		if deleted != 1 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+		}
+
+		// Clean up all host_mdm_windows_profiles rows for this host since it can no longer receive MDM commands.
+		if hostUUID.Valid && hostUUID.String != "" {
+			if _, err := tx.ExecContext(ctx,
+				`DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, hostUUID.String); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles after unenrollment")
+			}
+		}
+
 		return nil
-	}
-
-	return ctxerr.Wrap(ctx, notFound("MDMWindowsDeleteEnrolledDeviceWithDeviceID"))
+	})
 }
 
 // this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
@@ -881,6 +913,8 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
+		whereProtectionOn     = `(hd.bitlocker_protection_status IS NULL OR hd.bitlocker_protection_status != 0)`
+		whereProtectionOff    = `(hd.bitlocker_protection_status = 0)`
 	)
 
 	whereBitLockerPINSet := `TRUE`
@@ -895,37 +929,40 @@ func (ds *Datastore) whereBitLockerStatus(ctx context.Context, status fleet.Disk
 
 	switch status {
 	case fleet.DiskEncryptionVerified:
+		// Verified requires protection to be on (or unknown/NULL for backward compatibility).
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND ` + whereEncrypted + `
 AND ` + whereHostDisksUpdated + `
+AND ` + whereProtectionOn + `
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionVerifying:
 		// Possible verifying scenarios:
 		// - we have the key and host_disks already encrypted before the key but hasn't been updated yet
 		// - we have the key and host_disks reported unencrypted during the 1-hour grace period after key was updated
+		// Protection must be on for encrypted disks. For the grace period path (encryption
+		// still in progress), protection is expected to be off so we don't check it.
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (
-    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
+    (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + ` AND ` + whereProtectionOn + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
 )
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
-		// Action required means we _would_ be in verified / verifying,
-		// but we require a PIN to be set and it's not.
+		// Action required when:
+		// 1. We _would_ be in verified/verifying but PIN is required and not set, OR
+		// 2. Disk is encrypted and key is escrowed but BitLocker protection is off
+		//    (e.g., suspended for a BIOS update, or a TPM configuration issue)
 		return whereNotServer + `
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
-AND (
-	` + whereEncrypted + `
-	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
-)
-AND NOT ` + whereBitLockerPINSet
+AND (` + whereEncrypted + ` OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `))
+AND (NOT ` + whereBitLockerPINSet + ` OR (` + whereEncrypted + ` AND ` + whereProtectionOff + `))`
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -960,7 +997,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
-	// Note action_required and removing_enforcement are not applicable to Windows hosts
+	// Note removing_enforcement is not applicable to Windows hosts
 	sqlFmt := `
 SELECT
     COUNT(if((%s), 1, NULL)) AS verified,
@@ -1037,7 +1074,6 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	// Note action_required and removing_enforcement are not applicable to Windows hosts
 	stmt := fmt.Sprintf(`
 SELECT
 	CASE
@@ -1048,7 +1084,9 @@ SELECT
 		WHEN (%s) THEN '%s'
 		ELSE ''
 	END AS status,
-	COALESCE(client_error, '') as detail
+	COALESCE(client_error, '') as detail,
+	hd.bitlocker_protection_status,
+	COALESCE(hd.tpm_pin_set, false) as tpm_pin_set
 FROM
 	host_mdm hmdm
 	LEFT JOIN host_disk_encryption_keys hdek ON hmdm.host_id = hdek.host_id
@@ -1068,8 +1106,10 @@ WHERE
 	)
 
 	var dest struct {
-		Status fleet.DiskEncryptionStatus `db:"status"`
-		Detail string                     `db:"detail"`
+		Status           fleet.DiskEncryptionStatus `db:"status"`
+		Detail           string                     `db:"detail"`
+		ProtectionStatus *int                       `db:"bitlocker_protection_status"`
+		TpmPinSet        bool                       `db:"tpm_pin_set"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, host.ID); err != nil {
 		if err != sql.ErrNoRows {
@@ -1086,6 +1126,21 @@ WHERE
 		// attention to the issue and log potential debugging
 		ds.logger.DebugContext(ctx, "no bitlocker status found for host", "host_id", host.ID)
 		dest.Status = fleet.DiskEncryptionFailed
+	}
+
+	// Build a meaningful detail message for action_required when there's no client error.
+	if dest.Status == fleet.DiskEncryptionActionRequired && dest.Detail == "" {
+		protectionOff := dest.ProtectionStatus != nil && *dest.ProtectionStatus == fleet.BitLockerProtectionStatusOff
+		pinMissing := diskEncryptionConfig.BitLockerPINRequired && !dest.TpmPinSet
+
+		switch {
+		case protectionOff && pinMissing:
+			dest.Detail = "BitLocker protection is off and a required startup PIN is not set. The disk is encrypted but the TPM protector is not active, and a BitLocker PIN must be configured."
+		case protectionOff:
+			dest.Detail = "BitLocker protection is off. The disk is encrypted but the TPM protector is not active. This may be due to a suspended BitLocker state or a TPM configuration issue."
+		case pinMissing:
+			dest.Detail = "A required BitLocker startup PIN is not set. The disk is encrypted but a PIN must be configured for compliance."
+		}
 	}
 
 	return &fleet.HostMDMDiskEncryption{
@@ -1932,6 +1987,8 @@ SELECT
             'failed'
         WHEN 'bitlocker_pending' THEN
             'pending'
+        WHEN 'bitlocker_action_required' THEN
+            'pending'
         ELSE
             'verifying'
         END)
@@ -1940,6 +1997,8 @@ SELECT
         WHEN 'bitlocker_failed' THEN
             'failed'
         WHEN 'bitlocker_pending' THEN
+            'pending'
+        WHEN 'bitlocker_action_required' THEN
             'pending'
         WHEN 'bitlocker_verifying' THEN
             'verifying'
@@ -2618,7 +2677,7 @@ INSERT INTO
 					FleetVariables: usesFleetVars,
 				},
 			}
-			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows", false); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
 			}
 		}

@@ -103,6 +103,34 @@ When merging a pull request from a community contributor:
 - Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
+### AI code review
+
+Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
+
+1. **GitHub Copilot**: Automatically reviews every PR for contributors with a Copilot seat. No action needed.
+2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
+3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
+
+> **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit—including minor or stale changes—leading to unnecessary long-running review cycles and added cost.
+
+
+### AI coding tools
+
+Fleet uses AI coding tools like [Kilo Code](https://kilocode.ai) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to help contributors make changes to the codebase.
+
+Engineers are expected to use Claude Code as part of their daily workflow, whether in the terminal, their IDE, or via Claude Cowork.
+
+The right tool depends on the type of change:
+
+- **GitOps YAML changes**: Kilo Code works great for making changes to Fleet's GitOps configuration files. IT uses this regularly.
+- **Typo fixes and color values**: Kilo Code is fine for small, single-line changes like fixing typos in the product or updating specific color values.
+- **Multiline code changes to the product**: Use Claude Code locally instead of Kilo Code. Run the code locally, confirm the change works, and open a PR from your GitHub account. This ensures:
+  1. The same expectation applies to everyone: if you submit a PR to the product's code, you've run it locally and confirmed it works.
+  2. The commit is attributed to your GitHub user account, not a bot.
+
+> [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
+
+
 ### Close a stale community issue
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
@@ -150,6 +178,7 @@ The incident on-call engineer is responsible for:
 - Knowing [the incident on-call rotation](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer).
 - Completing the [incident.io on-call engineer onboarding steps](https://help.incident.io/articles/3472064049-get-started-as-an-on-call-responder) sent via email when invited to incident.io.
 - Confirming incident pages push through Do Not Disturb.
+- Assuming the incident lead in incident.io.
 - Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
@@ -173,7 +202,7 @@ Incident notifications are sent 24/7/365 via incident.io, triggered by creating 
 
 Mitigating the outage may require writing and merging code. The current infrastructure on-call engineer is first line for all reviews and QA required to deploy a hot-fix. If additional code review or engineering support is needed, the responding engineer should escalate to their manager.
 
-> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. 
+> If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. See [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities) for details.
 
 
 ### Participate in QA Day
@@ -588,6 +617,24 @@ Once you have the above follow these steps:
 ### Check production dependencies of fleetdm.com
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this [manual process](https://www.loom.com/share/153613cc1c5347478d3a9545e438cc97?sid=5102dafc-7e27-43cb-8c62-70c8789e5559) can be replaced with Dependabot.
+
+
+### Triage and address vulnerabilities in the `website/` code base
+
+When Dependabot or code scanning surfaces critical or high-severity vulnerabilities in the `/website` directory:
+
+1. **Filter out development-only dependencies** — Dismiss any alerts for packages that are only used during development and never ship to production. When dismissing, include a message with proof, e.g.:
+   > devdep, unused in prod. Proof:
+   > https://github.com/fleetdm/fleet/blob/3a6ecb5a11fdbdf290faf7fdd7ffa6b29335892f/website/package-lock.json#L10798 _(link to the relevant line)_
+
+2. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
+
+3. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
+   - Identify the root cause (e.g., a transitive dependency using a `~` semver range instead of `^`).
+   - Publish patch releases of affected upstream packages (e.g., `@sailshq/router`, `sails-hook-organics`) as needed.
+   - Regenerate the lockfile in `fleetdm/fleet:website` after upstream fixes are published.
+
+4. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
 
 
 ### Respond to a 5xx error on fleetdm.com

@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2025.3') < 0);"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2025.3.3.6/android-studio-panda3-mac_arm.dmg",
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2025.3.4.6/android-studio-panda4-mac_arm.dmg",
       "install_script_ref": "7598bff4",
       "uninstall_script_ref": "5032b6da",
-      "sha256": "e28009b47e248f9fcf32bfd33335cb616390d92133af1e8ed5f6ef61cff007c3",
+      "sha256": "070d8065ef4eeb9561cbbb10674a2433376e91eb7646cb592ebe4f3d734b603a",
       "default_categories": [
         "Developer tools"
       ]

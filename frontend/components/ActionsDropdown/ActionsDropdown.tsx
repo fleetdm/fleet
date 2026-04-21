@@ -29,9 +29,10 @@ interface IActionsDropdownProps {
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
   variant?: "button" | "brand-button" | "small-button";
+  buttonLabel?: string;
 }
 
-const getOptionBackgroundColor = (state: any) => {
+const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
@@ -122,6 +123,7 @@ const ActionsDropdown = ({
   menuAlign = "default",
   menuPlacement = "bottom",
   variant,
+  buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -161,7 +163,7 @@ const ActionsDropdown = ({
       aria-haspopup="listbox"
       aria-expanded={menuIsOpen}
     >
-      <span>Actions</span>
+      <span>{buttonLabel || "Actions"}</span>
       <Icon
         name="chevron-down"
         color="core-fleet-white"
@@ -252,6 +254,7 @@ const ActionsDropdown = ({
     }),
     menu: (provided) => ({
       ...provided,
+      backgroundColor: COLORS["core-fleet-white"],
       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
       borderRadius: "4px",
       zIndex: 6,

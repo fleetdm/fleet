@@ -298,7 +298,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -755,7 +755,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -1486,7 +1486,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -2703,6 +2703,39 @@ spec:
 		_, err = RunAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+
+	})
+
+	t.Run("require_all_software_windows", func(t *testing.T) {
+		ds := setupServer(t, true)
+
+		// Enable Windows MDM in the app config.
+		mockStore.Lock()
+		mockStore.appConfig.MDM.WindowsEnabledAndConfigured = true
+		mockStore.Unlock()
+
+		b, err := os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
+		require.NoError(t, err)
+		expectedTm1 := fmt.Sprintf(string(b), "", "", "", "")
+
+		// Apply team with require_all_software_windows enabled.
+		windowsRequireSpec := `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: tm1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`
+		name := writeTmpYml(t, windowsRequireSpec)
+		assert.Equal(t, "[+] applied 1 fleet\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.True(t, ds.SaveTeamFuncInvoked)
+
+		// Verify the output includes require_all_software_windows: true.
+		expectedWithWindowsRequire := strings.ReplaceAll(expectedTm1, `require_all_software_windows: false`, `require_all_software_windows: true`)
+		assert.YAMLEq(t, expectedWithWindowsRequire, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
 	})
 
 	t.Run("new bootstrap package", func(t *testing.T) {
@@ -2898,7 +2931,7 @@ spec:
 		mockStore.Unlock()
 	})
 
-	// // TODO: restore this test when we have a way to mock the Apple Business Manager API in
+	// // TODO: restore this test when we have a way to mock the Apple Business API in
 	// // fleetctl tests
 	// t.Run("enable end user authentication", func(t *testing.T) {
 	// 	ds := setupServer(t, true)

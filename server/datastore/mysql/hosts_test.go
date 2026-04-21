@@ -4101,8 +4101,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
@@ -4974,7 +4974,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Apple declaration profile //
 	/////////////////////////////////////
 
-	noTeamDeclaration, err := ds.NewMDMAppleDeclaration(ctx, declForTest("test-decleration", "com.fleetdm.fleet.mdm.test-decl", "{}"))
+	noTeamDeclaration, err := ds.NewMDMAppleDeclaration(ctx, declForTest("test-decleration", "com.fleetdm.fleet.mdm.test-decl", "{}"), nil)
 	require.NoError(t, err)
 
 	// verified status
@@ -5105,18 +5105,18 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
 	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
@@ -5183,8 +5183,8 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
 
 	prevRead := getReads(t, ds)
 	h1WithExtras, err := ds.Host(context.Background(), h1.ID)
@@ -8357,11 +8357,11 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 
 	// make sure disk encryption state is reflected
 	require.Nil(t, loadSimple.DiskEncryptionEnabled)
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false, nil))
 	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
 	require.NoError(t, err)
 	require.False(t, *loadSimple.DiskEncryptionEnabled)
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true, nil))
 	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
 	require.NoError(t, err)
 	require.True(t, *loadSimple.DiskEncryptionEnabled)
@@ -8969,7 +8969,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO query_results (host_id, query_id, last_fetched, data) VALUES (?, ?, ?, ?)`, host.ID, policy.ID, time.Now(), `{"foo": "bar"}`)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "", "", false)
 	require.NoError(t, err)
@@ -9727,7 +9727,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 		for _, tc := range testCases {
 			if len(tc.policyEx) != 0 {
-				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false))
+				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil))
 			}
 			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
@@ -9769,7 +9769,7 @@ func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	policyUpdatedAt := initialTime.Add(1 * time.Hour)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
 	require.Len(t, hosts, 2)
@@ -9916,7 +9916,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(
 			t, ds.RecordPolicyQueryExecutions(
-				context.Background(), createdHosts[i], results, time.Now(), false,
+				context.Background(), createdHosts[i], results, time.Now(), false, nil,
 			),
 		)
 	}
@@ -10046,10 +10046,10 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false, nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -10060,7 +10060,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, *h.DiskEncryptionEnabled)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true, nil)
 	require.NoError(t, err)
 
 	h, err = ds.Host(context.Background(), host2.ID)
@@ -10237,7 +10237,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 
 	// fill in disk encryption information
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true, nil))
 	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet, "test-key", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hFleet.ID}, true, time.Now())
@@ -11791,8 +11791,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
 
 	// set up vulnerable software
 	software := []fleet.Software{
@@ -12269,7 +12269,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		require.NoError(
 			// RecordPolicyQueryExecutions should call UpdateHostIssuesFailingPolicies, so we don't have to
 			t, ds.RecordPolicyQueryExecutions(
-				context.Background(), hosts[i], results, time.Now(), false,
+				context.Background(), hosts[i], results, time.Now(), false, nil,
 			),
 		)
 	}

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "46.3.1.34493",
+      "version": "46.4.0.34620",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark' AND version_compare(bundle_short_version, '46.3.1.34493') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark' AND version_compare(bundle_short_version, '46.4.0.34620') < 0);"
       },
       "installer_url": "https://binaries.webex.com/webex-macos-apple-silicon/Webex.dmg",
       "install_script_ref": "219fd325",

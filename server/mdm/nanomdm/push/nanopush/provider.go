@@ -86,7 +86,7 @@ func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
 	var goAwayErr http2.GoAwayError
 	if errors.As(err, &goAwayErr) {
 		body := strings.NewReader(goAwayErr.DebugData)
-		return &push.Response{Err: newError(body, r.StatusCode)}
+		return &push.Response{Err: newError(body, int(goAwayErr.ErrCode))} // resp is nil on GoAway; use the HTTP/2 error code instead
 	} else if err != nil {
 		return &push.Response{Err: err}
 	}

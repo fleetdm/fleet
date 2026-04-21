@@ -122,7 +122,7 @@ describe("EndUserMigrationSection", () => {
     render(<EndUserMigrationSection router={mockRouter} />);
 
     expect(
-      screen.getByText("Connect to Apple Business Manager to get started.")
+      screen.getByText("Connect to Apple Business to get started.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeInTheDocument();
   });

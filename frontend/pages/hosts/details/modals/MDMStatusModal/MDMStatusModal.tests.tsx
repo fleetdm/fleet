@@ -293,7 +293,35 @@ describe("MDMStatusModal - component", () => {
     });
   });
 
-  it("calls onExit when Done is clicked", async () => {
+  it("renders 'Never' for zero-value profile timestamps", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      dep_device: {
+        ...mockDepAssignmentResponse.dep_device,
+        profile_assign_time: "0001-01-01T00:00:00Z",
+        profile_push_time: "0001-01-01T00:00:00Z",
+      },
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    await screen.findByText("Profile assigned");
+
+    const neverTexts = screen.getAllByText("Never");
+    // Both profile_assign_time and profile_push_time should show "Never"
+    expect(neverTexts.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("calls onExit when Close is clicked", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue(
       mockDepAssignmentResponse
     );
@@ -310,7 +338,7 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: "Done" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onExit).toHaveBeenCalled();
   });
 });

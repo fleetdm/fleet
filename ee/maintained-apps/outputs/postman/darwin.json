@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.4.5",
+      "version": "12.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac' AND version_compare(bundle_short_version, '12.4.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac' AND version_compare(bundle_short_version, '12.7.0') < 0);"
       },
-      "installer_url": "https://dl.pstmn.io/download/version/12.4.5/osx_arm64",
+      "installer_url": "https://dl.pstmn.io/download/version/12.7.0/osx_arm64",
       "install_script_ref": "b89b1fb9",
       "uninstall_script_ref": "15e9f11c",
-      "sha256": "c0a27587a782a4380bf9394b4625cb8fd4800643d82c77f2bc744a14adbf6a37",
+      "sha256": "c6dc1084cb40cc01edb65d2fb2bcf5e8ceea4fb129a65c0235c25eeed81b7770",
       "default_categories": [
         "Developer tools"
       ]

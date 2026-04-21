@@ -150,6 +150,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 
 	ds.MarkAllPendingAppleVPPAndInHouseInstallsAsFailedFunc = func(ctx context.Context, jobName string) error { return nil }
 
+	ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a not found error (given that MDM is not really configured) in case
 	// of success, and the package-wide checkAuthErr requires no error.
@@ -2813,6 +2815,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			true,
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
+			"",
+		},
+		{
+			"android profile with team and free license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			1,
+			`{"screenCaptureDisabled": true}`,
+			"Requires Fleet Premium license",
+		},
+		{
+			"android profile with team and premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			1,
+			`{"screenCaptureDisabled": true}`,
 			"",
 		},
 	}

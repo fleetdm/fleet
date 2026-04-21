@@ -10,6 +10,7 @@ import java.security.cert.Certificate
  */
 class MockCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
     var shouldSucceed = true
+    var exceptionToThrow: Exception? = null
     var wasInstallCalled = false
     var capturedAlias: String? = null
     var capturedPrivateKey: PrivateKey? = null
@@ -20,11 +21,13 @@ class MockCertificateInstaller : CertificateEnrollmentHandler.CertificateInstall
         capturedAlias = alias
         capturedPrivateKey = privateKey
         capturedCertificateChain = certificateChain
+        exceptionToThrow?.let { throw it }
         return shouldSucceed
     }
 
     fun reset() {
         shouldSucceed = true
+        exceptionToThrow = null
         wasInstallCalled = false
         capturedAlias = null
         capturedPrivateKey = null

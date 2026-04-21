@@ -111,7 +111,7 @@ source ./tools/tuf/test/load_orbit_version_vars.sh
 # Compile a new version of Orbit:
 GOOS=windows GOARCH=amd64 go build \
     -o orbit-windows.exe \
-    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+    -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
     -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
     ./orbit/cmd/orbit
 
@@ -144,6 +144,15 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
 ```
 NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://updates.fleetdm.com/).
+
+E.g. to add a custom `osqueryd` version from a osquery PR for macOS:
+```sh
+# Generate osqueryd app bundle from pull request https://github.com/osquery/osquery/pull/8815.
+make osqueryd-app-tar-gz pr=8815 out-path=.
+
+# Push the osqueryd target as a new version.
+./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
+```
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh

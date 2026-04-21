@@ -152,8 +152,8 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -465,8 +465,12 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return &ts1, &ts2, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{
+			LastMDMEnrollmentTime: &ts1,
+			LastMDMSeenTime:       &ts2,
+			HardwareAttested:      false,
+		}, nil
 	}
 
 	cases := []struct {
@@ -556,8 +560,8 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -798,8 +802,8 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
@@ -2865,8 +2869,8 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3009,8 +3013,8 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
@@ -3204,8 +3208,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
 	}
-	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, bool, error) {
-		return nil, nil, false, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 
 	cases := []struct {
@@ -4832,4 +4836,69 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		assert.Nil(t, password)
 		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
+}
+
+func TestListHostsIgnoresPremiumOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// filtersActive returns true when any premium filter is set. Host 1 only
+	// appears when no filters are active; host 2 always appears.
+	filtersActive := func(opt fleet.HostListOptions) bool {
+		return opt.LowDiskSpaceFilter != nil ||
+			opt.MDMBootstrapPackageFilter != nil ||
+			opt.DEPProfileErrorFilter != nil ||
+			opt.DEPAssignProfileResponseFilter != nil
+	}
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		var hosts []*fleet.Host
+		if !filtersActive(opt) {
+			hosts = append(hosts, &fleet.Host{ID: 1})
+		}
+		hosts = append(hosts, &fleet.Host{ID: 2})
+		return hosts, nil
+	}
+	ds.CountHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+		if filtersActive(opt) {
+			return 1, nil
+		}
+		return 2, nil
+	}
+
+	cases := []struct {
+		name string
+		opts fleet.HostListOptions
+	}{
+		{"LowDiskSpaceFilter", fleet.HostListOptions{LowDiskSpaceFilter: new(32)}},
+		{"MDMBootstrapPackageFilter", fleet.HostListOptions{MDMBootstrapPackageFilter: new(fleet.MDMBootstrapPackageFailed)}},
+		{"DEPProfileErrorFilter", fleet.HostListOptions{DEPProfileErrorFilter: new(true)}},
+		{"DEPAssignProfileResponseFilter", fleet.HostListOptions{DEPAssignProfileResponseFilter: new(fleet.DEPAssignProfileResponseFailed)}},
+	}
+
+	freeCtx := license.NewContext(test.UserContext(ctx, test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierFree})
+	premiumCtx := license.NewContext(test.UserContext(ctx, test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Free tier: filter is silently ignored
+			hosts, err := svc.ListHosts(freeCtx, tc.opts)
+			require.NoError(t, err)
+			require.Len(t, hosts, 2)
+
+			count, err := svc.CountHosts(freeCtx, nil, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, 2, count)
+
+			// Premium tier: filter is used and hosts are filtered
+			hosts, err = svc.ListHosts(premiumCtx, tc.opts)
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			require.Equal(t, uint(2), hosts[0].ID)
+
+			count, err = svc.CountHosts(premiumCtx, nil, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, 1, count)
+		})
+	}
 }

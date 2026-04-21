@@ -614,8 +614,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
@@ -684,8 +684,8 @@ reports:
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
@@ -741,8 +741,8 @@ reports:
 	_, err = globalFile.WriteString(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -933,8 +933,8 @@ labels:
   - name: Label1
     query: select 1
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 %s
 org_settings:
@@ -955,8 +955,8 @@ reports:
 `
 		teamTemplate = `
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 %s
 software:
@@ -1265,8 +1265,8 @@ reports:
 		noTeamTemplate = `name: Unassigned
 policies:
 controls:
-  macos_setup:
-    script: %s
+  setup_experience:
+    macos_script: %s
 software:
 `
 	)
@@ -1606,8 +1606,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefau
 		globalTemplateWithCustomSettings = `
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:
@@ -1701,9 +1701,9 @@ reports:
 		globalConfigOnly = `
 agent_options:
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: %t
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: %t
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -1716,18 +1716,18 @@ reports:
 
 		noTeamConfig = `name: Unassigned
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 policies:
 software:
 `
 
 		teamConfig = `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: %t
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: %t
 software:
 reports:
 policies:
@@ -1902,8 +1902,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecr
 	const noTeamTemplate = `name: Unassigned
 policies:
 controls:
-  macos_setup:
-    script: %s
+  setup_experience:
+    macos_script: %s
 software:
 `
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -2013,8 +2013,8 @@ agent_options:
       load:
         - SELECT uuid AS host_uuid FROM system_info;
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 reports: []
 policies: []
@@ -2149,8 +2149,8 @@ agent_options:
       load:
         - SELECT uuid AS host_uuid FROM system_info;
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 reports:
 policies:
@@ -3733,9 +3733,9 @@ queries:
 
 	testVPP := `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 software:
   app_store_apps:
     - app_store_id: "2"
@@ -3758,9 +3758,9 @@ team_settings:
 	//nolint:gosec // test code
 	testPackages := `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 software:
   app_store_apps:
   packages:
@@ -3884,8 +3884,8 @@ org_settings:
     - secret: test_secret
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 policies:
 reports:
@@ -4222,7 +4222,7 @@ labels:
   - name: Test Fleet Label
     label_membership_type: dynamic
     query: SELECT 1
-  
+
 `, fleetName)
 
 	fullFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -4517,4 +4517,45 @@ settings:
 	require.Empty(t, teamMeta.LabelsIncludeAny)
 	require.Empty(t, teamMeta.LabelsExcludeAny)
 	require.Empty(t, teamMeta.LabelsIncludeAll)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitopsDDMUnsupportedFleetVariable() {
+	t := s.T()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Create a DDM declaration with an unsupported Fleet variable
+	declDir := t.TempDir()
+	declFile := path.Join(declDir, "decl-unsupported-var.json")
+	err := os.WriteFile(declFile, []byte(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": "com.example.unsupported-var",
+		"Payload": {"Value": "$FLEET_VAR_BOZO"}
+	}`), 0o644)
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`, declFile))
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Applying a DDM declaration with an unsupported Fleet variable should fail
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_BOZO is not supported in DDM profiles")
 }

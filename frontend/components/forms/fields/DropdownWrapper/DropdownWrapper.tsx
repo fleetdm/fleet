@@ -335,8 +335,11 @@ export const generateCustomDropdownStyles = (
         padding: 0,
       };
     },
-    singleValue: (provided) => ({
+    singleValue: (provided, state) => ({
       ...provided,
+      color: state.isDisabled
+        ? COLORS["ui-fleet-black-50"]
+        : COLORS["core-fleet-black"],
       fontSize: "13px",
       margin: 0,
       padding: 0,
@@ -352,7 +355,8 @@ export const generateCustomDropdownStyles = (
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",
