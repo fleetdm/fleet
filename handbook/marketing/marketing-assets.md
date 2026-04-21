@@ -499,6 +499,18 @@ ExpedITioners is Fleet's podcast, hosted by Zach Wasserman. Episodes feature gue
 | [Mike Arpaia — The story behind the creation of osquery](https://expeditioners.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/) | Mike Arpaia — Co-creator of osquery; Partner at Moonfire Ventures | The origin story of osquery, the philosophy behind its design, and its lasting impact on endpoint security and observability. | <nobr>2022‑06‑02</nobr> |
 
 
+## Press Coverage
+
+| Date | Publication | Headline | Journalist |
+|---|---|---|---|
+| 4/20 | CRN | [Five Companies That Came To Win This Week](https://www.crn.com/news/channel-news/2026/five-companies-that-came-to-win-this-week-april-17-2026) | Rick Whiting |
+| 4/17 | Cyber Defense Wire | [Fleet Announces New Partner Program and Names MobileIron Co-founder Suresh Batchu to Board](https://cyberdefensewire.com/fleet-announces-new-partner-program-and-names-mobileiron-co-founder-suresh-batchu-to-board/) | Staff |
+| 4/17 | Channele2e | [Channel Brief: MSP Growth Is Getting Harder to Win](https://www.channele2e.com/news/channel-brief-its-less-about-tools-more-about-running-them) | Suparna Chawla Bhasin |
+| 4/16 | CRN | [Fleet Launches Inaugural Partner Program As It Adopts A 100 Percent Channel Sales Model: Exclusive](https://www.crn.com/news/channel-news/2026/fleet-launches-inaugural-partner-program-as-it-adopts-a-100-percent-channel-sales-model-exclusive) | Rick Whiting |
+| 4/16 | Channelvision | [Fleet Launches Partner Program for its Device Management](https://channelvisionmag.com/fleet-launches-partner-program-for-its-device-management/) | Martin Vilaboy |
+| 4/16 | Apple Must | [Fleet launches partner program, appoints MobileIron co-founder to its board](https://www.applemust.com/fleet-launches-partner-program-appoints-mobileiron-co-founder-to-its-board/) | Jonny Evans |
+
+
 ## Release notes
 
 See: https://fleetdm.com/releases
