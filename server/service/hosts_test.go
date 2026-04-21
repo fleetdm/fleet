@@ -4842,21 +4842,12 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	// Simulate host1 not matching any filters
+	// Simulate host1 not matching any filters.
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-		includeHost1 := true
-		if opt.LowDiskSpaceFilter != nil {
-			includeHost1 = false
-		}
-		if opt.MDMBootstrapPackageFilter != nil {
-			includeHost1 = false
-		}
-		if opt.DEPProfileErrorFilter != nil {
-			includeHost1 = false
-		}
-		if opt.DEPAssignProfileResponseFilter != nil {
-			includeHost1 = false
-		}
+		includeHost1 := opt.LowDiskSpaceFilter == nil &&
+			opt.MDMBootstrapPackageFilter == nil &&
+			opt.DEPProfileErrorFilter == nil &&
+			opt.DEPAssignProfileResponseFilter == nil
 
 		var hosts []*fleet.Host
 		if includeHost1 {
