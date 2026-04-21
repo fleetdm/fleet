@@ -2409,10 +2409,12 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*ExistingSoftwareInstaller, error)
 
-	// GetInstallerByTeamAndURL looks up an existing software installer by team
-	// and URL. Returns the most recently inserted installer matching the team and
-	// URL, including its storage_id (SHA256) and http_etag for conditional downloads.
-	GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*ExistingSoftwareInstaller, error)
+	// GetInstallerByTeamAndURL looks up an existing software installer by URL.
+	// When teamID is non-nil, filters to that team. When nil, searches all teams
+	// (cross-team fallback). Returns the most recently inserted active installer
+	// matching the URL, including its storage_id and http_etag for conditional
+	// downloads.
+	GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*ExistingSoftwareInstaller, error)
 
 	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
 	// have the setup experience IdP (End user authentication) enabled. It uses
