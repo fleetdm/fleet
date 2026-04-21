@@ -4645,7 +4645,7 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Correct team and URL returns the installer with ETag
-	existing, err := ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/app/latest")
+	existing, err := ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/app/latest")
 	require.NoError(t, err)
 	require.NotNil(t, existing)
 	assert.Equal(t, "hash1", existing.StorageID)
@@ -4654,12 +4654,24 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	assert.Equal(t, etag, *existing.HTTPETag)
 
 	// Wrong team returns nil
-	existing, err = ds.GetInstallerByTeamAndURL(ctx, team2.ID, "https://example.com/app/latest")
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team2.ID, "https://example.com/app/latest")
 	require.NoError(t, err)
 	assert.Nil(t, existing)
 
 	// Wrong URL returns nil
-	existing, err = ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/other")
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/other")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// nil team (cross-team fallback) returns the installer from any team
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, nil, "https://example.com/app/latest")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash1", existing.StorageID)
+	assert.Equal(t, "app.pkg", existing.Filename)
+
+	// nil team with non-existent URL returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, nil, "https://example.com/nonexistent")
 	require.NoError(t, err)
 	assert.Nil(t, existing)
 
@@ -4684,7 +4696,7 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	existing, err = ds.GetInstallerByTeamAndURL(ctx, team1.ID, "https://example.com/gp?version=64&platform=windows")
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/gp?version=64&platform=windows")
 	require.NoError(t, err)
 	require.NotNil(t, existing)
 	assert.Equal(t, "hash2", existing.StorageID)
@@ -4727,7 +4739,7 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	existing, err = ds.GetInstallerByTeamAndURL(ctx, team2.ID, rollbackURL)
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team2.ID, rollbackURL)
 	require.NoError(t, err)
 	require.NotNil(t, existing)
 	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
