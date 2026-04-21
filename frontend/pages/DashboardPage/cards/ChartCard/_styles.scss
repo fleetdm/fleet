@@ -2,13 +2,13 @@
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: $pad-medium;
   }
 
   &__header-left {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
   }
 
   &__header-right {
@@ -20,7 +20,8 @@
   &__title {
     font-size: $small;
     font-weight: $bold;
-    margin: 0 0 $pad-medium !important;
+    margin: 0 !important;
+    line-height: 1;
   }
 
   &__dataset-dropdown {
