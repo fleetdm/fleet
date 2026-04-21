@@ -543,7 +543,7 @@ const quitApplicationFunc = `quit_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
@@ -587,7 +587,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     eval "export $var_name=0"
     return
@@ -648,9 +648,14 @@ const relaunchApplicationFunc = `relaunch_application() {
 
   # Launch the app in the logged-in user's GUI session. Apps launched by root
   # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
   local open_status=0
   if [[ $EUID -eq 0 ]]; then
-    sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
   else
     open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
   fi
