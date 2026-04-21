@@ -71,7 +71,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		created_at,
 		updated_at,
 		host_uuid
-		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`
+		FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, mdmDeviceID); err != nil {
@@ -104,7 +104,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		created_at,
 		updated_at,
 		host_uuid
-		FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1`
+		FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`
 
 	var winMDMDevice fleet.MDMWindowsEnrolledDevice
 	// use the writer because this is sometimes fetched soon after updating the host UUID
@@ -351,7 +351,7 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		batchCount++
 		// Command queue entry: resolve enrollment_id via subquery.
 		queueSB.WriteString(
-			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1), ?),",
+			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1), ?),",
 		)
 		queueArgs = append(queueArgs, hostUUID, cmd.CommandUUID)
 
@@ -470,7 +470,7 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 	for _, id := range hostUUIDsOrDeviceIDs {
 		var eid uint
 		err := sqlx.GetContext(ctx, tx, &eid,
-			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC LIMIT 1`,
+			`SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? OR mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
 			id, id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -483,12 +483,22 @@ func (ds *Datastore) getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx context.Context,
 	return allIDs, nil
 }
 
-// MDMWindowsGetPendingCommands retrieves all commands awaiting execution for a
-// given device ID.
-func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
-	var commands []*fleet.MDMWindowsCommand
+// MDMWindowsGetPendingCommands retrieves all commands awaiting execution for the given enrollment.
+func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+	// Fast path: probe the queue. An MDM management session runs this query on every
+	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
+	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
+	// idle path does not go through a sql.ErrNoRows branch.
+	const probe = `SELECT EXISTS(SELECT 1 FROM windows_mdm_command_queue WHERE enrollment_id = ?)`
+	var hasPending bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "probe pending Windows MDM commands")
+	}
+	if !hasPending {
+		return nil, nil
+	}
 
-	query := `
+	const query = `
 SELECT
 	wmc.command_uuid,
 	wmc.raw_command,
@@ -498,15 +508,11 @@ SELECT
 FROM
 	windows_mdm_command_queue wmcq
 INNER JOIN
-	mdm_windows_enrollments mwe
-ON
-	mwe.id = wmcq.enrollment_id
-INNER JOIN
 	windows_mdm_commands wmc
 ON
 	wmc.command_uuid = wmcq.command_uuid
 WHERE
-	mwe.mdm_device_id = ? AND
+	wmcq.enrollment_id = ? AND
 	NOT EXISTS (
 		SELECT 1
 		FROM
@@ -519,21 +525,20 @@ ORDER BY
 	wmc.created_at ASC
 `
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, deviceID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by device id")
+	var commands []*fleet.MDMWindowsCommand
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, query, enrollmentID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pending Windows MDM commands by enrollment id")
 	}
 
 	return commands, nil
 }
 
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
 	if len(enrichedSyncML.Raw) == 0 {
 		return ctxerr.New(ctx, "empty raw response")
 	}
-
-	enrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enrolled device with device ID")
+	if enrolledDevice == nil {
+		return ctxerr.New(ctx, "enrolled device is nil")
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -571,7 +576,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 			if len(commandIDsBeingResent) == 0 {
 				// Only log if not resending commands as we then can expect no matching commands
 				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
-					deviceID)
+					enrolledDevice.MDMDeviceID)
 			}
 			return nil
 		}
@@ -3310,7 +3315,7 @@ func (ds *Datastore) GetWindowsMDMCommandsForResending(ctx context.Context, devi
 	}
 
 	stmt := `SELECT wmc.command_uuid, wmc.raw_command, wmc.target_loc_uri, wmc.created_at, wmc.updated_at
-		FROM windows_mdm_commands wmc INNER JOIN windows_mdm_command_queue wmcq ON wmcq.enrollment_id = (SELECT id from mdm_windows_enrollments WHERE mdm_device_id = ?) AND wmcq.command_uuid = wmc.command_uuid WHERE`
+		FROM windows_mdm_commands wmc INNER JOIN windows_mdm_command_queue wmcq ON wmcq.enrollment_id = (SELECT id from mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1) AND wmcq.command_uuid = wmc.command_uuid WHERE`
 
 	args := []any{deviceID}
 	for idx, commandId := range failedCommandIds {
@@ -3345,7 +3350,7 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 		// First clear out any existing command queue references for the host
 		_, err := tx.ExecContext(ctx, `
 			DELETE FROM windows_mdm_command_queue WHERE enrollment_id = (
-				SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?
+				SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1
 			) AND command_uuid = ?`, mdmDeviceId, oldCmd.CommandUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting existing command queue entries for old command")
@@ -3361,7 +3366,7 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 			status = '%s',
 			retries = retries, -- Keep retries the same to avoid endlessly resending.
 			detail = ''
-			WHERE host_uuid = (SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ?) AND command_uuid = ?`, fleet.MDMDeliveryPending)
+			WHERE host_uuid = (SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1) AND command_uuid = ?`, fleet.MDMDeliveryPending)
 		// Keep the profile in pending while we resend with Replace.
 
 		_, err = tx.ExecContext(ctx, updateStmt, newCmd.CommandUUID, mdmDeviceId, oldCmd.CommandUUID)
