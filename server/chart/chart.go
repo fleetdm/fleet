@@ -85,19 +85,20 @@ type DataPoint struct {
 
 // Response is the API response for chart data.
 type Response struct {
-	Metric        string    `json:"metric"`
-	Visualization string    `json:"visualization"`
-	TotalHosts    int       `json:"total_hosts"`
-	Resolution    string    `json:"resolution"`
-	Days          int       `json:"days"`
-	Filters       Filters   `json:"filters"`
+	Metric        string      `json:"metric"`
+	Visualization string      `json:"visualization"`
+	TotalHosts    int         `json:"total_hosts"`
+	Resolution    string      `json:"resolution"`
+	Days          int         `json:"days"`
+	Filters       Filters     `json:"filters"`
 	Data          []DataPoint `json:"data"`
 }
 
 // RequestOpts captures the parsed query parameters for a chart request.
 type RequestOpts struct {
 	Days int
-	// Downsample groups hours into N-hour blocks (valid: 0, 2, 4, 8). 0 means hourly.
+	// Downsample groups hours into N-hour blocks (valid: 0, 1, 2, 3, 4, 8, 12).
+	// Both 0 (default) and 1 mean no downsampling (hourly data).
 	Downsample int
 	// TZOffsetMinutes is the client's UTC offset as reported by JavaScript's
 	// Date.getTimezoneOffset() (positive = west of UTC, e.g. CDT = 300).

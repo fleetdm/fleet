@@ -93,9 +93,21 @@ func TestGetChartDataInvalidDownsample(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7, Downsample: 3})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid downsample value")
+	cases := []struct {
+		name       string
+		downsample int
+	}{
+		{"not a divisor of 24", 5},
+		{"negative divisor of 24", -2},
+		{"negative non-divisor", -5},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7, Downsample: tc.downsample})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid downsample value")
+		})
+	}
 }
 
 func TestGetChartDataBlobHourly(t *testing.T) {

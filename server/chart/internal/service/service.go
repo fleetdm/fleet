@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 )
@@ -45,7 +44,7 @@ func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
 	for name, dataset := range s.datasets {
 		if err := dataset.Collect(ctx, s.store, now); err != nil {
 			// Log and continue — don't let one dataset failure block others.
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, fmt.Sprintf("collect chart dataset %s", name)))
+			s.logger.ErrorContext(ctx, "collect chart dataset", "dataset", name, "err", ctxerr.Wrap(ctx, err, "collect chart dataset"))
 		}
 	}
 	return nil
@@ -67,10 +66,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts chart.Re
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
 	}
 
-	// Validate downsample.
-	validDownsample := map[int]struct{}{0: {}, 2: {}, 3: {}, 4: {}, 8: {}, 12: {}}
-	if _, ok := validDownsample[opts.Downsample]; !ok {
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid downsample value: %d (must be 2, 4, or 8)", opts.Downsample)}
+	// Validate downsample. Must be 0 or a positive divisor of 24.
+	if opts.Downsample < 0 || (opts.Downsample != 0 && 24%opts.Downsample != 0) {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("invalid downsample value: %d (must be 0 or a positive divisor of 24)", opts.Downsample)}
 	}
 
 	// Resolve dataset-specific filters to entity IDs.
