@@ -1802,7 +1802,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
-
 			}
 		}
 	}
