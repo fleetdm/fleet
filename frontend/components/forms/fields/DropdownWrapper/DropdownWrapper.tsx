@@ -199,7 +199,7 @@ export const generateCustomDropdownStyles = (
               stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
-          ".react-select__control--is-focused": {
+          ...(state.isFocused && {
             backgroundColor: COLORS["ui-fleet-black-5"],
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
@@ -208,7 +208,7 @@ export const generateCustomDropdownStyles = (
             ".dropdown-wrapper__indicator path": {
               stroke: COLORS["ui-fleet-black-75-down"],
             },
-          },
+          }),
           ...(state.menuIsOpen && {
             backgroundColor: COLORS["ui-fleet-black-5"],
             ".dropdown-wrapper__placeholder": {
