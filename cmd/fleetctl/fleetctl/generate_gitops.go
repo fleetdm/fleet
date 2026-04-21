@@ -1519,10 +1519,16 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				// The policy references a MaintainedApp that no longer exists
 				// (e.g. deleted after the policy was authored). Warn and keep
 				// generating the rest of the export instead of aborting the
-				// whole `fleetctl generate-gitops` run (#43770); the operator
-				// can clean the stale reference up post-export.
+				// whole `fleetctl generate-gitops` run (#43770). Emit the
+				// required `fleet_maintained_app_slug` key with a TODO marker
+				// so the operator still sees the field (patch-policy GitOps
+				// validation expects it) and has a clear pointer to clean up
+				// the stale reference post-export.
+				policySpec["fleet_maintained_app_slug"] = fmt.Sprintf(
+					"TODO: resolve missing Fleet-maintained app %d for policy %q",
+					cachedSWTitle.MaintainedAppID, policy.Name)
 				fmt.Fprintf(cmd.CLI.App.ErrWriter,
-					"Warning: policy %q references maintained app %d which is no longer in the datastore; omitting fleet_maintained_app_slug.\n",
+					"Warning: policy %q references maintained app %d which is no longer in the datastore; leaving fleet_maintained_app_slug as a TODO.\n",
 					policy.Name, cachedSWTitle.MaintainedAppID)
 			default:
 				return nil, err
