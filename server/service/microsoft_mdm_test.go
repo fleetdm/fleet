@@ -1043,7 +1043,7 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	// Now respond with credentials to ack the rekey
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {

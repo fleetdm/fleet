@@ -1266,6 +1266,9 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
 
+	d1ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d1.MDMHardwareID)
+	d2ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d2.MDMHardwareID)
+
 	cmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  uuid.NewString(),
 		RawCommand:   []byte("<Exec></Exec>"),
@@ -1275,20 +1278,20 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{}, cmd)
 	require.NoError(t, err)
 	// no commands are enqueued nor created
-	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd)
 	require.NoError(t, err)
 	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
@@ -1297,10 +1300,10 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 
@@ -1323,6 +1326,7 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	time.Sleep(time.Second) // ensure it gets a latest created_at
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d3)
 	require.NoError(t, err)
+	d3ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d3.MDMHardwareID)
 
 	// commands can still be enqueued, will be enqueued for the latest enrolled device
 	// when a duplicate host uuid/device id exists (i.e. for d3 even if d2 is passed -
@@ -1330,16 +1334,18 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmd.CommandUUID = uuid.NewString()
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
 	require.NoError(t, err)
-	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	// Commands are queried per-enrollment: the new command was enqueued against
+	// d3 (the latest enrollment sharing d1's MDMDeviceID) and d2, so d1's own
+	// enrollment still sees only its two prior commands.
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 3)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3ID)
 	require.NoError(t, err)
-	require.Len(t, cmds, 3) // d2 sees the new command as we retrieve by device_id and they share the same
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3.MDMDeviceID)
-	require.NoError(t, err)
-	require.Len(t, cmds, 3)
+	require.Len(t, cmds, 1)
 }
 
 func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
@@ -1367,6 +1373,9 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 	require.NoError(t, err)
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
+
+	d1ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d1.MDMHardwareID)
+	d2ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d2.MDMHardwareID)
 
 	getAllHostProfiles := func() []*fleet.MDMWindowsProfilePayload {
 		var hostProfiles []*fleet.MDMWindowsProfilePayload
@@ -1423,10 +1432,10 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		require.NoError(t, err)
 
 		// Verify commands were enqueued
-		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
-		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 
@@ -1565,7 +1574,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		require.NoError(t, err)
 
 		// Verify both hosts got their commands despite batching
-		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 		require.NoError(t, err)
 		found := false
 		for _, c := range cmds {
@@ -1576,7 +1585,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		}
 		require.True(t, found, "expected command for d1")
 
-		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 		require.NoError(t, err)
 		found = false
 		for _, c := range cmds {
@@ -1610,8 +1619,10 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
 	require.NoError(t, err)
 
+	dID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
+
 	// device without commands
-	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, dID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -1624,12 +1635,12 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, cmd)
 	require.NoError(t, err)
 
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, dID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
-	// non-existent device
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, "fail")
+	// non-existent enrollment
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 }
@@ -1709,6 +1720,19 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
+}
+
+// mdmWindowsEnrollmentIDByHardwareID resolves an enrollment row's auto-increment id
+// from its hardware id. MDMWindowsInsertEnrolledDevice does not populate the ID field
+// on the inserted struct, and hardware_id is the only identifier guaranteed unique in
+// tests that exercise the duplicate device_id / host_uuid case.
+func mdmWindowsEnrollmentIDByHardwareID(ctx context.Context, t *testing.T, ds *Datastore, hwID string) uint {
+	t.Helper()
+	var id uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &id, `SELECT id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, hwID)
+	})
+	return id
 }
 
 func createMDMWindowsEnrollment(ctx context.Context, t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolledDevice {
