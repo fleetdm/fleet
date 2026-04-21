@@ -64,7 +64,6 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
   if (isSoftwareDisabled) {
     return (
       <EmptyState
-        graphicName="empty-search-question"
         header="Software inventory disabled"
         info={
           <>

@@ -136,7 +136,7 @@ const SelfServiceCard = ({
     return (
       <EmptyState
         header="Error loading software."
-        {...(isMobileView && { variant: "mobile" })}
+        {...(isMobileView && { variant: "list" })}
       />
     );
 
@@ -144,10 +144,9 @@ const SelfServiceCard = ({
   if ((isEmpty || !selfServiceData) && !isFetching) {
     return (
       <EmptyState
-        graphicName="empty-software"
         header="No self-service software available yet"
         info="Your organization didn’t add any self-service software."
-        {...(isMobileView && { variant: "mobile" })}
+        {...(isMobileView && { variant: "list" })}
       />
     );
   }

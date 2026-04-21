@@ -40,8 +40,8 @@ const SelfServiceTiles = ({
 
   if (isEmptySearch) {
     return (
-      <EmptyState variant="list"
-        graphicName="empty-search-question"
+      <EmptyState
+        variant="list"
         header="No items match your search"
         info={
           <>

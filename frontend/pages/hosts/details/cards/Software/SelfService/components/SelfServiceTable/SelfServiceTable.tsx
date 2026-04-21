@@ -74,7 +74,6 @@ const SelfServiceTable = ({
         emptyComponent={() =>
           isEmptySearch ? (
             <EmptyState
-              graphicName="empty-search-question"
               header="No items match your search"
               info={
                 <>

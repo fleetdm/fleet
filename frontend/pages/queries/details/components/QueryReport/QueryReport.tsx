@@ -133,7 +133,6 @@ const QueryReport = ({
             return (
               <EmptyState
                 className={baseClass}
-                graphicName="empty-software"
                 header="Nothing to report yet"
                 info="This report has returned no data so far."
               />

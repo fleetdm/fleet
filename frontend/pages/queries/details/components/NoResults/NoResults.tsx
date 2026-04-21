@@ -152,7 +152,6 @@ const NoResults = ({
   return (
     <EmptyState
       className={baseClass}
-      graphicName="empty-software"
       header={emptyHeader}
       info={emptyDetails}
     />

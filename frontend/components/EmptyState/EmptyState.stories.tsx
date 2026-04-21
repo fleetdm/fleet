@@ -31,15 +31,6 @@ export const Default: Story = {
   },
 };
 
-export const WithGraphic: Story = {
-  args: {
-    header: "No hosts",
-    info: "Add your first host to get started with Fleet.",
-    graphicName: "empty-hosts",
-    primaryButton: <Button>Add hosts</Button>,
-  },
-};
-
 export const WithAdditionalInfo: Story = {
   args: {
     header: "Additional configuration required",

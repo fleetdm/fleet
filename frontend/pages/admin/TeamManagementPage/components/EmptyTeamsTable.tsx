@@ -40,7 +40,6 @@ const EmptyTeamsTable = ({
 
   return (
     <EmptyState
-      graphicName="empty-teams"
       header="Set up fleet permissions"
       info="Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts."
       additionalInfo={

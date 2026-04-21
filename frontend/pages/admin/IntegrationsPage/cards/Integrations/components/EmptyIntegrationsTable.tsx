@@ -13,7 +13,6 @@ const EmptyIntegrationsTable = ({
 }) => {
   return (
     <EmptyState
-      graphicName="empty-integrations"
       header="Ticket destinations"
       info="Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies."
       additionalInfo={

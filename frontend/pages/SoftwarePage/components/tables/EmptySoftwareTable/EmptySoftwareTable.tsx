@@ -101,13 +101,7 @@ const EmptySoftwareTable = ({
 
   const emptySoftware = getEmptySoftwareInfo();
 
-  return (
-    <EmptyState
-      graphicName="empty-search-question"
-      header={emptySoftware.header}
-      info={emptySoftware.info}
-    />
-  );
+  return <EmptyState header={emptySoftware.header} info={emptySoftware.info} />;
 };
 
 export default EmptySoftwareTable;

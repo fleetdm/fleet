@@ -133,7 +133,6 @@ const HQRTable = ({
       return (
         <EmptyState
           className={`${baseClass}__report-clipped`}
-          graphicName="empty-software"
           header="Report clipped"
           info="This report has paused reporting in Fleet, and no results were saved for this host."
         />
@@ -144,7 +143,6 @@ const HQRTable = ({
       return (
         <EmptyState
           className={`${baseClass}__collecting-results`}
-          graphicName="collecting-results"
           header="Collecting results..."
           info={`Fleet is collecting report results from ${hostName}. Check back later.`}
         />
@@ -154,7 +152,6 @@ const HQRTable = ({
       // nothing to report
       <EmptyState
         className={`${baseClass}__nothing-to-report`}
-        graphicName="empty-software"
         header="Nothing to report"
         info={`This report has run on ${hostName}, but returned no data for this host.`}
       />
