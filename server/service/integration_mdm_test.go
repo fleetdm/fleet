@@ -23428,17 +23428,31 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		require.NotNil(t, rlpStatus.Status)
 		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
 
+		// Helper: read the deleted flag directly from host_recovery_key_passwords,
+		// bypassing the deleted=0 filter used by the datastore readers. This lets us
+		// distinguish "row soft-deleted" from "row hard-deleted" — the cron sweep must
+		// only soft-delete.
+		readDeleted := func() bool {
+			t.Helper()
+			var deleted bool
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &deleted,
+					`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+			})
+			return deleted
+		}
+
 		// Simulate the osquery ingest path that detects manual profile removal: the
 		// device user removed the MDM profile but no CheckOut fired. osquery reports
 		// enrolled=false via SetOrUpdateMDMData. The status is still stale until the
 		// recovery-lock cron runs its sweep.
 		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, false, "", false, "", "", false))
 
-		// Intermediate state: backend row is still verified (cron hasn't run yet).
-		// The UI guard (hostIsMdmEnrolled check in the OS settings table + host summary
-		// and the canShowRecoveryLockPassword dropdown gate on isConnectedToFleetMdm)
-		// hides the stale password in the UI; the API still returns the stale status
-		// until the next cron tick.
+		// Pre-cron precondition: the row is live (deleted=0). SetOrUpdateMDMData only
+		// flipped host_mdm.enrolled; the stale verified row still exists and the API
+		// still returns it. The UI guard (hostIsMdmEnrolled check) hides it on the
+		// client side until the next cron tick reconciles the backend.
+		assert.False(t, readDeleted(), "precondition: row must still be live before cron sweep")
 
 		// Cron tick runs SoftDeleteRecoveryLockPasswordsForUnenrolledHosts which sweeps
 		// any live row whose host_mdm.enrolled=0.
@@ -23447,12 +23461,14 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		assert.Nil(t, rlpStatus.Status, "cron sweep must soft-delete rows for unenrolled hosts")
 		assert.False(t, rlpStatus.PasswordAvailable)
+		assert.True(t, readDeleted(), "cron sweep must soft-delete the row (deleted=1), not hard-delete it")
 
 		// A second cron tick is idempotent — the rkp.deleted=0 guard excludes the
 		// already-swept row.
 		runRecoveryLockCron(t)
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		assert.Nil(t, rlpStatus.Status)
+		assert.True(t, readDeleted(), "row still soft-deleted after a second cron tick")
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
