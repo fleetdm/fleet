@@ -4837,3 +4837,60 @@ func TestGetHostRecoveryLockPassword(t *testing.T) {
 		assert.Contains(t, err.Error(), "mark recovery lock password viewed")
 	})
 }
+
+func TestListHostsIgnoresPremiumOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Simulate host1 not matching any filters
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		includeHost1 := true
+		if opt.LowDiskSpaceFilter != nil {
+			includeHost1 = false
+		}
+		if opt.MDMBootstrapPackageFilter != nil {
+			includeHost1 = false
+		}
+		if opt.DEPProfileErrorFilter != nil {
+			includeHost1 = false
+		}
+		if opt.DEPAssignProfileResponseFilter != nil {
+			includeHost1 = false
+		}
+
+		var hosts []*fleet.Host
+		if includeHost1 {
+			hosts = append(hosts, &fleet.Host{ID: 1})
+		}
+		hosts = append(hosts, &fleet.Host{ID: 2})
+		return hosts, nil
+	}
+
+	cases := []struct {
+		name string
+		opts fleet.HostListOptions
+	}{
+		{"LowDiskSpaceFilter", fleet.HostListOptions{LowDiskSpaceFilter: new(32)}},
+		{"MDMBootstrapPackageFilter", fleet.HostListOptions{MDMBootstrapPackageFilter: new(fleet.MDMBootstrapPackageFailed)}},
+		{"DEPProfileErrorFilter", fleet.HostListOptions{DEPProfileErrorFilter: new(true)}},
+		{"DEPAssignProfileResponseFilter", fleet.HostListOptions{DEPAssignProfileResponseFilter: new(fleet.DEPAssignProfileResponseFailed)}},
+	}
+
+	freeCtx := license.NewContext(test.UserContext(ctx, test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierFree})
+	premiumCtx := license.NewContext(test.UserContext(ctx, test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Free tier: filter is silently ignored
+			hosts, err := svc.ListHosts(freeCtx, tc.opts)
+			require.NoError(t, err)
+			require.Len(t, hosts, 2)
+
+			// Premium tier: filter is used and hosts are filtered
+			hosts, err = svc.ListHosts(premiumCtx, tc.opts)
+			require.NoError(t, err)
+			require.Len(t, hosts, 1)
+			require.Equal(t, uint(2), hosts[0].ID)
+		})
+	}
+}
