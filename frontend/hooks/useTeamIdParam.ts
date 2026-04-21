@@ -211,6 +211,8 @@ const getDefaultTeam = ({
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
+  const realFleets = userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+
   if (permissions.isOnGlobalTeam(currentUser)) {
     let defaultTeam: ITeamSummary | undefined;
     if (isPrimoMode) {
@@ -230,10 +232,7 @@ const getDefaultTeam = ({
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
       if (!defaultTeam && includeNoTeam) {
-        // prefer the real fleet with the lowest ID over "Unassigned"
-        const realFleets = userTeams.filter(
-          (t) => t.id > APP_CONTEXT_NO_TEAM_ID
-        );
+        // prefer a real fleet over "Unassigned"
         if (realFleets.length > 0) {
           defaultTeam = preferredOrLowestIdFleet(realFleets);
         } else {
@@ -242,22 +241,13 @@ const getDefaultTeam = ({
       }
     }
 
-    if (!defaultTeam) {
-      const realFleets = userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
-      defaultTeam =
-        realFleets.length > 0
-          ? preferredOrLowestIdFleet(realFleets)
-          : undefined;
-    }
-    return defaultTeam;
+    return defaultTeam || preferredOrLowestIdFleet(realFleets);
   }
 
   return (
     userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
     userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
-    preferredOrLowestIdFleet(
-      userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
-    )
+    preferredOrLowestIdFleet(realFleets)
   );
 };
 
