@@ -190,9 +190,7 @@ const getUserTeams = ({
  *  otherwise fall back to the fleet with the lowest ID. */
 const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
   const workstations = fleets.find(
-    (t) =>
-      t.name === "Workstations" ||
-      t.name === "\u{1F4BB} Workstations" // 💻 Workstations
+    (t) => t.name === "Workstations" || t.name === "\u{1F4BB} Workstations"
   );
   return workstations ?? sortBy(fleets, (t) => t.id)[0];
 };
@@ -245,9 +243,7 @@ const getDefaultTeam = ({
     }
 
     if (!defaultTeam) {
-      const realFleets = userTeams.filter(
-        (t) => t.id > APP_CONTEXT_NO_TEAM_ID
-      );
+      const realFleets = userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
       defaultTeam =
         realFleets.length > 0
           ? preferredOrLowestIdFleet(realFleets)
