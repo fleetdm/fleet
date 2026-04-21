@@ -186,6 +186,17 @@ const getUserTeams = ({
     : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
 };
 
+/** Prefer a fleet named "Workstations" (with or without emoji prefix),
+ *  otherwise fall back to the fleet with the lowest ID. */
+const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
+  const workstations = fleets.find(
+    (t) =>
+      t.name === "Workstations" ||
+      t.name === "\u{1F4BB} Workstations" // 💻 Workstations
+  );
+  return workstations ?? sortBy(fleets, (t) => t.id)[0];
+};
+
 const getDefaultTeam = ({
   currentUser,
   includeAllTeams,
@@ -226,20 +237,31 @@ const getDefaultTeam = ({
           (t) => t.id > APP_CONTEXT_NO_TEAM_ID
         );
         if (realFleets.length > 0) {
-          defaultTeam = sortBy(realFleets, (t) => t.id)[0];
+          defaultTeam = preferredOrLowestIdFleet(realFleets);
         } else {
           defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
         }
       }
     }
 
-    return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+    if (!defaultTeam) {
+      const realFleets = userTeams.filter(
+        (t) => t.id > APP_CONTEXT_NO_TEAM_ID
+      );
+      defaultTeam =
+        realFleets.length > 0
+          ? preferredOrLowestIdFleet(realFleets)
+          : undefined;
+    }
+    return defaultTeam;
   }
 
   return (
     userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
     userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
-    userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    preferredOrLowestIdFleet(
+      userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    )
   );
 };
 
