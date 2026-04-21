@@ -387,7 +387,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		Name:            "Old Declaration",
 		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Query the token for D1 from mdm_apple_declarations (generated column)
@@ -444,7 +444,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 		Name:            "New Declaration",
 		Identifier:      "com.example.cleanup",
 		RawJSON:         declJSON,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	var d2Token string
@@ -538,7 +538,7 @@ func testCleanUpOrphanedPendingRemoves(t *testing.T, ds *Datastore) {
 		Name:            "Orphan Test Declaration",
 		Identifier:      "com.example.orphan",
 		RawJSON:         []byte(`{"Type":"com.apple.configuration.test","Identifier":"com.example.orphan"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Get the token from mdm_apple_declarations
