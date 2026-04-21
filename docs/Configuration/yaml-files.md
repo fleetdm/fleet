@@ -8,7 +8,7 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 > When renaming a fleet, first update the name in the UI, then update your YAML. If you only update the YAML, the fleet will be deleted and its hosts will lose their settings because they become "Unassigned".
 
-Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
+Any settings not defined in your YAML files will be reset to the default values or deleted (e.g. software packages).
 
 The following are the required keys in the `default.yml` and any `fleets/fleet-name.yml` files:
 
