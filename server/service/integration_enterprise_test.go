@@ -1788,7 +1788,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
 	}
 	r := s.Do("POST", "/api/latest/fleet/teams", teamCaseVariant, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by at least one non-special character")
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
 
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
@@ -1829,13 +1829,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// case-only self-rename is allowed (the team's own id is excluded from
 	// the conflict check).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("RENAMED PADDED")}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new("RENAMED PADDED")}, http.StatusOK, &tmResp)
 	require.Equal(t, "RENAMED PADDED", tmResp.Team.Name)
 
 	// renaming into another team's name (the original team created above)
 	// using only case differences must return 409 with the canonical message.
-	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String(strings.ToUpper(name))}, http.StatusConflict)
-	require.Contains(t, extractServerErrorText(r.Body), "must differ by at least one non-special character")
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)

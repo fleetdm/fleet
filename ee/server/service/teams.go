@@ -27,7 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
-const teamNameConflictErrMsg = "Fleet names must differ by at least one non-special character (case-insensitive)."
+const teamNameConflictErrMsg = "Fleet names must differ by more than letter case."
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	if user == nil {
