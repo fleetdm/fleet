@@ -9147,28 +9147,29 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err := d.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
@@ -9295,7 +9296,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	// (Pending → Active → None) without needing profile delivery.
 
 	// First management checkin after orbit links: device transitions to Active.
-	cmds, err = d.StartManagementSession()
+	_, err = d.StartManagementSession()
 	require.NoError(t, err)
 
 	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
@@ -9413,30 +9414,31 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err := device.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
 		// Enrollment via settings app or autopilot always results in a fleetd install command, even if already installed,
 		// as there's no way to tell at point of MDM enrollment if fleetd is already installed.
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
