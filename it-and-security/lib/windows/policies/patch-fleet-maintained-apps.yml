@@ -19,7 +19,7 @@
   resolution: "Download the latest version from Self-service or check for updates using Firefox's built-in update functionality. You can also uninstall Firefox if you are no longer using it."
   type: patch
   fleet_maintained_app_slug: firefox/windows
-  install_software: false
+  install_software: true
   labels_include_any:
     - x86 Windows hosts with Firefox installed
 - name: Windows - Google Chrome up to date
