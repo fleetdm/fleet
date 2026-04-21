@@ -71,6 +71,9 @@ func TestTeamAuth(t *testing.T) {
 			return &fleet.Team{ID: 2}, nil
 		}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}

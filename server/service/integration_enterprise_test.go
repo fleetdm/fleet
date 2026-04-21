@@ -1780,6 +1780,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team whose name only differs by case — must also 409 with the
+	// canonical "must differ" message.
+	teamCaseVariant := &fleet.Team{
+		Name:        strings.ToLower(name),
+		Description: "case variant",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
+	}
+	r := s.Do("POST", "/api/latest/fleet/teams", teamCaseVariant, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by at least one non-special character")
+
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
 		Name:        "no TeAm",
@@ -1787,7 +1797,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Secrets:     []*fleet.EnrollSecret{{Secret: "foobar"}},
 	}
 
-	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
@@ -1816,6 +1826,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// rename with leading/trailing whitespace — name should be trimmed
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
 	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
+
+	// case-only self-rename is allowed (the team's own id is excluded from
+	// the conflict check).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("RENAMED PADDED")}, http.StatusOK, &tmResp)
+	require.Equal(t, "RENAMED PADDED", tmResp.Team.Name)
+
+	// renaming into another team's name (the original team created above)
+	// using only case differences must return 409 with the canonical message.
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String(strings.ToUpper(name))}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by at least one non-special character")
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)

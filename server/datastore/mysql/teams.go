@@ -279,6 +279,26 @@ func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*
 	return team, nil
 }
 
+// TeamConflictsWithName returns a team whose collation-equal name conflicts
+// with the provided name and whose id != excludeID. Returns a notFound error
+// when no conflict exists. Pass excludeID=0 to check against all teams
+// (creation path). The query relies on the utf8mb4_unicode_ci collation, so
+// names that differ only by case or by Unicode-equivalent special characters
+// are considered equal.
+func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+	// Normalize to match the NFC normalization applied on write (see NewTeam).
+	nameUnicode := norm.NFC.String(name)
+	stmt := `SELECT id, name FROM teams WHERE name = ? AND id != ? LIMIT 1`
+	team := &fleet.Team{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), team, stmt, nameUnicode, excludeID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Fleet").WithName(nameUnicode))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "check team name conflict")
+	}
+	return team, nil
+}
+
 func (ds *Datastore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
 	stmt := `
 		SELECT ` + teamColumns + ` FROM teams

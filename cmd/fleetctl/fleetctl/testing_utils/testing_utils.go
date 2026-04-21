@@ -446,6 +446,17 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		for _, tm := range savedTeams {
+			if (*tm).ID == excludeID {
+				continue
+			}
+			if strings.EqualFold((*tm).Name, name) {
+				return *tm, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeams[team.Name] = &team
 		return team, nil
