@@ -1192,7 +1192,7 @@ func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
 	// (or nothing changed on the first pass). If it differs, we sync
 	// declaration-items and fetch changed declarations, then loop to check
 	// again (mimicking the real device behavior, see
-	// https://github.com/fleetdm/fleet/issues/43050#issuecomment-4252241277.
+	// https://github.com/fleetdm/fleet/issues/43050#issuecomment-4252241277).
 	prevToken := a.ddmGlobalToken
 	var items *fleet.MDMAppleDDMDeclarationItemsResponse
 	var currentTokens map[string]string
@@ -1388,7 +1388,7 @@ func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse) 
 	}
 	defer r.Body.Close()
 	_, _ = io.Copy(io.Discard, r.Body)
-	if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
+	if r.StatusCode != http.StatusOK {
 		log.Printf("DDM status response unexpected: %d", r.StatusCode)
 		a.stats.IncrementDDMStatusErrors()
 		return fmt.Errorf("unexpected status code: %d", r.StatusCode)
