@@ -27,6 +27,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
+const teamNameConflictErrMsg = "Fleet names must differ by at least one non-special character (case-insensitive)."
+
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	if user == nil {
 		return &authz.Forbidden{}
@@ -63,12 +65,6 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	return nil
 }
 
-// teamNameConflictSuffix is the canonical sentence appended to every 409
-// response from the team-write paths (create, rename, GitOps apply). The
-// frontend substring-matches on "must differ" to surface the backend copy
-// inline on the name field.
-const teamNameConflictSuffix = "Fleet names must differ by at least one non-special character (case-insensitive)."
-
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -101,7 +97,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	switch {
 	case err == nil:
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictSuffix),
+			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 		})
 	case fleet.IsNotFound(err):
 		// No conflict; continue.
@@ -179,7 +175,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		switch {
 		case err == nil:
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictSuffix),
+				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
 			})
 		case fleet.IsNotFound(err):
 			// No conflict; continue.
@@ -1125,7 +1121,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if prev, ok := seenNames[key]; ok {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 				"fleet names in GitOps batch conflict: %q (filename %q) and %q (filename %q). %s",
-				prev.name, prev.filename, trimmedName, filename, teamNameConflictSuffix,
+				prev.name, prev.filename, trimmedName, filename, teamNameConflictErrMsg,
 			)})
 		}
 		seenNames[key] = seenSpec{name: trimmedName, filename: filename}
@@ -1163,9 +1159,10 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		var team *fleet.Team
-		// If filename is provided, try to find the team by filename first.
-		// This is needed in case the user is trying to modify the team name.
 		filenameProvided := spec.Filename != nil && *spec.Filename != ""
+
+		// Primary key for a GitOps-managed team is its filename. Try that
+		// lookup first.
 		if filenameProvided {
 			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
 			if err != nil && !fleet.IsNotFound(err) {
@@ -1173,23 +1170,17 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
-		// With an explicit filename, the spec is bound to a specific file on
-		// disk. A name collision with a *different* team means two files are
-		// fighting over the same name, so flag it as a conflict. When the
-		// filename matched an existing team, excluding its id lets a
-		// case-only self-rename succeed. When no team matched the filename,
-		// excludeID=0 catches any existing team with a colliding name.
-		if filenameProvided {
-			var excludeID uint
-			if team != nil {
-				excludeID = team.ID
-			}
-			conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, excludeID)
+		// If we matched by filename, enforce uniqueness against *other*
+		// teams. Excluding the matched team's id lets a case-only self-rename
+		// ("ABC" → "abc") succeed while still catching renames that collide
+		// with a different team.
+		if team != nil {
+			conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, team.ID)
 			switch {
 			case err == nil:
 				return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 					"fleet name %q conflicts with existing fleet %q. %s",
-					spec.Name, conflict.Name, teamNameConflictSuffix,
+					spec.Name, conflict.Name, teamNameConflictErrMsg,
 				)})
 			case fleet.IsNotFound(err):
 				// No conflict; continue.
@@ -1204,12 +1195,15 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			switch {
 			case err == nil:
 				// Matched by collation-aware name lookup. Without a filename
-				// anchoring this spec to a specific file, adopting the spec's
-				// exact-case form would silently rename the team (e.g.,
-				// "ABC" → "abc") and re-introduce the inconsistency this
-				// fix closes. Preserve the DB's canonical name instead —
-				// users who want to rename must supply a filename.
-				spec.Name = team.Name
+				// anchoring this spec to a specific file, adopting the
+				// spec's exact-case form would silently case-rename the team
+				// (e.g., "ABC" → "abc") — re-introducing the inconsistency
+				// this fix closes. Preserve the DB's canonical name unless
+				// the user supplied a filename, which is an explicit claim
+				// that they want to manage (and possibly rename) this team.
+				if !filenameProvided {
+					spec.Name = team.Name
+				}
 			case fleet.IsNotFound(err):
 				create = true
 			default:

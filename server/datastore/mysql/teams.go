@@ -279,12 +279,6 @@ func (ds *Datastore) loadExtrasForTeam(ctx context.Context, team *fleet.Team) (*
 	return team, nil
 }
 
-// TeamConflictsWithName returns a team whose collation-equal name conflicts
-// with the provided name and whose id != excludeID. Returns a notFound error
-// when no conflict exists. Pass excludeID=0 to check against all teams
-// (creation path). The query relies on the utf8mb4_unicode_ci collation, so
-// names that differ only by case or by Unicode-equivalent special characters
-// are considered equal.
 func (ds *Datastore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
 	// Normalize to match the NFC normalization applied on write (see NewTeam).
 	nameUnicode := norm.NFC.String(name)

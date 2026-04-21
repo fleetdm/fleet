@@ -962,18 +962,12 @@ func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, reneeCombined.ID, conflict.ID)
 
-	// Deterministic exclude-self under a legacy duplicate pair. The production
-	// schema has a UNIQUE KEY on teams.name under utf8mb4_unicode_ci, so we
-	// cannot create a collation-equal duplicate through NewTeam. Drop the
-	// index for the duration of this sub-check so we actually exercise the
-	// `id != excludeID` branch rather than leave it as unreachable code.
-	_, err = ds.writer(ctx).ExecContext(ctx, `ALTER TABLE teams DROP INDEX idx_name`)
-	require.NoError(t, err)
-	defer func() {
-		_, rerr := ds.writer(ctx).ExecContext(ctx, `ALTER TABLE teams ADD UNIQUE KEY idx_name (name)`)
-		require.NoError(t, rerr)
-	}()
-
+	// Deterministic exclude-self under a legacy collation-equal duplicate
+	// pair. The production schema's unique index is on name_bin (binary
+	// collation), so two rows that differ only by case — e.g., "ABC" and
+	// "abc" — coexist as distinct rows but match each other under the
+	// collation-aware WHERE clause used by this method. This is exactly the
+	// scenario that motivated the excludeID parameter.
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO teams (name, description, config) VALUES (?, ?, ?)`,
 		"abc", "", []byte("{}"))

@@ -1,1 +1,1 @@
-- Made fleet name uniqueness rules consistent across the UI, API, and GitOps paths. Fleet names must now differ by at least one non-special character (case-insensitive), and conflicts return a 409 Conflict error that names the existing fleet.
+- Made fleet name uniqueness rules consistent across the UI, API, and GitOps paths. Fleet names must now differ by at least one non-special character (case-insensitive), and conflicts return a 409 error on all code paths.

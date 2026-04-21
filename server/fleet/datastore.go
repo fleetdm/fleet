@@ -623,8 +623,7 @@ type Datastore interface {
 	// TeamConflictsWithName returns a team whose collation-equal name conflicts
 	// with the provided name and whose id != excludeID. Returns a notFound
 	// error when no conflict exists. Pass excludeID=0 to check against all
-	// teams (team creation path). Only id and name are populated on the
-	// returned team — this is a hot path for every team write.
+	// teams.
 	TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)

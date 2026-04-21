@@ -572,29 +572,59 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 		require.Equal(t, uint(7), savedTeam.ID, "rename must target the same team id")
 	})
 
-	t.Run("cross-file conflict returns 409", func(t *testing.T) {
+	t.Run("filename-matched rename into another team's name conflicts", func(t *testing.T) {
+		// Regression: team "ABC" is managed by "abc.yml". User tries to
+		// rename it to "DEF" via the same file, but another team "def"
+		// already exists under a different file. This must 409.
 		svc, ds := newSvc()
+		existing := &fleet.Team{ID: 7, Name: "ABC", Filename: ptr.String("abc.yml")}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return existing, nil
+		}
 		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
-			require.Equal(t, uint(0), excludeID)
-			return &fleet.Team{ID: 9, Name: "ABC"}, nil
+			require.Equal(t, uint(7), excludeID, "must exclude the filename-matched team")
+			return &fleet.Team{ID: 8, Name: "def"}, nil
 		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			t.Fatalf("SaveTeam must not be called when a conflict is detected")
 			return nil, nil
 		}
-		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-			t.Fatalf("NewTeam must not be called when a conflict is detected")
-			return nil, nil
-		}
 
 		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
-			{Name: "abc", Filename: ptr.String("new.yml")},
+			{Name: "DEF", Filename: ptr.String("abc.yml")},
 		}, fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}})
 		require.Error(t, err)
 		var conflict *fleet.ConflictError
 		require.ErrorAs(t, err, &conflict)
-		require.Contains(t, err.Error(), `"ABC"`)
+		require.Contains(t, err.Error(), `"def"`)
 		require.Contains(t, err.Error(), "must differ by at least one non-special character")
+	})
+
+	t.Run("adopt existing team via new filename succeeds", func(t *testing.T) {
+		// Regression for TestIntegrationsEnterpriseGitops: a spec with a new
+		// filename that matches an existing team by name must adopt it
+		// (possibly taking over management from another YAML file). The
+		// pre-fix behavior was adoption; the fix must not break it.
+		svc, ds := newSvc()
+		existing := &fleet.Team{ID: 12, Name: "Adoptable", Filename: ptr.String("old.yml")}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return existing, nil
+		}
+		var savedTeam *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			savedTeam = team
+			return team, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "Adoptable", Filename: ptr.String("new.yml")},
+		}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked, "SaveTeam must be called to adopt the team")
+		require.NotNil(t, savedTeam)
+		require.Equal(t, uint(12), savedTeam.ID)
+		require.NotNil(t, savedTeam.Filename)
+		require.Equal(t, "new.yml", *savedTeam.Filename, "adoption must set the new filename")
 	})
 
 	t.Run("intra-batch conflict short-circuits before any DB conflict check", func(t *testing.T) {
