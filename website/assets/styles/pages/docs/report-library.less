@@ -1,13 +1,11 @@
-#query-library {
+#report-library {
 
 
   [purpose='page-container'] {
-    padding: 48px;
+    padding: @page-padding-sm;
   }
   [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1104px;
+    .page-content-docs();
   }
 
   a {
@@ -337,7 +335,7 @@
 
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='policy-name-and-description'] {
       max-width: unset;

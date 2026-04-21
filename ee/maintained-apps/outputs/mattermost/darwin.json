@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.1.1",
+      "version": "6.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop' AND version_compare(bundle_short_version, '6.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop' AND version_compare(bundle_short_version, '6.1.2') < 0);"
       },
-      "installer_url": "https://releases.mattermost.com/desktop/6.1.1/mattermost-desktop-6.1.1-mac-arm64.zip",
+      "installer_url": "https://releases.mattermost.com/desktop/6.1.2/mattermost-desktop-6.1.2-mac-arm64.zip",
       "install_script_ref": "17822dd8",
       "uninstall_script_ref": "efc92f2b",
-      "sha256": "55acdb9898c76f223cf8fd218f67db384b1aebdce14a37e7a42c8a7fe3b1b26c",
+      "sha256": "bdfbf4d23de5b58c59904856ca74c7574e6b640ab36a1038d08ae4379169b98b",
       "default_categories": [
         "Communication"
       ]

@@ -1,4 +1,4 @@
-.secrets-batch-paginated-list {
+.variables {
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
@@ -12,10 +12,6 @@
   &__page-header {
     display: flex;
     justify-content: space-between;
-  }
-
-  &__description {
-    margin: 0;
   }
 
   .paginated-list__row {
@@ -36,7 +32,7 @@
       }
     }
 
-    .secrets-batch-paginated-list__copy-secret-icon {
+    .variables__copy-secret-icon {
       margin: -12px 0 -12px 4px;
       vertical-align: bottom;
       .children-wrapper {
@@ -106,8 +102,8 @@
   }
 }
 
-.fleet-add-secret-modal {
-  &__add-secret-form {
+.add-custom-variable-modal {
+  &__add-variable-form {
     .form-field__help-text {
       text-overflow: ellipsis;
       overflow: hidden;

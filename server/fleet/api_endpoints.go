@@ -68,7 +68,7 @@ func (e *APIEndpoint) normalize() {
 // Fingerprint return a string that uniquely identifies
 // the APIEndpoint
 func (e APIEndpoint) Fingerprint() string {
-	return fmt.Sprintf("|%s|%s|", e.Method, e.NormalizedPath)
+	return "|" + e.Method + "|" + e.NormalizedPath + "|"
 }
 
 func (e APIEndpoint) validate() error {

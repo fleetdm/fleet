@@ -535,12 +535,15 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// An API-only user cannot modify their own record via this endpoint.
+	// An API-only user cannot reach this admin endpoint: the api_only middleware
+	// rejects it at the catalog check (the user-management endpoint is not in the catalog).
+	//
+	// This is to protect against privilege escalation vulnerability.
 	s.token = apiUserToken
 	defer func() { s.token = s.getTestAdminToken() }()
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"name": "Self Update",
-	}, http.StatusUnprocessableEntity)
+	}, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{

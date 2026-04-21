@@ -5,21 +5,24 @@ import { ISecretPayload } from "interfaces/secrets";
 import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
 import InputField from "components/forms/fields/InputField";
-import { validateFormData, IAddSecretModalFormValidation } from "./helpers";
+import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
 
-const baseClass = "fleet-add-secret-modal";
+const baseClass = "add-custom-variable-modal";
 
-interface AddSecretModalProps {
+interface AddCustomVariableModalProps {
   onCancel: () => void;
   onSave: () => void;
 }
 
-export interface IAddSecretModalScheduleFormData {
+export interface IAddCustomVariableFormData {
   name: string;
   value: string;
 }
 
-const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
+const AddCustomVariableModal = ({
+  onCancel,
+  onSave,
+}: AddCustomVariableModalProps) => {
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -29,7 +32,7 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
   const [
     formValidation,
     setFormValidation,
-  ] = useState<IAddSecretModalFormValidation>(() =>
+  ] = useState<IAddCustomVariableFormValidation>(() =>
     validateFormData({ name: secretName, value: secretValue })
   );
 
@@ -82,7 +85,7 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
 
   return (
     <Modal title="Add custom variable" onExit={onCancel} className={baseClass}>
-      <form className={`${baseClass}__add-secret-form`}>
+      <form className={`${baseClass}__add-variable-form`}>
         <InputField
           onChange={onInputChange}
           value={secretName}
@@ -124,4 +127,4 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
   );
 };
 
-export default AddSecretModal;
+export default AddCustomVariableModal;
