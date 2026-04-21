@@ -23,12 +23,12 @@ type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
 type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit fleets", disabled: false, tooltip: true },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
 
-const generateActions = (gitopsModeEnabled: boolean, repoURL: string) => {
+const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
   if (!gitopsModeEnabled) {
     return DEFAULT_ACTION_OPTIONS;
   }
@@ -41,7 +41,12 @@ const generateActions = (gitopsModeEnabled: boolean, repoURL: string) => {
     return {
       ...option,
       disabled: true,
-      tooltipContent: getGitOpsModeTipContent(repoURL),
+      ...(repoURL
+       ? {
+            tooltip: true,
+            tooltipContent: getGitOpsModeTipContent(repoURL),
+          }
+        :{}),
     };
   });
 };
@@ -68,7 +73,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 export const generateTableConfig = (
   actionSelectHandler: (value: string, team: IMdmAbmToken) => void,
   gitopsModeEnabled: boolean,
-  repoURL: string
+  repoURL?: string
 ): IAbmTableConfig[] => {
   return [
     {
