@@ -1,13 +1,17 @@
 import React from "react";
 import { noop } from "lodash";
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import Modal from "./Modal";
 
-const clickBackground = (background: Element | null) => {
+const clickBackground = async (background: Element | null) => {
   if (!background) throw new Error("Background element not found");
-  fireEvent.mouseDown(background);
-  fireEvent.mouseUp(background);
+  const user = userEvent.setup();
+  await user.pointer([
+    { keys: "[MouseLeft>]", target: background },
+    { keys: "[/MouseLeft]", target: background },
+  ]);
 };
 
 describe("Modal", () => {
@@ -21,7 +25,7 @@ describe("Modal", () => {
     expect(screen.getByText("Foobar")).toBeVisible();
   });
 
-  it("calls onExit when clicking the background overlay", () => {
+  it("calls onExit when clicking the background overlay", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -30,23 +34,29 @@ describe("Modal", () => {
     );
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
   it("does not call onExit when clicking inside the modal container", () => {
     const onExit = jest.fn();
-    render(
+    const { container } = render(
       <Modal title="Test" onExit={onExit}>
         <div>content</div>
       </Modal>
     );
 
-    fireEvent.click(screen.getByText("content"));
+    // Simulate drag that starts inside the container and releases on the background.
+    // The container stops mouseDown propagation so isDownOnBackgroundRef stays false,
+    // meaning the background's mouseUp handler must not fire onExit.
+    fireEvent.mouseDown(screen.getByText("content"));
+    const background = container.querySelector(".modal__background");
+    if (!background) throw new Error("Background element not found");
+    fireEvent.mouseUp(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("does not call onExit when clicking the background if a form inside has been interacted with", () => {
+  it("does not call onExit when clicking the background if a form inside has been interacted with", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -60,11 +70,11 @@ describe("Modal", () => {
     fireEvent.input(input, { target: { value: "hello" } });
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("does not call onExit when clicking the background if a text input outside a form has been interacted with", () => {
+  it("does not call onExit when clicking the background if a text input outside a form has been interacted with", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -78,11 +88,11 @@ describe("Modal", () => {
     fireEvent.input(input, { target: { value: "hello" } });
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("does not call onExit when clicking the background if a checkbox has been checked", () => {
+  it("does not call onExit when clicking the background if a checkbox has been checked", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -96,11 +106,11 @@ describe("Modal", () => {
     fireEvent.click(checkbox);
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("does not call onExit when clicking the background if a toggle has been clicked", () => {
+  it("does not call onExit when clicking the background if a toggle has been clicked", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -116,11 +126,11 @@ describe("Modal", () => {
     fireEvent.click(toggle);
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 
-  it("calls onExit when clicking the background if a form inside has not been interacted with", () => {
+  it("calls onExit when clicking the background if a form inside has not been interacted with", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit}>
@@ -131,11 +141,11 @@ describe("Modal", () => {
     );
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
-  it("does not call onExit when clicking the background if disableClosingModal is true", () => {
+  it("does not call onExit when clicking the background if disableClosingModal is true", async () => {
     const onExit = jest.fn();
     const { container } = render(
       <Modal title="Test" onExit={onExit} disableClosingModal>
@@ -144,7 +154,7 @@ describe("Modal", () => {
     );
 
     const background = container.querySelector(".modal__background");
-    clickBackground(background);
+    await clickBackground(background);
     expect(onExit).not.toHaveBeenCalled();
   });
 });
