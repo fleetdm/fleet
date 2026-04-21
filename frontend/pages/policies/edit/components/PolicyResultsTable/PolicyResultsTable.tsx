@@ -42,9 +42,7 @@ const PolicyResultsTable = ({
           iconSvg: "trash",
           variant: "inverse",
         }}
-        emptyComponent={() => (
-          <EmptyState header="No hosts are online" />
-        )}
+        emptyComponent={() => <EmptyState header="No hosts are online" />}
         onQueryChange={noop}
         disableCount
       />

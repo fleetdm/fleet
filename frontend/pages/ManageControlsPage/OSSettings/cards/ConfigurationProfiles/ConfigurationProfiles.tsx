@@ -249,9 +249,7 @@ const ConfigurationProfiles = ({
           header="Additional configuration required"
           info="MDM must be turned on to add configuration profiles."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-            >
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
             </Button>
           }

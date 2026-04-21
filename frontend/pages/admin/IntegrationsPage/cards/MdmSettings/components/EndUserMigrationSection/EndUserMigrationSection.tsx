@@ -149,7 +149,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     return (
       <div className={baseClass}>
         <SectionHeader title="End user migration workflow" />
-        <EmptyState variant="list"
+        <EmptyState
+          variant="list"
           className={`${baseClass}__abm-connect-message`}
           header="Migration workflow for macOS hosts"
           info="Connect to Apple Business to get started."

@@ -1902,10 +1902,7 @@ const ManageHostsPage = ({
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={() => (
-          <EmptyState
-            header={emptyState().header}
-            info={emptyState().info}
-          />
+          <EmptyState header={emptyState().header} info={emptyState().info} />
         )}
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}

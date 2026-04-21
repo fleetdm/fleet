@@ -296,7 +296,8 @@ const ActivityFeed = ({
 
   const renderNoActivities = () => {
     return (
-      <EmptyState variant="list"
+      <EmptyState
+        variant="list"
         header="No activities match the current criteria"
         info="Try editing a report, updating your policies, or running a live report."
       />

@@ -20,6 +20,7 @@ import DropdownWrapper, {
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -27,7 +28,6 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
-import EmptyState from "components/EmptyState";
 
 const baseClass = "policy-run-script-modal";
 

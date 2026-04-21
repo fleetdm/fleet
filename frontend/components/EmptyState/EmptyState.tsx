@@ -50,10 +50,7 @@ const GhostColumn = ({
   >
     {showHeader && (
       <div className={`${baseClass}__ghost-header`}>
-        <div
-          className={`${baseClass}__ghost-skeleton`}
-          style={{ width: 80 }}
-        />
+        <div className={`${baseClass}__ghost-skeleton`} style={{ width: 80 }} />
       </div>
     )}
     {Array.from({ length: GHOST_ROW_COUNT }, (_, i) => (
@@ -119,7 +116,12 @@ const EmptyState = ({
     }
     if (isList) {
       return (
-        <GhostColumn skeletonWidth={280} isFirst showHeader={showGhostHeader} twoLines />
+        <GhostColumn
+          skeletonWidth={280}
+          isFirst
+          showHeader={showGhostHeader}
+          twoLines
+        />
       );
     }
     return (

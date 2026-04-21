@@ -222,9 +222,7 @@ const BootstrapPackage = ({
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-            >
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
             </Button>
           }

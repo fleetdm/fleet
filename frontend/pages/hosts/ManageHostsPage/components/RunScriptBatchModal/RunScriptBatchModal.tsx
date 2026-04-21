@@ -229,7 +229,8 @@ const RunScriptBatchModal = ({
     }
     if (!scripts.length) {
       return (
-        <EmptyState variant="header-list"
+        <EmptyState
+          variant="header-list"
           header="No scripts available for this fleet"
           info={
             <>

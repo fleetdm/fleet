@@ -51,7 +51,8 @@ interface IAddTeamToVppMessage {
 }
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <EmptyState variant="list"
+  <EmptyState
+    variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
     info="To add App Store apps, first add this fleet to VPP."
     primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}

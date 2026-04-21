@@ -83,12 +83,12 @@ const PackQueriesTable = ({
           inputPlaceHolder="Search queries"
           onQueryChange={onTableQueryChange}
           resultsTitle="queries"
-          emptyComponent={() =>
+          emptyComponent={() => (
             <EmptyState
               header="No queries match your search criteria"
               info="Try a different search."
             />
-          }
+          )}
           showMarkAllPages={false}
           actionButton={{
             name: "add query",

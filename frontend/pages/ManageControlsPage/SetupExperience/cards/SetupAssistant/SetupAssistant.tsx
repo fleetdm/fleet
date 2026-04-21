@@ -139,9 +139,7 @@ const SetupAssistant = ({
           header="Additional configuration required"
           info="To customize, first turn on automatic enrollment."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-            >
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
             </Button>
           }
