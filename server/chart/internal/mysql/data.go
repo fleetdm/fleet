@@ -21,6 +21,14 @@ var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 // scdUpsertBatch caps how many entity rows are written per INSERT statement.
 const scdUpsertBatch = 200
 
+// scdRow is a single row of host_scd_data as fetched by GetSCDData.
+type scdRow struct {
+	EntityID   string    `db:"entity_id"`
+	HostBitmap []byte    `db:"host_bitmap"`
+	ValidFrom  time.Time `db:"valid_from"`
+	ValidTo    time.Time `db:"valid_to"`
+}
+
 func (ds *Datastore) RecordBucketData(
 	ctx context.Context,
 	dataset string,
@@ -218,11 +226,16 @@ func (ds *Datastore) recordSnapshot(
 }
 
 // GetSCDData walks buckets of bucketSize across [startDate, endDate] and, for
-// each bucket, ORs the bitmaps of every row whose [valid_from, valid_to)
-// interval overlaps that bucket. The caller's host filter, if any, is applied
-// as a bitmap AND. Returns numBuckets = (endDate - startDate) / bucketSize data
-// points, labeled by bucket *start* (the first label is startDate + bucketSize;
-// the last label is endDate). Zero-valued buckets are emitted.
+// each bucket, aggregates the rows whose interval touches the bucket according
+// to the sample strategy:
+//   - Accumulate: OR every overlapping row. "Hosts observed at any point in bucket."
+//   - Snapshot: per entity, take the row active at bucketEnd; OR across entities.
+//     "State as of the end of the bucket."
+//
+// The caller's host filter, if any, is applied as a bitmap AND. Returns
+// numBuckets = (endDate - startDate) / bucketSize data points, labeled by bucket
+// *start* (the first label is startDate + bucketSize; the last label is
+// endDate). Zero-valued buckets are emitted.
 //
 // The caller is responsible for passing bucket-aligned startDate/endDate (e.g.
 // local-midnight-aligned for tz-sensitive rendering); the walker does not
@@ -232,6 +245,7 @@ func (ds *Datastore) GetSCDData(
 	dataset string,
 	startDate, endDate time.Time,
 	bucketSize time.Duration,
+	strategy api.SampleStrategy,
 	hostFilter *types.HostFilter,
 	entityIDs []string,
 ) ([]api.DataPoint, error) {
@@ -267,12 +281,6 @@ func (ds *Datastore) GetSCDData(
 	}
 	expanded = ds.rebind(expanded)
 
-	type scdRow struct {
-		EntityID   string    `db:"entity_id"`
-		HostBitmap []byte    `db:"host_bitmap"`
-		ValidFrom  time.Time `db:"valid_from"`
-		ValidTo    time.Time `db:"valid_to"`
-	}
 	var rows []scdRow
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expanded, expandedArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
@@ -292,14 +300,7 @@ func (ds *Datastore) GetSCDData(
 	for i := range numBuckets {
 		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
 		bucketEnd := bucketStart.Add(bucketSize)
-		var merged []byte
-		for _, r := range rows {
-			// Row overlaps bucket iff valid_from < bucketEnd AND valid_to > bucketStart.
-			if !r.ValidFrom.Before(bucketEnd) || !r.ValidTo.After(bucketStart) {
-				continue
-			}
-			merged = chart.BlobOR(merged, r.HostBitmap)
-		}
+		merged := aggregateBucket(rows, bucketStart, bucketEnd, strategy)
 		if filterMask != nil && merged != nil {
 			merged = chart.BlobAND(merged, filterMask)
 		}
@@ -309,6 +310,41 @@ func (ds *Datastore) GetSCDData(
 		}
 	}
 	return results, nil
+}
+
+// aggregateBucket returns the merged bitmap for a single bucket given the
+// sample strategy. For Accumulate, ORs every overlapping row. For Snapshot,
+// picks the row active at bucketEnd (per entity) and ORs across entities.
+func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) []byte {
+	if strategy == api.SampleStrategySnapshot {
+		// Per entity, the row "active at bucketEnd" is the one whose
+		// [valid_from, valid_to) covers the instant bucketEnd-ε. For interval
+		// boundaries, that's valid_from < bucketEnd AND valid_to >= bucketEnd.
+		// Write semantics ensure at most one such row per (entity, moment).
+		var merged []byte
+		seen := make(map[string]struct{})
+		for _, r := range rows {
+			if !r.ValidFrom.Before(bucketEnd) || r.ValidTo.Before(bucketEnd) {
+				continue
+			}
+			if _, dup := seen[r.EntityID]; dup {
+				continue
+			}
+			seen[r.EntityID] = struct{}{}
+			merged = chart.BlobOR(merged, r.HostBitmap)
+		}
+		return merged
+	}
+
+	// Accumulate: OR every row that overlaps the bucket.
+	var merged []byte
+	for _, r := range rows {
+		if !r.ValidFrom.Before(bucketEnd) || !r.ValidTo.After(bucketStart) {
+			continue
+		}
+		merged = chart.BlobOR(merged, r.HostBitmap)
+	}
+	return merged
 }
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the

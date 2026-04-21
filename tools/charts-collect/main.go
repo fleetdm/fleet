@@ -249,8 +249,13 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 		entityBitmaps[cve] = chart.HostIDsToBlob(hosts)
 	}
 
+	// Snapshot rows are keyed to 1h boundaries (not 24h) so that row transitions
+	// fall on hour marks. This lets tz-offset users' local-day queries resolve
+	// "state at end of my day" to a row boundary observed at or before that
+	// moment, rather than being pulled forward by the artificial UTC-midnight
+	// transition that 24h keying would impose.
 	writeStart := time.Now()
-	bucketStart := time.Now().UTC().Truncate(24 * time.Hour)
+	bucketStart := time.Now().UTC().Truncate(time.Hour)
 	if err := reconcileSnapshot(db, "cve", entityBitmaps, bucketStart); err != nil {
 		return fmt.Errorf("reconcile SCD: %w", err)
 	}

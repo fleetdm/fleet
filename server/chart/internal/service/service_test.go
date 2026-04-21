@@ -22,7 +22,7 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getSCDDataFunc             func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error)
+	getSCDDataFunc             func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	countHostsForChartFilterFn func(ctx context.Context, hostFilter *types.HostFilter) (int, error)
 	findRecentlySeenHostIDsFn  func(ctx context.Context, lookback time.Duration) ([]uint, error)
@@ -45,9 +45,9 @@ func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bu
 	return nil
 }
 
-func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error) {
+func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error) {
 	if m.getSCDDataFunc != nil {
-		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, hostFilter, entityIDs)
+		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, strategy, hostFilter, entityIDs)
 	}
 	return nil, nil
 }
@@ -118,11 +118,13 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 
 	var gotBucketSize time.Duration
 	var gotStart, gotEnd time.Time
-	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+	var gotStrategy api.SampleStrategy
+	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		gotBucketSize = bucketSize
 		gotStart = start
 		gotEnd = end
+		gotStrategy = strategy
 		return []api.DataPoint{{Timestamp: start, Value: 42}}, nil
 	}
 	ds.countHostsForChartFilterFn = func(_ context.Context, _ *types.HostFilter) (int, error) {
@@ -137,6 +139,7 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
 	assert.Equal(t, time.Hour, gotBucketSize)
+	assert.Equal(t, api.SampleStrategyAccumulate, gotStrategy)
 	// Span must be exactly 7 days.
 	assert.Equal(t, 7*24*time.Hour, gotEnd.Sub(gotStart))
 }
@@ -159,7 +162,7 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 			svc.RegisterDataset(&chart.UptimeDataset{})
 
 			var gotBucketSize time.Duration
-			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
 				gotBucketSize = bucketSize
 				return nil, nil
 			}
@@ -178,8 +181,10 @@ func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
 	svc.RegisterDataset(&chart.CVEDataset{})
 
 	var gotBucketSize time.Duration
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+	var gotStrategy api.SampleStrategy
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
 		gotBucketSize = bucketSize
+		gotStrategy = strategy
 		return nil, nil
 	}
 
@@ -187,6 +192,7 @@ func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "daily", resp.Resolution)
 	assert.Equal(t, 24*time.Hour, gotBucketSize)
+	assert.Equal(t, api.SampleStrategySnapshot, gotStrategy)
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
@@ -194,7 +200,7 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, hostFilter *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, hostFilter *types.HostFilter, _ []string) ([]api.DataPoint, error) {
 		require.NotNil(t, hostFilter)
 		assert.Equal(t, []uint{1, 2}, hostFilter.LabelIDs)
 		assert.Equal(t, []string{"darwin"}, hostFilter.Platforms)

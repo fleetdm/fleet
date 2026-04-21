@@ -37,13 +37,20 @@ type Datastore interface {
 	) error
 
 	// GetSCDData returns per-bucket distinct-host counts for a dataset over the
-	// given range at the given bucket size. Applies the optional host filter via
-	// bitmap AND and the optional entity filter via entity_id IN.
+	// given range at the given bucket size. Aggregation within a bucket depends
+	// on the sample strategy:
+	//   - Accumulate: OR every row that overlaps the bucket ("hosts observed at
+	//     any point during the bucket").
+	//   - Snapshot: for each entity, pick the row active at bucketEnd, then OR
+	//     across entities ("state as of the end of the bucket").
+	// The optional host filter is applied via bitmap AND; the entity filter via
+	// entity_id IN.
 	GetSCDData(
 		ctx context.Context,
 		dataset string,
 		startDate, endDate time.Time,
 		bucketSize time.Duration,
+		strategy api.SampleStrategy,
 		hostFilter *HostFilter,
 		entityIDs []string,
 	) ([]api.DataPoint, error)

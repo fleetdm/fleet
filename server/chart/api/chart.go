@@ -12,8 +12,10 @@ type SampleStrategy string
 const (
 	// SampleStrategyAccumulate means each sample is a partial observation and
 	// within-bucket samples are OR-merged. Rows are always explicitly closed at
-	// bucket boundaries; there is no cross-bucket collapse (bucket-fresh semantics).
+	// bucket boundaries.
 	// Used for datasets like uptime and software usage.
+	// @todo: implement job to collapse identical consecutive rows
+	//        to optimize storage and query performance.
 	SampleStrategyAccumulate SampleStrategy = "accumulate"
 
 	// SampleStrategySnapshot means each sample is the full state for the bucket.

@@ -95,7 +95,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		}
 	}
 
-	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, hostFilter, entityIDs)
+	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), hostFilter, entityIDs)
 	if err != nil {
 		return nil, err
 	}
