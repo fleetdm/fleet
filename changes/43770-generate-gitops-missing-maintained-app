@@ -1,0 +1,1 @@
+* `fleetctl generate-gitops` now warns and continues instead of aborting the entire export when a patch-software policy references a `MaintainedApp` that is no longer in the datastore.

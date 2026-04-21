@@ -1512,10 +1512,21 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
-			if err != nil {
+			switch {
+			case err == nil:
+				policySpec["fleet_maintained_app_slug"] = fma.Slug
+			case fleet.IsNotFound(err):
+				// The policy references a MaintainedApp that no longer exists
+				// (e.g. deleted after the policy was authored). Warn and keep
+				// generating the rest of the export instead of aborting the
+				// whole `fleetctl generate-gitops` run (#43770); the operator
+				// can clean the stale reference up post-export.
+				fmt.Fprintf(cmd.CLI.App.ErrWriter,
+					"Warning: policy %q references maintained app %d which is no longer in the datastore; omitting fleet_maintained_app_slug.\n",
+					policy.Name, cachedSWTitle.MaintainedAppID)
+			default:
 				return nil, err
 			}
-			policySpec["fleet_maintained_app_slug"] = fma.Slug
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
