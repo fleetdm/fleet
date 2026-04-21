@@ -2294,6 +2294,7 @@ WHERE
 	const checkExistingInstaller = `
 SELECT
 	id,
+	fleet_maintained_app_id,
 	storage_id != ? is_package_modified,
 	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
 	COALESCE(post_install_script_content_id != ? OR
@@ -2763,9 +2764,10 @@ WHERE
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
 			type existingInstallerUpdateCheckResult struct {
-				InstallerID        uint `db:"id"`
-				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				InstallerID          uint  `db:"id"`
+				FleetMaintainedAppID *uint `db:"fleet_maintained_app_id"`
+				IsPackageModified    bool  `db:"is_package_modified"`
+				IsMetadataModified   bool  `db:"is_metadata_modified"`
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
@@ -2861,6 +2863,10 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
+			// Installer rows to delete after running side effects (so
+			// upcoming_activities aren't left with NULL installer IDs).
+			var installerIDsToDelete []uint
+
 			// For non-FMA (custom) packages, enforce one installer per title per team.
 			// With the unique constraint on (global_or_team_id, title_id, version),
 			// a version change inserts a new row instead of replacing — clean up the old one.
@@ -2877,11 +2883,10 @@ WHERE
 				`, installerID, globalOrTeamID, titleID, installerID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies for old versions of custom installer %q", installer.Filename)
 				}
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
-				`, globalOrTeamID, titleID, installerID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "clean up old versions of custom installer %q", installer.Filename)
+				for _, e := range existing {
+					if e.InstallerID != installerID {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
@@ -2953,17 +2958,10 @@ WHERE
 						return ctxerr.Wrapf(ctx, err, "re-point policies for evicted FMA versions of %q", installer.Filename)
 					}
 
-					stmt, args, err := sqlx.In(
-						`DELETE FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)`,
-						globalOrTeamID,
-						titleID,
-						keepIDs,
-					)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
-					}
-					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-						return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
+					for _, e := range existing {
+						if e.FleetMaintainedAppID != nil && !keepSet[e.InstallerID] {
+							installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+						}
 					}
 				}
 
@@ -2987,13 +2985,12 @@ WHERE
 				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
 				}
-				// Delete previous custom installer for this title since they shouldn't
-				// be kept for rollback.
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
-				`, globalOrTeamID, titleID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "delete custom installer replaced by FMA %q", installer.Filename)
+				// Mark previous custom installers for this title for deletion;
+				// they shouldn't be kept for rollback.
+				for _, e := range existing {
+					if e.FleetMaintainedAppID == nil {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
@@ -3118,6 +3115,19 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+			}
+
+			// Run side effects and delete unnecessary installers.
+			for _, id := range installerIDsToDelete {
+				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "side effects for replaced installer id %d for %q", id, installer.Filename)
+				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+
+				if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete replaced installer id %d for %q", id, installer.Filename)
+				}
 			}
 		}
 
