@@ -12,6 +12,10 @@ const meta: Meta<typeof EmptyState> = {
       control: "select",
       options: ["default", "small"],
     },
+    variant: {
+      control: "select",
+      options: [undefined, "list", "header-list", "form"],
+    },
   },
 };
 
@@ -75,5 +79,56 @@ export const MinimalContent: Story = {
 export const InfoOnly: Story = {
   args: {
     info: "Policies are not supported for this host.",
+  },
+};
+
+export const List: Story = {
+  args: {
+    variant: "list",
+    header: "No batch scripts started for this fleet",
+    info: "When a script is run on multiple hosts, progress will appear here.",
+  },
+};
+
+export const ListWithButton: Story = {
+  args: {
+    variant: "list",
+    header: "You have no enroll secrets.",
+    info: "Add secret(s) to enroll hosts.",
+    primaryButton: <Button>Add secret</Button>,
+  },
+};
+
+export const HeaderList: Story = {
+  args: {
+    variant: "header-list",
+    header: "No scripts uploaded.",
+  },
+};
+
+export const HeaderListWithButton: Story = {
+  args: {
+    variant: "header-list",
+    header: "Add your certificate authority (CA)",
+    info: "Help your end users connect to Wi-Fi or VPNs.",
+    primaryButton: <Button>Add CA</Button>,
+  },
+};
+
+export const Form: Story = {
+  args: {
+    variant: "form",
+    header: "Additional configuration required",
+    info: "To customize, first turn on automatic enrollment.",
+    primaryButton: <Button>Turn on</Button>,
+  },
+};
+
+export const FormWithLongInfo: Story = {
+  args: {
+    variant: "form",
+    header: "Require end user authentication during setup",
+    info: "Connect Fleet to your identity provider (IdP) to get started.",
+    primaryButton: <Button>Connect</Button>,
   },
 };
