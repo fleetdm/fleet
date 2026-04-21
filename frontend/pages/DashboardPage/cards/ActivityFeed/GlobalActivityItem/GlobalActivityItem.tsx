@@ -1161,8 +1161,7 @@ const TAGGED_TEMPLATES = {
   failedWipe: (activity: IActivity) => {
     return (
       <>
-        {" "}
-        failed to wipe <b>{activity.details?.host_display_name}</b>.
+        Wipe failed on <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },

@@ -16,7 +16,7 @@ const FailedWipeActivityItem = ({
       hideCancel
       hideShowDetails
     >
-      <b>{activity.actor_full_name}</b> failed to wipe this host.
+      Wipe failed on this host.
     </ActivityItem>
   );
 };
