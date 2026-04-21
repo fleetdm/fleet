@@ -127,17 +127,18 @@
   width: 100%;
   position: relative;
 
-  &__scroll-wrapper {
-    overflow-x: auto;
+  &__chart-row {
+    display: flex;
+    align-items: flex-start;
   }
 
-  &__grid-area {
-    display: flex;
-    align-items: stretch;
+  &__scroll-wrapper {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
 
     svg {
       display: block;
-      flex-shrink: 0;
     }
   }
 
@@ -153,6 +154,18 @@
     align-items: center;
     justify-content: center;
     opacity: 0.6;
+  }
+
+  &__y-axis-label {
+    position: absolute;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    padding-right: $pad-medium;
+    text-align: right;
+    font-size: $xx-small;
+    color: $ui-fleet-black-50;
+    white-space: nowrap;
   }
 
   &__floating-tooltip {
@@ -183,6 +196,7 @@
     margin-top: $pad-small;
     font-size: $xx-small;
     color: $ui-fleet-black-50;
+    padding-top: $pad-medium;
   }
 
   &__legend-swatch {

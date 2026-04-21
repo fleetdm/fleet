@@ -35,8 +35,13 @@ const DATASETS: IDataSet[] = [
     name: "uptime",
     label: "Hosts active",
     defaultChartType: "checkerboard",
-    description:
-      "Shows the number of hosts detected online during a given hour.",
+    description: (
+      <>
+        Shows the number of hosts detected online
+        <br />
+        during a given hour.
+      </>
+    ),
   },
 ];
 

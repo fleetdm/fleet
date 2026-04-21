@@ -4,7 +4,7 @@ export interface IDataSet {
   name: string;
   label: string;
   defaultChartType: ChartType;
-  description?: string;
+  description?: string | React.ReactNode;
 }
 
 export interface IFormattedDataPoint {

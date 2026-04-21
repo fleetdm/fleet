@@ -40,10 +40,12 @@ interface ICheckerboardVizProps {
   selectedDays: number;
 }
 
-const CELL_W = 16;
-const CELL_H = 18;
+const CELL_W = 16.75;
+const CELL_H = 19;
 const CELL_GAP = 2;
-const Y_AXIS_WIDTH = 40; // space for y-axis icons on the left
+const Y_AXIS_WIDTH = 40; // space for y-axis icons/labels on the left
+// Toggle between sun/moon icons and 6am/6pm text labels on the y-axis.
+const USE_Y_AXIS_ICONS = false;
 // When cards stack to full-width (below $break-md), the container gets wider
 // than this threshold and we scale cells up by WIDE_MULTIPLIER.
 const WIDE_THRESHOLD = 700;
@@ -234,40 +236,67 @@ const CheckerboardViz = ({
 
   return (
     <div className={baseClass} ref={containerRef}>
-      <div className={`${baseClass}__scroll-wrapper`}>
-        <div className={`${baseClass}__grid-area`}>
-          {/* Y-axis icons */}
-          {showYAxis && (
-            <div
-              className={`${baseClass}__y-axis`}
-              style={{ width: leftMargin, height: gridHeight }}
-            >
-              {yAxisSections.map((section) => {
-                const topPx = section.startRow * (cellH + CELL_GAP);
-                const rowCount = section.endRow - section.startRow + 1;
-                const sectionHeight =
-                  rowCount * cellH + (rowCount - 1) * CELL_GAP;
-                return (
-                  <div
-                    key={`${section.type}-${section.startRow}`}
-                    className={`${baseClass}__y-axis-icon`}
-                    style={{
-                      top: topPx,
-                      width: leftMargin,
-                      height: sectionHeight,
-                    }}
-                  >
-                    {section.type === "day" ? (
-                      <Sun size={iconSize} />
-                    ) : (
-                      <Moon size={iconSize} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      <div className={`${baseClass}__chart-row`}>
+        {/* Y-axis: either sun/moon icons or 6am/6pm labels. Kept outside the
+            scroll-wrapper so it stays pinned during horizontal scroll and
+            label text can overflow leftward without being clipped. */}
+        {showYAxis && USE_Y_AXIS_ICONS && (
+          <div
+            className={`${baseClass}__y-axis`}
+            style={{ width: leftMargin, height: gridHeight }}
+          >
+            {yAxisSections.map((section) => {
+              const topPx = section.startRow * (cellH + CELL_GAP);
+              const rowCount = section.endRow - section.startRow + 1;
+              const sectionHeight =
+                rowCount * cellH + (rowCount - 1) * CELL_GAP;
+              return (
+                <div
+                  key={`${section.type}-${section.startRow}`}
+                  className={`${baseClass}__y-axis-icon`}
+                  style={{
+                    top: topPx,
+                    width: leftMargin,
+                    height: sectionHeight,
+                  }}
+                >
+                  {section.type === "day" ? (
+                    <Sun size={iconSize} />
+                  ) : (
+                    <Moon size={iconSize} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {showYAxis && !USE_Y_AXIS_ICONS && (
+          <div
+            className={`${baseClass}__y-axis`}
+            style={{ width: leftMargin, height: gridHeight }}
+          >
+            {[
+              { hour: 6, label: "6am" },
+              { hour: 18, label: "6pm" },
+            ].map(({ hour, label }) => {
+              const row = hour / hoursPerSlot;
+              // Position label centered vertically on the row that represents
+              // this hour.
+              const topPx = row * (cellH + CELL_GAP) + cellH / 2;
+              return (
+                <div
+                  key={label}
+                  className={`${baseClass}__y-axis-label`}
+                  style={{ top: topPx }}
+                >
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
+        <div className={`${baseClass}__scroll-wrapper`}>
           {/* Grid cells */}
           <svg width={gridWidth} height={gridHeight}>
             {grid.map((cell) => {
@@ -291,27 +320,27 @@ const CheckerboardViz = ({
               );
             })}
           </svg>
-        </div>
 
-        {/* X-axis date labels */}
-        {!is24h && dayLabels.length >= 2 && (
-          <div
-            className={`${baseClass}__x-axis`}
-            style={{ marginLeft: leftMargin, width: gridWidth }}
-          >
-            <span className={`${baseClass}__x-axis-label`}>
-              {xAxisDates.start}
-            </span>
-            <span className={`${baseClass}__x-axis-label`}>
-              {xAxisDates.middle}
-            </span>
-            <span
-              className={`${baseClass}__x-axis-label ${baseClass}__x-axis-label--end`}
+          {/* X-axis date labels */}
+          {!is24h && dayLabels.length >= 2 && (
+            <div
+              className={`${baseClass}__x-axis`}
+              style={{ width: gridWidth }}
             >
-              {xAxisDates.end}
-            </span>
-          </div>
-        )}
+              <span className={`${baseClass}__x-axis-label`}>
+                {xAxisDates.start}
+              </span>
+              <span className={`${baseClass}__x-axis-label`}>
+                {xAxisDates.middle}
+              </span>
+              <span
+                className={`${baseClass}__x-axis-label ${baseClass}__x-axis-label--end`}
+              >
+                {xAxisDates.end}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {hoveredCell && (
