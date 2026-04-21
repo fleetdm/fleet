@@ -172,7 +172,7 @@
   &__legend {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 4px;
     margin-top: $pad-small;
     font-size: $xx-small;
