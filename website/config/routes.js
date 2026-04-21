@@ -60,8 +60,8 @@ module.exports.routes = {
     action: 'docs/view-report-library',
     locals: {
       currentSection: 'more',
-      pageTitleForMeta: 'Queries',
-      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
+      pageTitleForMeta: 'Reports',
+      pageDescriptionForMeta: 'A growing collection of optional reports you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
@@ -1083,7 +1083,7 @@ module.exports.routes = {
   'GET /query-generator': '/report-generator',
   'GET /queries/:slug': {
     fn: (req, res) => {
-      return res.redirect('/reports/' + req.param('slug'));
+      return res.redirect(301, '/reports/' + req.param('slug'));
     }
   },
 
