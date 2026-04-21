@@ -188,7 +188,7 @@ const getUserTeams = ({
 
 /** Prefer a fleet named "Workstations" (with or without emoji prefix),
  *  otherwise fall back to the fleet with the lowest ID. */
-const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
+export const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
   const workstations = fleets.find(
     (t) => t.name === "Workstations" || t.name === "\u{1F4BB} Workstations"
   );
