@@ -4842,19 +4842,28 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	// Simulate host1 not matching any filters.
-	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-		includeHost1 := opt.LowDiskSpaceFilter == nil &&
-			opt.MDMBootstrapPackageFilter == nil &&
-			opt.DEPProfileErrorFilter == nil &&
-			opt.DEPAssignProfileResponseFilter == nil
+	// filtersActive returns true when any premium filter is set. Host 1 only
+	// appears when no filters are active; host 2 always appears.
+	filtersActive := func(opt fleet.HostListOptions) bool {
+		return opt.LowDiskSpaceFilter != nil ||
+			opt.MDMBootstrapPackageFilter != nil ||
+			opt.DEPProfileErrorFilter != nil ||
+			opt.DEPAssignProfileResponseFilter != nil
+	}
 
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		var hosts []*fleet.Host
-		if includeHost1 {
+		if !filtersActive(opt) {
 			hosts = append(hosts, &fleet.Host{ID: 1})
 		}
 		hosts = append(hosts, &fleet.Host{ID: 2})
 		return hosts, nil
+	}
+	ds.CountHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
+		if filtersActive(opt) {
+			return 1, nil
+		}
+		return 2, nil
 	}
 
 	cases := []struct {
@@ -4877,11 +4886,19 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, hosts, 2)
 
+			count, err := svc.CountHosts(freeCtx, nil, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, 2, count)
+
 			// Premium tier: filter is used and hosts are filtered
 			hosts, err = svc.ListHosts(premiumCtx, tc.opts)
 			require.NoError(t, err)
 			require.Len(t, hosts, 1)
 			require.Equal(t, uint(2), hosts[0].ID)
+
+			count, err = svc.CountHosts(premiumCtx, nil, tc.opts)
+			require.NoError(t, err)
+			require.Equal(t, 1, count)
 		})
 	}
 }
