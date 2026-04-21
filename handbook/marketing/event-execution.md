@@ -506,9 +506,11 @@ Here's the script:
 ```bash
 #!/bin/bash
 # --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2606-GitOps-Workshop-Atlanta"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.8is5oewuv3gg"
-REQUEST_ISSUE="#14488"
+WORKSHOP_SLUG="2026-GitOps-Workshop-Seattle"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1_2J8h1rOJB6WdJDo1e-RDfUtDC_sph8a-nqJZUlE8Tc/edit?tab=t.0#heading=h.qajphvmsy5v4"
+REQUEST_ISSUE="#14944"
+LOCATION="Seattle"
+
 
 # No need to change anything else to run the script
 
@@ -649,62 +651,14 @@ Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room 
 - [ ] Update the $PLANNING_DOC_URL with these details
 - Create Workshop Landing Page on Eventbrite or Luma
 Link to [TEMPLATE in EventBrite](https://www.eventbrite.com/e/1985443830945?aff=oddtdtcreator)
-- Schedule Email Blast to target audience
-- Schedule LinkedIn and Twitter/X posts and request speaker graphics
-- Notify AEs and Partners to drive personal invites
-- Monitor registration — watch for waitlists or low attendance and adjust promo if needed
-- Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
+- Create Slack Channel
+- Create Calendar Placeholder
+- Create SFDC campaign
+- Identify Staff and Instructor(s)
 EOF
-create_sub_issue "1. Workshop Promotion & Registration Launch"
-
+create_sub_issue "1. Create & Launch Workshop"
 
 # --- Child 2 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Secure the physical space for the workshop. Once confirmed, notify attendees.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Secure venue — confirm availability for workshop date
-- Power audit — confirm every seat has access to power, or plan to bring extension cords
-- AV check — confirm projector/HDMI availability
-- Update Workshop Landing Page with the specific venue name and address
-- Update the $PLANNING_DOC_URL with "Venue Details" section
-EOF
-create_sub_issue "2. Venue Selection & Logistics"
-
-
-# --- Child 3 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
-- Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
-EOF
-create_sub_issue "3. Dinner Planning"
-
-
-# --- Child 4 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Finalize in-room food and drink orders.
-
-Wait to complete this until ~1 week before the event so you have an accurate headcount.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
-- Order food and drinks
-
-EOF
-create_sub_issue "4. Workshop Catering"
-
-
-# --- Child 5 ---
 cat > "$BODY_FILE" << EOF
 **Description**
 Ensure the instructor and support staff can get to the city and are prepared for the event.
@@ -714,12 +668,66 @@ Ensure the instructor and support staff can get to the city and are prepared for
 - Book flights for Lead Instructor and TA if traveling
 - Book hotel — ensure proximity to the venue
 - Confirm staffing assignments and attire
-
 EOF
-create_sub_issue "5. Travel & Staffing"
+create_sub_issue "2. Travel & Staffing"
+
+# --- Child 3 ---
+cat > "$BODY_FILE" << EOF
+**Description**
+Secure the physical space for the workshop. Once confirmed, notify attendees.
+
+**Who:** Onsite DRI, Marketing DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — confirm availability for workshop date
+- Power + AV check — confirm power drops options + projector/HDMI availability
+- F&B: Identify options - ask venue POC for F&B options. 
+- F&B: Decide amount and place order (example: assortment of drinks and light snacks)
+- Update Workshop Landing Page with the specific venue name and address
+EOF
+create_sub_issue "3. Venue Selection + Food & Beverage"
+
+# --- Child 4 ---
+cat > "$BODY_FILE" << EOF
+**Description**
+Each workshop requires looping in our go-to local partner and assigning the channel manager to the planning team to lead coordination efforts.. 
+
+**Who:** Marketing DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Assign issue to Eric Comeau
+- Connect with AE to discuss which partner to invite/include on the workshop.
+- Share Workshop reg link with identified partner to help drive registration
+EOF
+create_sub_issue "4. Engage the Channel"
+
+# --- Child 5 ---
+cat > "$BODY_FILE" << EOF
+**Description**
+General + Instructor social posts for team use to help drive awareness and registration. 
+
+**Who:** Marketing DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Assign issue to Tom Basgil
+- Create LinkedIn + Twitter/X posts for the following: General Workshop itself plus an Instructor post
+- Share the posts with the attending team & instructor on the event slack channel (link to slack channel located in the event doc) 
+EOF
+create_sub_issue "5. Get Social"
 
 
 # --- Child 6 ---
+cat > "$BODY_FILE" << EOF
+**Description**
+Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
+
+**Who:** Onsite DRI, Marketing DRI
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
+- Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
+- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
+EOF
+create_sub_issue "6. Dinner Planning"
+
+
+# --- Child 7 ---
 cat > "$BODY_FILE" << EOF
 **Description**
 To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
@@ -730,7 +738,7 @@ To be completed within 48 hours after the event. Close the loop on leads and tec
 - Send follow-up email with slides and repo links
 
 EOF
-create_sub_issue "6. Post-Mortem & Follow-Up"
+create_sub_issue "7. Post-Mortem & Follow-Up"
 
 echo "Done."
 ```
