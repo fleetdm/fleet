@@ -1976,6 +1976,16 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
 		}
 
+		// Apple wipes the device-side recovery lock when the MDM profile is removed.
+		// Soft-delete the stored password so the recovery-lock cron re-enqueues a fresh
+		// SetRecoveryLock if/when this host re-enrolls. Unlike disk encryption keys
+		// (intentionally kept across unenroll), a stored recovery lock has no
+		// post-unenroll utility. No-op for non-darwin hosts since the table only
+		// contains darwin/Apple-silicon rows.
+		if err := softDeleteHostRecoveryLockPassword(ctx, tx, uuid); err != nil {
+			return err
+		}
+
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
 		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
@@ -5040,23 +5050,11 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 
 			// Soft-delete the recovery lock password: Apple wipes the device-side recovery lock
 			// whenever the MDM profile is removed, and any subsequent Authenticate means the
-			// device went through an unenroll/re-enroll (or wipe/restore). Keep the row as a
-			// support diagnostic but null out rotation/view state, because
-			// SetHostsRecoveryLockPasswords' ON DUPLICATE KEY UPDATE does not touch those
-			// columns and would otherwise leak them into a future re-enrolled password. Also
-			// unsticks rows whose SetRecoveryLock command was abandoned by nanomdm's
-			// ClearQueue (same Authenticate fires both cleanups). Table is keyed by host_uuid.
-			_, err = tx.ExecContext(ctx, `
-				UPDATE host_recovery_key_passwords
-				SET deleted = 1,
-				    pending_encrypted_password = NULL,
-				    pending_error_message = NULL,
-				    auto_rotate_at = NULL
-				WHERE host_uuid = ? AND deleted = 0`,
-				hostUUID,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "soft-delete recovery lock password on mdm re-enrollment")
+			// device went through an unenroll/re-enroll (or wipe/restore). Also unsticks rows
+			// whose SetRecoveryLock command was abandoned by nanomdm's ClearQueue (same
+			// Authenticate fires both cleanups). Table is keyed by host_uuid.
+			if err := softDeleteHostRecoveryLockPassword(ctx, tx, hostUUID); err != nil {
+				return err
 			}
 		}
 
@@ -7912,6 +7910,28 @@ func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUI
 		return ctxerr.Wrap(ctx, err, "soft delete host recovery lock password")
 	}
 
+	return nil
+}
+
+// softDeleteHostRecoveryLockPassword soft-deletes the host's recovery lock password row
+// and nulls rotation/view state that would otherwise leak into a future re-enrolled
+// password (SetHostsRecoveryLockPasswords' ON DUPLICATE KEY UPDATE does not reset those
+// columns on re-animate). Safe to call idempotently — the deleted=0 guard makes repeat
+// calls no-ops. Keeps encrypted_password/status/operation_type/error_message for support
+// diagnostics. Used by MDM lifecycle hooks (re-enroll, explicit unenroll, refetch-detected
+// unenroll) — Apple wipes the device-side recovery lock whenever the MDM profile is removed,
+// so any of these signals invalidates Fleet's stored copy.
+func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords
+		SET deleted = 1,
+		    pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    auto_rotate_at = NULL
+		WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "soft-delete host recovery lock password")
+	}
 	return nil
 }
 

@@ -4460,12 +4460,60 @@ func (ds *Datastore) SetOrUpdateMDMData(
 		mdmID = &id
 	}
 
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID,
-	)
+	const updateStmt = `UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ?, is_server = ?, fleet_enroll_ref = ?, is_personal_enrollment = ? WHERE host_id = ?`
+	const insertStmt = `INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, fleet_enroll_ref, is_personal_enrollment, host_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	args := []any{enrolled, serverURL, installedFromDep, mdmID, isServer, fleetEnrollmentRef, isPersonalEnrollment, hostID}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Capture the host UUID + prior enrolled state in one query so we can detect
+		// the darwin enrolled 1→0 transition that means the device-side recovery lock
+		// was wiped (Apple removes the lock when the MDM profile is removed). The
+		// LEFT JOIN gives us NULL for hosts that have never had a host_mdm row, which
+		// we treat as "never enrolled" so we don't fire the soft-delete on first
+		// ingest of a brand new host.
+		var prior struct {
+			HostUUID    string `db:"uuid"`
+			Platform    string `db:"platform"`
+			WasEnrolled *bool  `db:"enrolled"`
+		}
+		err := sqlx.GetContext(ctx, tx, &prior, `
+			SELECT h.uuid, h.platform, hm.enrolled
+			FROM hosts h
+			LEFT JOIN host_mdm hm ON hm.host_id = h.id
+			WHERE h.id = ?`, hostID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// Host row doesn't exist yet — fall through to the upsert (which will
+			// likely also fail, but let the existing path produce the same error).
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "fetch prior mdm enrollment state")
+		}
+
+		res, err := tx.ExecContext(ctx, updateStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update")
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected by update")
+		}
+		if affected == 0 {
+			if _, err := tx.ExecContext(ctx, insertStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert")
+			}
+		}
+
+		// Soft-delete the recovery lock password only on the darwin enrolled 1→0
+		// transition. Skipping NULL→0 (host was never enrolled) and 0→0 (idempotent
+		// replay of an already-unenrolled state) is essential to avoid wiping a
+		// password that an admin still needs.
+		if prior.Platform == "darwin" && prior.WasEnrolled != nil && *prior.WasEnrolled && !enrolled {
+			if err := softDeleteHostRecoveryLockPassword(ctx, tx, prior.HostUUID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) UpdateMDMData(
