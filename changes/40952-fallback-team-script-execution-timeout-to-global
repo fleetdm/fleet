@@ -1,0 +1,1 @@
+- Made the agent options' `script_execution_timeout` setting of a fleet default to the global agent options' value if not set for the team.
