@@ -1553,7 +1553,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 			Email:    "sso@example.com",
 		}
 
-		adminAccount := &AdminAccount{
+		adminAccount := &apple_mdm.AdminAccountConfig{
 			ShortName:    "_fleetadmin",
 			FullName:     "Fleet Admin",
 			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
@@ -1655,7 +1655,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
 		}
 
-		adminAccount := &AdminAccount{
+		adminAccount := &apple_mdm.AdminAccountConfig{
 			ShortName:    "_fleetadmin",
 			FullName:     "Fleet Admin",
 			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),

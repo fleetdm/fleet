@@ -111,7 +111,7 @@ func (ds *Datastore) GetManagedLocalAccountByCommandUUID(ctx context.Context, co
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, hostStmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host id by host uuid")
 	}
-	host, err := ds.Host(ctx, hostID)
+	host, err := ds.HostLite(ctx, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting host")
 	}

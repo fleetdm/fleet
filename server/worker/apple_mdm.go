@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -210,7 +209,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
 	var ssoAccount *fleet.MDMIdPAccount
-	var adminAccount *AdminAccount
+	var adminAccount *apple_mdm.AdminAccountConfig
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
@@ -262,7 +261,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if err != nil {
 				return err
 			}
-			adminAccount = &AdminAccount{
+			adminAccount = &apple_mdm.AdminAccountConfig{
 				ShortName:    fleetAdminShortName,
 				FullName:     fleetAdminFullName,
 				PasswordHash: passwordHash,
@@ -919,79 +918,27 @@ func (a *AppleMDM) sendManagedAccounts(
 	ctx context.Context,
 	args *appleMDMArgs,
 	ssoAccount *fleet.MDMIdPAccount,
-	adminAccount *AdminAccount,
+	adminAccount *apple_mdm.AdminAccountConfig,
 	lockPrimaryAccountInfo bool,
 	cmdUUID string,
 ) error {
-
-	var ssoAccountPayload, managedAccountPayload string
-
+	var ssoConfig *apple_mdm.SSOAccountConfig
 	if ssoAccount != nil {
 		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting idp account display name")
 		}
-
-		ssoAccountPayload = fmt.Sprintf(`
-      <key>PrimaryAccountFullName</key>
-      <string>%s</string>
-      <key>PrimaryAccountUserName</key>
-      <string>%s</string>
-      <key>LockPrimaryAccountInfo</key>
-      <%t />
-`, fullName, ssoAccount.Username, lockPrimaryAccountInfo)
-	}
-
-	if adminAccount != nil {
-		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
-		managedAccountPayload = fmt.Sprintf(`
-      <key>AutoSetupAdminAccounts</key>
-      <array>
-        <dict>
-          <key>hidden</key>
-          <%t />
-          <key>passwordHash</key>
-          <data>%s</data>
-          <key>shortName</key>
-          <string>%s</string>
-          <key>fullName</key>
-          <string>%s</string>
-        </dict>
-      </array>
-`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
-	}
-
-	var payload string
-	if adminAccount != nil {
-		if ssoAccount != nil {
-			payload = ssoAccountPayload
-		}
-		payload += managedAccountPayload
-
-	} else {
-		if ssoAccount != nil {
-			payload = ssoAccountPayload
-		} else {
-			// unreachable - at least one of ssoEnabled or managedAccountEnabled should be true
-			return ctxerr.New(ctx, "unreachable")
-		}
-	}
-
-	if ssoAccount != nil {
 		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
+		ssoConfig = &apple_mdm.SSOAccountConfig{
+			FullName:               fullName,
+			UserName:               ssoAccount.Username,
+			LockPrimaryAccountInfo: lockPrimaryAccountInfo,
+		}
 	}
-	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, payload, cmdUUID); err != nil {
+
+	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, cmdUUID, ssoConfig, adminAccount); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 	}
 
 	return nil
-}
-
-// AdminAccount holds the parameters for an AutoSetupAdminAccounts entry in
-// an AccountConfiguration MDM command.
-type AdminAccount struct {
-	ShortName    string // e.g. "_fleetadmin"
-	FullName     string // e.g. "Fleet Admin"
-	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
-	Hidden       bool   // true → hidden from login window (UID ≤ 499)
 }

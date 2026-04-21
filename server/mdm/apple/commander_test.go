@@ -708,13 +708,7 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 		return false, nil
 	}
 
-	t.Run("payload is wrapped in AccountConfiguration plist", func(t *testing.T) {
-		payload := `
-      <key>PrimaryAccountFullName</key>
-      <string>Test User</string>
-      <key>PrimaryAccountUserName</key>
-      <string>testuser</string>`
-
+	t.Run("SSO only produces standard plist", func(t *testing.T) {
 		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 			raw := string(cmd.Raw)
 			require.Contains(t, raw, "AccountConfiguration")
@@ -722,12 +716,55 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 			require.Contains(t, raw, "<string>Test User</string>")
 			require.Contains(t, raw, "<key>PrimaryAccountUserName</key>")
 			require.Contains(t, raw, "<string>testuser</string>")
-			require.Contains(t, raw, "<key>CommandUUID</key>")
+			require.NotContains(t, raw, "AutoSetupAdminAccounts")
 			return nil, nil
 		}
 		mdmStorage.EnqueueCommandFuncInvoked = false
 
-		err := cmdr.AccountConfiguration(ctx, hostUUIDs, payload, cmdUUID)
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "Test User", UserName: "testuser", LockPrimaryAccountInfo: true},
+			nil,
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("admin account adds AutoSetupAdminAccounts", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "AccountConfiguration")
+			require.Contains(t, raw, "<key>AutoSetupAdminAccounts</key>")
+			require.Contains(t, raw, "<string>_fleetadmin</string>")
+			require.Contains(t, raw, "<string>Fleet Admin</string>")
+			require.Contains(t, raw, "<key>hidden</key>")
+			require.Contains(t, raw, "<true />")
+			require.Contains(t, raw, "<key>passwordHash</key>")
+			require.NotContains(t, raw, "PrimaryAccountFullName")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			nil,
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("SSO + admin combined", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true},
+		)
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	})

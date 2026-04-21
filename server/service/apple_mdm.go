@@ -4248,6 +4248,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "get managed local account for command")
 		}
 		if host != nil && host.UUID != "" {
+			// Validate that the command response is from the expected device.
+			if host.UUID != r.ID {
+				svc.logger.WarnContext(r.Context, "managed local account command UUID matched a different host",
+					"expected_host_uuid", host.UUID, "checkin_host_uuid", r.ID, "command_uuid", cmdResult.CommandUUID)
+				break
+			}
 			// This AccountConfiguration included a managed local account
 			switch cmdResult.Status {
 			case fleet.MDMAppleStatusAcknowledged:
