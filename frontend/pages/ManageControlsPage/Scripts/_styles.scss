@@ -2,10 +2,6 @@
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
-  &__description {
-    margin: 0;
-  }
-
   &__premium-feature-message {
     margin-top: $pad-xxxlarge;
   }
