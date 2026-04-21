@@ -23,10 +23,9 @@ type hostBitmapFetcher func(ctx context.Context) ([]byte, error)
 
 // hostFilterCache maps a canonicalized HostFilter to the bitmap of host IDs
 // that match it. Entries are considered valid for ttl; concurrent misses for
-// the same key are collapsed via singleflight. Size is unbounded in principle
-// but naturally bounded by the finite space of filter combinations in practice
-// (teams × labels × platforms), so ~12KB per entry stays well under a MB at
-// realistic load.
+// the same key are collapsed via singleflight. Expired entries are swept from
+// the map opportunistically on each write, so stale keys (e.g. one-off
+// IncludeHostIDs filters) don't accumulate indefinitely.
 type hostFilterCache struct {
 	ttl     time.Duration
 	clock   func() time.Time
@@ -74,10 +73,18 @@ func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fet
 		if err != nil {
 			return nil, err
 		}
+		now := c.clock()
 		c.mu.Lock()
+		// Sweep expired entries so keys we never see again don't leak. Cheap
+		// because this only runs on misses (already the slow path).
+		for k, e := range c.entries {
+			if !now.Before(e.expiresAt) {
+				delete(c.entries, k)
+			}
+		}
 		c.entries[key] = hostFilterCacheEntry{
 			bitmap:    bitmap,
-			expiresAt: c.clock().Add(c.ttl),
+			expiresAt: now.Add(c.ttl),
 		}
 		c.mu.Unlock()
 		return bitmap, nil

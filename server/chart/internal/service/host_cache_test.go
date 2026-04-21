@@ -134,6 +134,36 @@ func TestHostFilterCacheSingleflightCoalescesConcurrentMisses(t *testing.T) {
 	assert.Equal(t, int32(1), calls.Load(), "singleflight should coalesce concurrent misses")
 }
 
+func TestHostFilterCacheSweepsExpiredEntriesOnWrite(t *testing.T) {
+	cache := newHostFilterCache(10 * time.Second)
+
+	var now atomic.Int64
+	now.Store(time.Now().UnixNano())
+	cache.clock = func() time.Time { return time.Unix(0, now.Load()) }
+
+	fetch := func(_ context.Context) ([]byte, error) { return []byte{0x01}, nil }
+
+	// Seed two entries that will later be expired.
+	_, err := cache.Get(t.Context(), &types.HostFilter{LabelIDs: []uint{1}}, fetch)
+	require.NoError(t, err)
+	_, err = cache.Get(t.Context(), &types.HostFilter{LabelIDs: []uint{2}}, fetch)
+	require.NoError(t, err)
+
+	cache.mu.RLock()
+	assert.Len(t, cache.entries, 2)
+	cache.mu.RUnlock()
+
+	// Advance past TTL and write a new entry — the two stale entries should
+	// be swept during the write path.
+	now.Add(int64(11 * time.Second))
+	_, err = cache.Get(t.Context(), &types.HostFilter{LabelIDs: []uint{3}}, fetch)
+	require.NoError(t, err)
+
+	cache.mu.RLock()
+	defer cache.mu.RUnlock()
+	assert.Len(t, cache.entries, 1, "expired entries should be swept on write")
+}
+
 func TestHostFilterCacheDoesNotCacheErrors(t *testing.T) {
 	cache := newHostFilterCache(time.Minute)
 
