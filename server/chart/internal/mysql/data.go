@@ -73,6 +73,16 @@ func (ds *Datastore) recordAccumulate(
 
 	// Fetch the current in-bucket bitmaps so we can OR-merge before writing.
 	// ODKU alone can't do this — VALUES(host_bitmap) would overwrite, not OR.
+	// @todo: MySQL 8.0 supports bitwise ops on binary strings, so this could
+	//        be collapsed into a single ODKU statement like:
+	//          host_bitmap = RPAD(host_bitmap, GREATEST(LENGTH(host_bitmap),
+	//                         LENGTH(new.host_bitmap)), _binary 0x00)
+	//                      | RPAD(new.host_bitmap, ..., _binary 0x00)
+	//        using the row-alias form (VALUES() is deprecated in 8.0.20+).
+	//        Skipped for now: single-writer cron means no concurrent-OR race,
+	//        the SELECT is a unique-key lookup, and the SQL reads less
+	//        clearly than Go-side merge. Revisit if we ever have multiple
+	//        concurrent writers or if the round-trip becomes a hotspot.
 	existing := make(map[string][]byte, len(entityIDs))
 	if len(entityIDs) > 0 {
 		query, args, err := sqlx.In(
@@ -228,9 +238,16 @@ func (ds *Datastore) recordSnapshot(
 // GetSCDData walks buckets of bucketSize across [startDate, endDate] and, for
 // each bucket, aggregates the rows whose interval touches the bucket according
 // to the sample strategy:
-//   - Accumulate: OR every overlapping row. "Hosts observed at any point in bucket."
-//   - Snapshot: per entity, take the row active at bucketEnd; OR across entities.
-//     "State as of the end of the bucket."
+//   - Accumulate: OR every overlapping row (across all entities, unless the
+//     caller restricted entityIDs). For single-entity datasets like uptime this
+//     is "hosts observed at any point in bucket." For multi-entity datasets
+//     like (future) software usage it's "distinct hosts seen doing anything
+//     tracked during the bucket" — the entity dimension collapses into the
+//     union of hosts touching any entity.
+//   - Snapshot: per entity, take the row active at bucketEnd; OR across
+//     entities. "State as of the end of the bucket" — for multi-entity datasets
+//     like CVE, this is the union of hosts affected by any tracked entity at
+//     bucketEnd.
 //
 // The caller's host filter, if any, is applied as a bitmap AND. Returns
 // numBuckets = (endDate - startDate) / bucketSize data points, labeled by bucket
@@ -313,8 +330,10 @@ func (ds *Datastore) GetSCDData(
 }
 
 // aggregateBucket returns the merged bitmap for a single bucket given the
-// sample strategy. For Accumulate, ORs every overlapping row. For Snapshot,
-// picks the row active at bucketEnd (per entity) and ORs across entities.
+// sample strategy. For Accumulate, ORs every overlapping row (entity dimension
+// collapses into the union — correct for "distinct hosts seen doing anything
+// tracked"). For Snapshot, picks the row active at bucketEnd per entity and
+// ORs across entities.
 func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) []byte {
 	if strategy == api.SampleStrategySnapshot {
 		// Per entity, the row "active at bucketEnd" is the one whose

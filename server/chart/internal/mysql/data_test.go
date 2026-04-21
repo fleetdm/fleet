@@ -25,6 +25,23 @@ func TestAggregateBucketAccumulate(t *testing.T) {
 	assert.Equal(t, 4, chart.BlobPopcount(got), "union of {1,2}, {3}, {2,4} = {1,2,3,4}")
 }
 
+func TestAggregateBucketAccumulateMultiEntity(t *testing.T) {
+	bucketStart := time.Date(2026, 4, 21, 14, 0, 0, 0, time.UTC)
+	bucketEnd := bucketStart.Add(time.Hour)
+
+	// Future-style multi-entity accumulate dataset (e.g. software usage):
+	// entity = software name; bitmap = hosts that used that software this hour.
+	// Bucket value = distinct hosts using any tracked software during the hour.
+	rows := []scdRow{
+		{EntityID: "slack", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart, ValidTo: bucketEnd},
+		{EntityID: "zoom", HostBitmap: chart.HostIDsToBlob([]uint{2, 3}), ValidFrom: bucketStart, ValidTo: bucketEnd},
+		{EntityID: "chrome", HostBitmap: chart.HostIDsToBlob([]uint{4}), ValidFrom: bucketStart, ValidTo: bucketEnd},
+	}
+
+	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategyAccumulate)
+	assert.Equal(t, 4, chart.BlobPopcount(got), "union across entities = {1,2,3,4}")
+}
+
 func TestAggregateBucketSnapshotEndOfBucket(t *testing.T) {
 	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
 	bucketEnd := bucketStart.Add(24 * time.Hour)
