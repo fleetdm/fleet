@@ -23294,6 +23294,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		assert.Nil(t, rlpStatus.Status, "status must be absent after re-enrollment; row was soft-deleted")
 		assert.False(t, rlpStatus.PasswordAvailable, "stored password must not be viewable after re-enrollment")
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
 
 		// Run cron again: it must see the host as eligible and enqueue a fresh SetRecoveryLock.
 		runRecoveryLockCron(t)
@@ -23399,6 +23400,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		rlpStatus = getHostRecoveryLockStatus(host.ID)
 		assert.Nil(t, rlpStatus.Status, "status must be absent after device CheckOut")
 		assert.False(t, rlpStatus.PasswordAvailable)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
 
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"enable_recovery_lock_password": false},
