@@ -33,11 +33,24 @@ package_path: package_name.yml
 package_path: ../software/package_name.yml
 ```
 
+### `path:` vs `paths:` (glob patterns)
+
+Several sections support both `path:` (singular) and `paths:` (plural), including `scripts`, `configuration_profiles`, `labels`, `policies`, and `reports`:
+
+- **`path:`** references a single, literal file path. Must not contain the characters `*`, `?`, `[`, or `{`.
+- **`paths:`** accepts a glob pattern to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
+
+You cannot specify both `path:` and `paths:` on the same entry.
+
+> **Important:** Filenames containing `*`, `?`, `[`, or `{` cannot be referenced using `path:`. If your filenames contain these characters (e.g. Windows profiles named `[AllowSpotlightCollection].xml`), either rename the files to remove them, or use `paths:` with a wildcard pattern like `*.xml`.
+
 For the GitOps API token, create a dedicated API-only user with `fleetctl user create --api-only`. These users can modify configurations via GitOps but can’t access the Fleet UI. Assign the GitOps role and set the appropriate global or fleet scope in the UI.
 
 ## labels
 
 Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `fleets/unassigned.yml`.
+
+Labels support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
 - `name` specifies the label's name. Must be unique across all global and fleet labels.
     + Changing a label's `name` in GitOps will delete and re-create the label, temporarily clearing its membership. To avoid this, update the label name in the UI before making the change in YAML. 
@@ -111,12 +124,15 @@ labels:
 ```yaml
 labels:
   - path: ./lib/labels-name.labels.yml
+  - paths: ./lib/labels/*.yml
 ```
 
 
 ## policies
 
 Policies can be specified inline in your `default.yml`, `fleets/fleet-name.yml`, or `fleets/unassigned.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+Policies support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
 ### Options
 
@@ -223,6 +239,7 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
+  - paths: ../lib/*.policies.yml
 ```
 
 > Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
@@ -233,6 +250,8 @@ policies:
 ## reports
 
 Reports can be specified inline in your `default.yml` file or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+Reports support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
 ### Options
 
@@ -287,6 +306,7 @@ reports:
     labels_include_any:
       - Engineering
       - Customer Support
+  - paths: ../lib/*.reports.yml
 ```
 
 ## agent_options
@@ -351,7 +371,7 @@ agent_options:
 
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
-- `scripts` is a list of paths to macOS, Windows, or Linux scripts.
+- `scripts` is a list of paths to macOS, Windows, or Linux scripts. Supports `path:` (single file) and `paths:` (glob pattern, filtered to `.sh` and `.ps1` files only). Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details.
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for "All fleets" (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for "All fleets" (`default.yml`).
@@ -368,6 +388,7 @@ controls:
     - path: ../lib/macos-script.sh
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
+    - paths: ../lib/scripts/*.sh  # Glob pattern (filtered to .sh and .ps1 only)
   windows_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
@@ -393,16 +414,24 @@ controls:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
+<<<<<<< AdamBaali-Gitops-YAML-globs-update
       - path: ../lib/macos-profile2.json
         labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
+      - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
+=======
       - path: ../lib/macos-profile3.mobileconfig
+>>>>>>> main
         labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
+      - paths: ../lib/configuration-profiles/*.json
   windows_settings:
     configuration_profiles:
       - path: ../lib/windows-profile.xml
+      - paths: ../lib/windows/profiles/*.xml  # Glob pattern to include all .xml files in directory
+        labels_include_any:
+          - Engineering
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -445,14 +474,21 @@ controls:
 
 ### apple_settings and windows_settings
 
-- `apple_settings.configuration_profiles` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
-- `windows_settings.configuration_profiles` is a list of paths to Windows configuration profiles (.xml).
+- `apple_settings.configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `windows_settings.configuration_profiles` is a list of Windows configuration profiles (.xml).
+
+Each entry can use either `path:` or `paths:`:
+
+- **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
+- **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### android_settings
 
-- `android_settings.configuration_profiles` is a list of paths to Android configuration profiles (.json).
+- `android_settings.configuration_profiles` is a list of Android configuration profiles (.json).
+
+Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 

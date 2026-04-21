@@ -606,6 +606,34 @@ ActiveCampaign automations manage lifecycle progression, nurture enrollment, and
 | 3+ opens or clicks in 30 days | Add `engaged: hot` |
 
 
+## 🐰 Video hosting
+
+### Why do we host videos on a service other than YouTube?
+
+We use a dedicated video hosting platform instead of YouTube for several important reasons:
+
+- **Higher quality** — Videos are delivered at higher fidelity without compression trade-offs.
+- **No ads** — Viewers are never interrupted by pre-roll or mid-roll advertisements.
+- **Control over content** — We maintain full ownership and control over how our videos are presented and distributed.
+
+### Platform
+
+We use [Bunny.net](https://dash.bunny.net/stream) for video hosting. Credentials are stored in 1Password.
+
+### Uploading a video
+
+1. **Rename the video file** so it is easy to identify. Use the format: `YYYY-MM-title` as a prefix to the video's technical filename (e.g., `2026-04-fleet-webinar-mdm-deep-dive.mp4`).
+2. Go to [Bunny.net Stream](https://dash.bunny.net/stream).
+3. Select **Stream** and then the appropriate **Video Library** (e.g., `FleetWebinars`).
+4. **Upload** the video.
+5. **Edit** the video details:
+   - Set the **Video Title**.
+   - Update the **Metadata** with the title, speakers, and abstract.
+6. **Set the desired thumbnail** — take a screenshot of the start of the video and upload it as the thumbnail image.
+
+> **Note for webinars:** You can append a `t=xxs` parameter to the embed code URL to make the video start at a specific timestamp (e.g., `t=90s` to start at 1 minute 30 seconds). This parameter is **not** saved in Bunny.net — it must be added manually each time you use the embed code.
+
+
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">

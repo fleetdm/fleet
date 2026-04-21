@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.0.5",
+      "version": "2.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kdrag0n.MacVirt';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kdrag0n.MacVirt' AND version_compare(bundle_short_version, '2.0.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kdrag0n.MacVirt' AND version_compare(bundle_short_version, '2.1.1') < 0);"
       },
-      "installer_url": "https://cdn-updates.orbstack.dev/arm64/OrbStack_v2.0.5_19905_arm64.dmg",
+      "installer_url": "https://cdn-updates.orbstack.dev/arm64/OrbStack_v2.1.1_20026_arm64.dmg",
       "install_script_ref": "3d018c85",
       "uninstall_script_ref": "401d288b",
-      "sha256": "601889551cdfdc7feee148b7fdb0480fa0ba5c0db0be8f1c047fc840886a7571",
+      "sha256": "18a41f759958e1fa0951696b820b5478d3ed7353f8ca486fe9d026a1a7d97207",
       "default_categories": [
         "Developer tools"
       ]
