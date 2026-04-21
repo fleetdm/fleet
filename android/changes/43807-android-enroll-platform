@@ -1,0 +1,1 @@
+- Fixed Android agent to always send the `platform` field on enrollment so the device is registered with the correct platform.

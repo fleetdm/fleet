@@ -144,6 +144,12 @@ func (e *endpointer) Service() any {
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
+	// Append RouteTemplateRequestFunc so the api_only endpoint middleware
+	// can read the matched mux route template from context.
+	//
+	// Full-slice expression prevents aliasing into the caller's backing array
+	// if it happens to have spare capacity.
+	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(eu.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,
