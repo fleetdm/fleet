@@ -448,9 +448,9 @@ spec:
           capabilities:
             drop: [ALL]
           privileged: false
-          {{- if .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          {{- if hasKey .Values.fleet.securityContext "readOnlyRootFilesystem" }}
           readOnlyRootFilesystem: {{ .Values.fleet.securityContext.readOnlyRootFilesystem }}
-          {{ else }}
+          {{- else }}
           readOnlyRootFilesystem: true
           {{- end }}
           {{- if .Values.fleet.securityContext.runAsGroup }}
