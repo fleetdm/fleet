@@ -101,6 +101,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	windowsEnrollment.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, windowsEnrollment.MDMHardwareID)
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
@@ -190,7 +191,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
 		SyncML: &fleet.SyncML{
 			Raw: []byte("<xml></xml>"),
 		},

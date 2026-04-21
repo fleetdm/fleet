@@ -1,0 +1,1 @@
+* Improved Windows MDM server performance at scale by reducing redundant database queries during device check-ins.
