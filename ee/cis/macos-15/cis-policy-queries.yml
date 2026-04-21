@@ -2,7 +2,8 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure All Apple-provided Software Is Current (Fleetd Required)
+  name: CIS - Ensure Apple-provided Software Updates Are Installed (Fleetd Required)
+  cis_id: "1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -11,10 +12,14 @@ spec:
   resolution: |
     Graphical Method:
     Perform the following to install all available software updates:
-      1. Open System Settings 
+      1. Open System Settings
       2. Select General
       3. Select Software Update
       4. Select Update All
+    Terminal Method:
+    Run the following command to install all available updates:
+      /usr/bin/sudo /usr/sbin/softwareupdate -i -a
+    If an update listed by `softwareupdate -l` requires a restart, attach the `-R` flag to force a system restart.
   query: SELECT 1 FROM software_update WHERE software_update_required = '0';
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -159,6 +164,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Software Update Deferment Is Less Than or Equal to 30 Days (MDM Required)
+  cis_id: "1.6"
   platforms: macOS
   platform: darwin
   description: |
@@ -168,6 +174,7 @@ spec:
     and configurations that may be negatively impacted by Apple updates. If software
     updates are deferred, they should not be deferred for more than 30 days.
     This control only verifies that deferred software updates are not deferred for more than 30 days.
+    Note: Software deferment is deprecated by Apple and will be removed in a future OS release/update.
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
   query: |
     SELECT 1 WHERE 
@@ -402,6 +409,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure AirDrop Is Disabled (MDM Required)
+  cis_id: "2.3.1.1"
   platforms: macOS
   platform: darwin
   description: |
@@ -413,20 +421,22 @@ spec:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
+    Note: AirDrop can only be enabled or disabled through configuration profiles. If your
+    organization wants to use AirDrop, it would need to be set through Terminal or the GUI.
   query: |
-    SELECT 1 WHERE 
+    SELECT 1 WHERE
       EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAirDrop' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.applicationaccess' AND
+            name='allowAirDrop' AND
             (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAirDrop' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.applicationaccess' AND
+            name='allowAirDrop' AND
             (value != 0 AND value != 'false')
-        );  
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
@@ -613,14 +623,16 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Remote Login Is Disabled
+  cis_id: "2.3.3.4"
   platforms: macOS
   platform: darwin
   description: |
-    Remote Login allows an interactive terminal session to a computer.
-    The SSH server built into macOS should not be enabled on a standard user computer,
-    particularly one that changes locations and IP addresses.
-    A standard user that runs local applications, including email, web browser,
-    and productivity tools, should not use the same device as a server
+    Remote Login allows an interactive terminal connection to a computer.
+    Disabling Remote Login mitigates the risk of an unauthorized person gaining access
+    to the system via Secure Shell (SSH). The SSH server built into macOS should not be
+    enabled on a standard user computer, particularly one that changes locations and IP
+    addresses. A standard user that runs local applications, including email, web
+    browser, and productivity tools, should not use the same device as a server.
 
   resolution: |
     Graphical Method:
@@ -628,6 +640,10 @@ spec:
     2. Select General
     3. Select Sharing
     4. Set Remote Login to disabled
+    Terminal Method:
+    Run the following command to disable Remote Login:
+      /usr/bin/sudo /usr/sbin/systemsetup -setremotelogin off
+    Note: This command will disable the service as well as stop it running in time.
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT * FROM plist WHERE
@@ -913,77 +929,6 @@ spec:
     UNION
     SELECT 'time machines destinations with encryption with automatic backup' as output
     FROM (SELECT COUNT(*) as c FROM time_machine_destinations WHERE encryption <> 'Encrypted') t2 WHERE t2.c = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show Wi-Fi status in Menu Bar Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    The Wi-Fi status in the menu bar indicates if the system's wireless internet capabilities are enabled.
-    If so, the system will scan for available wireless networks in order to connect.
-    Enabling "Show Wi-Fi status in menu bar" is a security awareness method that helps mitigate public area
-    wireless exploits by making the user aware of their wireless connectivity status.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Wi-Fi status in the menu bar.
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The `PayloadType` string is `com.apple.controlcenter`.
-    2. The key to include is `WiFi`.
-    3. The key must be set to `<integer>18</integer>`.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='WiFi' AND 
-            value = 18
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='WiFi' AND 
-            value != 18
-        );  
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show Bluetooth Status in Menu Bar Is Enabled (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    Enabling "Show Bluetooth status in menu bar" is a security awareness method that
-    helps understand the current state of Bluetooth, including whether it is enabled,
-    discoverable, what paired devices exist, and what paired devices are currently active.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Ask your administrator to deploy a profile with the following configuration:
-    1. The `PayloadType` string is `com.apple.controlcenter`.
-    2. The key to include is `Bluetooth`.
-    3. The key must be set to `<integer>18</integer>`.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='Bluetooth' AND 
-            value = 18
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.controlcenter' AND 
-            name='Bluetooth' AND 
-            value != 18
-        );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
@@ -1808,6 +1753,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure Sending Diagnostic and Usage Data to Apple Is Disabled (MDM Required)
+  cis_id: "2.6.3.1, 2.6.3.2, 2.6.3.3, 2.6.3.4"
   platforms: macOS
   platform: darwin
   description: Checks that Sending Diagnostic and Usage Data to Apple Is Disabled.
@@ -1844,9 +1790,9 @@ spec:
             (value = 0 OR value = 'false')
         )
       AND EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='Siri Data Sharing Opt-In Status' AND 
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.assistant.support' AND
+            name='Siri Data Sharing Opt-In Status' AND
             value = 2
         )
       AND NOT EXISTS (
@@ -3024,43 +2970,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Show All Filename Extensions Setting is Enabled
-  platforms: macOS
-  platform: darwin
-  description: |
-    A filename extension is a suffix added to a base filename that indicates the
-    base filename's file format. This is intended for any user that logs into
-    the GUI and has a home folder and not for service accounts. For the audit,
-    we will continue to verify that every account with a home folder has
-    filename extensions enabled.
-    Visible filename extensions allow the user to identify the file type and the
-    application it is associated with which leads to quick identification of
-    misrepresented malicious files.
-  resolution: |
-    Automated method:
-    Ask your administrator to deploy a script that runs the following command
-    for each user:
-    /usr/bin/sudo -u <username> /usr/bin/defaults write \
-    /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM users AS u
-      LEFT JOIN (
-        SELECT * FROM plist WHERE
-          path LIKE '/Users/%/Library/Preferences/.GlobalPreferences.plist' AND
-          key = 'AppleShowAllExtensions' AND
-          value = '1') AS p
-      ON p.path = CONCAT(u.directory, '/Library/Preferences/.GlobalPreferences.plist')
-        WHERE u.directory LIKE '/Users/%' AND
-        p.value IS NULL
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work, getvictor
 ---
 apiVersion: v1
 kind: policy
