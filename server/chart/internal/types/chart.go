@@ -10,7 +10,13 @@ import (
 
 // HostFilter is the internal filter used by the service and datastore to narrow
 // SCD queries to a specific set of hosts.
+//
+// TeamID semantics:
+//   - nil: no team filter applied (all hosts).
+//   - *TeamID == 0: hosts with no team assignment (team_id IS NULL).
+//   - *TeamID > 0: hosts in that team.
 type HostFilter struct {
+	TeamID         *uint
 	LabelIDs       []uint
 	Platforms      []string
 	IncludeHostIDs []uint
@@ -43,23 +49,21 @@ type Datastore interface {
 	//     any point during the bucket").
 	//   - Snapshot: for each entity, pick the row active at bucketEnd, then OR
 	//     across entities ("state as of the end of the bucket").
-	// The optional host filter is applied via bitmap AND; the entity filter via
-	// entity_id IN.
+	// filterMask is always applied via bitmap AND — callers build it via
+	// GetHostIDsForFilter + chart.HostIDsToBlob, usually through a cache.
+	// The entity filter is applied via entity_id IN.
 	GetSCDData(
 		ctx context.Context,
 		dataset string,
 		startDate, endDate time.Time,
 		bucketSize time.Duration,
 		strategy api.SampleStrategy,
-		hostFilter *HostFilter,
+		filterMask []byte,
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
 	// GetHostIDsForFilter returns the host IDs that match the given host filter.
 	GetHostIDsForFilter(ctx context.Context, hostFilter *HostFilter) ([]uint, error)
-
-	// CountHostsForChartFilter returns the total number of hosts matching the chart host filters.
-	CountHostsForChartFilter(ctx context.Context, hostFilter *HostFilter) (int, error)
 
 	// CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 	// retention cutoff. Open rows (valid_to = sentinel) are never deleted.

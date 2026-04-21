@@ -46,24 +46,6 @@ func (ds *Datastore) rebind(query string) string {
 	return ds.primary.Rebind(query)
 }
 
-func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
-	subquery, args := buildHostCountFilterClauses(hostFilter)
-
-	query := fmt.Sprintf(`SELECT COUNT(*) FROM hosts h WHERE 1=1 %s`, subquery)
-
-	query, args, err := sqlx.In(query, args...)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "expand count hosts query args")
-	}
-	query = ds.rebind(query)
-
-	var count int
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count hosts for chart filter")
-	}
-	return count, nil
-}
-
 func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 	subquery, args := buildHostCountFilterClauses(hostFilter)
 
@@ -110,7 +92,7 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.
 	return ids, nil
 }
 
-// buildHostCountFilterClauses builds filter clauses for counting hosts directly from the hosts table.
+// buildHostCountFilterClauses builds filter clauses for matching hosts directly from the hosts table.
 // Uses "h" as the table alias. Args may contain slices — caller must use sqlx.In to expand them.
 func buildHostCountFilterClauses(filter *types.HostFilter) (string, []any) {
 	if filter == nil {
@@ -119,6 +101,16 @@ func buildHostCountFilterClauses(filter *types.HostFilter) (string, []any) {
 
 	var clauses []string
 	var args []any
+
+	if filter.TeamID != nil {
+		// *TeamID == 0 means "hosts with no team assignment" — Fleet's convention.
+		if *filter.TeamID == 0 {
+			clauses = append(clauses, "h.team_id IS NULL")
+		} else {
+			clauses = append(clauses, "h.team_id = ?")
+			args = append(args, *filter.TeamID)
+		}
+	}
 
 	if len(filter.LabelIDs) > 0 {
 		clauses = append(clauses, "h.id IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))")

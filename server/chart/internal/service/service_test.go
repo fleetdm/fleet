@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -20,14 +21,30 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 	return nil
 }
 
+// recordingAuthorizer captures the subject and action handed to Authorize so
+// tests can assert against the authz input. allow controls the return value.
+type recordingAuthorizer struct {
+	gotSubject platform_authz.AuthzTyper
+	gotAction  platform_authz.Action
+	allow      bool
+}
+
+func (r *recordingAuthorizer) Authorize(_ context.Context, subject platform_authz.AuthzTyper, action platform_authz.Action) error {
+	r.gotSubject = subject
+	r.gotAction = action
+	if r.allow {
+		return nil
+	}
+	return errors.New("forbidden")
+}
+
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getSCDDataFunc             func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error)
-	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	countHostsForChartFilterFn func(ctx context.Context, hostFilter *types.HostFilter) (int, error)
-	findRecentlySeenHostIDsFn  func(ctx context.Context, lookback time.Duration) ([]uint, error)
-	recordBucketDataFn         func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
-	recordBucketDataInvoked    bool
+	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
+	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
+	findRecentlySeenHostIDsFn func(ctx context.Context, lookback time.Duration) ([]uint, error)
+	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
+	recordBucketDataInvoked   bool
 }
 
 func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error) {
@@ -45,9 +62,9 @@ func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bu
 	return nil
 }
 
-func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, hostFilter *types.HostFilter, entityIDs []string) ([]api.DataPoint, error) {
+func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error) {
 	if m.getSCDDataFunc != nil {
-		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, strategy, hostFilter, entityIDs)
+		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, strategy, filterMask, entityIDs)
 	}
 	return nil, nil
 }
@@ -57,13 +74,6 @@ func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *typ
 		return m.getHostIDsForFilterFunc(ctx, hostFilter)
 	}
 	return nil, nil
-}
-
-func (m *mockDatastore) CountHostsForChartFilter(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
-	if m.countHostsForChartFilterFn != nil {
-		return m.countHostsForChartFilterFn(ctx, hostFilter)
-	}
-	return 0, nil
 }
 
 func (m *mockDatastore) CleanupSCDData(_ context.Context, _ int) error {
@@ -116,19 +126,27 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
+	// Drive TotalHosts via the host-ID list: bitmap popcount = 200.
+	ds.getHostIDsForFilterFunc = func(_ context.Context, _ *types.HostFilter) ([]uint, error) {
+		ids := make([]uint, 200)
+		for i := range ids {
+			ids[i] = uint(i + 1)
+		}
+		return ids, nil
+	}
+
 	var gotBucketSize time.Duration
 	var gotStart, gotEnd time.Time
 	var gotStrategy api.SampleStrategy
-	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+	var gotMask []byte
+	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, strategy api.SampleStrategy, mask []byte, _ []string) ([]api.DataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		gotBucketSize = bucketSize
 		gotStart = start
 		gotEnd = end
 		gotStrategy = strategy
+		gotMask = mask
 		return []api.DataPoint{{Timestamp: start, Value: 42}}, nil
-	}
-	ds.countHostsForChartFilterFn = func(_ context.Context, _ *types.HostFilter) (int, error) {
-		return 200, nil
 	}
 
 	resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
@@ -140,6 +158,7 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	assert.Equal(t, 7, resp.Days)
 	assert.Equal(t, time.Hour, gotBucketSize)
 	assert.Equal(t, api.SampleStrategyAccumulate, gotStrategy)
+	assert.Equal(t, 200, chart.BlobPopcount(gotMask), "filter mask should encode all 200 host IDs")
 	// Span must be exactly 7 days.
 	assert.Equal(t, 7*24*time.Hour, gotEnd.Sub(gotStart))
 }
@@ -162,7 +181,7 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 			svc.RegisterDataset(&chart.UptimeDataset{})
 
 			var gotBucketSize time.Duration
-			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
 				gotBucketSize = bucketSize
 				return nil, nil
 			}
@@ -182,7 +201,7 @@ func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
 
 	var gotBucketSize time.Duration
 	var gotStrategy api.SampleStrategy
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
 		gotBucketSize = bucketSize
 		gotStrategy = strategy
 		return nil, nil
@@ -200,26 +219,77 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, hostFilter *types.HostFilter, _ []string) ([]api.DataPoint, error) {
-		require.NotNil(t, hostFilter)
-		assert.Equal(t, []uint{1, 2}, hostFilter.LabelIDs)
-		assert.Equal(t, []string{"darwin"}, hostFilter.Platforms)
+	var gotFilter *types.HostFilter
+	ds.getHostIDsForFilterFunc = func(_ context.Context, hostFilter *types.HostFilter) ([]uint, error) {
+		gotFilter = hostFilter
+		return []uint{10, 20}, nil
+	}
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, mask []byte, _ []string) ([]api.DataPoint, error) {
+		assert.Equal(t, 2, chart.BlobPopcount(mask), "mask should encode the 2 host IDs returned")
 		return []api.DataPoint{{Value: 2}}, nil
 	}
-	ds.countHostsForChartFilterFn = func(_ context.Context, hostFilter *types.HostFilter) (int, error) {
-		require.NotNil(t, hostFilter)
-		return 2, nil
-	}
 
+	teamID := uint(5)
 	resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
 		Days:      7,
+		TeamID:    &teamID,
 		LabelIDs:  []uint{1, 2},
 		Platforms: []string{"darwin"},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, 2, resp.TotalHosts)
+
+	require.NotNil(t, gotFilter)
+	require.NotNil(t, gotFilter.TeamID)
+	assert.Equal(t, uint(5), *gotFilter.TeamID)
+	assert.Equal(t, []uint{1, 2}, gotFilter.LabelIDs)
+	assert.Equal(t, []string{"darwin"}, gotFilter.Platforms)
+
+	assert.Equal(t, 2, resp.TotalHosts, "TotalHosts is now popcount of filter mask")
+	require.NotNil(t, resp.Filters.TeamID)
+	assert.Equal(t, uint(5), *resp.Filters.TeamID)
 	assert.Equal(t, []uint{1, 2}, resp.Filters.LabelIDs)
 	assert.Equal(t, []string{"darwin"}, resp.Filters.Platforms)
+}
+
+func TestGetChartDataAuthzReceivesTeamID(t *testing.T) {
+	t.Run("absent team_id authorizes with empty Host", func(t *testing.T) {
+		auth := &recordingAuthorizer{allow: true}
+		svc := NewService(auth, &mockDatastore{}, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+
+		host, ok := auth.gotSubject.(*api.Host)
+		require.True(t, ok, "authz subject should be *api.Host")
+		assert.Nil(t, host.TeamID, "team_id absent should yield a nil TeamID on the Host — rego then rejects team-only users")
+		assert.Equal(t, platform_authz.ActionRead, auth.gotAction)
+	})
+
+	t.Run("team_id=5 authorizes with Host{TeamID:5}", func(t *testing.T) {
+		auth := &recordingAuthorizer{allow: true}
+		svc := NewService(auth, &mockDatastore{}, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		teamID := uint(5)
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7, TeamID: &teamID})
+		require.NoError(t, err)
+
+		host, ok := auth.gotSubject.(*api.Host)
+		require.True(t, ok)
+		require.NotNil(t, host.TeamID)
+		assert.Equal(t, uint(5), *host.TeamID)
+	})
+
+	t.Run("authz denial propagates", func(t *testing.T) {
+		auth := &recordingAuthorizer{allow: false}
+		svc := NewService(auth, &mockDatastore{}, nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "forbidden")
+	})
 }
 
 func TestComputeBucketRange(t *testing.T) {

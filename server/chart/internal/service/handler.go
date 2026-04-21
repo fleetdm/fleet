@@ -39,6 +39,7 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (pl
 		Days:            days,
 		Downsample:      req.Downsample,
 		TZOffsetMinutes: req.TZOffset,
+		TeamID:          req.TeamID,
 		LabelIDs:        str.ParseUintList(req.LabelIDs),
 		Platforms:       str.ParseStringList(req.Platforms),
 		IncludeHostIDs:  str.ParseUintList(req.IncludeHostIDs),

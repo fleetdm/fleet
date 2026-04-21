@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,19 +17,21 @@ import (
 
 // Service is the chart bounded context service implementation.
 type Service struct {
-	authz    platform_authz.Authorizer
-	store    types.Datastore
-	datasets map[string]api.Dataset
-	logger   *slog.Logger
+	authz     platform_authz.Authorizer
+	store     types.Datastore
+	datasets  map[string]api.Dataset
+	hostCache *hostFilterCache
+	logger    *slog.Logger
 }
 
 // NewService creates a new chart service.
 func NewService(authz platform_authz.Authorizer, store types.Datastore, logger *slog.Logger) *Service {
 	return &Service{
-		authz:    authz,
-		store:    store,
-		datasets: make(map[string]api.Dataset),
-		logger:   logger,
+		authz:     authz,
+		store:     store,
+		datasets:  make(map[string]api.Dataset),
+		hostCache: newHostFilterCache(hostFilterCacheTTL),
+		logger:    logger,
 	}
 }
 
@@ -50,7 +53,10 @@ func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
 }
 
 func (s *Service) GetChartData(ctx context.Context, metric string, opts api.RequestOpts) (*api.Response, error) {
-	if err := s.authz.Authorize(ctx, &api.Host{}, platform_authz.ActionRead); err != nil {
+	// Authorize against a Host carrying the requested team scope. With opts.TeamID
+	// unset, rego's team rules can't match (object.team_id undefined), so only
+	// global-role users pass — a team observer must specify their team_id.
+	if err := s.authz.Authorize(ctx, &api.Host{TeamID: opts.TeamID}, platform_authz.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -84,23 +90,29 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 
 	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 
-	// Build host filter.
-	var hostFilter *types.HostFilter
-	if len(opts.LabelIDs) > 0 || len(opts.Platforms) > 0 || len(opts.IncludeHostIDs) > 0 || len(opts.ExcludeHostIDs) > 0 {
-		hostFilter = &types.HostFilter{
-			LabelIDs:       opts.LabelIDs,
-			Platforms:      opts.Platforms,
-			IncludeHostIDs: opts.IncludeHostIDs,
-			ExcludeHostIDs: opts.ExcludeHostIDs,
-		}
+	// Build the host filter. Always non-nil so the bitmap mask encodes "currently
+	// visible hosts" — this both applies team/label scoping and drops hosts that
+	// have been deleted since the SCD rows were written.
+	hostFilter := &types.HostFilter{
+		TeamID:         opts.TeamID,
+		LabelIDs:       opts.LabelIDs,
+		Platforms:      opts.Platforms,
+		IncludeHostIDs: opts.IncludeHostIDs,
+		ExcludeHostIDs: opts.ExcludeHostIDs,
 	}
 
-	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), hostFilter, entityIDs)
+	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) ([]byte, error) {
+		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetch host IDs for chart filter")
+		}
+		return chart.HostIDsToBlob(hostIDs), nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	totalHosts, err := s.store.CountHostsForChartFilter(ctx, hostFilter)
+	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -108,10 +120,11 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	return &api.Response{
 		Metric:        metric,
 		Visualization: dataset.DefaultVisualization(),
-		TotalHosts:    totalHosts,
+		TotalHosts:    chart.BlobPopcount(filterMask),
 		Resolution:    formatResolution(bucketSize),
 		Days:          opts.Days,
 		Filters: api.Filters{
+			TeamID:         opts.TeamID,
 			LabelIDs:       opts.LabelIDs,
 			Platforms:      opts.Platforms,
 			IncludeHostIDs: opts.IncludeHostIDs,

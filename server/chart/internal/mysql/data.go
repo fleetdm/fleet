@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
-	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
 )
@@ -249,10 +248,11 @@ func (ds *Datastore) recordSnapshot(
 //     like CVE, this is the union of hosts affected by any tracked entity at
 //     bucketEnd.
 //
-// The caller's host filter, if any, is applied as a bitmap AND. Returns
-// numBuckets = (endDate - startDate) / bucketSize data points, labeled by bucket
-// *start* (the first label is startDate + bucketSize; the last label is
-// endDate). Zero-valued buckets are emitted.
+// filterMask is AND-ed into every bucket's merged bitmap so results reflect
+// only hosts visible to the caller. Returns numBuckets =
+// (endDate - startDate) / bucketSize data points, labeled by bucket *start*
+// (the first label is startDate + bucketSize; the last label is endDate).
+// Zero-valued buckets are emitted.
 //
 // The caller is responsible for passing bucket-aligned startDate/endDate (e.g.
 // local-midnight-aligned for tz-sensitive rendering); the walker does not
@@ -263,7 +263,7 @@ func (ds *Datastore) GetSCDData(
 	startDate, endDate time.Time,
 	bucketSize time.Duration,
 	strategy api.SampleStrategy,
-	hostFilter *types.HostFilter,
+	filterMask []byte,
 	entityIDs []string,
 ) ([]api.DataPoint, error) {
 	startDate = startDate.UTC()
@@ -303,22 +303,12 @@ func (ds *Datastore) GetSCDData(
 		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
 	}
 
-	// Build the optional host-filter mask once.
-	var filterMask []byte
-	if hostFilter != nil {
-		hostIDs, err := ds.GetHostIDsForFilter(ctx, hostFilter)
-		if err != nil {
-			return nil, err
-		}
-		filterMask = chart.HostIDsToBlob(hostIDs)
-	}
-
 	results := make([]api.DataPoint, numBuckets)
 	for i := range numBuckets {
 		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
 		bucketEnd := bucketStart.Add(bucketSize)
 		merged := aggregateBucket(rows, bucketStart, bucketEnd, strategy)
-		if filterMask != nil && merged != nil {
+		if merged != nil {
 			merged = chart.BlobAND(merged, filterMask)
 		}
 		results[i] = api.DataPoint{

@@ -1,0 +1,117 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
+	"golang.org/x/sync/singleflight"
+)
+
+// hostFilterCacheTTL is how long a host-ID bitmap is served from cache before
+// being recomputed. Kept well under the chart collection cadence (10m) so data
+// and mask staleness stay roughly aligned.
+const hostFilterCacheTTL = 60 * time.Second
+
+// hostBitmapFetcher is the signature used by cache callers to compute a fresh
+// bitmap on a miss. Returning an error bypasses caching for that call.
+type hostBitmapFetcher func(ctx context.Context) ([]byte, error)
+
+// hostFilterCache maps a canonicalized HostFilter to the bitmap of host IDs
+// that match it. Entries are considered valid for ttl; concurrent misses for
+// the same key are collapsed via singleflight. Size is unbounded in principle
+// but naturally bounded by the finite space of filter combinations in practice
+// (teams × labels × platforms), so ~12KB per entry stays well under a MB at
+// realistic load.
+type hostFilterCache struct {
+	ttl     time.Duration
+	clock   func() time.Time
+	sf      singleflight.Group
+	mu      sync.RWMutex
+	entries map[string]hostFilterCacheEntry
+}
+
+type hostFilterCacheEntry struct {
+	bitmap    []byte
+	expiresAt time.Time
+}
+
+func newHostFilterCache(ttl time.Duration) *hostFilterCache {
+	return &hostFilterCache{
+		ttl:     ttl,
+		clock:   time.Now,
+		entries: make(map[string]hostFilterCacheEntry),
+	}
+}
+
+// Get returns the cached bitmap for the filter or computes a fresh one via
+// fetch on miss/expiry. Concurrent misses for the same filter share one fetch.
+func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fetch hostBitmapFetcher) ([]byte, error) {
+	key := hashHostFilter(filter)
+
+	c.mu.RLock()
+	entry, ok := c.entries[key]
+	c.mu.RUnlock()
+	if ok && c.clock().Before(entry.expiresAt) {
+		return entry.bitmap, nil
+	}
+
+	val, err, _ := c.sf.Do(key, func() (any, error) {
+		// Re-check after acquiring the singleflight slot: another goroutine
+		// may have populated the cache while we were waiting.
+		c.mu.RLock()
+		entry, ok := c.entries[key]
+		c.mu.RUnlock()
+		if ok && c.clock().Before(entry.expiresAt) {
+			return entry.bitmap, nil
+		}
+
+		bitmap, err := fetch(ctx)
+		if err != nil {
+			return nil, err
+		}
+		c.mu.Lock()
+		c.entries[key] = hostFilterCacheEntry{
+			bitmap:    bitmap,
+			expiresAt: c.clock().Add(c.ttl),
+		}
+		c.mu.Unlock()
+		return bitmap, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]byte), nil
+}
+
+// hashHostFilter produces a deterministic string key for a HostFilter. Slice
+// fields are sorted and copied so caller mutations can't affect keying; a
+// shared separator that can't appear in the encoded values keeps distinct
+// filters from collapsing to the same key.
+func hashHostFilter(f *types.HostFilter) string {
+	if f == nil {
+		return "nil"
+	}
+	labels := slices.Clone(f.LabelIDs)
+	slices.Sort(labels)
+	platforms := slices.Clone(f.Platforms)
+	slices.Sort(platforms)
+	include := slices.Clone(f.IncludeHostIDs)
+	slices.Sort(include)
+	exclude := slices.Clone(f.ExcludeHostIDs)
+	slices.Sort(exclude)
+
+	var b strings.Builder
+	if f.TeamID != nil {
+		fmt.Fprintf(&b, "team=%d", *f.TeamID)
+	} else {
+		b.WriteString("team=nil")
+	}
+	fmt.Fprintf(&b, "|labels=%v|platforms=%s|include=%v|exclude=%v",
+		labels, strings.Join(platforms, ","), include, exclude)
+	return b.String()
+}

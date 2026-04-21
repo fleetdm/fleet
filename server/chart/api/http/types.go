@@ -5,10 +5,13 @@ import "github.com/fleetdm/fleet/v4/server/chart/api"
 
 // GetChartDataRequest is the HTTP request for the chart data endpoint.
 type GetChartDataRequest struct {
-	Metric         string `url:"metric"`
-	Days           int    `query:"days,optional"`
-	Downsample     int    `query:"downsample,optional"`
-	TZOffset       int    `query:"tz_offset,optional"`
+	Metric     string `url:"metric"`
+	Days       int    `query:"days,optional"`
+	Downsample int    `query:"downsample,optional"`
+	TZOffset   int    `query:"tz_offset,optional"`
+	// TeamID is a pointer so we can distinguish "absent" (global view) from
+	// team_id=0 (hosts with no team assignment, a valid Fleet filter).
+	TeamID         *uint  `query:"team_id,optional"`
 	LabelIDs       string `query:"label_ids,optional"`
 	Platforms      string `query:"platforms,optional"`
 	IncludeHostIDs string `query:"include_host_ids,optional"`

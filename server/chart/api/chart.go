@@ -91,7 +91,12 @@ type DatasetStore interface {
 }
 
 // Host is a minimal host type for authorization checks within the chart bounded context.
-type Host struct{}
+// The JSON tags matter: the OPA rego policy reads object.team_id via the JSON-encoded
+// input, so renaming or dropping the tag silently breaks team-scoped authorization.
+type Host struct {
+	ID     uint  `json:"id"`
+	TeamID *uint `json:"team_id"`
+}
 
 // AuthzType implements platform_authz.AuthzTyper.
 func (h *Host) AuthzType() string { return "host" }
@@ -131,16 +136,21 @@ type RequestOpts struct {
 	// Date.getTimezoneOffset() (positive = west of UTC, e.g. CDT = 300).
 	// Used to align hourly bucket boundaries to local time.
 	TZOffsetMinutes int
-	LabelIDs        []uint
-	Platforms       []string
-	IncludeHostIDs  []uint
-	ExcludeHostIDs  []uint
+	// TeamID scopes the request to a single team. nil = global (authz + data
+	// both fall back to the user's accessible scope). *TeamID == 0 means
+	// hosts with no team assignment, matching Fleet's convention elsewhere.
+	TeamID         *uint
+	LabelIDs       []uint
+	Platforms      []string
+	IncludeHostIDs []uint
+	ExcludeHostIDs []uint
 	// DatasetFilters are dataset-specific filter params (e.g. policy_id, severity).
 	DatasetFilters map[string]string
 }
 
 // Filters captures the applied filters for a chart request.
 type Filters struct {
+	TeamID         *uint    `json:"team_id,omitempty"`
 	LabelIDs       []uint   `json:"label_ids,omitempty"`
 	Platforms      []string `json:"platforms,omitempty"`
 	IncludeHostIDs []uint   `json:"include_host_ids,omitempty"`
