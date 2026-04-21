@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -52,7 +51,6 @@ func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *t
 
 	query := fmt.Sprintf(`SELECT COUNT(*) FROM hosts h WHERE 1=1 %s`, subquery)
 
-	// Expand sqlx.In placeholders.
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "expand count hosts query args")
@@ -66,118 +64,11 @@ func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *t
 	return count, nil
 }
 
-// collectChartDataIntervalMinutes is the lookback window for determining which hosts
-// have recently checked in. Should match the cron schedule cadence.
-const collectChartDataIntervalMinutes = 10
-
-func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) error {
-	utc := now.UTC()
-	hour := utc.Hour()
-	dateStr := utc.Format("2006-01-02")
-
-	// Query host IDs that have recently checked in.
-	var hostIDs []uint
-	query := fmt.Sprintf(`
-		SELECT h.id
-		FROM hosts h
-			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
-			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
-				AND ne.type IN ('Device', 'User Enrollment (Device)')
-		WHERE COALESCE(
-			GREATEST(
-				COALESCE(hst.seen_time, ne.last_seen_at),
-				COALESCE(ne.last_seen_at, hst.seen_time)
-			),
-			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
-			h.created_at
-		) >= NOW() - INTERVAL %d MINUTE`,
-		collectChartDataIntervalMinutes)
-
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hostIDs, query); err != nil {
-		return ctxerr.Wrap(ctx, err, "query recently seen hosts for uptime")
-	}
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	// Build a blob from the host IDs.
-	newBlob := chart.HostIDsToBlob(hostIDs)
-
-	// Read the existing blob for this hour (if any) and OR it with the new data.
-	var existing []byte
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &existing,
-		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = '' AND chart_date = ? AND hour = ?`,
-		dateStr, hour)
-	if err == nil {
-		newBlob = chart.BlobOR(existing, newBlob)
-	}
-	// If err is sql.ErrNoRows, that's fine — no existing blob to merge.
-
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
-		 VALUES ('uptime', '', ?, ?, ?)
-		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
-		dateStr, hour, newBlob)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "write uptime blob data")
-	}
-	return nil
-}
-
-func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
-	startStr := startDate.Format("2006-01-02")
-	endStr := endDate.Format("2006-01-02")
-
-	var entityClause string
-	var args []any
-	args = append(args, dataset, startStr, endStr)
-
-	if len(entityIDs) > 0 {
-		entityClause = " AND entity_id IN (?)"
-		args = append(args, entityIDs)
-	}
-
-	query := fmt.Sprintf(`
-		SELECT chart_date, hour, host_bitmap
-		FROM host_hourly_data_blobs
-		WHERE dataset = ? AND chart_date BETWEEN ? AND ?%s
-		ORDER BY chart_date, hour`, entityClause)
-
-	// Expand sqlx.In placeholders.
-	query, args, err := sqlx.In(query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand blob data query args")
-	}
-	query = ds.rebind(query)
-
-	type blobRow struct {
-		ChartDate  time.Time `db:"chart_date"`
-		Hour       int       `db:"hour"`
-		HostBitmap []byte    `db:"host_bitmap"`
-	}
-
-	var rows []blobRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get blob data")
-	}
-
-	results := make([]types.BlobDataPoint, len(rows))
-	for i, r := range rows {
-		results[i] = types.BlobDataPoint{
-			ChartDate:  r.ChartDate,
-			Hour:       r.Hour,
-			HostBitmap: r.HostBitmap,
-		}
-	}
-	return results, nil
-}
-
 func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 	subquery, args := buildHostCountFilterClauses(hostFilter)
 
 	query := fmt.Sprintf(`SELECT h.id FROM hosts h WHERE 1=1 %s`, subquery)
 
-	// Expand sqlx.In placeholders.
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "expand host IDs filter query args")
@@ -191,52 +82,32 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-func (ds *Datastore) CleanupBlobData(ctx context.Context, days int) error {
-	_, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM host_hourly_data_blobs WHERE chart_date < CURDATE() - INTERVAL ? DAY`, days)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup blob data")
+// FindRecentlySeenHostIDs returns host IDs with any activity signal newer than now-lookback.
+// "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
+// or host details/creation timestamps.
+func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error) {
+	cutoff := time.Now().UTC().Add(-lookback)
+
+	const query = `
+		SELECT h.id
+		FROM hosts h
+			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE COALESCE(
+			GREATEST(
+				COALESCE(hst.seen_time, ne.last_seen_at),
+				COALESCE(ne.last_seen_at, hst.seen_time)
+			),
+			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
+			h.created_at
+		) >= ?`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, query, cutoff); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
 	}
-	return nil
-}
-
-// buildHostFilterSubqueryForAlias builds SQL clauses to filter chart rows by host
-// attributes, using the given table alias for the host_id column. Returns the clause
-// (prefixed with AND) and args. Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostFilterSubqueryForAlias(filter *types.HostFilter, alias string) (string, []any) {
-	if filter == nil {
-		return "", nil
-	}
-
-	var clauses []string
-	var args []any
-	col := alias + ".host_id"
-
-	if len(filter.LabelIDs) > 0 {
-		clauses = append(clauses, col+" IN (SELECT DISTINCT host_id FROM label_membership WHERE label_id IN (?))")
-		args = append(args, filter.LabelIDs)
-	}
-
-	if len(filter.Platforms) > 0 {
-		clauses = append(clauses, col+" IN (SELECT id FROM hosts WHERE platform IN (?))")
-		args = append(args, filter.Platforms)
-	}
-
-	if len(filter.IncludeHostIDs) > 0 {
-		clauses = append(clauses, col+" IN (?)")
-		args = append(args, filter.IncludeHostIDs)
-	}
-
-	if len(filter.ExcludeHostIDs) > 0 {
-		clauses = append(clauses, col+" NOT IN (?)")
-		args = append(args, filter.ExcludeHostIDs)
-	}
-
-	if len(clauses) == 0 {
-		return "", nil
-	}
-
-	return " AND " + strings.Join(clauses, " AND "), args
+	return ids, nil
 }
 
 // buildHostCountFilterClauses builds filter clauses for counting hosts directly from the hosts table.

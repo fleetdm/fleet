@@ -1,5 +1,6 @@
 // charts-backfill generates realistic chart data for development and testing.
-// It writes blob-storage rows to host_hourly_data_blobs.
+// Writes rows to host_scd_data in closed form (explicit valid_to); the live
+// collector can then extend from these rows via its normal write path.
 // Safe to re-run — uses ON DUPLICATE KEY UPDATE to merge new data.
 //
 // Usage:
@@ -21,8 +22,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// dailyBlobDatasets use blob storage with hour=-1 (whole-day granularity).
-var dailyBlobDatasets = map[string]struct{}{
+// dailyDatasets bucket at 24h granularity; all others are hourly.
+var dailyDatasets = map[string]struct{}{
 	"cve": {},
 }
 
@@ -45,7 +46,6 @@ func main() {
 		log.Fatalf("failed to ping mysql: %v", err)
 	}
 
-	// Determine start date.
 	var start time.Time
 	if *startDate != "" {
 		start, err = time.Parse("2006-01-02", *startDate)
@@ -53,10 +53,10 @@ func main() {
 			log.Fatalf("invalid start-date %q: %v", *startDate, err)
 		}
 	} else {
-		start = time.Now().AddDate(0, 0, -(*days - 1))
+		start = time.Now().UTC().AddDate(0, 0, -(*days - 1))
 	}
+	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
 
-	// Determine host IDs.
 	hostIDs := str.ParseUintList(*hostIDsStr)
 	if len(hostIDs) == 0 {
 		hostIDs, err = queryHostIDs(db)
@@ -68,7 +68,6 @@ func main() {
 		}
 	}
 
-	// Determine entity IDs.
 	entityIDs := str.ParseStringList(*entityIDsStr)
 	if len(entityIDs) == 0 {
 		entityIDs = []string{""}
@@ -78,42 +77,40 @@ func main() {
 		*dataset, *days, start.Format("2006-01-02"), len(hostIDs), len(entityIDs))
 
 	startTime := time.Now()
-	totalRows := backfillBlob(db, *dataset, *days, start, hostIDs, entityIDs)
-	log.Printf("done: %d blob rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
+	totalRows := backfill(db, *dataset, *days, start, hostIDs, entityIDs)
+	log.Printf("done: %d SCD rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
 }
 
-func backfillBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
-	_, isDaily := dailyBlobDatasets[dataset]
-	if isDaily {
-		return backfillDailyBlob(db, dataset, days, start, hostIDs, entityIDs)
+func backfill(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
+	if _, ok := dailyDatasets[dataset]; ok {
+		return backfillDaily(db, dataset, days, start, hostIDs, entityIDs)
 	}
-	return backfillHourlyBlob(db, dataset, days, start, hostIDs, entityIDs)
+	return backfillHourly(db, dataset, days, start, hostIDs, entityIDs)
 }
 
-func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
+func backfillHourly(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
-
 	for day := range days {
 		date := start.AddDate(0, 0, day)
-		dateStr := date.Format("2006-01-02")
 
 		for _, entityID := range entityIDs {
-			// Generate per-hour host activity.
 			hourlyHosts := generateHourlyHosts(dataset, hostIDs)
 
 			for hour, activeHosts := range hourlyHosts {
 				if len(activeHosts) == 0 {
 					continue
 				}
+				validFrom := date.Add(time.Duration(hour) * time.Hour)
+				validTo := validFrom.Add(time.Hour)
 				blob := chart.HostIDsToBlob(activeHosts)
 
 				_, err := db.Exec(
-					`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
+					`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
 					 VALUES (?, ?, ?, ?, ?)
-					 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
-					dataset, entityID, dateStr, hour, blob)
+					 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), valid_to = VALUES(valid_to)`,
+					dataset, entityID, blob, validFrom, validTo)
 				if err != nil {
-					log.Fatalf("insert blob failed on day %s hour %d: %v", dateStr, hour, err)
+					log.Fatalf("insert hourly SCD row failed on %s hour %d: %v", validFrom, hour, err)
 				}
 				totalRows++
 			}
@@ -121,21 +118,19 @@ func backfillHourlyBlob(db *sql.DB, dataset string, days int, start time.Time, h
 
 		if (day+1)%5 == 0 || day == days-1 {
 			log.Printf("  day %d/%d (%s) — %d rows so far",
-				day+1, days, dateStr, totalRows)
+				day+1, days, date.Format("2006-01-02"), totalRows)
 		}
 	}
-
 	return totalRows
 }
 
-func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
+func backfillDaily(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
 	minDensity, maxDensity := densityRange(dataset)
 	n := len(hostIDs)
 
 	for day := range days {
 		date := start.AddDate(0, 0, day)
-		dateStr := date.Format("2006-01-02")
 
 		for _, entityID := range entityIDs {
 			density := minDensity + rand.Float64()*(maxDensity-minDensity)
@@ -148,21 +143,23 @@ func backfillDailyBlob(db *sql.DB, dataset string, days int, start time.Time, ho
 				active[i] = hostIDs[idx]
 			}
 			blob := chart.HostIDsToBlob(active)
+			validFrom := date
+			validTo := date.AddDate(0, 0, 1)
 
 			_, err := db.Exec(
-				`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
+				`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
 				 VALUES (?, ?, ?, ?, ?)
-				 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
-				dataset, entityID, dateStr, chart.HourWholeDay, blob)
+				 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), valid_to = VALUES(valid_to)`,
+				dataset, entityID, blob, validFrom, validTo)
 			if err != nil {
-				log.Fatalf("insert daily blob failed on day %s entity %q: %v", dateStr, entityID, err)
+				log.Fatalf("insert daily SCD row failed on %s entity %q: %v", date, entityID, err)
 			}
 			totalRows++
 		}
 
 		if (day+1)%5 == 0 || day == days-1 {
 			log.Printf("  day %d/%d (%s) — %d rows so far",
-				day+1, days, dateStr, totalRows)
+				day+1, days, date.Format("2006-01-02"), totalRows)
 		}
 	}
 
@@ -221,4 +218,3 @@ func queryHostIDs(db *sql.DB) ([]uint, error) {
 	}
 	return ids, rows.Err()
 }
-

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -66,7 +65,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
 	}
 
-	// Validate downsample. Must be 0 or a positive divisor of 24.
+	// Downsample only makes sense for hourly datasets and must be 0 or a positive divisor of 24.
 	if opts.Downsample < 0 || (opts.Downsample != 0 && 24%opts.Downsample != 0) {
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid downsample value: %d (must be 0 or a positive divisor of 24)", opts.Downsample)}
 	}
@@ -77,10 +76,13 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, err
 	}
 
-	// Calculate date range — go back exactly N days from now.
-	now := time.Now().UTC()
-	endDate := now
-	startDate := now.AddDate(0, 0, -opts.Days)
+	// Compute effective bucket size. Downsample applies only to sub-daily datasets.
+	bucketSize := dataset.BucketSize()
+	if bucketSize < 24*time.Hour && opts.Downsample > 1 {
+		bucketSize = time.Duration(opts.Downsample) * time.Hour
+	}
+
+	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 
 	// Build host filter.
 	var hostFilter *types.HostFilter
@@ -93,29 +95,12 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		}
 	}
 
-	var data []api.DataPoint
-	var totalHosts int
-	resolution := "hourly"
-	if opts.Downsample > 0 {
-		resolution = fmt.Sprintf("%d-hour", opts.Downsample)
+	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, hostFilter, entityIDs)
+	if err != nil {
+		return nil, err
 	}
 
-	switch dataset.StorageType() {
-	case api.StorageTypeBlob:
-		data, totalHosts, err = s.getChartDataBlob(ctx, metric, startDate, endDate, hostFilter, entityIDs, opts.Downsample, opts.TZOffsetMinutes)
-		if err == nil {
-			data = fillZeroValues(data, startDate, endDate, opts.Downsample, opts.TZOffsetMinutes)
-		}
-	case api.StorageTypeSCD:
-		// SCD datasets always bucket daily — the datastore fills zero-valued days itself.
-		resolution = "daily"
-		data, err = s.store.GetSCDData(ctx, metric, startDate, endDate, hostFilter, entityIDs)
-		if err == nil {
-			totalHosts, err = s.store.CountHostsForChartFilter(ctx, hostFilter)
-		}
-	default:
-		return nil, ctxerr.Errorf(ctx, "unsupported storage type: %s", dataset.StorageType())
-	}
+	totalHosts, err := s.store.CountHostsForChartFilter(ctx, hostFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +109,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		Metric:        metric,
 		Visualization: dataset.DefaultVisualization(),
 		TotalHosts:    totalHosts,
-		Resolution:    resolution,
+		Resolution:    formatResolution(bucketSize),
 		Days:          opts.Days,
 		Filters: api.Filters{
 			LabelIDs:       opts.LabelIDs,
@@ -136,146 +121,43 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	}, nil
 }
 
-// getChartDataBlob fetches raw blobs from the datastore and aggregates them in Go.
-// It handles host filtering (via bitwise AND), downsampling (via bitwise OR of hour
-// groups), and timezone alignment (buckets are aligned to local-time hour boundaries
-// so the frontend can display clean local hours).
-func (s *Service) getChartDataBlob(
-	ctx context.Context,
-	dataset string,
-	startDate, endDate time.Time,
-	hostFilter *types.HostFilter,
-	entityIDs []string,
-	downsample int,
-	tzOffsetMinutes int,
-) ([]api.DataPoint, int, error) {
-	// Extend the UTC date range by one day on each side so that blobs that
-	// straddle the UTC midnight boundary are available for local-time buckets.
-	fetchStart := startDate.AddDate(0, 0, -1)
-	fetchEnd := endDate.AddDate(0, 0, 1)
-
-	blobs, err := s.store.GetBlobData(ctx, dataset, fetchStart, fetchEnd, entityIDs)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Build filter mask if host filters are present.
-	var filterMask []byte
-	var totalHosts int
-	if hostFilter != nil {
-		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
-		if err != nil {
-			return nil, 0, err
-		}
-		totalHosts = len(hostIDs)
-		filterMask = chart.HostIDsToBlob(hostIDs)
-	} else {
-		var err error
-		totalHosts, err = s.store.CountHostsForChartFilter(ctx, nil)
-		if err != nil {
-			return nil, 0, err
-		}
-	}
-
-	step := 1
-	if downsample > 0 {
-		step = downsample
-	}
-
-	// Index blobs by (date, hour) for efficient lookup.
-	type dateHourKey struct {
-		date string
-		hour int
-	}
-	blobIndex := make(map[dateHourKey][]byte, len(blobs))
-	for _, b := range blobs {
-		key := dateHourKey{date: b.ChartDate.Format("2006-01-02"), hour: b.Hour}
-		blobIndex[key] = b.HostBitmap
-	}
-
-	// Build a fixed-offset location so we can iterate over local-time days and
-	// hours, then convert each local-time bucket to the correct UTC (date, hour)
-	// pair for the blob lookup. JavaScript's getTimezoneOffset() returns positive
-	// values for west of UTC; Go's FixedZone takes seconds east of UTC.
-	loc := time.FixedZone("client", -tzOffsetMinutes*60)
-
-	var results []api.DataPoint
-	for h := 0; h+step <= 24; h += step {
-		localStart := startDate.In(loc)
-		localEnd := endDate.In(loc)
-		for d := localStart; !d.After(localEnd); d = d.AddDate(0, 0, 1) {
-			// OR blobs within the downsample window, converting each local
-			// hour to UTC for the blob key lookup.
-			var merged []byte
-			for offset := range step {
-				localHour := time.Date(d.Year(), d.Month(), d.Day(), h+offset, 0, 0, 0, loc)
-				utcHour := localHour.UTC()
-				key := dateHourKey{date: utcHour.Format("2006-01-02"), hour: utcHour.Hour()}
-				if blob, ok := blobIndex[key]; ok {
-					merged = chart.BlobOR(merged, blob)
-				}
-			}
-
-			// Apply host filter.
-			if filterMask != nil && merged != nil {
-				merged = chart.BlobAND(merged, filterMask)
-			}
-
-			// Emit the timestamp as UTC; the frontend will convert to local
-			// and land on clean local-hour boundaries because we bucketed in
-			// local time.
-			localBucket := time.Date(d.Year(), d.Month(), d.Day(), h, 0, 0, 0, loc)
-			results = append(results, api.DataPoint{
-				Timestamp: localBucket.UTC(),
-				Value:     chart.BlobPopcount(merged),
-			})
-		}
-	}
-
-	return results, totalHosts, nil
-}
-
 func (s *Service) CleanupData(ctx context.Context, days int) error {
-	return s.store.CleanupBlobData(ctx, days)
+	return s.store.CleanupSCDData(ctx, days)
 }
 
-// fillZeroValues fills in missing time buckets with zero values. Bucket
-// boundaries are aligned to local time using the provided tz offset so the
-// generated timestamps match those produced by getChartDataBlob.
-func fillZeroValues(data []api.DataPoint, startDate, endDate time.Time, downsample, tzOffsetMinutes int) []api.DataPoint {
-	existing := make(map[time.Time]int, len(data))
-	for _, dp := range data {
-		existing[dp.Timestamp] = dp.Value
-	}
-
-	step := 1
-	if downsample > 0 {
-		step = downsample
-	}
-
-	// Align end to the current step-aligned local hour, then convert back
-	// to UTC for the timestamp key.
+// computeBucketRange returns a (startDate, endDate) UTC pair such that the
+// GetSCDData walker will emit (days*24h)/bucketSize data points labeled at
+// bucket boundaries aligned to the client's local time. The last label is
+// endDate — i.e., the current (possibly ongoing) bucket in the client's tz.
+func computeBucketRange(now time.Time, bucketSize time.Duration, days, tzOffsetMinutes int) (time.Time, time.Time) {
 	loc := time.FixedZone("client", -tzOffsetMinutes*60)
-	localEnd := endDate.In(loc)
-	localEndHour := localEnd.Hour()
-	if step > 1 {
-		localEndHour = (localEndHour / step) * step
-	}
-	end := time.Date(localEnd.Year(), localEnd.Month(), localEnd.Day(), localEndHour, 0, 0, 0, loc).UTC()
+	localNow := now.In(loc)
 
-	// The inclusive loop produces numStepsBack+1 data points. For days=1 hourly
-	// we want 24 points, so step back 23 times from end.
-	totalHours := int(endDate.Sub(startDate).Hours())
-	numStepsBack := totalHours/step - 1
-	start := end.Add(-time.Duration(numStepsBack) * time.Duration(step) * time.Hour)
-
-	var result []api.DataPoint
-	for t := start; !t.After(end); t = t.Add(time.Duration(step) * time.Hour) {
-		val := existing[t]
-		result = append(result, api.DataPoint{
-			Timestamp: t,
-			Value:     val,
-		})
+	var alignedEnd time.Time
+	if bucketSize < 24*time.Hour {
+		// Align to the current local bucket within the day.
+		step := max(int(bucketSize/time.Hour), 1)
+		alignedHour := (localNow.Hour() / step) * step
+		alignedEnd = time.Date(localNow.Year(), localNow.Month(), localNow.Day(), alignedHour, 0, 0, 0, loc)
+	} else {
+		// Daily (or coarser) — align to the start of today's local day.
+		alignedEnd = time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, loc)
 	}
-	return result
+
+	endDate := alignedEnd.UTC()
+	startDate := endDate.Add(-time.Duration(days) * 24 * time.Hour)
+	return startDate, endDate
+}
+
+func formatResolution(bucketSize time.Duration) string {
+	switch {
+	case bucketSize == time.Hour:
+		return "hourly"
+	case bucketSize == 24*time.Hour:
+		return "daily"
+	case bucketSize < 24*time.Hour:
+		return fmt.Sprintf("%d-hour", int(bucketSize/time.Hour))
+	default:
+		return fmt.Sprintf("%d-day", int(bucketSize/(24*time.Hour)))
+	}
 }

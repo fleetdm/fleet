@@ -5,16 +5,22 @@ import (
 	"time"
 )
 
-// StorageType identifies how a dataset stores its data.
-type StorageType string
+// SampleStrategy describes how a dataset's samples combine within a bucket and
+// whether rows can collapse across buckets when the bitmap is unchanged.
+type SampleStrategy string
 
 const (
-	// StorageTypeBlob stores one row per entity/date/hour with a host bitmap blob.
-	StorageTypeBlob StorageType = "blob"
-	// StorageTypeSCD stores one row per (host, entity) interval as a Type-2 slowly
-	// changing dimension: (dataset, host_id, entity_id, valid_from, valid_to).
-	// Suited for state that changes infrequently (e.g. which CVEs a host has).
-	StorageTypeSCD StorageType = "scd"
+	// SampleStrategyAccumulate means each sample is a partial observation and
+	// within-bucket samples are OR-merged. Rows are always explicitly closed at
+	// bucket boundaries; there is no cross-bucket collapse (bucket-fresh semantics).
+	// Used for datasets like uptime and software usage.
+	SampleStrategyAccumulate SampleStrategy = "accumulate"
+
+	// SampleStrategySnapshot means each sample is the full state for the bucket.
+	// Rows stay open (valid_to = sentinel) until the bitmap changes, at which
+	// point the prior row is closed at the new bucket boundary and a new one is
+	// inserted. Used for datasets like CVE and software inventory.
+	SampleStrategySnapshot SampleStrategy = "snapshot"
 )
 
 // Dataset defines the interface for a chartable dataset.
@@ -22,11 +28,16 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// StorageType returns how this dataset stores its data (bitmap or blob).
-	StorageType() StorageType
+	// BucketSize returns the time granularity for this dataset (e.g. time.Hour
+	// for uptime, 24*time.Hour for CVE). Samples within a bucket are merged; the
+	// chart walker queries at this granularity by default.
+	BucketSize() time.Duration
+
+	// SampleStrategy returns how samples combine within and across buckets.
+	SampleStrategy() SampleStrategy
 
 	// Collect is called by the cron job to populate data in bulk.
-	Collect(ctx context.Context, store DatasetStore, hour time.Time) error
+	Collect(ctx context.Context, store DatasetStore, now time.Time) error
 
 	// ResolveFilters translates dataset-specific query params into entity IDs.
 	// Returns nil if no entity filtering is needed.
@@ -48,7 +59,21 @@ type Dataset interface {
 // ResolveFilters methods. It is satisfied by the chart internal Datastore,
 // keeping dataset implementations decoupled from internals.
 type DatasetStore interface {
-	CollectUptimeChartData(ctx context.Context, now time.Time) error
+	// FindRecentlySeenHostIDs returns host IDs that have reported within the given
+	// lookback window. Used by datasets like uptime that derive their sample from
+	// recent host activity.
+	FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error)
+
+	// RecordBucketData writes one or more entity bitmaps for the given bucket
+	// using the specified sample strategy. See SampleStrategy for semantics.
+	RecordBucketData(
+		ctx context.Context,
+		dataset string,
+		bucketStart time.Time,
+		bucketSize time.Duration,
+		strategy SampleStrategy,
+		entityBitmaps map[string][]byte,
+	) error
 }
 
 // Host is a minimal host type for authorization checks within the chart bounded context.

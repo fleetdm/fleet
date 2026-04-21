@@ -1,11 +1,14 @@
 // charts-collect fetches live data from a Fleet instance via API and writes
 // chart data into a local database. Designed to run hourly via cron.
 //
-// Uptime: fetches currently online hosts, ORs into the current hour's blob.
+// Uptime: fetches currently online hosts and OR-merges them into the
+// current-hour accumulate row (dataset='uptime'). Rows are closed at hour
+// boundaries; no cross-bucket collapse.
 // CVE: fetches per-host vulnerability data, builds per-CVE host bitmaps, and
-// reconciles them into host_scd_data (dataset='cve'). Unchanged CVEs keep their
-// existing open row; changed bitmaps close the prior-day row and open a new one
-// for today; intra-day changes overwrite today's row via ODKU.
+// reconciles them into host_scd_data (dataset='cve') as snapshot rows.
+// Unchanged CVEs keep their existing open row; changed bitmaps close the prior
+// row at today's midnight (UTC) and open a new one; intra-day changes
+// overwrite today's row via ODKU.
 //
 // Usage:
 //
@@ -39,13 +42,15 @@ import (
 
 const (
 	perPage = 500
-	// scdOpenSentinel / scdDateFormat / scdUpsertBatch mirror constants in
-	// server/chart/internal/mysql/scd.go — the collector writes to the same table
-	// out-of-process and must keep the encoding in sync.
-	scdOpenSentinel = "9999-12-31"
-	scdDateFormat   = "2006-01-02"
-	scdUpsertBatch  = 200
+	// scdUpsertBatch mirrors the constant in server/chart/internal/mysql/data.go —
+	// the collector writes to the same table out-of-process and must keep the
+	// encoding in sync.
+	scdUpsertBatch = 200
 )
+
+// scdOpenSentinel is the end-of-time marker used for valid_to on open snapshot
+// rows. Must match the DEFAULT in the host_scd_data table.
+var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 
 func main() {
 	fleetURL := flag.String("fleet-url", os.Getenv("FLEET_URL"), "Fleet server URL (or FLEET_URL env var)")
@@ -179,32 +184,32 @@ func collectUptime(api *apiClient, db *sql.DB) error {
 	}
 
 	now := time.Now().UTC()
-	hour := now.Hour()
-	dateStr := now.Format("2006-01-02")
-
+	bucketStart := now.Truncate(time.Hour)
+	validTo := bucketStart.Add(time.Hour)
 	newBlob := chart.HostIDsToBlob(hostIDs)
 
-	// OR with existing blob for this hour.
+	// OR with existing in-bucket bitmap (accumulate semantic).
 	var existing []byte
 	err = db.QueryRow(
-		`SELECT host_bitmap FROM host_hourly_data_blobs WHERE dataset = 'uptime' AND entity_id = '' AND chart_date = ? AND hour = ?`,
-		dateStr, hour,
+		`SELECT host_bitmap FROM host_scd_data
+		 WHERE dataset = 'uptime' AND entity_id = '' AND valid_from = ?`,
+		bucketStart,
 	).Scan(&existing)
 	if err == nil {
 		newBlob = chart.BlobOR(existing, newBlob)
 	}
 
 	_, err = db.Exec(
-		`INSERT INTO host_hourly_data_blobs (dataset, entity_id, chart_date, hour, host_bitmap)
+		`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
 		 VALUES ('uptime', '', ?, ?, ?)
 		 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`,
-		dateStr, hour, newBlob,
+		newBlob, bucketStart, validTo,
 	)
 	if err != nil {
-		return fmt.Errorf("write uptime blob: %w", err)
+		return fmt.Errorf("write uptime SCD row: %w", err)
 	}
 
-	log.Printf("  wrote uptime blob: %d hosts, %s hour %d", chart.BlobPopcount(newBlob), dateStr, hour)
+	log.Printf("  wrote uptime row: %d hosts, valid_from %s", chart.BlobPopcount(newBlob), bucketStart)
 	return nil
 }
 
@@ -238,29 +243,26 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	}
 	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
 
-	// Build the desired entity->bitmap map for today.
+	// Build the desired entity->bitmap map for today's 24h bucket.
 	entityBitmaps := make(map[string][]byte, len(cveHosts))
 	for cve, hosts := range cveHosts {
 		entityBitmaps[cve] = chart.HostIDsToBlob(hosts)
 	}
 
-	// Reconcile against the SCD table.
 	writeStart := time.Now()
-	today := time.Now().UTC().Format(scdDateFormat)
-	if err := reconcileSCD(db, "cve", entityBitmaps, today); err != nil {
+	bucketStart := time.Now().UTC().Truncate(24 * time.Hour)
+	if err := reconcileSnapshot(db, "cve", entityBitmaps, bucketStart); err != nil {
 		return fmt.Errorf("reconcile SCD: %w", err)
 	}
 	log.Printf("  reconciled %d entities in %.1fs", len(entityBitmaps), time.Since(writeStart).Seconds())
 	return nil
 }
 
-// reconcileSCD applies the close-then-upsert flow for a dataset against the
-// entity->bitmap map for today. Mirrors Datastore.RecordSCDData in
-// server/chart/internal/mysql/scd.go.
-func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, today string) error {
-	// Fetch current open rows.
+// reconcileSnapshot mirrors Datastore.recordSnapshot in
+// server/chart/internal/mysql/data.go.
+func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]byte, bucketStart time.Time) error {
 	rows, err := db.Query(
-		`SELECT entity_id, host_bitmap, DATE_FORMAT(valid_from, '%Y-%m-%d')
+		`SELECT entity_id, host_bitmap, valid_from
 		 FROM host_scd_data
 		 WHERE dataset = ? AND valid_to = ?`,
 		dataset, scdOpenSentinel)
@@ -269,12 +271,13 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 	}
 	type openRow struct {
 		bitmap    []byte
-		validFrom string
+		validFrom time.Time
 	}
 	openByEntity := make(map[string]openRow)
 	for rows.Next() {
-		var entityID, validFrom string
+		var entityID string
 		var bitmap []byte
+		var validFrom time.Time
 		if err := rows.Scan(&entityID, &bitmap, &validFrom); err != nil {
 			rows.Close()
 			return fmt.Errorf("scan open SCD row: %w", err)
@@ -283,8 +286,6 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 	}
 	rows.Close()
 
-	// Partition: unchanged rows are skipped; changed rows get an upsert and (if
-	// their open row is from a previous day) a close.
 	var toClose []string
 	var toUpsert []struct {
 		entityID string
@@ -296,7 +297,7 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 		if hasOpen && bytes.Equal(existing.bitmap, bitmap) {
 			continue
 		}
-		if hasOpen && existing.validFrom < today {
+		if hasOpen && existing.validFrom.Before(bucketStart) {
 			toClose = append(toClose, entityID)
 		}
 		toUpsert = append(toUpsert, struct {
@@ -305,7 +306,6 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 		}{entityID, bitmap})
 	}
 
-	// Entities no longer present: close their open rows.
 	for entityID := range openByEntity {
 		if _, ok := entityBitmaps[entityID]; !ok {
 			toClose = append(toClose, entityID)
@@ -314,7 +314,7 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 
 	if len(toClose) > 0 {
 		placeholders := make([]string, len(toClose))
-		args := []any{today, dataset, scdOpenSentinel}
+		args := []any{bucketStart, dataset, scdOpenSentinel}
 		for i, e := range toClose {
 			placeholders[i] = "?"
 			args = append(args, e)
@@ -337,7 +337,7 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 		args := make([]any, 0, len(batch)*4)
 		for j, r := range batch {
 			placeholders[j] = "(?, ?, ?, ?)"
-			args = append(args, dataset, r.entityID, r.bitmap, today)
+			args = append(args, dataset, r.entityID, r.bitmap, bucketStart)
 		}
 		// Concatenating hardcoded "(?,?,?,?)" placeholder strings, not user input.
 		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from) VALUES ` + //nolint:gosec // G202
@@ -349,7 +349,6 @@ func reconcileSCD(db *sql.DB, dataset string, entityBitmaps map[string][]byte, t
 	}
 	return nil
 }
-
 
 // --- API helpers ---
 
@@ -423,4 +422,3 @@ func fetchHostCVEs(api *apiClient, hostID uint) ([]string, error) {
 	}
 	return cves, nil
 }
-
