@@ -31,6 +31,10 @@ on:
     paths:
       - '.github/workflows/e2e-agent.yml'
 
+permissions:
+  contents: read
+  actions: read
+
 # Each cron schedule gets its own concurrency group. workflow_dispatch and pull_request also get their own.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}-${{ github.event.schedule || github.event_name }}
@@ -524,19 +528,6 @@ jobs:
     - name: Compute next retry
       id: next-retry
       run: echo "value=$(( ${{ inputs.retry || 0 }} + 1 ))" >> $GITHUB_OUTPUT
-
-    - name: Slack Notification (failure with retries remaining)
-      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.retry || 0) > 0)) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
-      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-      with:
-        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-        webhook-type: incoming-webhook
-        payload: |
-          blocks:
-            - type: "section"
-              text:
-                type: "mrkdwn"
-                text: "*Agent E2E test FAILED* (attempt ${{ steps.next-retry.outputs.value }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThis may not need investigation if it self-resolves on the retry. Look for the next notification of success/failure."
 
     - name: Slack Notification (all retries exhausted)
       if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) >= 3
