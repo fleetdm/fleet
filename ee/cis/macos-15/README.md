@@ -26,7 +26,7 @@ CIS has left the parameters of the following checks up to the benchmark implemen
 Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy.
 The policy will be appended with a `-enabled` or `-disabled` label, such as `2.1.1.1-enabled`.
 
-- 2.1.1.1 Audit iCloud Keychain
+- 2.1.1.1 Audit iCloud Passwords & Keychain
 - 2.1.1.2 Audit iCloud Drive
 - 2.5.1 Audit Siri
 - 2.8.1 Audit Universal Control

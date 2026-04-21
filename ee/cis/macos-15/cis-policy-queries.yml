@@ -106,33 +106,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure XProtect Is Running and Updated
-  platforms: macOS
-  platform: darwin
-  description: |
-    XProtect is Apple's native signature-based antivirus technology. XProtect both finds and blocks the execution of known malware. There are many AV and Endpoint Threat Detection and Response (ETDR) tools available for Mac OS. The native Apple provisioned tool looks for specific known malware and is completely integrated into the OS. No matter what other tools are being used, XProtect should have the latest signatures available.
-  resolution: |
-        Ask your system administrator to deploy a script that will configure:
-        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
-        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
-        /usr/bin/sudo /usr/bin/xprotect update
-  query: |
-      SELECT 1
-      WHERE (
-          SELECT COUNT(*)
-          FROM launchd
-          WHERE path IN (
-              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist',
-              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist'
-          )
-      ) = 2;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth, getvictor
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure Install Security Responses and System Files Is Enabled (MDM Required)
   platforms: macOS
   platform: darwin
@@ -269,14 +242,18 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure iCloud Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  name: CIS - Ensure iCloud Passwords & Keychain is disabled (if your org policy is to disable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
-    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
-    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    The iCloud Passwords & Keychain is Apple's synchronization service that works with Apple Accounts to synchronize password, passkey, and credit card information across macOS, iOS, iPadOS. The capability allows users to use synced password, passkey, and credit card information in either macOS, iOS, or iPadOS for use in Safari and other applications.
+    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on Enterprise-managed computer.
+    When using personal Apple Accounts and credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
     Rationale:
-    Ensure that the iCloud keychain is used consistently with organizational requirements.
+    Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
+    Impact:
+    When iCloud Passwords & Keychain is turned off, password, passkey, and credit card information are no longer synchronized across devices signed in with the same Apple Account. Passwords, passkeys, and credit card information can still be stored locally and accessed through the Passwords and Keychain apps, even when iCloud Passwords & Keychain is turned off.
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
@@ -306,14 +283,18 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure iCloud Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  name: CIS - Ensure iCloud Passwords & Keychain is enabled (if your org policy is to enable it) (MDM Required)
+  cis_id: "2.1.1.1"
   platforms: macOS
   platform: darwin
   description: |
-    The iCloud keychain is Apple's password manager that works with macOS and iOS. The capability allows users to store passwords in either iOS or macOS for use in Safari on both platforms and other iOS-integrated applications. The most pervasive use is driven by iOS use rather than macOS. The passwords stored in a macOS keychain on an Enterprise-managed computer could be stored in Apple's cloud and then be available on a personal computer using the same account. The stored passwords could be for organizational as well as for personal accounts.
-    If passwords are no longer being used as organizational tokens, they are not in scope for iCloud keychain storage.
+    The iCloud Passwords & Keychain is Apple's synchronization service that works with Apple Accounts to synchronize password, passkey, and credit card information across macOS, iOS, iPadOS. The capability allows users to use synced password, passkey, and credit card information in either macOS, iOS, or iPadOS for use in Safari and other applications.
+    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on Enterprise-managed computer.
+    When using personal Apple Accounts and credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
     Rationale:
-    Ensure that the iCloud keychain is used consistently with organizational requirements.
+    Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
+    Impact:
+    When iCloud Passwords & Keychain is turned off, password, passkey, and credit card information are no longer synchronized across devices signed in with the same Apple Account. Passwords, passkeys, and credit card information can still be stored locally and accessed through the Passwords and Keychain apps, even when iCloud Passwords & Keychain is turned off.
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
