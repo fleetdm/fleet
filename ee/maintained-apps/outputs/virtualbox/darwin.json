@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.2.6",
+      "version": "7.2.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox' AND version_compare(bundle_short_version, '7.2.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox' AND version_compare(bundle_short_version, '7.2.8') < 0);"
       },
-      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.6/VirtualBox-7.2.6-172322-macOSArm64.dmg",
+      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.8/VirtualBox-7.2.8-173730-macOSArm64.dmg",
       "install_script_ref": "ea1e29d6",
       "uninstall_script_ref": "f5a2a555",
-      "sha256": "02da8ad74c0b3da0702359797beae941a3d3ef75d1bb0577bdd001fbe844d2b8",
+      "sha256": "60d164cc5afc059e44591bcc70f63c7ad3378495f19564cecd1ad9a4461dd935",
       "default_categories": [
         "Productivity"
       ]

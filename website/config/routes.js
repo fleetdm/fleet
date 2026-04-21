@@ -56,17 +56,17 @@ module.exports.routes = {
     }
   },
 
-  'GET /queries': {
-    action: 'docs/view-query-library',
+  'GET /reports': {
+    action: 'docs/view-report-library',
     locals: {
       currentSection: 'more',
-      pageTitleForMeta: 'Queries',
-      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
+      pageTitleForMeta: 'Reports',
+      pageDescriptionForMeta: 'A growing collection of optional reports you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
-  'GET /queries/:slug': {
-    action: 'docs/view-query-detail',// Meta title and description set in view action
+  'GET /reports/:slug': {
+    action: 'docs/view-report-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
@@ -489,7 +489,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /query-generator': {
+  'GET /report-generator': {
     action: 'query-generator/view-query-generator',
     locals: {
       showAdminLinks: true,
@@ -1079,6 +1079,15 @@ module.exports.routes = {
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
   'GET /fleet-gitops': '/infrastructure-as-code',
+  'GET /queries': '/reports',
+  'GET /query-generator': '/report-generator',
+  'GET /queries/:slug': {
+    fn: (req, res) => {
+      return res.redirect(301, '/reports/' + req.param('slug'));
+    }
+  },
+
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1176,11 +1185,12 @@ module.exports.routes = {
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',
-  'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/turn-on-apple-mdm': '/guides/apple-mdm-setup#turn-on-apple-mdm',
+  'GET /learn-more-about/setup-abm': '/guides/apple-mdm-setup#apple-business-ab',
   'GET /learn-more-about/renew-apns': '/guides/apple-mdm-setup#renew-apns',
+  'GET /learn-more-about/renew-abm': '/guides/apple-mdm-setup#renew-ab',
   'GET /learn-more-about/add-vpp': '/guides/apple-mdm-setup#volume-purchasing-program-vpp',
   'GET /learn-more-about/renew-vpp': '/guides/apple-mdm-setup#renew-vpp',
-  'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/abm-issues': '/guides/apple-mdm-setup#troubleshooting',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
@@ -1238,7 +1248,7 @@ module.exports.routes = {
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
-  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#partial-failure-android',
+  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
