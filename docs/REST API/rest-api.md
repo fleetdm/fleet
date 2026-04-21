@@ -1393,6 +1393,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Update configuration](#update-configuration)
+- [Update organization logo](#update-organization-logo)
+- [Delete organization logo](#delete-organization-logo)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Update global enroll secrets](#update-global-enroll-secrets)
 - [Get fleet enroll secrets](#get-fleet-enroll-secrets)
@@ -2681,6 +2683,57 @@ None.
   }
 }
 ```
+
+### Update organization logo
+
+Upload a custom logo to display in the top navigation, setup experience window, and MDM migration dialog.
+
+> You need to send a request of type `multipart/form-data`.
+
+`PUT /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| logo        | file    | body | The logo image to upload. For best results, use a square logo at least 150px x 150px. |
+| mode        | string  | query | Either `"light"` for the logo displayed in light mode, `"dark" for the logo displayed in dark mode`, or "all" to replace both light and dark mode logos. (Default: `"all"`.)|
+
+#### Example
+
+`PUT /api/v1/fleet/logo?mode=light`
+
+##### Request body
+
+```http
+icon="fleet-logo-150x150.png"
+```
+
+##### Default response
+
+`Status: 204`
+
+### Delete organization logo
+
+Delete a custom logo added via [Update organization logo](#update-organization-logo). This will revert to using the Fleet logo.
+
+`DELETE /api/v1/fleet/logo`
+
+#### Parameters
+
+| Name        | Type    | In   | Description                                      |
+| ----        | ------- | ---- | --------------------------------------------     |
+| logo        | file    | body | The logo image to upload. For best results, use a square logo at least 150px x 150px. |
+| mode        | string  | query | Either `"light"` for the logo displayed in light mode, `"dark" for the logo displayed in dark mode`, or "all" to replace both light and dark mode logos. (Default: `"all"`.)|
+
+#### Example
+
+`DELETE /api/v1/fleet/logo?mode=light`
+
+##### Default response
+
+`Status: 204`
+
 
 ### Update global enroll secrets
 
