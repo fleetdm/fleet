@@ -48,7 +48,9 @@ func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
 	for name, dataset := range s.datasets {
 		if err := dataset.Collect(ctx, s.store, now); err != nil {
 			// Log and continue — don't let one dataset failure block others.
-			s.logger.ErrorContext(ctx, "collect chart dataset", "dataset", name, "err", ctxerr.Wrap(ctx, err, "collect chart dataset"))
+			if s.logger != nil {
+				s.logger.ErrorContext(ctx, "collect chart dataset", "dataset", name, "err", ctxerr.Wrap(ctx, err, "collect chart dataset"))
+			}
 		}
 	}
 	return nil

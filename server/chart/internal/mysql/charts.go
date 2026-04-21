@@ -86,7 +86,7 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.
 		) >= ?`
 
 	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &ids, query, cutoff); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, cutoff); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
 	}
 	return ids, nil

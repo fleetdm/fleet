@@ -28,7 +28,7 @@ func ParseUintList(s string) []uint {
 	result := make([]uint, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
-		if v, err := strconv.ParseUint(p, 10, 64); err == nil {
+		if v, err := strconv.ParseUint(p, 10, 0); err == nil {
 			result = append(result, uint(v))
 		}
 	}

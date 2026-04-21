@@ -359,11 +359,14 @@ func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy a
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 // retention cutoff. Open rows (valid_to = sentinel) are always preserved.
 func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
+	// Compute the cutoff in Go (UTC) so the retention boundary doesn't depend
+	// on the MySQL session time zone — all valid_to writes are UTC.
+	cutoff := time.Now().UTC().AddDate(0, 0, -days)
 	_, err := ds.writer(ctx).ExecContext(ctx,
 		`DELETE FROM host_scd_data
-		 WHERE valid_to < CURDATE() - INTERVAL ? DAY
+		 WHERE valid_to < ?
 		   AND valid_to <> ?`,
-		days, scdOpenSentinel)
+		cutoff, scdOpenSentinel)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup SCD data")
 	}
