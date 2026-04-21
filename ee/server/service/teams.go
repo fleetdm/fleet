@@ -1093,14 +1093,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		return nil, err
 	}
 
-	// Detect conflicting names within the incoming batch before hitting the DB.
-	// The key is a lowercased NFC-normalized form, which approximates MySQL's
-	// utf8mb4_unicode_ci collation. Per-spec DB checks below catch any cases
-	// this approximation misses (e.g., ß vs ss, Turkish İ); those would
-	// result in a partial batch apply since ApplyTeamSpecs is not wrapped in
-	// a single transaction.
+	// Try to detect conflicting names within the incoming batch before hitting the DB.
 	type seenSpec struct {
-		name     string // trimmed for stable display
+		name     string
 		filename string
 	}
 	seenNames := make(map[string]seenSpec, len(specs))
@@ -1191,8 +1186,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				// Matched by collation-aware name lookup. Without a filename
 				// anchoring this spec to a specific file, adopting the
 				// spec's exact-case form would silently case-rename the team
-				// (e.g., "ABC" → "abc") — re-introducing the inconsistency
-				// this fix closes. Preserve the DB's canonical name unless
+				// (e.g., "ABC" → "abc") so we need to preserve the DB's canonical name unless
 				// the user supplied a filename, which is an explicit claim
 				// that they want to manage (and possibly rename) this team.
 				if !filenameProvided {
