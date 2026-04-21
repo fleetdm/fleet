@@ -22,9 +22,15 @@ var featureTitle = map[Feature]string{
 	FeatureSCEPProxy:  "SCEP proxy",
 }
 
-// RenderHuman writes a grouped, padded, ASCII-only report to w.
+// RenderHuman writes a grouped report of results to w.
 func RenderHuman(w io.Writer, baseURL string, results []Result) error {
 	if _, err := fmt.Fprintf(w, "Fleet connectivity check: %s\n\n", baseURL); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "Legend: ✅ reachable  ⚠️ responded but did not look like Fleet  ❌ unreachable"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
 		return err
 	}
 
@@ -44,7 +50,7 @@ func RenderHuman(w io.Writer, baseURL string, results []Result) error {
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 		for _, r := range group {
 			if _, err := fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n",
-				statusMarker(r.Status),
+				statusMarker(r),
 				r.Check.Method,
 				r.Check.Path,
 				detail(r),
@@ -62,8 +68,8 @@ func RenderHuman(w io.Writer, baseURL string, results []Result) error {
 
 	s := Summarize(results)
 	_, err := fmt.Fprintf(w,
-		"Summary: %d reachable, %d route-not-found, %d blocked (of %d checked)\n",
-		s.Reachable, s.NotFound, s.Blocked, s.Total,
+		"Summary: %d reachable, %d not-fleet, %d forbidden, %d route-not-found, %d blocked (of %d checked)\n",
+		s.Reachable, s.NotFleet, s.Forbidden, s.NotFound, s.Blocked, s.Total,
 	)
 	return err
 }
@@ -132,16 +138,16 @@ func ListCatalogue(w io.Writer, checks []Check) error {
 	return tw.Flush()
 }
 
-func statusMarker(s Status) string {
-	switch s {
+func statusMarker(r Result) string {
+	switch r.Status {
 	case StatusReachable:
-		return "ok  "
-	case StatusNotFound:
-		return "404 "
-	case StatusBlocked:
-		return "FAIL"
+		return "✅"
+	case StatusNotFleet:
+		return "⚠️ "
+	case StatusForbidden, StatusNotFound, StatusBlocked:
+		return "❌"
 	default:
-		return "?   "
+		return "? "
 	}
 }
 
@@ -152,6 +158,13 @@ func detail(r Result) string {
 			return fmt.Sprintf("blocked: %s", r.Error)
 		}
 		return "blocked"
+	case StatusForbidden:
+		return fmt.Sprintf("HTTP %d (likely blocked by reverse proxy or WAF)", r.HTTPStatus)
+	case StatusNotFleet:
+		if r.Error != "" {
+			return fmt.Sprintf("HTTP %d (%s)", r.HTTPStatus, r.Error)
+		}
+		return fmt.Sprintf("HTTP %d (response does not look like Fleet)", r.HTTPStatus)
 	default:
 		return fmt.Sprintf("HTTP %d (%s)", r.HTTPStatus, truncateLatency(r.Latency))
 	}

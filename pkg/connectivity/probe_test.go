@@ -3,11 +3,13 @@ package connectivity
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +23,8 @@ func TestProbeClassifiesStatuses(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 		case "/missing":
 			w.WriteHeader(http.StatusNotFound)
+		case "/waf":
+			w.WriteHeader(http.StatusForbidden)
 		default:
 			w.WriteHeader(http.StatusTeapot)
 		}
@@ -31,16 +35,19 @@ func TestProbeClassifiesStatuses(t *testing.T) {
 		{Feature: FeatureOsquery, Method: "GET", Path: "/reach"},
 		{Feature: FeatureOsquery, Method: "GET", Path: "/bad"},
 		{Feature: FeatureDesktop, Method: "GET", Path: "/missing"},
+		{Feature: FeatureDesktop, Method: "GET", Path: "/waf"},
 	}
 
 	results, err := Probe(t.Context(), Options{BaseURL: srv.URL}, checks)
 	require.NoError(t, err)
-	require.Len(t, results, 3)
+	require.Len(t, results, 4)
 
 	assert.Equal(t, StatusReachable, results[0].Status)
 	assert.Equal(t, http.StatusUnauthorized, results[0].HTTPStatus)
 	assert.Equal(t, StatusReachable, results[1].Status)
 	assert.Equal(t, StatusNotFound, results[2].Status)
+	assert.Equal(t, StatusForbidden, results[3].Status)
+	assert.Equal(t, http.StatusForbidden, results[3].HTTPStatus)
 }
 
 func TestProbeBlockedOnNetworkError(t *testing.T) {
@@ -129,6 +136,121 @@ func TestParseFeatures(t *testing.T) {
 	})
 }
 
+func TestProbeFingerprintCapabilitiesHeader(t *testing.T) {
+	// Server sets the capability header — counts as Fleet. Second server
+	// omits it — the probe should mark StatusNotFleet.
+	fleetSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(fleet.CapabilitiesHeader, "orbit")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(fleetSrv.Close)
+	proxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(proxySrv.Close)
+
+	check := []Check{{Feature: FeatureDesktop, Method: "GET", Path: "/p", Fingerprint: FingerprintCapabilitiesHeader}}
+
+	got, err := Probe(t.Context(), Options{BaseURL: fleetSrv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusReachable, got[0].Status)
+
+	got, err = Probe(t.Context(), Options{BaseURL: proxySrv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusNotFleet, got[0].Status)
+}
+
+func TestProbeFingerprintJSONError(t *testing.T) {
+	fleetSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"message":"Authentication required","errors":[{"name":"base","reason":"no token"}]}`))
+	}))
+	t.Cleanup(fleetSrv.Close)
+	proxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`<html><body>proxy login required</body></html>`))
+	}))
+	t.Cleanup(proxySrv.Close)
+
+	check := []Check{{Feature: FeatureFleetctl, Method: "GET", Path: "/api/latest/fleet/version", Fingerprint: FingerprintFleetJSONError}}
+
+	got, err := Probe(t.Context(), Options{BaseURL: fleetSrv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusReachable, got[0].Status)
+
+	got, err = Probe(t.Context(), Options{BaseURL: proxySrv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusNotFleet, got[0].Status)
+}
+
+func TestProbeAuthOrbitNodeKey(t *testing.T) {
+	const expectedKey = "test-orbit-node-key"
+	var bodyReceived string
+	var contentTypeReceived string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodyReceived = string(b)
+		contentTypeReceived = r.Header.Get("Content-Type")
+		var parsed map[string]string
+		if len(b) > 0 {
+			_ = json.Unmarshal(b, &parsed)
+		}
+		if parsed["orbit_node_key"] != expectedKey {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set(fleet.CapabilitiesHeader, "orbit")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	check := []Check{{
+		Feature: FeatureDesktop, Method: "POST", Path: "/api/fleet/orbit/config",
+		Fingerprint: FingerprintCapabilitiesHeader, Auth: AuthOrbitNodeKey,
+	}}
+
+	// With correct key: reachable.
+	got, err := Probe(t.Context(), Options{BaseURL: srv.URL, OrbitNodeKey: expectedKey}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusReachable, got[0].Status)
+	assert.Equal(t, "application/json", contentTypeReceived)
+	assert.Contains(t, bodyReceived, expectedKey)
+
+	// With wrong key: not-fleet (auth rejected, flagged as suspicious).
+	got, err = Probe(t.Context(), Options{BaseURL: srv.URL, OrbitNodeKey: "wrong"}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusNotFleet, got[0].Status)
+	assert.Contains(t, got[0].Error, "authenticated probe rejected")
+
+	// With no key: downgrades to unauthenticated. Server returns 401 (no
+	// match), but since auth wasn't attempted this is a fingerprint-mismatch
+	// path — missing capabilities header means StatusNotFleet.
+	got, err = Probe(t.Context(), Options{BaseURL: srv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusNotFleet, got[0].Status)
+	assert.Empty(t, bodyReceived, "probe must not send body when OrbitNodeKey is unset")
+}
+
+func TestLooksLikeFleetJSONError(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"fleet error", `{"message":"hi","errors":[]}`, true},
+		{"missing errors", `{"message":"hi"}`, false},
+		{"missing message", `{"errors":[]}`, false},
+		{"html", `<html></html>`, false},
+		{"empty", ``, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, looksLikeFleetJSONError([]byte(tc.body)))
+		})
+	}
+}
+
 func TestRenderJSONShape(t *testing.T) {
 	results := []Result{
 		{Check: Check{Feature: FeatureOsquery, Method: "GET", Path: "/x"}, Status: StatusReachable, HTTPStatus: 200},
@@ -158,6 +280,7 @@ func TestRenderHumanIncludesStatusAndSummary(t *testing.T) {
 	results := []Result{
 		{Check: Check{Feature: FeatureOsquery, Method: "GET", Path: "/a"}, Status: StatusReachable, HTTPStatus: 200},
 		{Check: Check{Feature: FeatureOsquery, Method: "GET", Path: "/b"}, Status: StatusNotFound, HTTPStatus: 404},
+		{Check: Check{Feature: FeatureOsquery, Method: "GET", Path: "/d"}, Status: StatusForbidden, HTTPStatus: 403},
 		{Check: Check{Feature: FeatureDesktop, Method: "GET", Path: "/c"}, Status: StatusBlocked, Error: "timeout"},
 	}
 	var buf bytes.Buffer
@@ -170,8 +293,10 @@ func TestRenderHumanIncludesStatusAndSummary(t *testing.T) {
 	assert.Contains(t, out, "/a")
 	assert.Contains(t, out, "/b")
 	assert.Contains(t, out, "/c")
+	assert.Contains(t, out, "/d")
 	assert.Contains(t, out, "blocked: timeout")
-	assert.Contains(t, out, "1 reachable, 1 route-not-found, 1 blocked")
+	assert.Contains(t, out, "likely blocked by reverse proxy or WAF")
+	assert.Contains(t, out, "1 reachable, 0 not-fleet, 1 forbidden, 1 route-not-found, 1 blocked")
 
 	// Groups must appear in AllFeatures order.
 	osIdx := strings.Index(out, "osquery")

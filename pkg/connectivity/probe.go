@@ -1,9 +1,11 @@
 package connectivity
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,8 +15,14 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"golang.org/x/sync/errgroup"
 )
+
+// fingerprintBodyLimit caps how much body we buffer when fingerprinting. The
+// Fleet JSON error shape is small (a few hundred bytes); anything larger is
+// almost certainly not what we're looking for.
+const fingerprintBodyLimit = 8 << 10 // 8 KiB
 
 // defaultConcurrency caps in-flight probes. Chosen to stay well under typical
 // connection-per-host limits while finishing a full scan in a few seconds.
@@ -34,6 +42,10 @@ type Options struct {
 	Timeout time.Duration
 	// Concurrency caps parallel probes. Zero means 8.
 	Concurrency int
+	// OrbitNodeKey, if non-empty, is sent as the request body for checks
+	// with Auth == AuthOrbitNodeKey. When empty, those checks fall back to
+	// unauthenticated probes.
+	OrbitNodeKey string
 }
 
 // Probe runs the given checks against Options.BaseURL and returns results in
@@ -75,7 +87,7 @@ func Probe(ctx context.Context, opts Options, checks []Check) ([]Result, error) 
 
 	for i, c := range checks {
 		g.Go(func() error {
-			results[i] = runOne(gCtx, client, base, c)
+			results[i] = runOne(gCtx, client, base, c, opts.OrbitNodeKey)
 			return nil
 		})
 	}
@@ -85,16 +97,21 @@ func Probe(ctx context.Context, opts Options, checks []Check) ([]Result, error) 
 	return results, nil
 }
 
-func runOne(ctx context.Context, client *http.Client, base *url.URL, c Check) Result {
+func runOne(ctx context.Context, client *http.Client, base *url.URL, c Check, orbitNodeKey string) Result {
 	target := *base
 	target.Path = strings.TrimRight(base.Path, "/") + c.Path
 
+	method, body, contentType, authUsed := prepareRequest(c, orbitNodeKey)
+
 	start := time.Now()
-	req, err := http.NewRequestWithContext(ctx, c.Method, target.String(), http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, method, target.String(), body)
 	if err != nil {
 		return Result{Check: c, Status: StatusBlocked, Latency: time.Since(start), Error: err.Error()}
 	}
 	req.Header.Set("User-Agent", "fleet-connectivity-probe")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 
 	resp, err := client.Do(req)
 	latency := time.Since(start)
@@ -102,14 +119,99 @@ func runOne(ctx context.Context, client *http.Client, base *url.URL, c Check) Re
 		return Result{Check: c, Status: StatusBlocked, Latency: latency, Error: classifyNetErr(err)}
 	}
 	defer resp.Body.Close()
-	// Drain a small amount so the connection can be reused.
-	_, _ = io.CopyN(io.Discard, resp.Body, 4096)
 
-	status := StatusReachable
-	if resp.StatusCode == http.StatusNotFound {
-		status = StatusNotFound
+	// Buffer up to fingerprintBodyLimit so we can inspect for Fleet's JSON
+	// error shape. The remainder is drained so the connection can be reused.
+	bodyPeek, _ := io.ReadAll(io.LimitReader(resp.Body, fingerprintBodyLimit))
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	return classifyResponse(c, resp, bodyPeek, latency, authUsed)
+}
+
+// prepareRequest returns the method, request body, content type, and whether
+// auth was attached for a check. AuthOrbitNodeKey downgrades to AuthNone when
+// no key is available.
+func prepareRequest(c Check, orbitNodeKey string) (method string, body io.Reader, contentType string, authUsed AuthMode) {
+	method = c.Method
+	if c.Auth == AuthOrbitNodeKey && orbitNodeKey != "" {
+		payload, _ := json.Marshal(map[string]string{"orbit_node_key": orbitNodeKey})
+		return method, bytes.NewReader(payload), "application/json", AuthOrbitNodeKey
 	}
-	return Result{Check: c, Status: status, HTTPStatus: resp.StatusCode, Latency: latency}
+	return method, http.NoBody, "", AuthNone
+}
+
+func classifyResponse(c Check, resp *http.Response, bodyPeek []byte, latency time.Duration, authUsed AuthMode) Result {
+	result := Result{Check: c, HTTPStatus: resp.StatusCode, Latency: latency}
+
+	switch resp.StatusCode {
+	case http.StatusForbidden:
+		result.Status = StatusForbidden
+		return result
+	case http.StatusNotFound:
+		result.Status = StatusNotFound
+		return result
+	}
+
+	// An authenticated orbit probe that doesn't get 200 back is a soft
+	// failure — the server responded, but didn't accept our credentials.
+	// Flag as not-fleet since that's usually someone intercepting the path.
+	if authUsed == AuthOrbitNodeKey && resp.StatusCode != http.StatusOK {
+		result.Status = StatusNotFleet
+		result.Error = fmt.Sprintf("authenticated probe rejected with HTTP %d", resp.StatusCode)
+		return result
+	}
+
+	if c.Fingerprint != FingerprintNone && !fingerprintMatches(c.Fingerprint, resp, bodyPeek) {
+		result.Status = StatusNotFleet
+		result.Error = "response did not match Fleet fingerprint"
+		return result
+	}
+
+	result.Status = StatusReachable
+	return result
+}
+
+func fingerprintMatches(mode FingerprintMode, resp *http.Response, bodyPeek []byte) bool {
+	if mode&FingerprintCapabilitiesHeader != 0 {
+		if resp.Header.Get(fleet.CapabilitiesHeader) != "" {
+			return true
+		}
+	}
+	if mode&FingerprintFleetJSONError != 0 {
+		if looksLikeFleetJSONError(bodyPeek) {
+			return true
+		}
+	}
+	if mode&FingerprintFleetHTMLTitle != 0 {
+		if looksLikeFleetHTMLTitle(bodyPeek) {
+			return true
+		}
+	}
+	return false
+}
+
+// looksLikeFleetJSONError reports whether body decodes as an object with
+// Fleet's characteristic "message" + "errors" shape.
+func looksLikeFleetJSONError(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	}
+	var parsed map[string]json.RawMessage
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return false
+	}
+	_, hasMessage := parsed["message"]
+	_, hasErrors := parsed["errors"]
+	return hasMessage && hasErrors
+}
+
+// looksLikeFleetHTMLTitle reports whether body contains Fleet's HTML title
+// tag. The Fleet web bundle renders <title>Fleet</title> on every page; we
+// do a loose substring match to tolerate whitespace and attribute variants.
+func looksLikeFleetHTMLTitle(body []byte) bool {
+	lower := bytes.ToLower(body)
+	return bytes.Contains(lower, []byte("<title>fleet</title>")) ||
+		bytes.Contains(lower, []byte("<title>fleet "))
 }
 
 // classifyNetErr returns a short, human-readable reason for a transport error.

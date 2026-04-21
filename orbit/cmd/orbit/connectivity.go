@@ -18,31 +18,35 @@ import (
 
 var connectivityCommand = &cli.Command{
 	Name:  "connectivity-check",
-	Usage: "Verify that the Fleet API endpoints required for enrolled hosts are reachable",
+	Usage: "Verify that this host can reach every Fleet endpoint required for its enrollment",
 	Description: `Probes the HTTP endpoints documented at
 https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet
-and reports whether each is reachable from this host's network path.
+against the Fleet server this host is enrolled to, reading the server URL,
+certificate, and orbit node key from this host's on-disk orbit state.
 
-Authentication is not required; the tool only verifies network reachability.`,
+Supported endpoints are probed authenticated where possible (with the orbit
+node key); the rest are probed unauthenticated and verified by matching the
+X-Fleet-Capabilities header or Fleet's JSON error body shape.`,
 	Flags: []cli.Flag{
+		// Hidden escape hatch for testing and pre-enrollment validation.
+		// Disables authenticated probing and skips reading on-disk state.
 		&cli.StringFlag{
 			Name:    "fleet-url",
-			Usage:   "URL of the Fleet server to probe (required unless --from-enrollment is set)",
+			Usage:   "Probe this URL instead of the enrolled server (disables authenticated probes)",
 			EnvVars: []string{"ORBIT_FLEET_URL"},
+			Hidden:  true,
 		},
 		&cli.StringFlag{
 			Name:    "fleet-certificate",
-			Usage:   "Path to a custom Fleet server CA certificate bundle",
+			Usage:   "Path to a custom Fleet server CA certificate bundle (only used with --fleet-url)",
 			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+			Hidden:  true,
 		},
 		&cli.BoolFlag{
 			Name:    "insecure",
-			Usage:   "Skip TLS certificate verification",
+			Usage:   "Skip TLS certificate verification (only used with --fleet-url)",
 			EnvVars: []string{"ORBIT_INSECURE"},
-		},
-		&cli.BoolFlag{
-			Name:  "from-enrollment",
-			Usage: "Read fleet-url and certificate from this host's orbit state in --root-dir",
+			Hidden:  true,
 		},
 		&cli.StringFlag{
 			Name:  "features",
@@ -73,12 +77,11 @@ Authentication is not required; the tool only verifies network reachability.`,
 			return connectivity.ListCatalogue(os.Stdout, checks)
 		}
 
-		baseURL, rootCAs, insecure, err := resolveTarget(resolveInput{
-			fleetURL:       c.String("fleet-url"),
-			certPath:       c.String("fleet-certificate"),
-			insecure:       c.Bool("insecure"),
-			fromEnrollment: c.Bool("from-enrollment"),
-			rootDir:        c.String("root-dir"),
+		target, err := resolveTarget(resolveInput{
+			fleetURLOverride: c.String("fleet-url"),
+			certOverride:     c.String("fleet-certificate"),
+			insecure:         c.Bool("insecure"),
+			rootDir:          c.String("root-dir"),
 		})
 		if err != nil {
 			return cli.Exit(err.Error(), 2)
@@ -88,31 +91,32 @@ Authentication is not required; the tool only verifies network reachability.`,
 		defer cancel()
 
 		results, err := connectivity.Probe(ctx, connectivity.Options{
-			BaseURL:  baseURL,
-			RootCAs:  rootCAs,
-			Insecure: insecure,
-			Timeout:  c.Duration("timeout"),
+			BaseURL:      target.baseURL,
+			RootCAs:      target.rootCAs,
+			Insecure:     target.insecure,
+			Timeout:      c.Duration("timeout"),
+			OrbitNodeKey: target.orbitNodeKey,
 		}, checks)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("probe failed: %s", err), 2)
 		}
 
 		if c.Bool("json") {
-			if err := connectivity.RenderJSON(os.Stdout, baseURL, results); err != nil {
+			if err := connectivity.RenderJSON(os.Stdout, target.baseURL, results); err != nil {
 				return cli.Exit(err.Error(), 2)
 			}
 		} else {
-			if err := connectivity.RenderHuman(os.Stdout, baseURL, results); err != nil {
+			if err := connectivity.RenderHuman(os.Stdout, target.baseURL, results); err != nil {
 				return cli.Exit(err.Error(), 2)
 			}
 		}
 
 		summary := connectivity.Summarize(results)
 		switch {
-		case summary.Blocked > 0:
+		case summary.Blocked > 0 || summary.Forbidden > 0 || summary.NotFound > 0:
 			return cli.Exit("", 1)
-		case summary.NotFound > 0:
-			// Soft warning: endpoints reachable but some routes missing.
+		case summary.NotFleet > 0:
+			// Soft warning: endpoint responded but didn't look like Fleet.
 			return cli.Exit("", 3)
 		}
 		return nil
@@ -120,68 +124,84 @@ Authentication is not required; the tool only verifies network reachability.`,
 }
 
 type resolveInput struct {
-	fleetURL       string
-	certPath       string
-	insecure       bool
-	fromEnrollment bool
-	rootDir        string
+	// fleetURLOverride, when set, bypasses enrollment state lookup and runs
+	// in the hidden escape-hatch mode: no on-disk state, no authenticated
+	// probes.
+	fleetURLOverride string
+	certOverride     string
+	insecure         bool
+	rootDir          string
 }
 
-// resolveTarget derives (baseURL, rootCAs, insecure) from the CLI flags,
-// including --from-enrollment which reads values from the on-disk orbit state.
-func resolveTarget(in resolveInput) (string, *x509.CertPool, bool, error) {
-	fleetURL := strings.TrimSpace(in.fleetURL)
-	certPath := in.certPath
-	insecure := in.insecure
+type resolvedTarget struct {
+	baseURL      string
+	rootCAs      *x509.CertPool
+	insecure     bool
+	orbitNodeKey string
+}
 
-	if in.fromEnrollment {
-		rootDir := in.rootDir
-		if rootDir == "" {
-			return "", nil, false, errors.New("--from-enrollment requires --root-dir (or ORBIT_ROOT_DIR) to be set")
-		}
-
-		urlFile := filepath.Join(rootDir, constant.FleetURLFileName)
-		b, err := os.ReadFile(urlFile)
-		if err != nil {
-			return "", nil, false, fmt.Errorf("read fleet url from %s: %w", urlFile, err)
-		}
-		enrollmentURL := strings.TrimSpace(string(b))
-		if enrollmentURL == "" {
-			return "", nil, false, fmt.Errorf("fleet url at %s is empty", urlFile)
-		}
-		if fleetURL != "" && fleetURL != enrollmentURL {
-			return "", nil, false, fmt.Errorf("--fleet-url (%s) conflicts with enrollment url (%s); pass only one", fleetURL, enrollmentURL)
-		}
-		fleetURL = enrollmentURL
-
-		// Fall back to certs.pem in root-dir when --fleet-certificate isn't
-		// explicit. This matches how orbit itself resolves the cert.
-		if certPath == "" {
-			candidate := filepath.Join(rootDir, "certs.pem")
-			if _, err := os.Stat(candidate); err == nil {
-				certPath = candidate
-			}
-		}
+func resolveTarget(in resolveInput) (resolvedTarget, error) {
+	if override := strings.TrimSpace(in.fleetURLOverride); override != "" {
+		return resolveOverride(override, in.certOverride, in.insecure)
 	}
+	return resolveFromEnrollment(in.rootDir)
+}
 
-	if fleetURL == "" {
-		return "", nil, false, errors.New("--fleet-url is required (or pass --from-enrollment)")
-	}
+// resolveOverride runs in the escape-hatch mode: no enrollment state, no
+// orbit node key. Used for pre-enrollment verification and integration tests.
+func resolveOverride(fleetURL, certPath string, insecure bool) (resolvedTarget, error) {
 	if !strings.Contains(fleetURL, "://") {
 		fleetURL = "https://" + fleetURL
 	}
 	if insecure && certPath != "" {
-		return "", nil, false, errors.New("--insecure and --fleet-certificate may not be used together")
+		return resolvedTarget{}, errors.New("--insecure and --fleet-certificate may not be used together")
 	}
-
 	var pool *x509.CertPool
 	if certPath != "" {
 		p, err := certificate.LoadPEM(certPath)
 		if err != nil {
-			return "", nil, false, fmt.Errorf("load fleet certificate: %w", err)
+			return resolvedTarget{}, fmt.Errorf("load fleet certificate: %w", err)
+		}
+		pool = p
+	}
+	return resolvedTarget{baseURL: fleetURL, rootCAs: pool, insecure: insecure}, nil
+}
+
+// resolveFromEnrollment reads the Fleet URL, certificate, and orbit node key
+// from the host's on-disk orbit state. This is the default behavior.
+func resolveFromEnrollment(rootDir string) (resolvedTarget, error) {
+	if rootDir == "" {
+		return resolvedTarget{}, errors.New("--root-dir (or ORBIT_ROOT_DIR) must be set to read enrollment state")
+	}
+
+	urlFile := filepath.Join(rootDir, constant.FleetURLFileName)
+	b, err := os.ReadFile(urlFile)
+	if err != nil {
+		return resolvedTarget{}, fmt.Errorf("read fleet url from %s (is this host enrolled? pass --fleet-url to probe an unenrolled server): %w", urlFile, err)
+	}
+	fleetURL := strings.TrimSpace(string(b))
+	if fleetURL == "" {
+		return resolvedTarget{}, fmt.Errorf("fleet url at %s is empty", urlFile)
+	}
+	if !strings.Contains(fleetURL, "://") {
+		fleetURL = "https://" + fleetURL
+	}
+
+	var pool *x509.CertPool
+	certPath := filepath.Join(rootDir, "certs.pem")
+	if _, err := os.Stat(certPath); err == nil {
+		p, err := certificate.LoadPEM(certPath)
+		if err != nil {
+			return resolvedTarget{}, fmt.Errorf("load fleet certificate: %w", err)
 		}
 		pool = p
 	}
 
-	return fleetURL, pool, insecure, nil
+	var orbitNodeKey string
+	nodeKeyPath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
+	if keyBytes, err := os.ReadFile(nodeKeyPath); err == nil {
+		orbitNodeKey = strings.TrimSpace(string(keyBytes))
+	}
+
+	return resolvedTarget{baseURL: fleetURL, rootCAs: pool, orbitNodeKey: orbitNodeKey}, nil
 }
