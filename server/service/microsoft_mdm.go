@@ -1954,7 +1954,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
 		espCmds, err = svc.getESPCommands(ctx, deviceID)
 		if err != nil {
-			return nil, fmt.Errorf("ESP commands error %w", err)
+			return nil, fmt.Errorf("ESP commands error: %w", err)
 		}
 	}
 
@@ -2012,6 +2012,7 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 		// and block the device during OOBE. These must be sent immediately --
 		// if we wait for orbit, OOBE progresses past the ESP window.
 		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
+		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
 		holdCmds := []*mdm_types.SyncMLCmd{
 			// SkipDeviceStatusPage and SkipUserStatusPage are bool format per
 			// DMClient CSP spec. Both must be false for the ESP to stay visible.
@@ -2020,8 +2021,11 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			// BlockInStatusPage: 2 = block user, show "Try again" button on failure.
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "2"),
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds)),
+			// PolicyProviders/{providerID} is a dynamic node -- must be created
+			// with Add before its children can be set with Replace.
+			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
 			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
-			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "1"),
+			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
 		}
 		for _, cmd := range holdCmds {
 			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
@@ -2065,14 +2069,37 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	if !timedOut {
-		// Check if all profiles for this host are in a terminal state.
-		profiles, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
+		// Profile delivery has two stages, each covered by a different query:
+		//
+		// 1. Profiles configured for the host's team but not yet queued by the
+		//    profile reconciler (ListMDMWindowsProfilesToInstallForHost).
+		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet
+		//    delivered to a terminal state (GetHostMDMWindowsProfiles).
+		//
+		// We check both so we never release while profiles are pending at
+		// either stage. Each management checkin re-evaluates both queries.
+
+		// Stage 1: profiles the reconciler hasn't picked up yet.
+		toInstall, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP release check")
 		}
-		if len(profiles) > 0 {
-			// Profiles still pending -- keep waiting.
+		if len(toInstall) > 0 {
 			return nil, nil
+		}
+
+		// Stage 2: profiles queued but still in-flight (pending/verifying).
+		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
+		}
+		for _, p := range profiles {
+			if p.OperationType != fleet.MDMOperationTypeInstall {
+				continue
+			}
+			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
+				return nil, nil
+			}
 		}
 	}
 
@@ -2657,6 +2684,15 @@ func newSyncMLCmdBase64(cmdVerb string, cmdTarget string, cmdDataValue string) *
 	cmdFormat := "b64"
 	escapedXML := html.EscapeString(cmdDataValue)
 	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &escapedXML)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdNode creates a new SyncML command that targets a node with no data.
+// Used for Add commands on dynamic OMA-DM nodes that must be created before their
+// children can be set.
+func newSyncMLCmdNode(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
+	cmdFormat := "node"
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, nil)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 

@@ -9254,34 +9254,23 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	require.NoError(t, d.Enroll())
 
-	// First checkin: receive fleetd install commands, ack them
+	// First checkin: receive fleetd install commands (and possibly ESP hold
+	// commands), ack all of them.
 	cmds, err := d.StartManagementSession()
 	require.NoError(t, err)
-	var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-	for _, c := range cmds {
-		switch c.Verb {
-		case "Add":
-			fleetdAddCmd = c
-		case "Exec":
-			fleetdExecCmd = c
-		}
-	}
-	require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value)
-	require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value)
 	msgID, err := d.GetCurrentMsgID()
 	require.NoError(t, err)
-	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: fleet.CmdStatus},
-		MsgRef:  &msgID, CmdRef: &fleetdAddCmd.Cmd.CmdID.Value,
-		Cmd: &fleetdAddCmd.Verb, Data: ptr.String("200"),
-		CmdID: fleet.CmdID{Value: uuid.NewString()},
-	})
-	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: fleet.CmdStatus},
-		MsgRef:  &msgID, CmdRef: &fleetdExecCmd.Cmd.CmdID.Value,
-		Cmd: &fleetdExecCmd.Verb, Data: ptr.String("200"),
-		CmdID: fleet.CmdID{Value: uuid.NewString()},
-	})
+	for _, c := range cmds {
+		if c.Verb == "Status" {
+			continue
+		}
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID, CmdRef: &c.Cmd.CmdID.Value,
+			Cmd: &c.Verb, Data: ptr.String("200"),
+			CmdID: fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
 	_, err = d.SendResponse()
 	require.NoError(t, err)
 
