@@ -1324,8 +1324,11 @@ const (
 
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
-// auth state, and an error if the request/device is not trusted. The returned
-// enrolled device may be nil when the state is RequestAuthStateUntrusted.
+// auth state, and an error only when the request is malformed or otherwise
+// cannot be processed. Expected non-trusted outcomes (for example
+// RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
+// the returned auth state and may return a nil error. The returned enrolled
+// device may be nil when the state is RequestAuthStateUntrusted.
 func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
 		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
