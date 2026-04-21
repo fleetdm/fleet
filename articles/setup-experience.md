@@ -42,6 +42,18 @@ To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user 
 
 Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
+## Managed local account
+Fleet can create and manage a local admin account on macOS hosts that automatically enroll via Apple Business (AB). This account gives IT admins a secure way to access a macOS host for troubleshooting without relying on shared or static credentials.
+
+Admins can view the current password from **Host details > Show managed account** in the Fleet UI or via the API.
+
+### Password rotation
+Fleet rotates the managed local account password by sending an MDM command to the host. Rotation can be triggered manually by clicking **Rotate password** in the managed account modal, or automatically after the password is viewed.
+
+> Shortly after a host enrolls via DEP, the host's UUID may not yet be known to Fleet. In this case, password rotation is **deferred** until Fleet receives the UUID (typically after the host completes its first check-in). Any pending rotation will proceed automatically once the UUID is available.
+
+A manual rotation cancels any active auto-rotation timer for that host.
+
 ## Bootstrap package
 
 Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience). 
@@ -63,8 +75,11 @@ The following are examples of what some organizations deploy using a bootstrap p
 To add a bootstrap package to Fleet, we will do the following steps:
 
 1. Download or generate a package
+
 2. Sign the package
+
 3. Upload the package to Fleet
+
 4. Confirm package is uploaded
 
 ### Step 1: Download or generate a package
