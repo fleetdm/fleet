@@ -35,6 +35,17 @@ describe("preferredOrLowestIdFleet", () => {
     });
   });
 
+  it("matches case-insensitively", () => {
+    const fleets = [
+      { id: 1, name: "Alpha" },
+      { id: 4, name: "WORKSTATIONS" },
+    ];
+    expect(preferredOrLowestIdFleet(fleets)).toEqual({
+      id: 4,
+      name: "WORKSTATIONS",
+    });
+  });
+
   it("falls back to lowest ID when no Workstations fleet exists", () => {
     const fleets = [
       { id: 10, name: "Zebra" },

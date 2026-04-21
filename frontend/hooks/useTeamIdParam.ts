@@ -186,12 +186,14 @@ const getUserTeams = ({
     : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
 };
 
-/** Prefer a fleet named "Workstations" (with or without emoji prefix),
- *  otherwise fall back to the fleet with the lowest ID. */
+// Prefer a fleet named "Workstations" (with or without emoji prefix),
+// otherwise fall back to the fleet with the lowest ID.
 export const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
-  const workstations = fleets.find(
-    (t) => t.name === "Workstations" || t.name === "\u{1F4BB} Workstations"
-  );
+  const name = "workstations";
+  const workstations = fleets.find((t) => {
+    const lower = t.name.toLowerCase();
+    return lower === name || lower === `\u{1F4BB} ${name}`;
+  });
   return workstations ?? sortBy(fleets, (t) => t.id)[0];
 };
 
