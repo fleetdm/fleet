@@ -84,16 +84,6 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Install wine and wix
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          ./assets/scripts/install-wine.sh -n
-          wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
-          mkdir wix
-          unzip wix.zip -d wix
-          rm -f wix.zip
-          echo wix installed at $(pwd)/wix
-
       - name: Build fleetctl
         run: make fleetctl
 
@@ -128,7 +118,3 @@ jobs:
 
       - name: Build PKG with Fleet Desktop
         run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
-
-      - name: Build MSI on macOS (using local Wix)
-        if: startsWith(matrix.os, 'macos')
-        run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix
