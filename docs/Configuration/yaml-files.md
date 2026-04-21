@@ -561,7 +561,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
   - `authentication_url` is the URL used to authenticate the user with the IdP during Platform SSO setup.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
+- `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
@@ -1182,14 +1182,14 @@ org_settings:
 
 ### mdm
 
-#### apple_business_manager
+#### apple_business
 
-After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which fleet Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
+After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business` section lets you determine which fleet Apple hosts are assigned to in Fleet when they appear in Apple Business.
 
-- `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
-- `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
-- `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "Unassigned".
+- `organization_name` is the organization name associated with the Apple Business account.
+- `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
+- `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
+- `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1198,7 +1198,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   mdm:
-    apple_business_manager: # Available in Fleet Premium
+    apple_business: # Available in Fleet Premium
     - organization_name: Fleet Device Management Inc.
       macos_fleet: 💻 Workstations
       ios_fleet: 📱🏢 Company-owned iPhones
@@ -1209,7 +1209,7 @@ org_settings:
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
-- `location` is the name of the location in the Apple Business Manager account.
+- `location` is the name of the location in the Apple Business account.
 - `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. 
 
 Can only be configured for "All fleets" (`org_settings`).
