@@ -4,11 +4,10 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
-	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	api_http "github.com/fleetdm/fleet/v4/server/chart/api/http"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
@@ -28,7 +27,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc api.Service, authMiddleware endpoin
 	ue.GET("/api/_version_/fleet/charts/{metric}", getChartDataEndpoint, api_http.GetChartDataRequest{})
 }
 
-func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fleet.Errorer, error) {
+func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (platform_http.Errorer, error) {
 	req := request.(*api_http.GetChartDataRequest)
 
 	days := req.Days
@@ -36,7 +35,7 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fl
 		days = 7
 	}
 
-	opts := chart.RequestOpts{
+	opts := api.RequestOpts{
 		Days:            days,
 		Downsample:      req.Downsample,
 		TZOffsetMinutes: req.TZOffset,

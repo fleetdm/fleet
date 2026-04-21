@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/chart"
+	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
 )
@@ -122,9 +124,9 @@ func (ds *Datastore) GetSCDData(
 	ctx context.Context,
 	dataset string,
 	startDate, endDate time.Time,
-	hostFilter *chart.HostFilter,
+	hostFilter *types.HostFilter,
 	entityIDs []string,
-) ([]chart.DataPoint, error) {
+) ([]api.DataPoint, error) {
 	startDay := startDate.UTC().Truncate(24 * time.Hour)
 	endDay := endDate.UTC().Truncate(24 * time.Hour)
 
@@ -176,7 +178,7 @@ func (ds *Datastore) GetSCDData(
 
 	// Walk buckets from startDay..endDay inclusive. For each bucket, OR the
 	// bitmaps of rows whose interval covers that day, AND with filter, popcount.
-	var results []chart.DataPoint
+	var results []api.DataPoint
 	for d := startDay; !d.After(endDay); d = d.AddDate(0, 0, 1) {
 		dayStr := d.Format(scdDateFormat)
 		var merged []byte
@@ -189,7 +191,7 @@ func (ds *Datastore) GetSCDData(
 		if filterMask != nil && merged != nil {
 			merged = chart.BlobAND(merged, filterMask)
 		}
-		results = append(results, chart.DataPoint{
+		results = append(results, api.DataPoint{
 			Timestamp: d,
 			Value:     chart.BlobPopcount(merged),
 		})

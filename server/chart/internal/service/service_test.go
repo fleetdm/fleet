@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/chart"
+	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,14 +22,14 @@ func (m *mockAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzType
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error)
-	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error)
-	countHostsForChartFilterFn func(ctx context.Context, hostFilter *chart.HostFilter) (int, error)
+	getBlobDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error)
+	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
+	countHostsForChartFilterFn func(ctx context.Context, hostFilter *types.HostFilter) (int, error)
 	collectUptimeFn            func(ctx context.Context, now time.Time) error
 	collectUptimeInvoked       bool
 }
 
-func (m *mockDatastore) CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+func (m *mockDatastore) CountHostsForChartFilter(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
 	return m.countHostsForChartFilterFn(ctx, hostFilter)
 }
 
@@ -39,14 +41,14 @@ func (m *mockDatastore) CollectUptimeChartData(ctx context.Context, now time.Tim
 	return nil
 }
 
-func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
+func (m *mockDatastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
 	if m.getBlobDataFunc != nil {
 		return m.getBlobDataFunc(ctx, dataset, startDate, endDate, entityIDs)
 	}
 	return nil, nil
 }
 
-func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
+func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 	if m.getHostIDsForFilterFunc != nil {
 		return m.getHostIDsForFilterFunc(ctx, hostFilter)
 	}
@@ -61,7 +63,7 @@ func (m *mockDatastore) RecordSCDData(_ context.Context, _ string, _ map[string]
 	return nil
 }
 
-func (m *mockDatastore) GetSCDData(_ context.Context, _ string, _, _ time.Time, _ *chart.HostFilter, _ []string) ([]chart.DataPoint, error) {
+func (m *mockDatastore) GetSCDData(_ context.Context, _ string, _, _ time.Time, _ *types.HostFilter, _ []string) ([]api.DataPoint, error) {
 	return nil, nil
 }
 
@@ -73,7 +75,7 @@ func TestGetChartDataUnknownMetric(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 
-	_, err := svc.GetChartData(t.Context(), "nonexistent", chart.RequestOpts{Days: 7})
+	_, err := svc.GetChartData(t.Context(), "nonexistent", api.RequestOpts{Days: 7})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown chart metric")
 }
@@ -83,7 +85,7 @@ func TestGetChartDataInvalidDays(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 5})
+	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 5})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid days value")
 }
@@ -103,7 +105,7 @@ func TestGetChartDataInvalidDownsample(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7, Downsample: tc.downsample})
+			_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7, Downsample: tc.downsample})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid downsample value")
 		})
@@ -118,20 +120,20 @@ func TestGetChartDataBlobHourly(t *testing.T) {
 	// Pick a day inside the 7-day window the service computes from time.Now().
 	blobDay := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
 
-	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		assert.Nil(t, entityIDs)
 		// Return a blob for one hour: hosts 1, 2, 3 were online.
-		return []chart.BlobDataPoint{
+		return []types.BlobDataPoint{
 			{ChartDate: blobDay, Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil
 	}
-	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+	ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
 		assert.Nil(t, hostFilter)
 		return 200, nil
 	}
 
-	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 7})
+	resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
 	require.NoError(t, err)
 	assert.Equal(t, "uptime", resp.Metric)
 	assert.Equal(t, "checkerboard", resp.Visualization)
@@ -171,17 +173,17 @@ func TestGetChartDataBlobDownsample(t *testing.T) {
 			// service computes from time.Now(), regardless of UTC hour.
 			blobDay := time.Now().UTC().AddDate(0, 0, -5).Truncate(24 * time.Hour)
 			// Return blobs for hours 0 and 1 with different hosts — downsampling should OR them.
-			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
-				return []chart.BlobDataPoint{
+			ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
+				return []types.BlobDataPoint{
 					{ChartDate: blobDay, Hour: 0, HostBitmap: chart.HostIDsToBlob([]uint{1, 2})},
 					{ChartDate: blobDay, Hour: 1, HostBitmap: chart.HostIDsToBlob([]uint{2, 3})},
 				}, nil
 			}
-			ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+			ds.countHostsForChartFilterFn = func(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
 				return 100, nil
 			}
 
-			resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{Days: 30, Downsample: tc.downsample})
+			resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 30, Downsample: tc.downsample})
 			require.NoError(t, err)
 			assert.Equal(t, tc.resolution, resp.Resolution)
 
@@ -210,19 +212,19 @@ func TestGetChartDataBlobWithHostFilters(t *testing.T) {
 	blobDay := time.Now().UTC().AddDate(0, 0, -3).Truncate(24 * time.Hour)
 
 	// Blob has hosts 1, 2, 3 online.
-	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
-		return []chart.BlobDataPoint{
+	ds.getBlobDataFunc = func(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
+		return []types.BlobDataPoint{
 			{ChartDate: blobDay, Hour: 10, HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3})},
 		}, nil
 	}
 	// Filter returns only hosts 1, 3 (simulating a label filter).
-	ds.getHostIDsForFilterFunc = func(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
+	ds.getHostIDsForFilterFunc = func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 		assert.Equal(t, []uint{1, 2}, hostFilter.LabelIDs)
 		assert.Equal(t, []string{"darwin"}, hostFilter.Platforms)
 		return []uint{1, 3}, nil
 	}
 
-	resp, err := svc.GetChartData(t.Context(), "uptime", chart.RequestOpts{
+	resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{
 		Days:      7,
 		LabelIDs:  []uint{1, 2},
 		Platforms: []string{"darwin"},
@@ -251,7 +253,7 @@ func TestFillZeroValues(t *testing.T) {
 		// 5 hours apart → 5 buckets ending at hour 5
 		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
 		end := time.Date(2026, 4, 7, 5, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 0, 0)
@@ -263,7 +265,7 @@ func TestFillZeroValues(t *testing.T) {
 	t.Run("downsample 2", func(t *testing.T) {
 		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
 		end := time.Date(2026, 4, 7, 6, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 2, 0, 0, 0, time.UTC), Value: 42},
 		}
 		result := fillZeroValues(data, start, end, 2, 0)
@@ -277,7 +279,7 @@ func TestFillZeroValues(t *testing.T) {
 	t.Run("downsample 4", func(t *testing.T) {
 		start := time.Date(2026, 4, 7, 0, 0, 0, 0, time.UTC)
 		end := time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 4, 0, 0, 0, time.UTC), Value: 10},
 		}
 		result := fillZeroValues(data, start, end, 4, 0)
@@ -291,7 +293,7 @@ func TestFillZeroValues(t *testing.T) {
 		// Simulates days=1: 24 hours apart, should give exactly 24 data points
 		s := time.Date(2026, 4, 7, 16, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 8, 16, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 18, 0, 0, 0, time.UTC), Value: 50},
 			{Timestamp: time.Date(2026, 4, 8, 10, 0, 0, 0, time.UTC), Value: 75},
 		}
@@ -310,7 +312,7 @@ func TestFillZeroValues(t *testing.T) {
 		// End hour 17 with downsample=2 → end aligns to 16
 		s := time.Date(2026, 4, 7, 11, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 7, 17, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 14, 0, 0, 0, time.UTC), Value: 30},
 		}
 		result := fillZeroValues(data, s, e, 2, 0)
@@ -325,7 +327,7 @@ func TestFillZeroValues(t *testing.T) {
 		// 14 hours apart, end hour 15 aligns to 12, 14/4=3 buckets
 		s := time.Date(2026, 4, 7, 1, 0, 0, 0, time.UTC)
 		e := time.Date(2026, 4, 7, 15, 0, 0, 0, time.UTC)
-		data := []chart.DataPoint{
+		data := []api.DataPoint{
 			{Timestamp: time.Date(2026, 4, 7, 8, 0, 0, 0, time.UTC), Value: 55},
 		}
 		result := fillZeroValues(data, s, e, 4, 0)
@@ -357,7 +359,7 @@ func TestCollectDatasets(t *testing.T) {
 func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
-	assert.Equal(t, chart.StorageTypeBlob, d.StorageType())
+	assert.Equal(t, api.StorageTypeBlob, d.StorageType())
 	assert.Equal(t, "checkerboard", d.DefaultVisualization())
 	assert.False(t, d.HasEntityDimension())
 	assert.Nil(t, d.SupportedFilters())

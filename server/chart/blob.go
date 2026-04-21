@@ -1,9 +1,17 @@
+// Package chart provides blob utility helpers, dataset implementations, and
+// shared constants for the chart bounded context. Public API types live in
+// server/chart/api; internal types (HostFilter, BlobDataPoint, Datastore) live
+// in server/chart/internal/types.
 package chart
 
 import (
 	"encoding/binary"
 	"math/bits"
 )
+
+// HourWholeDay is the sentinel value stored in the hour column to indicate that
+// the blob represents a whole-day snapshot rather than a single hour.
+const HourWholeDay = -1
 
 // HostIDsToBlob builds a byte slice with bits set at positions corresponding to
 // the given host IDs. Bit N of the blob = host ID N.

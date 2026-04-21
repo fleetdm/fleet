@@ -1,7 +1,7 @@
 // Package http provides HTTP request/response types for the chart bounded context.
 package http
 
-import "github.com/fleetdm/fleet/v4/server/chart"
+import "github.com/fleetdm/fleet/v4/server/chart/api"
 
 // GetChartDataRequest is the HTTP request for the chart data endpoint.
 type GetChartDataRequest struct {
@@ -17,7 +17,7 @@ type GetChartDataRequest struct {
 
 // GetChartDataResponse is the HTTP response for the chart data endpoint.
 type GetChartDataResponse struct {
-	*chart.Response
+	*api.Response
 	Err error `json:"error,omitempty"`
 }
 

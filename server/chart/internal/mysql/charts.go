@@ -47,7 +47,7 @@ func (ds *Datastore) rebind(query string) string {
 	return ds.primary.Rebind(query)
 }
 
-func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *chart.HostFilter) (int, error) {
+func (ds *Datastore) CountHostsForChartFilter(ctx context.Context, hostFilter *types.HostFilter) (int, error) {
 	subquery, args := buildHostCountFilterClauses(hostFilter)
 
 	query := fmt.Sprintf(`SELECT COUNT(*) FROM hosts h WHERE 1=1 %s`, subquery)
@@ -124,7 +124,7 @@ func (ds *Datastore) CollectUptimeChartData(ctx context.Context, now time.Time) 
 	return nil
 }
 
-func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]chart.BlobDataPoint, error) {
+func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate, endDate time.Time, entityIDs []string) ([]types.BlobDataPoint, error) {
 	startStr := startDate.Format("2006-01-02")
 	endStr := endDate.Format("2006-01-02")
 
@@ -161,9 +161,9 @@ func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate,
 		return nil, ctxerr.Wrap(ctx, err, "get blob data")
 	}
 
-	results := make([]chart.BlobDataPoint, len(rows))
+	results := make([]types.BlobDataPoint, len(rows))
 	for i, r := range rows {
-		results[i] = chart.BlobDataPoint{
+		results[i] = types.BlobDataPoint{
 			ChartDate:  r.ChartDate,
 			Hour:       r.Hour,
 			HostBitmap: r.HostBitmap,
@@ -172,7 +172,7 @@ func (ds *Datastore) GetBlobData(ctx context.Context, dataset string, startDate,
 	return results, nil
 }
 
-func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *chart.HostFilter) ([]uint, error) {
+func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
 	subquery, args := buildHostCountFilterClauses(hostFilter)
 
 	query := fmt.Sprintf(`SELECT h.id FROM hosts h WHERE 1=1 %s`, subquery)
@@ -203,7 +203,7 @@ func (ds *Datastore) CleanupBlobData(ctx context.Context, days int) error {
 // buildHostFilterSubqueryForAlias builds SQL clauses to filter chart rows by host
 // attributes, using the given table alias for the host_id column. Returns the clause
 // (prefixed with AND) and args. Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostFilterSubqueryForAlias(filter *chart.HostFilter, alias string) (string, []any) {
+func buildHostFilterSubqueryForAlias(filter *types.HostFilter, alias string) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}
@@ -241,7 +241,7 @@ func buildHostFilterSubqueryForAlias(filter *chart.HostFilter, alias string) (st
 
 // buildHostCountFilterClauses builds filter clauses for counting hosts directly from the hosts table.
 // Uses "h" as the table alias. Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostCountFilterClauses(filter *chart.HostFilter) (string, []any) {
+func buildHostCountFilterClauses(filter *types.HostFilter) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}

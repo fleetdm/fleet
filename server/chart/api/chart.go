@@ -1,6 +1,4 @@
-// Package chart provides the public types and interfaces for the chart bounded context.
-// External code should import this package for types; implementation details are in internal/.
-package chart
+package api
 
 import (
 	"context"
@@ -46,19 +44,9 @@ type Dataset interface {
 	HasEntityDimension() bool
 }
 
-// HourWholeDay is the sentinel value stored in the hour column to indicate that
-// the blob represents a whole-day snapshot rather than a single hour.
-const HourWholeDay = -1
-
-// BlobDataPoint is a raw blob row returned from the datastore, before aggregation.
-type BlobDataPoint struct {
-	ChartDate  time.Time
-	Hour       int
-	HostBitmap []byte
-}
-
-// DatasetStore is the narrow interface that datasets need for their Collect and ResolveFilters methods.
-// It is satisfied by the chart internal Datastore, keeping dataset implementations decoupled from internals.
+// DatasetStore is the narrow interface that datasets need for their Collect and
+// ResolveFilters methods. It is satisfied by the chart internal Datastore,
+// keeping dataset implementations decoupled from internals.
 type DatasetStore interface {
 	CollectUptimeChartData(ctx context.Context, now time.Time) error
 }
@@ -97,8 +85,8 @@ type Response struct {
 // RequestOpts captures the parsed query parameters for a chart request.
 type RequestOpts struct {
 	Days int
-	// Downsample groups hours into N-hour blocks (valid: 0, 1, 2, 3, 4, 8, 12).
-	// Both 0 (default) and 1 mean no downsampling (hourly data).
+	// Downsample groups hours into N-hour blocks. Must be 0 or a positive
+	// divisor of 24. Both 0 (default) and 1 mean no downsampling (hourly data).
 	Downsample int
 	// TZOffsetMinutes is the client's UTC offset as reported by JavaScript's
 	// Date.getTimezoneOffset() (positive = west of UTC, e.g. CDT = 300).
@@ -110,14 +98,6 @@ type RequestOpts struct {
 	ExcludeHostIDs  []uint
 	// DatasetFilters are dataset-specific filter params (e.g. policy_id, severity).
 	DatasetFilters map[string]string
-}
-
-// HostFilter is used to filter hosts in chart queries.
-type HostFilter struct {
-	LabelIDs       []uint
-	Platforms      []string
-	IncludeHostIDs []uint
-	ExcludeHostIDs []uint
 }
 
 // Filters captures the applied filters for a chart request.
