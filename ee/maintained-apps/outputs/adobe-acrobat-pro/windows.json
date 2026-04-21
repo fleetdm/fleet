@@ -3,8 +3,8 @@
     {
       "version": "26.001.21431",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21431') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21431') < 0);"
       },
       "installer_url": "https://trials.adobe.com/AdobeProducts/APRO/Acrobat_HelpX/win32/Acrobat_DC_Web_x64_WWMUI.zip",
       "install_script_ref": "f7f87d02",
