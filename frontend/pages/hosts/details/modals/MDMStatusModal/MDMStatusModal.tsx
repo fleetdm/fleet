@@ -476,10 +476,12 @@ const MDMStatusModal = ({
       {renderMDMStatus()}
       {isPremiumTier &&
         isAppleDevice &&
-        // Only render the modal if this host has an actual host_dep_assignment entry,
-        // in which case we expect there to be data to render. While loading, keep
-        // the section visible so renderProfileAssignmentList can show its spinner.
+        // Only render the profile assignment section if this host has an actual
+        // host_dep_assignment entry, in which case we expect there to be data to
+        // render. While loading or on query error, keep the section visible so
+        // renderProfileAssignmentList can show its spinner or DataError.
         (isLoadingDepAssignment ||
+          isDepAssignmentError ||
           depAssignmentData?.host_dep_assignment) &&
         renderProfileAssignment()}
       {renderFooter()}
