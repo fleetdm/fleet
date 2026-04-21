@@ -275,10 +275,17 @@ type SoftwarePackage struct {
 	fleet.SoftwarePackageSpec
 }
 
-func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) (fleet.SoftwarePackageSpec, error) {
-	if spec.Icon.Path != "" || spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
+func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
+	if spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
 		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
 		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+	}
+
+	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
+	if spec.Icon.Path != "" {
+		if ext != ".sh" && ext != ".ps1" {
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
+		}
 	}
 
 	packageLevel.Categories = spec.Categories
@@ -1140,6 +1147,7 @@ var defaultAllowedExtensions = map[string]bool{
 var allowedScriptExtensions = map[string]bool{
 	".sh":  true,
 	".ps1": true,
+	".py":  true,
 }
 
 // GlobExpandOptions configures how flattenBaseItems expands glob patterns.
@@ -1864,22 +1872,27 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
-			// Replace $var and ${var} with env values.
-			fileBytes, err = ExpandEnvBytes(fileBytes)
-			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
-				continue
-			}
 
 			ext := strings.ToLower(filepath.Ext(resolvedPath))
 			switch ext {
 			case ".sh", ".ps1":
+				// Script files: only gather FLEET_SECRET_ variables, don't expand
+				// regular env vars (they are shell variables meant for the endpoint).
+				if err := gatherFileSecrets(result, resolvedPath); err != nil {
+					multiError = multierror.Append(multiError, err)
+					continue
+				}
 				// Script file becomes the install script for a script-only package
 				scriptSpec := fleet.SoftwarePackageSpec{
-					InstallScript:      fleet.TeamSpecSoftwareAsset{Path: resolvedPath},
 					ReferencedYamlPath: resolvedPath,
+					Icon:               teamLevelPackage.Icon,
 				}
-				scriptSpec, err = teamLevelPackage.HydrateToPackageLevel(scriptSpec)
+				// Icon path needs to be resolved, but since this function will set
+				// the install script it needs to be set to the correct path again.
+				scriptSpec = scriptSpec.ResolveSoftwarePackagePaths(baseDir)
+				scriptSpec.InstallScript.Path = resolvedPath
+
+				scriptSpec, err = teamLevelPackage.HydrateToPackageLevel(scriptSpec, ext)
 				if err != nil {
 					multiError = multierror.Append(multiError, err)
 					continue
@@ -1887,6 +1900,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				softwarePackageSpecs = append(softwarePackageSpecs, &scriptSpec)
 
 			case ".yml", ".yaml":
+				// Replace $var and ${var} with env values in YAML files only.
+				fileBytes, err = ExpandEnvBytes(fileBytes)
+				if err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
+					continue
+				}
 				var singlePackageSpec SoftwarePackage
 				singlePackageSpec.ReferencedYamlPath = resolvedPath
 				if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
@@ -1915,7 +1934,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 				for i, spec := range softwarePackageSpecs {
 					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
-					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
+					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec, ext)
 					if err != nil {
 						multiError = multierror.Append(multiError, err)
 						continue

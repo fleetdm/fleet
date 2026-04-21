@@ -1,3 +1,9 @@
+## Fleet 4.83.2 (Apr 13, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.```
+
 ## Fleet 4.83.1 (Apr 10, 2026)
 
 ### Bug fixes

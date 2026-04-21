@@ -6,7 +6,6 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
-import { upperFirst } from "lodash";
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
@@ -110,7 +109,11 @@ const TeamsDropdown = ({
   });
 
   const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<any, false, any>
+    props: DropdownIndicatorProps<
+      INumberDropdownOption,
+      false,
+      GroupBase<INumberDropdownOption>
+    >
   ) => {
     const { isFocused, selectProps } = props;
     const color =

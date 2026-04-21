@@ -12,7 +12,7 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 
 ## UI
 
-#### Desktop Devices
+#### Workstations
 
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
@@ -21,7 +21,7 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
-#### Mobile Devices
+#### Mobile devices
 
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 

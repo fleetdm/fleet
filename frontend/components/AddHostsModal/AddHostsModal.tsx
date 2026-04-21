@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 import configAPI from "services/entities/config";
 import { AppContext } from "context/app";
 
-import CustomLink from "components/CustomLink";
+import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
@@ -60,10 +60,9 @@ const AddHostsModal = ({
           <span className="info__data">
             You have no enroll secrets.{" "}
             {openEnrollSecretModal ? (
-              <CustomLink
-                customClickHandler={onManageEnrollSecretsClick}
-                text="Manage enroll secrets"
-              />
+              <Button variant="link" onClick={onManageEnrollSecretsClick}>
+                Manage enroll secrets
+              </Button>
             ) : (
               "Manage enroll secrets"
             )}{" "}

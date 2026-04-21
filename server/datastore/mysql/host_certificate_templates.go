@@ -330,6 +330,30 @@ func (ds *Datastore) DeleteHostCertificateTemplate(ctx context.Context, hostUUID
 	return nil
 }
 
+// DeleteAllHostCertificateTemplates deletes all host_certificate_templates records for a host.
+// Used during re-enrollment to clear stale cert records (including those from previous teams)
+// before creating fresh pending records for the host's current team. Associated one-time
+// challenge rows are also removed to avoid leaving orphaned entries in the challenges table.
+func (ds *Datastore) DeleteAllHostCertificateTemplates(ctx context.Context, hostUUID string) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete challenges linked to this host's certificate templates before the host rows go away.
+		const deleteChallenges = `
+			DELETE c FROM challenges c
+			INNER JOIN host_certificate_templates hct ON hct.fleet_challenge = c.challenge
+			WHERE hct.host_uuid = ?
+		`
+		if _, err := tx.ExecContext(ctx, deleteChallenges, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete challenges for host certificate templates")
+		}
+
+		const deleteTemplates = `DELETE FROM host_certificate_templates WHERE host_uuid = ?`
+		if _, err := tx.ExecContext(ctx, deleteTemplates, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete all host_certificate_templates for host")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.CertificateStatusUpdate) error {
 	// Validate the status.
 	if !update.Status.IsValid() {

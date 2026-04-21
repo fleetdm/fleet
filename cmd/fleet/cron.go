@@ -504,7 +504,7 @@ func checkOSVVulnerabilities(
 
 	var now time.Time
 	if !config.DisableDataSync {
-		now = time.Now()
+		now = time.Now().UTC()
 	}
 
 	if !config.DisableDataSync {
@@ -1166,6 +1166,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name             = string(fleet.CronAppleMDMWorker)
@@ -1183,6 +1184,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		NewActivityFn:         newActivityFn,
 	}
 
 	w.Register(appleMDM)

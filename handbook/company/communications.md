@@ -310,6 +310,17 @@ You have access to the following tools and can use whatever combination best fit
 
 You're not limited to this list. If another tool would help you do your job better, use it. Expense it via Brex if there's a cost, and use the judgment in these guidelines to do so responsibly.
 
+#### Accessing Claude
+
+Fleet has an enterprise Claude account available to team members. To access it:
+
+1. Log into [fleetdm.okta.com](https://fleetdm.okta.com)
+2. Click the **Anthropic** tile
+
+Chats under the enterprise account are covered by Anthropic's commercial terms and are not used for model training. Follow the AI usage guidelines above when using Claude for Fleet work.
+
+Questions? Ask in #help-it.
+
 
 ### Integrated AI tools
 
