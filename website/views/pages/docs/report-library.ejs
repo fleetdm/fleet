@@ -1,13 +1,13 @@
-<div id="query-library" v-cloak>
+<div id="report-library" v-cloak>
 
   <div purpose="page-container">
     <div purpose="page-content">
-      <docs-nav-and-search search-filter="queries" current-section="queries" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <docs-nav-and-search search-filter="queries" current-section="reports" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
       <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
         <div purpose="page-headline" class="d-flex flex-column">
-          <h2>Queries</h2>
-          <p class="mb-1">A collection of optional queries you can run anytime. Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/queries.yml" no-icon>over on GitHub.</a></p>
-          <p>Want to create your own? Our <a href="/query-generator">query robot</a> can help.</p>
+          <h2>Reports</h2>
+          <p class="mb-1">A collection of optional reports you can run anytime. Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/queries.yml" no-icon>over on GitHub.</a></p>
+          <p>Want to create your own? Our <a href="/query-generator">report robot</a> can help.</p>
         </div>
       </div>
       <div purpose="platform-filters" :class="[bowser.windows ? 'detected-windows' : '']" class="d-flex justify-content-center">
@@ -33,45 +33,45 @@
       <div purpose="selected-queries">
         <div v-if="selectedPlatform === 'macos'">
           <% // macOS policies (server-side-rendered)
-            for(let query of macOsQueries) {
+            for(let report of macOsReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
+                <p purpose="policy-name"><a href="/reports/<%- report.slug%>"><%- report.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- query.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
+              <div purpose="policy-description"><p><%- report.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/reports/<%- report.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>
         </div>
         <div v-else-if="selectedPlatform === 'linux'">
           <% // Linux policies (server-side-rendered)
-            for(let query of linuxQueries) {
+            for(let report of windowsReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
+                <p purpose="policy-name"><a href="/reports/<%- report.slug%>"><%- report.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- query.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
+              <div purpose="policy-description"><p><%- report.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/reports/<%- report.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>
         </div>
         <div v-else-if="selectedPlatform === 'windows'">
           <% // Windows policies (server-side-rendered)
-            for(let query of windowsQueries) {
+            for(let report of linuxReports) {
           %>
           <div purpose="policy" class="d-flex flex-lg-row flex-column justify-content-between">
             <div purpose="policy-name-and-description" class="d-flex flex-column">
               <div class="d-flex flex-column">
-                <p purpose="policy-name"><a href="/queries/<%- query.slug%>"><%- query.name %></a></p>
+                <p purpose="policy-name"><a href="/reports/<%- report.slug%>"><%- report.name %></a></p>
               </div>
-              <div purpose="policy-description"><p><%- query.description %></p></div>
-              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/queries/<%- query.slug%>">Read more</animated-arrow-button></div>
+              <div purpose="policy-description"><p><%- report.description %></p></div>
+              <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/reports/<%- report.slug%>">Read more</animated-arrow-button></div>
             </div>
           </div>
           <% } %>
