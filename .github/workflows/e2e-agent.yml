@@ -15,7 +15,7 @@
 # 1) Jobs are queued waiting for runners long enough for the entire workflow to fail. Scheduling for the middle of the night attempts to mitigate this. Timeouts have been tuned to try to manage it as well.
 # 2) Network issues (commonly related to Cloudflare tunnels) cause some request to fail.
 #
-# Upon failure, the workflow will automatically retry up to 3 times. Notifications are sent to Slack upon failure, and also after the failure has been resolved. After 4 failures, a stronger message will be logged to Slack.
+# Upon failure, the workflow will automatically retry up to 3 times. A Slack notification is sent only if all retries are exhausted.
 name: E2E Test Agents
 
 on:
