@@ -12,12 +12,11 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 	"math/rand/v2"
-	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -58,7 +57,7 @@ func main() {
 	}
 
 	// Determine host IDs.
-	hostIDs := parseUintList(*hostIDsStr)
+	hostIDs := str.ParseUintList(*hostIDsStr)
 	if len(hostIDs) == 0 {
 		hostIDs, err = queryHostIDs(db)
 		if err != nil {
@@ -70,7 +69,7 @@ func main() {
 	}
 
 	// Determine entity IDs.
-	entityIDs := parseStringList(*entityIDsStr)
+	entityIDs := str.ParseStringList(*entityIDsStr)
 	if len(entityIDs) == 0 {
 		entityIDs = []string{""}
 	}
@@ -223,37 +222,3 @@ func queryHostIDs(db *sql.DB) ([]uint, error) {
 	return ids, rows.Err()
 }
 
-func parseUintList(s string) []uint {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	var result []uint
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		var v uint
-		if _, err := fmt.Sscanf(p, "%d", &v); err == nil {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-func parseStringList(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	var result []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		result = append(result, p)
-	}
-	return result
-}

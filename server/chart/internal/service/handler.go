@@ -2,9 +2,8 @@ package service
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	api_http "github.com/fleetdm/fleet/v4/server/chart/api/http"
@@ -41,10 +40,10 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fl
 		Days:            days,
 		Downsample:      req.Downsample,
 		TZOffsetMinutes: req.TZOffset,
-		LabelIDs:        parseUintList(req.LabelIDs),
-		Platforms:       parseStringList(req.Platforms),
-		IncludeHostIDs:  parseUintList(req.IncludeHostIDs),
-		ExcludeHostIDs:  parseUintList(req.ExcludeHostIDs),
+		LabelIDs:        str.ParseUintList(req.LabelIDs),
+		Platforms:       str.ParseStringList(req.Platforms),
+		IncludeHostIDs:  str.ParseUintList(req.IncludeHostIDs),
+		ExcludeHostIDs:  str.ParseUintList(req.ExcludeHostIDs),
 		DatasetFilters:  map[string]string{},
 	}
 
@@ -53,34 +52,4 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (fl
 		return api_http.GetChartDataResponse{Err: err}, nil
 	}
 	return api_http.GetChartDataResponse{Response: resp}, nil
-}
-
-func parseUintList(s string) []uint {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	result := make([]uint, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if v, err := strconv.ParseUint(p, 10, 64); err == nil {
-			result = append(result, uint(v))
-		}
-	}
-	return result
-}
-
-func parseStringList(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
 }
