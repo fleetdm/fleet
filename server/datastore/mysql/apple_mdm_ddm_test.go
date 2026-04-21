@@ -105,7 +105,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 				Name:            "Test Declaration " + string(rune('A'+i)),
 				Identifier:      "com.example.test.declaration." + string(rune('A'+i)),
 				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.declaration.` + string(rune('A'+i)) + `"}`),
-			})
+			}, nil)
 			require.NoError(t, err)
 		}
 		removeDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
@@ -189,7 +189,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 				Name:            "Test Install Declaration " + string(rune('A'+i)),
 				Identifier:      "com.example.test.install." + string(rune('A'+i)),
 				RawJSON:         []byte(`{"Type":"com.apple.test.declaration","Identifier":"com.example.test.install.` + string(rune('A'+i)) + `"}`),
-			})
+			}, nil)
 			require.NoError(t, err)
 		}
 

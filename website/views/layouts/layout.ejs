@@ -33,6 +33,35 @@
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% if (sails.config.environment === 'production') { %>
+    <% /* ConsentMode */ %>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+          dataLayer.push(arguments);
+      }
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied", 
+          ad_personalization: "denied",
+          analytics_storage: "denied",
+          functionality_storage: "denied",
+          personalization_storage: "denied",
+          security_storage: "granted",
+          wait_for_update: 2000,
+      });
+      gtag("set", "ads_data_redaction", true);
+      gtag("set", "url_passthrough", true);
+    </script>
+
+    <% /* GTM */ %>
+    <% /* Global site tag (gtag.js) - Google Analytics */%>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+  	// Google Ads configuration (including Enhanced Conversions) 
+  	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
+    </script>      
+
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% } %>
@@ -61,13 +90,7 @@
     </script>
    
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
-    <% /* Global site tag (gtag.js) - Google Analytics */%>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-	// Google Ads configuration (including Enhanced Conversions) 
-	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
-    </script>
+
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";

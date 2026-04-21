@@ -233,7 +233,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       {showRenewModal && selectedToken.current && (
         <RenewAbmModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

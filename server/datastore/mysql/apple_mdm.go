@@ -265,7 +265,7 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
-		}, "darwin"); err != nil {
+		}, "darwin", false); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
@@ -5103,7 +5103,7 @@ WHERE h.uuid = ? AND (
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
-	incomingDeclarations []*fleet.MDMAppleDeclaration,
+	incomingDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	// First, build a list of names (which are usually filenames) for the incoming declarations.
 	// We will keep the existing ones if there's a match and no change.
@@ -5151,7 +5151,12 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 		return false, ctxerr.Wrap(ctx, err, "update declaration label associations")
 	}
 
-	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels, nil
+	updatedVars, err := ds.updateDeclarationsVariableAssociations(ctx, tx, incomingDeclarationsMap, teamIDOrZero, profilesVariablesByIdentifier)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update declaration variable associations")
+	}
+
+	return deletedDeclarations || insertedOrUpdatedDeclarations || updatedLabels || updatedVars, nil
 }
 
 func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx sqlx.ExtContext,
@@ -5217,6 +5222,53 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 		return false, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
 	}
 	return updatedDB, err
+}
+
+func (ds *Datastore) updateDeclarationsVariableAssociations(ctx context.Context, tx sqlx.ExtContext,
+	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
+) (updatedDB bool, err error) {
+	if len(incomingDeclarationsMap) == 0 {
+		return false, nil
+	}
+
+	incomingNames := make([]string, 0, len(incomingDeclarationsMap))
+	for _, p := range incomingDeclarationsMap {
+		incomingNames = append(incomingNames, p.Name)
+	}
+
+	// Load declaration UUIDs by name (same approach as updateDeclarationsLabelAssociations)
+	currentDecls, err := ds.getExistingDeclarations(ctx, tx, incomingNames, teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load declarations for variable associations")
+	}
+
+	// Build a map from identifier to variables, filtering for declaration entries only
+	varsByIdentifier := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
+	for _, pv := range profilesVariablesByIdentifier {
+		if name, ok := strings.CutPrefix(pv.Identifier, fleet.MDMAppleDeclarationUUIDPrefix); ok {
+			varsByIdentifier[name] = pv.FleetVariables
+		}
+	}
+
+	// Map declaration UUIDs to their variables, including declarations without
+	// variables so stale associations get cleared.
+	var profilesVarsToUpsert []fleet.MDMProfileUUIDFleetVariables
+	for _, decl := range currentDecls {
+		vars := varsByIdentifier[decl.Identifier]
+		profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+			ProfileUUID:    decl.DeclarationUUID,
+			FleetVariables: vars,
+		})
+	}
+
+	if len(profilesVarsToUpsert) > 0 {
+		if updatedDB, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin", true); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
+		}
+	}
+
+	return updatedDB, nil
 }
 
 func (ds *Datastore) insertOrUpdateDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingDeclarations []*fleet.MDMAppleDeclaration,
@@ -5310,6 +5362,7 @@ func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtCon
 	const loadExistingDecls = `
 SELECT
   name,
+  identifier,
   declaration_uuid,
   raw_json
 FROM
@@ -5340,7 +5393,7 @@ func (ds *Datastore) teamIDPtrToUint(tmID *uint) uint {
 	return 0
 }
 
-func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -5360,10 +5413,10 @@ INSERT INTO mdm_apple_declarations (
 	)
 )`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
 }
 
-func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -5387,10 +5440,10 @@ ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5453,6 +5506,12 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		}
 		if _, err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels, declWithoutLabels); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
+		}
+
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: declUUID, FleetVariables: usesFleetVars},
+		}, "darwin", true); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
 		return nil
@@ -5613,7 +5672,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(HEX(mad.token)
+	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(CONCAT(HEX(mad.token), IFNULL(hmad.variables_updated_at, ''))
 		ORDER BY
 			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
@@ -5643,7 +5702,9 @@ func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID s
 	const stmt = `
 SELECT
 	HEX(mad.token) as token,
-	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at
+	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at,
+	hmad.variables_updated_at,
+	IF(hmad.variables_updated_at IS NOT NULL AND operation_type = ?, mad.raw_json, NULL) as raw_json
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
@@ -5651,7 +5712,7 @@ WHERE
 	hmad.host_uuid = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, fleet.MDMOperationTypeInstall, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
@@ -5665,7 +5726,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identi
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.raw_json, HEX(mad.token) as token
+	mad.declaration_uuid, mad.raw_json, HEX(mad.token) as token, hmad.variables_updated_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
@@ -5783,14 +5844,15 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 ) (updatedDB bool, err error) {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
-	    (host_uuid, status, operation_type, token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name)
+	    (host_uuid, status, operation_type, token, secrets_updated_at, variables_updated_at, declaration_uuid, declaration_identifier, declaration_name)
 	  VALUES
 	    %s
 	  ON DUPLICATE KEY UPDATE
 	    status = VALUES(status),
 	    operation_type = VALUES(operation_type),
 	    token = VALUES(token),
-	    secrets_updated_at = VALUES(secrets_updated_at)
+	    secrets_updated_at = VALUES(secrets_updated_at),
+	    variables_updated_at = VALUES(variables_updated_at)
 	  `
 
 	profilesToInsert := make(map[string]*fleet.MDMAppleHostDeclaration)
@@ -5806,6 +5868,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 				COALESCE(detail, '') AS detail,
 				token,
 				secrets_updated_at,
+				variables_updated_at,
 				declaration_uuid,
 				declaration_identifier,
 				declaration_name
@@ -5859,18 +5922,19 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
 		profilesToInsert[fmt.Sprintf("%s\n%s", d.HostUUID, d.DeclarationUUID)] = &fleet.MDMAppleHostDeclaration{
-			HostUUID:         d.HostUUID,
-			DeclarationUUID:  d.DeclarationUUID,
-			Name:             d.Name,
-			Identifier:       d.Identifier,
-			Status:           status,
-			OperationType:    d.OperationType,
-			Detail:           d.Detail,
-			Token:            d.Token,
-			SecretsUpdatedAt: d.SecretsUpdatedAt,
+			HostUUID:           d.HostUUID,
+			DeclarationUUID:    d.DeclarationUUID,
+			Name:               d.Name,
+			Identifier:         d.Identifier,
+			Status:             status,
+			OperationType:      d.OperationType,
+			Detail:             d.Detail,
+			Token:              d.Token,
+			SecretsUpdatedAt:   d.SecretsUpdatedAt,
+			VariablesUpdatedAt: d.VariablesUpdatedAt,
 		}
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{d.HostUUID, status, d.OperationType, d.Token, d.SecretsUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Token, d.SecretsUpdatedAt, d.VariablesUpdatedAt, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 
@@ -6000,13 +6064,65 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
+
+	// For declarations that use Fleet variables and are being installed, set
+	// VariablesUpdatedAt so the host row tracks when variable values were last
+	// computed. This allows re-delivery when variable values change.
+	if err := setVariablesUpdatedAtForDeclarations(ctx, tx, decls); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting variables_updated_at for declarations")
+	}
+
 	return decls, nil
+}
+
+// setVariablesUpdatedAtForDeclarations looks up which declarations have Fleet
+// variables and sets VariablesUpdatedAt on the install entries.
+func setVariablesUpdatedAtForDeclarations(ctx context.Context, tx sqlx.ExtContext, decls []*fleet.MDMAppleHostDeclaration) error {
+	var installDeclUUIDs []string
+	for _, d := range decls {
+		if d.OperationType == fleet.MDMOperationTypeInstall {
+			installDeclUUIDs = append(installDeclUUIDs, d.DeclarationUUID)
+		}
+	}
+	if len(installDeclUUIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(
+		`SELECT DISTINCT apple_declaration_uuid FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`,
+		installDeclUUIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In declaration variables lookup")
+	}
+
+	var declsWithVars []string
+	if err := sqlx.SelectContext(ctx, tx, &declsWithVars, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting declarations with variables")
+	}
+
+	if len(declsWithVars) == 0 {
+		return nil
+	}
+
+	hasVars := make(map[string]struct{}, len(declsWithVars))
+	for _, uuid := range declsWithVars {
+		hasVars[uuid] = struct{}{}
+	}
+
+	now := time.Now().UTC()
+	for _, d := range decls {
+		if _, ok := hasVars[d.DeclarationUUID]; ok && d.OperationType == fleet.MDMOperationTypeInstall {
+			d.VariablesUpdatedAt = &now
+		}
+	}
+	return nil
 }
 
 // MDMAppleStoreDDMStatusReport updates the status of the host's declarations.
 func (ds *Datastore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
 	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, declaration_uuid, declaration_identifier, declaration_name
+    SELECT host_uuid, status, operation_type, HEX(token) as token, secrets_updated_at, variables_updated_at, declaration_uuid, declaration_identifier, declaration_name
     FROM host_mdm_apple_declarations
     WHERE host_uuid = ?
   `
@@ -6042,7 +6158,7 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[c.Token]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)
@@ -6067,6 +6183,12 @@ ON DUPLICATE KEY UPDATE
 	})
 
 	return ctxerr.Wrap(ctx, err, "updating host declarations")
+}
+
+func (ds *Datastore) SetHostMDMAppleDeclarationStatus(ctx context.Context, hostUUID string, declarationUUID string, status *fleet.MDMDeliveryStatus, detail string, variablesUpdatedAt *time.Time) error {
+	stmt := `UPDATE host_mdm_apple_declarations SET status = ?, detail = ?, variables_updated_at = COALESCE(?, variables_updated_at) WHERE host_uuid = ? AND declaration_uuid = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, status, detail, variablesUpdatedAt, hostUUID, declarationUUID)
+	return ctxerr.Wrap(ctx, err, "set host declaration status")
 }
 
 func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
