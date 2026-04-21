@@ -5,6 +5,11 @@ import {
   IListNotificationsResponse,
   INotificationSummaryResponse,
 } from "interfaces/notification_center";
+import {
+  INotificationPreference,
+  IListNotificationPreferencesResponse,
+  IUpdateNotificationPreferencesResponse,
+} from "interfaces/notification_preferences";
 import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IListNotificationsParams {
@@ -49,5 +54,17 @@ export default {
 
   markAllRead: (): Promise<Record<string, never>> => {
     return sendRequest("POST", endpoints.NOTIFICATIONS_READ_ALL);
+  },
+
+  getPreferences: (): Promise<IListNotificationPreferencesResponse> => {
+    return sendRequest("GET", endpoints.NOTIFICATION_PREFERENCES);
+  },
+
+  updatePreferences: (
+    preferences: INotificationPreference[]
+  ): Promise<IUpdateNotificationPreferencesResponse> => {
+    return sendRequest("PUT", endpoints.NOTIFICATION_PREFERENCES, {
+      preferences,
+    });
   },
 };

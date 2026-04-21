@@ -101,7 +101,7 @@ const NotificationsPage = ({
             })}
           >
             <div className={`${baseClass}__item-icon`}>
-              <Icon name={severityIcon(n.severity)} />
+              <Icon name={severityIcon(n.severity)} size="small" />
             </div>
             <div className={`${baseClass}__item-content`}>
               <div className={`${baseClass}__item-title`}>{n.title}</div>

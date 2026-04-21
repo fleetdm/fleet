@@ -68,7 +68,7 @@ func (svc *Service) producerLicense(ctx context.Context) error {
 	now := time.Now()
 	switch {
 	case lic.Expiration.Before(now):
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeLicenseExpired,
 			Severity:  fleet.NotificationSeverityError,
 			Title:     "Premium license expired",
@@ -83,7 +83,7 @@ func (svc *Service) producerLicense(ctx context.Context) error {
 		return err
 	case lic.Expiration.Before(now.Add(notificationExpiryWindow)):
 		days := int(time.Until(lic.Expiration).Hours() / 24)
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeLicenseExpiring,
 			Severity:  fleet.NotificationSeverityWarning,
 			Title:     "Premium license expires soon",
@@ -112,7 +112,7 @@ func (svc *Service) producerABMTerms(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "load app config for abm terms")
 	}
 	if appCfg.MDM.AppleBMTermsExpired {
-		_, err := svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err := svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeABMTermsExpired,
 			Severity:  fleet.NotificationSeverityError,
 			Title:     "Apple Business Manager terms need renewal",
@@ -162,7 +162,7 @@ func (svc *Service) producerABMTokens(ctx context.Context) error {
 
 	switch {
 	case earliest.RenewAt.Before(now):
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeABMTokenExpired,
 			Severity:  fleet.NotificationSeverityError,
 			Title:     "Apple Business Manager token expired",
@@ -177,7 +177,7 @@ func (svc *Service) producerABMTokens(ctx context.Context) error {
 		return err
 	case earliest.RenewAt.Before(now.Add(notificationExpiryWindow)):
 		days := int(time.Until(earliest.RenewAt).Hours() / 24)
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeABMTokenExpiring,
 			Severity:  fleet.NotificationSeverityWarning,
 			Title:     "Apple Business Manager token expiring soon",
@@ -228,7 +228,7 @@ func (svc *Service) producerVPPTokens(ctx context.Context) error {
 
 	switch {
 	case earliest.RenewDate.Before(now):
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeVPPTokenExpired,
 			Severity:  fleet.NotificationSeverityError,
 			Title:     "VPP token expired",
@@ -243,7 +243,7 @@ func (svc *Service) producerVPPTokens(ctx context.Context) error {
 		return err
 	case earliest.RenewDate.Before(now.Add(notificationExpiryWindow)):
 		days := int(time.Until(earliest.RenewDate).Hours() / 24)
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeVPPTokenExpiring,
 			Severity:  fleet.NotificationSeverityWarning,
 			Title:     "VPP token expiring soon",
@@ -291,7 +291,7 @@ func (svc *Service) producerAPNsCert(ctx context.Context) error {
 
 	switch {
 	case cert.NotAfter.Before(now):
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeAPNsCertExpired,
 			Severity:  fleet.NotificationSeverityError,
 			Title:     "APNs certificate expired",
@@ -306,7 +306,7 @@ func (svc *Service) producerAPNsCert(ctx context.Context) error {
 		return err
 	case cert.NotAfter.Before(now.Add(notificationExpiryWindow)):
 		days := int(time.Until(cert.NotAfter).Hours() / 24)
-		_, err = svc.ds.UpsertNotification(ctx, fleet.NotificationUpsert{
+		_, err = svc.upsertNotification(ctx, fleet.NotificationUpsert{
 			Type:      fleet.NotificationTypeAPNsCertExpiring,
 			Severity:  fleet.NotificationSeverityWarning,
 			Title:     "APNs certificate expiring soon",

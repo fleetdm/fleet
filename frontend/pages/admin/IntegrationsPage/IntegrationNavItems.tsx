@@ -10,6 +10,7 @@ import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
 import Sso from "./cards/Sso";
 import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
+import SlackNotifications from "./cards/SlackNotifications";
 
 const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   const items: ISideNavItem<any>[] = [
@@ -66,6 +67,12 @@ const getIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
       urlSection: "conditional-access",
       path: PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
       Card: ConditionalAccess,
+    },
+    {
+      title: "Slack notifications",
+      urlSection: "slack-notifications",
+      path: PATHS.ADMIN_INTEGRATIONS_SLACK_NOTIFICATIONS,
+      Card: SlackNotifications,
     },
   ];
 

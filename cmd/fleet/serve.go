@@ -1407,6 +1407,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "failed to register host vitals label membership schedule")
 	}
 
+	// Notification deliveries worker — drains pending slack (and future
+	// email) fanout rows written by the service layer when producers upsert
+	// notifications.
+	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+		return cron.NewNotificationDeliveriesSchedule(ctx, instanceID, ds, service.PostSlackWebhook, logger)
+	}); err != nil {
+		initFatal(err, "failed to register notification deliveries schedule")
+	}
+
 	// Start the service that marks activities as completed.
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		return newBatchActivityCompletionCheckerSchedule(ctx, instanceID, ds, logger)

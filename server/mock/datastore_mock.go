@@ -109,6 +109,16 @@ type MarkAllNotificationsReadFunc func(ctx context.Context, userID uint) error
 
 type CountActiveNotificationsForUserFunc func(ctx context.Context, userID uint) (unread int, active int, err error)
 
+type ListUserNotificationPreferencesFunc func(ctx context.Context, userID uint) ([]fleet.UserNotificationPreference, error)
+
+type UpsertUserNotificationPreferencesFunc func(ctx context.Context, userID uint, prefs []fleet.UserNotificationPreference) error
+
+type EnqueueNotificationDeliveryFunc func(ctx context.Context, notificationID uint, channel fleet.NotificationChannel, target string) error
+
+type ClaimPendingDeliveriesFunc func(ctx context.Context, channel fleet.NotificationChannel, limit int) ([]*fleet.NotificationDelivery, map[uint]*fleet.Notification, error)
+
+type MarkDeliveryResultFunc func(ctx context.Context, deliveryID uint, status fleet.NotificationDeliveryStatus, errMsg string) error
+
 type ApplyQueriesFunc func(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error
 
 type NewQueryFunc func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error)
@@ -2010,6 +2020,21 @@ type DataStore struct {
 
 	CountActiveNotificationsForUserFunc        CountActiveNotificationsForUserFunc
 	CountActiveNotificationsForUserFuncInvoked bool
+
+	ListUserNotificationPreferencesFunc        ListUserNotificationPreferencesFunc
+	ListUserNotificationPreferencesFuncInvoked bool
+
+	UpsertUserNotificationPreferencesFunc        UpsertUserNotificationPreferencesFunc
+	UpsertUserNotificationPreferencesFuncInvoked bool
+
+	EnqueueNotificationDeliveryFunc        EnqueueNotificationDeliveryFunc
+	EnqueueNotificationDeliveryFuncInvoked bool
+
+	ClaimPendingDeliveriesFunc        ClaimPendingDeliveriesFunc
+	ClaimPendingDeliveriesFuncInvoked bool
+
+	MarkDeliveryResultFunc        MarkDeliveryResultFunc
+	MarkDeliveryResultFuncInvoked bool
 
 	ApplyQueriesFunc        ApplyQueriesFunc
 	ApplyQueriesFuncInvoked bool
@@ -4971,6 +4996,41 @@ func (s *DataStore) CountActiveNotificationsForUser(ctx context.Context, userID 
 	s.CountActiveNotificationsForUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountActiveNotificationsForUserFunc(ctx, userID)
+}
+
+func (s *DataStore) ListUserNotificationPreferences(ctx context.Context, userID uint) ([]fleet.UserNotificationPreference, error) {
+	s.mu.Lock()
+	s.ListUserNotificationPreferencesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUserNotificationPreferencesFunc(ctx, userID)
+}
+
+func (s *DataStore) UpsertUserNotificationPreferences(ctx context.Context, userID uint, prefs []fleet.UserNotificationPreference) error {
+	s.mu.Lock()
+	s.UpsertUserNotificationPreferencesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertUserNotificationPreferencesFunc(ctx, userID, prefs)
+}
+
+func (s *DataStore) EnqueueNotificationDelivery(ctx context.Context, notificationID uint, channel fleet.NotificationChannel, target string) error {
+	s.mu.Lock()
+	s.EnqueueNotificationDeliveryFuncInvoked = true
+	s.mu.Unlock()
+	return s.EnqueueNotificationDeliveryFunc(ctx, notificationID, channel, target)
+}
+
+func (s *DataStore) ClaimPendingDeliveries(ctx context.Context, channel fleet.NotificationChannel, limit int) ([]*fleet.NotificationDelivery, map[uint]*fleet.Notification, error) {
+	s.mu.Lock()
+	s.ClaimPendingDeliveriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClaimPendingDeliveriesFunc(ctx, channel, limit)
+}
+
+func (s *DataStore) MarkDeliveryResult(ctx context.Context, deliveryID uint, status fleet.NotificationDeliveryStatus, errMsg string) error {
+	s.mu.Lock()
+	s.MarkDeliveryResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkDeliveryResultFunc(ctx, deliveryID, status, errMsg)
 }
 
 func (s *DataStore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {

@@ -809,6 +809,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
+	// Slack notification routes: if the client supplied the slack_notifications
+	// block, validate and replace; otherwise leave the existing routes alone.
+	if newAppConfig.Integrations.SlackNotifications.Routes != nil {
+		if err := fleet.ValidateSlackNotificationsConfig(newAppConfig.Integrations.SlackNotifications); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("slack_notifications", err.Error()))
+		}
+		appConfig.Integrations.SlackNotifications = newAppConfig.Integrations.SlackNotifications
+	} else {
+		appConfig.Integrations.SlackNotifications = oldAppConfig.Integrations.SlackNotifications
+	}
+
 	gitopsModeEnabled, gitopsRepoURL := appConfig.GitOpsConfig.GitopsModeEnabled, appConfig.GitOpsConfig.RepositoryURL
 	if gitopsModeEnabled {
 		if !lic.IsPremium() {

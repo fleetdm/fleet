@@ -97,3 +97,27 @@ type CreateDemoNotificationResponse struct {
 }
 
 func (r CreateDemoNotificationResponse) Error() error { return r.Err }
+
+////////////////////////////////////////////////////////////////////////////////
+// Per-user notification preferences
+////////////////////////////////////////////////////////////////////////////////
+
+type ListNotificationPreferencesRequest struct{}
+
+type ListNotificationPreferencesResponse struct {
+	Preferences []UserNotificationPreference `json:"preferences"`
+	Err         error                        `json:"error,omitempty"`
+}
+
+func (r ListNotificationPreferencesResponse) Error() error { return r.Err }
+
+type UpdateNotificationPreferencesRequest struct {
+	Preferences []UserNotificationPreference `json:"preferences"`
+}
+
+type UpdateNotificationPreferencesResponse struct {
+	Preferences []UserNotificationPreference `json:"preferences"`
+	Err         error                        `json:"error,omitempty"`
+}
+
+func (r UpdateNotificationPreferencesResponse) Error() error { return r.Err }

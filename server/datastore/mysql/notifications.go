@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -54,8 +56,9 @@ func (ds *Datastore) UpsertNotification(ctx context.Context, u fleet.Notificatio
 	// a reliable LAST_INSERT_ID for updates).
 	var n fleet.Notification
 	if err := sqlx.GetContext(ctx, ds.writer(ctx), &n,
-		`SELECT id, type, severity, title, body, cta_url, cta_label, metadata, dedupe_key, audience,
-		        resolved_at, created_at, updated_at
+		`SELECT id, type, severity, title, body, cta_url, cta_label,
+		        COALESCE(metadata, CAST('null' AS JSON)) AS metadata,
+		        dedupe_key, audience, resolved_at, created_at, updated_at
 		   FROM notifications WHERE dedupe_key = ?`,
 		u.DedupeKey,
 	); err != nil {
@@ -79,6 +82,35 @@ func (ds *Datastore) ResolveNotification(ctx context.Context, dedupeKey string) 
 		return ctxerr.Wrap(ctx, err, "resolve notification")
 	}
 	return nil
+}
+
+// disabledTypesForUserInApp returns the set of NotificationTypes the user has
+// silenced for the in-app channel. It looks up the user's opt-out rows and
+// expands them to types via fleet.NotificationTypeCategory. An unknown type
+// (one not in the registry) is never filtered here — we default to showing
+// unknown notifications so a newly-added producer without a category mapping
+// is still visible.
+func (ds *Datastore) disabledTypesForUserInApp(ctx context.Context, userID uint) ([]fleet.NotificationType, error) {
+	prefs, err := ds.ListUserNotificationPreferences(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	disabledCats := make(map[fleet.NotificationCategory]struct{}, len(prefs))
+	for _, p := range prefs {
+		if p.Channel == fleet.NotificationChannelInApp && !p.Enabled {
+			disabledCats[p.Category] = struct{}{}
+		}
+	}
+	if len(disabledCats) == 0 {
+		return nil, nil
+	}
+	var disabledTypes []fleet.NotificationType
+	for t, c := range fleet.NotificationTypeCategory {
+		if _, ok := disabledCats[c]; ok {
+			disabledTypes = append(disabledTypes, t)
+		}
+	}
+	return disabledTypes, nil
 }
 
 // audienceForUser returns the list of notification audiences a user should
@@ -108,9 +140,15 @@ func (ds *Datastore) ListNotificationsForUser(
 		return []*fleet.Notification{}, nil
 	}
 
+	disabledTypes, err := ds.disabledTypesForUserInApp(ctx, userID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load user notification preferences")
+	}
+
 	query := `
 		SELECT n.id, n.type, n.severity, n.title, n.body, n.cta_url, n.cta_label,
-		       n.metadata, n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
+		       COALESCE(n.metadata, CAST('null' AS JSON)) AS metadata,
+		       n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
 		       uns.read_at, uns.dismissed_at
 		  FROM notifications n
 		  LEFT JOIN user_notification_state uns
@@ -123,6 +161,10 @@ func (ds *Datastore) ListNotificationsForUser(
 	}
 	if !filter.IncludeDismissed {
 		query += ` AND uns.dismissed_at IS NULL`
+	}
+	if len(disabledTypes) > 0 {
+		query += ` AND n.type NOT IN (?)`
+		args = append(args, disabledTypes)
 	}
 	query += ` ORDER BY
 		FIELD(n.severity, 'error', 'warning', 'info'),
@@ -160,7 +202,8 @@ func (ds *Datastore) NotificationByIDForUser(
 
 	query := `
 		SELECT n.id, n.type, n.severity, n.title, n.body, n.cta_url, n.cta_label,
-		       n.metadata, n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
+		       COALESCE(n.metadata, CAST('null' AS JSON)) AS metadata,
+		       n.dedupe_key, n.audience, n.resolved_at, n.created_at, n.updated_at,
 		       uns.read_at, uns.dismissed_at
 		  FROM notifications n
 		  LEFT JOIN user_notification_state uns
@@ -283,7 +326,12 @@ func (ds *Datastore) CountActiveNotificationsForUser(
 		return 0, 0, nil
 	}
 
-	stmt, args, err := sqlx.In(`
+	disabledTypes, err := ds.disabledTypesForUserInApp(ctx, userID)
+	if err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err, "load user notification preferences")
+	}
+
+	q := `
 		SELECT
 			SUM(CASE WHEN uns.read_at IS NULL THEN 1 ELSE 0 END) AS unread,
 			COUNT(*) AS active
@@ -292,8 +340,13 @@ func (ds *Datastore) CountActiveNotificationsForUser(
 		    ON uns.notification_id = n.id AND uns.user_id = ?
 		 WHERE n.audience IN (?)
 		   AND n.resolved_at IS NULL
-		   AND (uns.dismissed_at IS NULL)
-	`, userID, audiences)
+		   AND (uns.dismissed_at IS NULL)`
+	qArgs := []interface{}{userID, audiences}
+	if len(disabledTypes) > 0 {
+		q += ` AND n.type NOT IN (?)`
+		qArgs = append(qArgs, disabledTypes)
+	}
+	stmt, args, err := sqlx.In(q, qArgs...)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "build notification count query")
 	}
@@ -306,4 +359,173 @@ func (ds *Datastore) CountActiveNotificationsForUser(
 		return 0, 0, ctxerr.Wrap(ctx, err, "count notifications")
 	}
 	return int(row.Unread.Int64), int(row.Active.Int64), nil
+}
+
+// ListUserNotificationPreferences returns the opt-out rows for the given user.
+// Rows not present default to "enabled" so the caller fills defaults itself
+// when it needs a complete grid.
+func (ds *Datastore) ListUserNotificationPreferences(
+	ctx context.Context, userID uint,
+) ([]fleet.UserNotificationPreference, error) {
+	var rows []fleet.UserNotificationPreference
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
+		`SELECT user_id, category, channel, enabled
+		   FROM user_notification_preferences
+		  WHERE user_id = ?`,
+		userID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list user notification preferences")
+	}
+	return rows, nil
+}
+
+// UpsertUserNotificationPreferences writes the provided preferences for the
+// given user. To keep storage minimal, an Enabled=true row is deleted rather
+// than stored — the default is enabled, so the absence of a row encodes it.
+// Enabled=false rows are upserted.
+func (ds *Datastore) UpsertUserNotificationPreferences(
+	ctx context.Context, userID uint, prefs []fleet.UserNotificationPreference,
+) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		for _, p := range prefs {
+			if p.Enabled {
+				if _, err := tx.ExecContext(ctx,
+					`DELETE FROM user_notification_preferences
+					  WHERE user_id = ? AND category = ? AND channel = ?`,
+					userID, p.Category, p.Channel,
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "delete user notification preference")
+				}
+				continue
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO user_notification_preferences (user_id, category, channel, enabled)
+				 VALUES (?, ?, ?, 0)
+				 ON DUPLICATE KEY UPDATE enabled = 0, updated_at = CURRENT_TIMESTAMP(6)`,
+				userID, p.Category, p.Channel,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert user notification preference")
+			}
+		}
+		return nil
+	})
+}
+
+// EnqueueNotificationDelivery inserts a pending delivery row. The unique
+// index uq_nd_notification_channel_target makes this a no-op for duplicates,
+// so producers can fan out on every cron tick without double-scheduling.
+func (ds *Datastore) EnqueueNotificationDelivery(
+	ctx context.Context, notificationID uint, channel fleet.NotificationChannel, target string,
+) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT IGNORE INTO notification_deliveries (notification_id, channel, target, status)
+		 VALUES (?, ?, ?, 'pending')`,
+		notificationID, channel, target,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue notification delivery")
+	}
+	return nil
+}
+
+// ClaimPendingDeliveries atomically marks up to `limit` pending delivery rows
+// for the given channel as in-flight ("sending") and returns them along with
+// the referenced notification rows. A separate "sending" state is used so
+// multiple worker instances running this cron in parallel don't grab the
+// same rows — whoever wins the UPDATE owns the rows until they mark them
+// sent/failed.
+func (ds *Datastore) ClaimPendingDeliveries(
+	ctx context.Context, channel fleet.NotificationChannel, limit int,
+) ([]*fleet.NotificationDelivery, map[uint]*fleet.Notification, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	claimID := time.Now().UnixNano()
+
+	// Stage 1: claim a batch by stamping a unique marker into `error` so we
+	// can re-select exactly what we just took. `error` is otherwise NULL for
+	// pending rows; this piggybacks on the existing column without needing
+	// another schema change. The marker is cleared on MarkDeliveryResult.
+	marker := fmt.Sprintf("claim:%d", claimID)
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE notification_deliveries
+		   SET status = 'sending', error = ?, attempted_at = CURRENT_TIMESTAMP(6)
+		 WHERE channel = ? AND status = 'pending'
+		 ORDER BY id
+		 LIMIT ?`,
+		marker, channel, limit,
+	); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "claim pending deliveries")
+	}
+
+	// Stage 2: read back the claimed rows.
+	var rows []*fleet.NotificationDelivery
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, `
+		SELECT id, notification_id, channel, target, status, error, attempted_at, created_at, updated_at
+		  FROM notification_deliveries
+		 WHERE channel = ? AND status = 'sending' AND error = ?`,
+		channel, marker,
+	); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "load claimed deliveries")
+	}
+	if len(rows) == 0 {
+		return nil, nil, nil
+	}
+
+	// Stage 3: bulk-fetch the notifications those deliveries reference so the
+	// caller doesn't issue N+1 queries.
+	ids := make([]uint, 0, len(rows))
+	seen := make(map[uint]struct{}, len(rows))
+	for _, r := range rows {
+		if _, ok := seen[r.NotificationID]; ok {
+			continue
+		}
+		seen[r.NotificationID] = struct{}{}
+		ids = append(ids, r.NotificationID)
+	}
+	stmt, args, err := sqlx.In(`
+		SELECT id, type, severity, title, body, cta_url, cta_label,
+		       COALESCE(metadata, CAST('null' AS JSON)) AS metadata,
+		       dedupe_key, audience, resolved_at, created_at, updated_at
+		  FROM notifications
+		 WHERE id IN (?)`, ids)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build notifications lookup for deliveries")
+	}
+	var notifs []*fleet.Notification
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &notifs, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "load notifications for deliveries")
+	}
+	byID := make(map[uint]*fleet.Notification, len(notifs))
+	for _, n := range notifs {
+		byID[n.ID] = n
+	}
+	return rows, byID, nil
+}
+
+// MarkDeliveryResult records the outcome of a send attempt. status == sent
+// clears the error column; status == failed stores the message truncated to
+// a safe length so a long error payload doesn't blow up the row.
+func (ds *Datastore) MarkDeliveryResult(
+	ctx context.Context, deliveryID uint, status fleet.NotificationDeliveryStatus, errMsg string,
+) error {
+	const maxErrLen = 4000
+	if len(errMsg) > maxErrLen {
+		errMsg = errMsg[:maxErrLen]
+	}
+	var errCol interface{}
+	if errMsg == "" {
+		errCol = nil
+	} else {
+		errCol = errMsg
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE notification_deliveries
+		   SET status = ?, error = ?, attempted_at = CURRENT_TIMESTAMP(6)
+		 WHERE id = ?`,
+		status, errCol, deliveryID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark delivery result")
+	}
+	return nil
 }

@@ -67,6 +67,137 @@ const (
 	NotificationAudienceAdmin NotificationAudience = "admin"
 )
 
+// NotificationCategory groups related NotificationTypes so users can opt in or
+// out of a whole class of notifications without us listing every type. A user
+// who doesn't own vulnerabilities can mute the "vulnerabilities" category and
+// still receive MDM / license notifications.
+//
+// The mapping from type → category lives in NotificationTypeCategory. Adding a
+// new NotificationType requires adding it to that map so it is routed to the
+// correct category and respects user preferences.
+type NotificationCategory string
+
+const (
+	NotificationCategoryMDM             NotificationCategory = "mdm"
+	NotificationCategoryLicense         NotificationCategory = "license"
+	NotificationCategoryVulnerabilities NotificationCategory = "vulnerabilities"
+	NotificationCategoryPolicies        NotificationCategory = "policies"
+	NotificationCategorySoftware        NotificationCategory = "software"
+	NotificationCategoryHosts           NotificationCategory = "hosts"
+	NotificationCategoryIntegrations    NotificationCategory = "integrations"
+	NotificationCategorySystem          NotificationCategory = "system"
+	// NotificationCategoryAll is a sentinel that only makes sense on delivery
+	// routes (Slack webhook configs, etc.) — it matches every real category.
+	// It never appears on a notification row; CategoryForType never returns it.
+	NotificationCategoryAll NotificationCategory = "all"
+)
+
+// AllNotificationCategories is the canonical list used by the prefs API and
+// the My Account UI. The order is the order the categories are rendered.
+var AllNotificationCategories = []NotificationCategory{
+	NotificationCategoryMDM,
+	NotificationCategoryLicense,
+	NotificationCategoryVulnerabilities,
+	NotificationCategoryPolicies,
+	NotificationCategorySoftware,
+	NotificationCategoryHosts,
+	NotificationCategoryIntegrations,
+	NotificationCategorySystem,
+}
+
+// NotificationTypeCategory maps every known NotificationType to the category
+// it belongs to. Unknown types fall back to NotificationCategorySystem — this
+// keeps an unregistered demo or partner type visible rather than silently
+// dropping it, at the cost of classifying it generically.
+var NotificationTypeCategory = map[NotificationType]NotificationCategory{
+	NotificationTypeAPNsCertExpiring:         NotificationCategoryMDM,
+	NotificationTypeAPNsCertExpired:          NotificationCategoryMDM,
+	NotificationTypeABMTokenExpiring:         NotificationCategoryMDM,
+	NotificationTypeABMTokenExpired:          NotificationCategoryMDM,
+	NotificationTypeABMTermsExpired:          NotificationCategoryMDM,
+	NotificationTypeVPPTokenExpiring:         NotificationCategoryMDM,
+	NotificationTypeVPPTokenExpired:          NotificationCategoryMDM,
+	NotificationTypeAndroidEnterpriseDeleted: NotificationCategoryMDM,
+	NotificationTypeLicenseExpiring:          NotificationCategoryLicense,
+	NotificationTypeLicenseExpired:           NotificationCategoryLicense,
+
+	// Demo notification types — map here so the category-based preference
+	// filter works for them in dev and demo environments.
+	"demo_hosts_offline":     NotificationCategoryHosts,
+	"demo_policy_failures":   NotificationCategoryPolicies,
+	"demo_vuln_cisa_kev":     NotificationCategoryVulnerabilities,
+	"demo_software_failures": NotificationCategorySoftware,
+	"demo_fleet_update":      NotificationCategorySystem,
+	"demo_seat_limit":        NotificationCategoryLicense,
+	"demo_disk_encryption":   NotificationCategoryMDM,
+	"demo_webhook_failing":   NotificationCategoryIntegrations,
+}
+
+// CategoryForType returns the category for a given NotificationType. Unknown
+// types land in the "system" bucket; see NotificationTypeCategory for detail.
+func CategoryForType(t NotificationType) NotificationCategory {
+	if c, ok := NotificationTypeCategory[t]; ok {
+		return c
+	}
+	return NotificationCategorySystem
+}
+
+// NotificationChannel identifies a delivery channel for a notification. Only
+// in_app is read by Fleet today; the column exists so preferences for email
+// and slack can land ahead of the actual delivery pipeline.
+type NotificationChannel string
+
+const (
+	NotificationChannelInApp NotificationChannel = "in_app"
+	NotificationChannelEmail NotificationChannel = "email"
+	NotificationChannelSlack NotificationChannel = "slack"
+)
+
+// AllNotificationChannels is the canonical order the UI renders the channel
+// toggles. Kept narrow for now — the prefs API only surfaces in_app until the
+// delivery workers for email/slack land.
+var AllNotificationChannels = []NotificationChannel{
+	NotificationChannelInApp,
+	NotificationChannelEmail,
+	NotificationChannelSlack,
+}
+
+// UserNotificationPreference is one row of per-user opt-in state. Rows exist
+// only for (user, category, channel) combinations the user has explicitly
+// toggled away from the default. Absence of a row means "enabled" — users
+// receive new notifications by default.
+type UserNotificationPreference struct {
+	UserID   uint                 `json:"-" db:"user_id"`
+	Category NotificationCategory `json:"category" db:"category"`
+	Channel  NotificationChannel  `json:"channel" db:"channel"`
+	Enabled  bool                 `json:"enabled" db:"enabled"`
+}
+
+// NotificationDeliveryStatus tracks the lifecycle of a single fanout row in
+// notification_deliveries. The cron worker transitions pending → sent|failed.
+type NotificationDeliveryStatus string
+
+const (
+	NotificationDeliveryStatusPending NotificationDeliveryStatus = "pending"
+	NotificationDeliveryStatusSent    NotificationDeliveryStatus = "sent"
+	NotificationDeliveryStatusFailed  NotificationDeliveryStatus = "failed"
+)
+
+// NotificationDelivery is one row in the notification_deliveries table —
+// the scheduled (or completed) fanout of a notification to a single
+// destination (e.g. a Slack webhook URL).
+type NotificationDelivery struct {
+	ID             uint                       `db:"id"`
+	NotificationID uint                       `db:"notification_id"`
+	Channel        NotificationChannel        `db:"channel"`
+	Target         string                     `db:"target"`
+	Status         NotificationDeliveryStatus `db:"status"`
+	Error          *string                    `db:"error"`
+	AttemptedAt    *time.Time                 `db:"attempted_at"`
+	CreatedAt      time.Time                  `db:"created_at"`
+	UpdatedAt      time.Time                  `db:"updated_at"`
+}
+
 // Notification is a single system-generated event an admin may want to see or
 // act on. It is the canonical row in the notifications table.
 //

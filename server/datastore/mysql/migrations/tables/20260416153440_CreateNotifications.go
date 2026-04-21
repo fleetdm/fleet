@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260415120000, Down_20260415120000)
+	MigrationClient.AddMigration(Up_20260416153440, Down_20260416153440)
 }
 
 // Up_20260415120000 creates tables backing the in-app notification center.
@@ -24,7 +24,7 @@ func init() {
 // notification_deliveries is scaffolding for future email/slack delivery — no
 // code writes to it yet but the table exists so later work is a pure additive
 // change.
-func Up_20260415120000(tx *sql.Tx) error {
+func Up_20260416153440(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE notifications (
 			id           BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -92,6 +92,6 @@ func Up_20260415120000(tx *sql.Tx) error {
 
 // Down_20260415120000 is a no-op. Fleet convention: down migrations return nil
 // because forward-only migrations are safer than attempting rollback DDL.
-func Down_20260415120000(tx *sql.Tx) error {
+func Down_20260416153440(tx *sql.Tx) error {
 	return nil
 }

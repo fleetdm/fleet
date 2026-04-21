@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260415120000(t *testing.T) {
+func TestUp_20260416153440(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create a user first so user_notification_state FK passes.
