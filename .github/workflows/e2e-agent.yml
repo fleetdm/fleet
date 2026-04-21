@@ -547,7 +547,7 @@ jobs:
                 text: "*Agent E2E test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
 
     - name: Ping Cronitor on success
-      if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      if: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
       run: curl -sf "${{ secrets.CRONITOR_E2E_AGENT_PING_URL }}" > /dev/null
 
     - name: Retry workflow on failure
