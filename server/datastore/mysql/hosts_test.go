@@ -13478,4 +13478,3 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		require.Equal(t, 0, count, "IdP account should be deleted when Windows host is the last one deleted")
 	})
 }
-
