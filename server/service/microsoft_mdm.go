@@ -1944,19 +1944,21 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
+		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices.
+		// This runs BEFORE getPendingMDMCmds so that any commands enqueued by
+		// the ESP hold phase (pre-orbit) are picked up in the same response.
+		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
+		espCmds, err = svc.getESPCommands(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("ESP commands error %w", err)
+		}
+
 		// Process the pending operations and get the MDM response protocol commands
 		pendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
 		if err != nil {
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
-
-		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices.
-		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
-		espCmds, err = svc.getESPCommands(ctx, deviceID)
-		if err != nil {
-			return nil, fmt.Errorf("ESP commands error %w", err)
-		}
 	}
 
 	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds))
@@ -2014,8 +2016,36 @@ func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm
 // NOT persisted to avoid duplicate "418 Already Exists" errors on the next checkin.
 func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
-		// Host UUID not yet set (orbit hasn't enrolled yet). Wait.
-		return nil, nil
+		// Orbit hasn't enrolled yet, but we must activate the ESP now while the
+		// device is still in OOBE. These hold commands are sent on every checkin
+		// until orbit links the host UUID.
+		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
+
+		providerID := syncml.DocProvisioningAppProviderID
+		holdCmds := []*mdm_types.SyncMLCmd{
+			// Skip* nodes are bool format per DMClient CSP spec.
+			// Both must be false for the ESP to stay visible. In user-driven
+			// Autopilot, the visible tracking phase is Account Setup.
+			// SkipUserStatusPage=true causes Device Setup to flash and complete
+			// instantly, even with pending profiles.
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
+			// BlockInStatusPage and TimeOutUntilSyncFailure are int format
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "2"),
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds)),
+			// InstallationState=1 signals "installing" to ESP
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "1"),
+			// TimeOutUntilSyncFailure sets the ESP timeout.
+			newSyncMLCmdInt(fleet.CmdReplace,
+				fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID),
+				fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds)),
+		}
+
+		for _, cmd := range holdCmds {
+			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+		}
+
+		return holdCmds, nil
 	}
 
 	host, err := svc.ds.HostByIdentifier(ctx, device.HostUUID)
@@ -2107,7 +2137,7 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 
 	// Nothing to track -- don't send an ESP command that would block the device
 	// indefinitely on an empty Enrollment Status Page. Just transition to active
-	// so phase 3 can finalize and release the device.
+	// so the release check can finalize.
 	if len(profileTrackingInfos) == 0 && len(softwareTrackingInfos) == 0 {
 		if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 			fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive); err != nil {
@@ -2130,101 +2160,133 @@ func (svc *Service) handleESPInitial(ctx context.Context, device *fleet.MDMWindo
 		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
 	}
 	if !transitioned {
-		// Another checkin already handled the initial setup.
 		return nil, nil
 	}
 
-	espCmd, err := microsoft_mdm.ESPInitialCommand(microsoft_mdm.ESPInitialCommandSpec{
-		CmdUUID:  uuid.New().String(),
-		Profiles: profileTrackingInfos,
-		Software: softwareTrackingInfos,
-	})
-	if err != nil {
-		// Revert state so next checkin retries.
-		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
-			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP build error", "err", revertErr)
+	svc.logger.DebugContext(ctx, "ESP: building tracking commands", "device_id", device.MDMDeviceID, "profiles", len(profileTrackingInfos), "software", len(softwareTrackingInfos))
+
+	provID := syncml.DocProvisioningAppProviderID
+	var cmds []*mdm_types.SyncMLCmd
+
+	// Unicode U+F000 is the delimiter for ExpectedPolicies/ExpectedSCEPCerts.
+	// In UTF-8 this is the 3-byte sequence EF 80 80, NOT the two bytes F0 00.
+	const espDelimiter = "\uF000"
+
+	// Add individual child nodes under ExpectedPolicies/ and ExpectedSCEPCerts/.
+	// This treats them as tree nodes (not a single delimited string value).
+	// This approach was confirmed to work (showed "3 of 3 security policies"
+	// and "0 of 1 certificates" on the ESP display).
+	seenPolicyURIs := make(map[string]struct{})
+	for _, p := range profileTrackingInfos {
+		if p.IsSCEP {
+			// SCEP certs: Add child node under ExpectedSCEPCerts/
+			cmd := &mdm_types.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdAdd},
+				CmdID:   mdm_types.CmdID{Value: uuid.New().String()},
+				Items: []mdm_types.CmdItem{{
+					Target: new(string),
+				}},
+			}
+			*cmd.Items[0].Target = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ExpectedSCEPCerts/%s", provID, p.ProfileUUID)
+			cmds = append(cmds, cmd)
+		} else {
+			// Security policies: Add child node under ExpectedPolicies/
+			// Deduplicate since multiple profiles can share the same top LocURI.
+			if _, ok := seenPolicyURIs[p.TopLocURI]; ok {
+				continue
+			}
+			seenPolicyURIs[p.TopLocURI] = struct{}{}
+			cmdType := "text/plain"
+			cmdFormat := "chr"
+			cmd := &mdm_types.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdAdd},
+				CmdID:   mdm_types.CmdID{Value: uuid.New().String()},
+				Items: []mdm_types.CmdItem{{
+					Target: new(string),
+					Meta: &mdm_types.Meta{
+						Type:   &mdm_types.MetaAttr{XMLNS: "syncml:metinf", Content: &cmdType},
+						Format: &mdm_types.MetaAttr{XMLNS: "syncml:metinf", Content: &cmdFormat},
+					},
+				}},
+			}
+			*cmd.Items[0].Target = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ExpectedPolicies/%s", provID, p.TopLocURI)
+			cmds = append(cmds, cmd)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "build ESP initial command")
 	}
 
-	// Return inline so the device receives the ESP configuration on this
-	// same checkin. We intentionally do not persist the command to avoid
-	// duplicate delivery on the next checkin (the device would get "418
-	// Already Exists" for the Add operations). If the connection drops
-	// before delivery, the device is already Active and handleESPStatusUpdate
-	// takes over on subsequent checkins.
-	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
-	if err != nil {
-		// Revert state so next checkin retries.
-		if _, revertErr := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationPending); revertErr != nil {
-			svc.logger.WarnContext(ctx, "failed to revert awaiting configuration after ESP parse error", "err", revertErr)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "parse ESP initial command for inline response")
-	}
-	result := make([]*mdm_types.SyncMLCmd, 0, len(parsedCmds))
-	for i := range parsedCmds {
-		result = append(result, &parsedCmds[i])
-	}
-	return result, nil
+	// 3. Mark DevicePreparation as completed so ESP advances to the next phase.
+	dpCompleted := newSyncMLCmdInt(fleet.CmdReplace,
+		fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID),
+		"3")
+	dpCompleted.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	cmds = append(cmds, dpCompleted)
+
+	// TODO: App tracking via EnrollmentStatusTracking/Setup/Apps requires orbit
+	// to call SetupExperienceInit on Windows (not yet implemented). Once orbit
+	// enqueues setup experience items, this is where we'd register as an app
+	// provider and create tracking entries. See https://github.com/fleetdm/fleet/issues/43776
+
+	svc.logger.DebugContext(ctx, "ESP: sending tracking commands", "device_id", device.MDMDeviceID, "cmd_count", len(cmds))
+	return cmds, nil
 }
 
 // handleESPStatusUpdate handles subsequent checkins when awaiting_configuration=2.
-// It builds inline SyncML commands with the current software installation statuses.
-// Only software needs explicit updates here -- profiles and SCEP certs are tracked
-// automatically by the Windows DMClient once registered in the initial ESP command.
+// It checks if all profiles have been delivered and releases the device when ready.
+// Software blocking is not implemented in this phase -- that's phase 3.
 func (svc *Service) handleESPStatusUpdate(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
 	}
 
-	host, err := svc.ds.HostByIdentifier(ctx, device.HostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host for ESP status update")
+	// Check timeout first: if we've exceeded the 3-hour window, release
+	// regardless of profile status.
+	// TODO(phase 3): check require_all_software_windows. If true, send
+	// BlockInStatusPage to force "Try again"/reboot instead of releasing.
+	// If false, release with error text via CustomErrorText. See #42850.
+	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
+	if timedOut {
+		svc.logger.WarnContext(ctx, "ESP: timeout reached, releasing device", "device_id", device.MDMDeviceID)
 	}
 
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
+	if !timedOut {
+		// Check if all profiles for this host are in a terminal state.
+		profiles, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP release check")
+		}
+		if len(profiles) > 0 {
+			// Profiles still pending -- keep waiting.
+			return nil, nil
+		}
 	}
 
-	setupResults, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP status update")
+	// Release the device from the ESP by sending ServerHasFinishedProvisioning
+	// in both Device and User contexts (matching the POC approach).
+	provID := syncml.DocProvisioningAppProviderID
+	releaseCmds := []*mdm_types.SyncMLCmd{
+		// Mark device preparation as completed
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
+		// Signal provisioning is done (Device context)
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		// Signal provisioning is done (User context)
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 	}
 
-	if len(setupResults) == 0 {
-		return nil, nil
+	for _, cmd := range releaseCmds {
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
 
-	var softwareTrackingInfos []microsoft_mdm.ESPSoftwareTrackingInfo
-	for _, result := range setupResults {
-		softwareTrackingInfos = append(softwareTrackingInfos, microsoft_mdm.ESPSoftwareTrackingInfo{
-			Name:   result.Name,
-			Status: microsoft_mdm.SetupExperienceStatusToESP(result.Status),
-		})
+	// Transition to None (setup complete).
+	if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone); err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to set awaiting configuration to none", "err", err)
 	}
 
-	espCmd, err := microsoft_mdm.ESPStatusUpdateCommand(microsoft_mdm.ESPStatusUpdateSpec{
-		CmdUUID:  uuid.New().String(),
-		Software: softwareTrackingInfos,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build ESP status update command")
-	}
-
-	// Parse the ESP command into SyncML commands for inline response.
-	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(espCmd.RawCommand)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parse ESP status update command")
-	}
-
-	var result []*mdm_types.SyncMLCmd
-	for i := range parsedCmds {
-		result = append(result, &parsedCmds[i])
-	}
-	return result, nil
+	svc.logger.DebugContext(ctx, "ESP: releasing device from ESP", "device_id", device.MDMDeviceID, "release_cmds", len(releaseCmds))
+	return releaseCmds, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
@@ -2405,6 +2467,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		now := time.Now().UTC()
 		awaitingConfigurationAt = &now
 	}
+	svc.logger.DebugContext(ctx, "ESP: MDM enrollment", "device_id", reqDeviceID, "enroll_type", enrollType, "is_in_oobe", isInOOBE, "awaiting_configuration", awaitingConfiguration, "host_uuid", hostUUID)
 
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{

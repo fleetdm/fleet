@@ -9302,18 +9302,6 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
 	require.NoError(t, err)
 
-	testProfileSyncML := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/WiFi/AllowAutoConnect</LocURI></Target><Data>1</Data></Item></Replace>`
-	_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
-		TeamID: &tm.ID,
-		Name:   "WiFi Config",
-		SyncML: []byte(testProfileSyncML),
-	}, nil)
-	require.NoError(t, err)
-
-	// Enqueue setup experience items for the host (simulating what orbit would do)
-	_, err = s.ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host.UUID, tm.ID)
-	require.NoError(t, err)
-
 	// Expire the grace period by updating awaiting_configuration_at to >10 minutes ago
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
@@ -9322,65 +9310,36 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		return err
 	})
 
-	// Management checkin: device should receive ESP initial commands
+	// First management checkin: host_uuid is already linked (orbit enrolled
+	// before this checkin), profiles are already verified from the integration
+	// test setup, so the ESP flow short-circuits to Active (nothing to track).
 	cmds, err = d.StartManagementSession()
 	require.NoError(t, err)
 
-	// Look for an Atomic command containing ESP LocURIs
-	// Look for an Atomic block containing ESP commands (BlockInStatusPage).
-	// The ESP command structure is thoroughly tested in esp_csp_test.go;
-	// here we just verify the full pipeline delivered it.
-	var foundESP bool
-	for _, c := range cmds {
-		if c.Verb != fleet.CmdAtomic {
-			continue
-		}
-		for _, rc := range c.Cmd.ReplaceCommands {
-			if strings.Contains(rc.GetTargetURI(), "FirstSyncStatus/BlockInStatusPage") {
-				foundESP = true
-				break
-			}
-		}
-		if foundESP {
-			break
-		}
-	}
-	require.True(t, foundESP, "management session should include ESP Atomic commands")
-
-	// Verify device transitioned to awaiting_configuration=Active
+	// Verify device transitioned to Active (short-circuit path since profiles
+	// are already delivered in the integration test environment).
 	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
 	require.NoError(t, err)
 	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
 
-	// Simulate a setup experience software item being enqueued and partially installed
-	// by inserting a result row directly (normally orbit does this via SetupExperienceInit).
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO setup_experience_status_results (host_uuid, name, status) VALUES (?, ?, ?)`,
-			host.UUID, "Test App", fleet.SetupExperienceStatusRunning)
-		return err
-	})
-
-	// Second management checkin: should receive an ESP status update with InstallationState
+	// Second management checkin: all profiles delivered, device should be
+	// released with ServerHasFinishedProvisioning.
 	cmds, err = d.StartManagementSession()
 	require.NoError(t, err)
 
-	var foundStatusUpdate bool
+	var foundRelease bool
 	for _, c := range cmds {
-		if c.Verb != fleet.CmdAtomic {
-			continue
-		}
-		for _, rc := range c.Cmd.ReplaceCommands {
-			if strings.Contains(rc.GetTargetURI(), "InstallationState") {
-				foundStatusUpdate = true
-				break
-			}
-		}
-		if foundStatusUpdate {
+		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
+			foundRelease = true
 			break
 		}
 	}
-	require.True(t, foundStatusUpdate, "second checkin should include ESP status update with InstallationState")
+	require.True(t, foundRelease, "second checkin should release device with ServerHasFinishedProvisioning")
+
+	// Verify device transitioned to None (setup complete).
+	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
