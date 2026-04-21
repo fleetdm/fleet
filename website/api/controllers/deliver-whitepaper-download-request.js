@@ -40,7 +40,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Website - Contact forms',
+        contactSource: 'Website - Gated document',
         description: `Submitted a form to download the ${whitepaperName} whitepaper.`,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
