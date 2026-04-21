@@ -323,6 +323,9 @@ environments:
 ## Section: MySQL sub-chart
 ## Set mysql.enabled=true to deploy a dev/test MySQL instance.
 ## For production, use an external MySQL and leave this disabled.
+## When enabled, also point Fleet to the sub-chart service and secret:
+##   database.address: <release-name>-mysql:3306
+##   database.secretName: <release-name>-mysql
 mysql:
   enabled: false
   auth:
@@ -336,6 +339,10 @@ mysql:
 ## For production, use an external Redis/Valkey and leave this disabled.
 ## NOTE: The condition key is "redis.enabled" for backwards compatibility,
 ## but the sub-chart is now Valkey (https://valkey.io).
+## When enabled, also point Fleet at the sub-chart service:
+##   cache.address: <release-name>-valkey:6379
+## If valkey.auth.enabled=true, also set cache.usePassword/cache.secretName/
+## cache.passwordKey to match your Valkey secret configuration.
 redis:
   enabled: false
 
