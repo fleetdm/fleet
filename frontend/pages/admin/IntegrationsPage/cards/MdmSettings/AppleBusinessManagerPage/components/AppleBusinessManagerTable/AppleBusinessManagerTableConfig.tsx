@@ -42,11 +42,11 @@ const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
       ...option,
       disabled: true,
       ...(repoURL
-       ? {
+        ? {
             tooltip: true,
             tooltipContent: getGitOpsModeTipContent(repoURL),
           }
-        :{}),
+        : {}),
     };
   });
 };
