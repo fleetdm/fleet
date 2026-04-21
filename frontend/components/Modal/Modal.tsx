@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -54,11 +54,22 @@ const Modal = ({
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const isClosingRef = useRef(false);
+
+  const handleClose = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    setIsClosing(true);
+    setTimeout(() => {
+      onExit();
+    }, 150);
+  }, [onExit]);
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onExit();
+        handleClose();
       }
     };
 
@@ -71,7 +82,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeWithEscapeKey);
       }
     };
-  }, [disableClosingModal, onExit]);
+  }, [disableClosingModal, handleClose]);
 
   useEffect(() => {
     if (onEnter) {
@@ -92,6 +103,7 @@ const Modal = ({
 
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
+    [`${baseClass}__closing`]: isClosing,
   });
 
   const modalContainerClasses = classnames(
@@ -100,6 +112,7 @@ const Modal = ({
     `${baseClass}__modal_container__${width}`,
     {
       [`${className}__loading`]: isLoading,
+      [`${baseClass}__closing`]: isClosing,
     }
   );
 
@@ -123,7 +136,7 @@ const Modal = ({
           isDownOnBackgroundRef.current &&
           !isFormDirtyRef.current
         ) {
-          onExit();
+          handleClose();
         }
         isDownOnBackgroundRef.current = false;
       }}
@@ -152,7 +165,7 @@ const Modal = ({
             <div className={`${baseClass}__ex`}>
               <Button
                 variant="icon"
-                onClick={onExit}
+                onClick={handleClose}
                 iconStroke
                 autofocus={isContentDisabled}
               >
