@@ -1237,7 +1237,7 @@ This activity contains the following fields:
 }
 ```
 
-## wipe_failed_host
+## failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
 
