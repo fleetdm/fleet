@@ -4,6 +4,7 @@ export interface IDataSet {
   name: string;
   label: string;
   defaultChartType: ChartType;
+  description?: string;
 }
 
 export interface IFormattedDataPoint {

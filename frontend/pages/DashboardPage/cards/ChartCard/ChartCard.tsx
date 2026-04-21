@@ -16,6 +16,7 @@ import DataError from "components/DataError";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
@@ -32,8 +33,10 @@ const DOWNSAMPLE_HOURS = 3;
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
-    label: "Hosts activity",
+    label: "Hosts active",
     defaultChartType: "checkerboard",
+    description:
+      "Shows the number of hosts detected online during a given hour.",
   },
 ];
 
@@ -164,6 +167,18 @@ const ChartCard = (): JSX.Element => {
             />
           ) : (
             <h2 className={`${baseClass}__title`}>{currentDataset.label}</h2>
+          )}
+          {currentDataset.description && (
+            <TooltipWrapper
+              tipContent={currentDataset.description}
+              position="top"
+              underline={false}
+              showArrow
+              tipOffset={8}
+              className={`${baseClass}__description-tooltip`}
+            >
+              <Icon name="info-outline" />
+            </TooltipWrapper>
           )}
           {hasActiveFilters(chartFilters) && (
             <span className={`${baseClass}__filtered-badge`}>Filtered</span>
