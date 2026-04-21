@@ -22,5 +22,26 @@
   &__edit-delete-btns {
     display: flex;
     gap: $pad-xsmall;
+
+    .button--icon__small {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid $ui-fleet-black-10;
+      border-radius: $border-radius;
+      background-color: $core-fleet-white;
+      transition: border-color 100ms;
+
+      &:hover:not(:disabled) {
+        border-color: $ui-fleet-black-75-over;
+      }
+
+      &:focus-visible {
+        outline: 2px solid $ui-fleet-black-75-down;
+        outline-offset: 1px;
+      }
+    }
   }
 }
