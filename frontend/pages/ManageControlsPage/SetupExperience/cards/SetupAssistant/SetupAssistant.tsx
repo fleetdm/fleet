@@ -15,7 +15,8 @@ import PATHS from "router/paths";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
 import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
@@ -133,12 +134,17 @@ const SetupAssistant = ({
       )
     ) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Additional configuration required"
           info="To customize, first turn on automatic enrollment."
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+          primaryButton={
+            <Button
+              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+            >
+              Turn on
+            </Button>
+          }
         />
       );
     }

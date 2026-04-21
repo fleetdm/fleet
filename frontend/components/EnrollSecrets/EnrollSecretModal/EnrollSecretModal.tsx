@@ -94,40 +94,41 @@ const EnrollSecretModal = ({
           />
         </div>
       ) : (
-        <EmptyState variant="list"
-            header="You have no enroll secrets."
-            info={
-              <>
-                Add secret(s) to enroll hosts
-                {primoMode || teamInfo?.name === "Unassigned" ? (
-                  ""
-                ) : (
-                  <>
-                    {" "}
-                    to <b>{teamInfo?.name}</b>
-                  </>
-                )}
-                .
-              </>
-            }
-            primaryButton={
-              <GitOpsModeTooltipWrapper
-                entityType="secrets"
-                position="right"
-                tipOffset={8}
-                renderChildren={(disableChildren) => (
-                  <Button
-                    disabled={disableChildren}
-                    onClick={addNewSecretClick}
-                    className={`${baseClass}__add-secret-btn`}
-                    variant="brand-inverse-icon"
-                    iconStroke
-                  >
-                    Add secret <Icon name="plus" color="core-fleet-green" />
-                  </Button>
-                )}
-              />
-            }
+        <EmptyState
+          variant="list"
+          header="You have no enroll secrets."
+          info={
+            <>
+              Add secret(s) to enroll hosts
+              {primoMode || teamInfo?.name === "Unassigned" ? (
+                ""
+              ) : (
+                <>
+                  {" "}
+                  to <b>{teamInfo?.name}</b>
+                </>
+              )}
+              .
+            </>
+          }
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              entityType="secrets"
+              position="right"
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  onClick={addNewSecretClick}
+                  className={`${baseClass}__add-secret-btn`}
+                  variant="brand-inverse-icon"
+                  iconStroke
+                >
+                  Add secret <Icon name="plus" color="core-fleet-green" />
+                </Button>
+              )}
+            />
+          }
         />
       )}
       <div className="modal-cta-wrap">

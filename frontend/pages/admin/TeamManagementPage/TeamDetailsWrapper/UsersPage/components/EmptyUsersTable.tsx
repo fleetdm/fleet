@@ -77,7 +77,6 @@ const EmptyMembersTable = ({
 
   return (
     <EmptyState
-      graphicName="empty-users"
       header="No users on this fleet"
       info={infoLink}
       primaryButton={

@@ -62,21 +62,22 @@ const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
 );
 
 const NoVppAppsMessage = () => (
-  <div className={`${baseClass}__no-vpp-message`}>
-    <p className={`${baseClass}__no-vpp-title`}>
-      You don&apos;t have any App Store apps
-    </p>
-    <p className={`${baseClass}__no-vpp-description`}>
-      You must purchase apps in{" "}
-      <CustomLink
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-        text="ABM"
-        newTab
-      />
-      .<br />
-      App Store apps that are already added to this fleet are not listed.
-    </p>
-  </div>
+  <EmptyState
+    variant="list"
+    header="You don't have any App Store apps"
+    info={
+      <>
+        You must purchase apps in{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
+          text="ABM"
+          newTab
+        />
+        .<br />
+        App Store apps that are already added to this fleet are not listed.
+      </>
+    }
+  />
 );
 
 interface ISoftwareAppStoreProps {

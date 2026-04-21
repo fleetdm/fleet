@@ -53,12 +53,12 @@ const LabelsTable = ({
           <TableCount name="labels" count={tableData.length} />
         ) : null
       }
-      emptyComponent={() =>
+      emptyComponent={() => (
         <EmptyState
           header="No labels"
           info="Labels you create will appear here."
         />
-      }
+      )}
     />
   );
 };

@@ -111,19 +111,21 @@ const PackQueriesTable = ({
           isAllPagesSelected={false}
         />
       ) : (
-        <div className={`${baseClass}__no-queries`}>
-          <p>Your pack has no reports.</p>
-          <Button
-            onClick={onAddPackQuery}
-            variant="brand-inverse-icon"
-            iconStroke
-          >
-            <>
-              Add query
-              <Icon name="plus" color="core-fleet-green" />
-            </>
-          </Button>
-        </div>
+        <EmptyState
+          header="Your pack has no reports."
+          primaryButton={
+            <Button
+              onClick={onAddPackQuery}
+              variant="brand-inverse-icon"
+              iconStroke
+            >
+              <>
+                Add report
+                <Icon name="plus" color="core-fleet-green" />
+              </>
+            </Button>
+          }
+        />
       )}
     </div>
   );

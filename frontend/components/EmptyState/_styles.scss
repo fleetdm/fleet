@@ -58,13 +58,20 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     height: $ghost-row-height;
     padding: 0 $ghost-cell-padding-x;
     border-bottom: 1px solid $ui-fleet-black-10;
+    gap: 0; // default single-line layout
   }
 
   &__ghost-skeleton {
     height: $ghost-skeleton-height;
     border-radius: $ghost-skeleton-radius;
     background-color: $ui-fleet-black-10;
+
+    &--secondary {
+      height: 8px;
+      opacity: 0.6;
+    }
   }
+
 
   // ----------------------------------------------------------
   // Veil — gradient overlay that fades the ghost table
@@ -138,6 +145,57 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
         flex: 1 1 100%;
       }
     }
+
+    .empty-state__ghost-cell {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      height: 56px;
+      gap: 6px;
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Form variant — ghost form fields with a save button
+  // ----------------------------------------------------------
+  &--form {
+    height: 320px;
+
+    .empty-state__ghost-table {
+      display: block;
+      padding: $pad-xlarge;
+    }
+  }
+
+  &__ghost-form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__ghost-field {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__ghost-label {
+    height: $ghost-skeleton-height;
+    border-radius: $ghost-skeleton-radius;
+  }
+
+  &__ghost-input {
+    height: 40px;
+    width: 100%;
+    border-radius: 4px;
+    background-color: $ui-fleet-black-10 !important;
+  }
+
+  &__ghost-button {
+    width: 80px;
+    height: 36px;
+    border-radius: 6px;
+    margin-top: $pad-small;
   }
 
   // ----------------------------------------------------------
@@ -148,10 +206,6 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
 
     .empty-state__ghost-col {
       flex: 0 0 40%;
-
-      .empty-state__ghost-skeleton {
-        width: 240px !important; // override inline width for small variant
-      }
     }
 
     .empty-state__ghost-col--first {
