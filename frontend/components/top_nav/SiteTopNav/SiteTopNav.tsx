@@ -172,10 +172,7 @@ const SiteTopNav = ({
             to={navItem.location.pathname}
           >
             <div className={`${navItemBaseClass}__logo`}>
-              <OrgLogoIcon
-                className="logo"
-                src={orgLogoURL}
-              />
+              <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
           </Link>
         </li>
