@@ -10,18 +10,28 @@ import (
 type SampleStrategy string
 
 const (
-	// SampleStrategyAccumulate means each sample is a partial observation and
-	// within-bucket samples are OR-merged. Rows are always explicitly closed at
-	// bucket boundaries.
+	// SampleStrategyAccumulate means each sample is a partial observation.
+	// Writes: every row is born closed (valid_to set at insert time to bucketEnd).
+	// Within-bucket samples OR-merge into the existing row via ODKU; a sample in
+	// a new bucket just creates a new row with a new valid_from. No explicit
+	// close step, no cross-bucket collapse.
+	// Reads: bucket value = OR of every row whose interval overlaps the bucket
+	// ("hosts observed at any point during the bucket").
 	// Used for datasets like uptime and software usage.
 	// @todo: implement job to collapse identical consecutive rows
 	//        to optimize storage and query performance.
 	SampleStrategyAccumulate SampleStrategy = "accumulate"
 
-	// SampleStrategySnapshot means each sample is the full state for the bucket.
-	// Rows stay open (valid_to = sentinel) until the bitmap changes, at which
-	// point the prior row is closed at the new bucket boundary and a new one is
-	// inserted. Used for datasets like CVE and software inventory.
+	// SampleStrategySnapshot means each sample is the full state of a single moment.
+	// Writes: rows are always keyed to 1h boundaries (so row transitions align
+	// to hour marks regardless of tz). Within a 1h write-bucket, the latest
+	// sample's bitmap overwrites via ODKU — last sample wins. Across buckets,
+	// unchanged state keeps the row open (valid_to = sentinel); a changed sample
+	// closes the prior row at the new hour boundary and opens a new one.
+	// Reads: bucket value = OR across entities of each entity's row active at
+	// bucketEnd ("state as of the end of the bucket"). An entity whose row was
+	// closed mid-bucket with no replacement is absent at bucketEnd.
+	// Used for datasets like CVE and software inventory.
 	SampleStrategySnapshot SampleStrategy = "snapshot"
 )
 
@@ -30,9 +40,11 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// BucketSize returns the time granularity for this dataset (e.g. time.Hour
-	// for uptime, 24*time.Hour for CVE). Samples within a bucket are merged; the
-	// chart walker queries at this granularity by default.
+	// BucketSize returns the default display granularity for this dataset (e.g.
+	// time.Hour for uptime, 24*time.Hour for CVE). The chart walker queries at
+	// this granularity by default. Write-side granularity is a separate concern
+	// handled by each strategy's collector (snapshot always writes at 1h; see
+	// SampleStrategy for details).
 	BucketSize() time.Duration
 
 	// SampleStrategy returns how samples combine within and across buckets.
