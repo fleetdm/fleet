@@ -30,6 +30,7 @@ const (
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
 	create             = fleet.ActionCreate
+	readSecrets        = fleet.ActionReadSecrets
 )
 
 var auth *Authorizer
@@ -2900,40 +2901,69 @@ func TestCertificateAuthorities(t *testing.T) {
 
 	runTestCases(t, []authTestCase{
 		{user: nil, object: certificateAuthority, action: read, allow: false},
-		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
-		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+		{user: nil, object: certificateAuthority, action: list, allow: false},
+		{user: nil, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserGitOps, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: list, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: write, allow: true},
+		{user: test.UserGitOps, object: certificateAuthority, action: readSecrets, allow: true},
+
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserAdmin, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserAdmin, object: certificateAuthority, action: write, allow: true},
+		{user: test.UserAdmin, object: certificateAuthority, action: readSecrets, allow: true},
 
-		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserObserver, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserObserver, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserObserver, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: certificateAuthority, action: readSecrets, allow: false},
 		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserMaintainer, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserMaintainer, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserMaintainer, object: certificateAuthority, action: readSecrets, allow: false},
 
 		{user: test.UserTechnician, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTechnician, object: certificateAuthority, action: list, allow: false},
 		{user: test.UserTechnician, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTechnician, object: certificateAuthority, action: readSecrets, allow: false},
 
-		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: write, allow: false},
-		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: certificateAuthority, action: readSecrets, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: list, allow: true},
 		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: certificateAuthority, action: readSecrets, allow: false},
 	})
 }
 
@@ -2977,5 +3007,33 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: read, allow: true},
 		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeAPIEndpoint(t *testing.T) {
+	t.Parallel()
+
+	endpoint := &fleet.APIEndpoint{}
+	runTestCases(t, []authTestCase{
+		// Unauthenticated always denied.
+		{user: nil, object: endpoint, action: read, allow: false},
+
+		// Global roles: only admin is allowed.
+		{user: test.UserNoRoles, object: endpoint, action: read, allow: false},
+		{user: test.UserObserver, object: endpoint, action: read, allow: false},
+		{user: test.UserObserverPlus, object: endpoint, action: read, allow: false},
+		{user: test.UserMaintainer, object: endpoint, action: read, allow: false},
+		{user: test.UserTechnician, object: endpoint, action: read, allow: false},
+		{user: test.UserGitOps, object: endpoint, action: read, allow: false},
+		{user: test.UserAdmin, object: endpoint, action: read, allow: true},
+
+		// Team roles: only team admins are allowed.
+		{user: test.UserTeamObserverTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: endpoint, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: endpoint, action: read, allow: true},
+		{user: test.UserTeamAdminTeam2, object: endpoint, action: read, allow: true},
 	})
 }

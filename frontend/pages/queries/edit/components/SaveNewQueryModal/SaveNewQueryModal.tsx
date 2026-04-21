@@ -23,7 +23,6 @@ import {
 } from "interfaces/schedulable_query";
 
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -311,8 +310,8 @@ const SaveNewQueryModal = ({
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
-          hideText="Hide advanced options"
-          showText="Show advanced options"
+          hideText="Advanced options"
+          showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
         />

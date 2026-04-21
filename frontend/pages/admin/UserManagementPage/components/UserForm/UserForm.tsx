@@ -1,10 +1,4 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
@@ -25,7 +19,6 @@ import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -406,7 +399,10 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner
+                color="grey"
+                className={`${baseClass}__user-permissions-info`}
+              >
                 <p>
                   Users can manage or observe fleet-specific users, entities,
                   and settings in Fleet.
@@ -507,7 +503,7 @@ const UserForm = ({
         placeholder="Full name"
         value={formData.name || ""}
         inputOptions={{
-          maxLength: "80",
+          maxLength: 80,
         }}
         ignore1password
         parseTarget

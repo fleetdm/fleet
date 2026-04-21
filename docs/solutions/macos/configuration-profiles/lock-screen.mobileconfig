@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>askForPassword</key>
+            <true/>
+            <!-- Require password after screen saver begins or display is turned off -->
+            <key>askForPasswordDelay</key>
+            <!-- 0 = Immediately -->
+            <integer>0</integer>
+            <!-- Start Screen Saver when inactive -->
+            <key>idleTime</key>
+            <!-- 600 (seconds) = 10 minutes -->
+            <integer>600</integer>
+            <key>moduleName</key>
+            <string>Organization Lock Screen Settings</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.lock-screen</string>
+            <key>PayloadType</key>
+            <string>com.apple.screensaver</string>
+            <key>PayloadUUID</key>
+            <string>13DAA34A-FE09-4262-B8BD-2FCAB9E0473E</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Lock Screen</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.lock-screen</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>064F48CF-D311-4DA6-BD3B-B54D5A855A60</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

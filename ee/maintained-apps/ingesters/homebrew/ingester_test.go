@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -86,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post":
+		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -147,6 +148,11 @@ func TestIngestValidations(t *testing.T) {
 			if c.inputApp.UninstallScriptPath != "" {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
+
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+				out.Queries.Patched,
+			)
 
 		})
 	}

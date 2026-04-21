@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,9 +19,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
+// Sentinel errors for recovery lock rotation
+var (
+	// ErrRecoveryLockRotationPending indicates a rotation is already in progress for the host.
+	ErrRecoveryLockRotationPending = errors.New("recovery lock rotation already pending")
+
+	// ErrRecoveryLockNotEligible indicates the host is not eligible for rotation
+	// (e.g., wrong status, operation type, or no existing password).
+	ErrRecoveryLockNotEligible = errors.New("host not eligible for recovery lock rotation")
+)
+
 type MDMAppleCommandIssuer interface {
-	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
-	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error
+	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string, name string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EnableLostMode(ctx context.Context, host *Host, commandUUID string, orgName string) error
 	DisableLostMode(ctx context.Context, host *Host, commandUUID string) error
@@ -28,6 +39,8 @@ type MDMAppleCommandIssuer interface {
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -146,7 +159,7 @@ func (m MDMAppleDevice) AuthzType() string {
 	return "mdm_apple_device"
 }
 
-// MDMAppleDEPDevice represents an Apple device in Apple Business Manager (ABM).
+// MDMAppleDEPDevice represents an Apple device in Apple Business (AB).
 type MDMAppleDEPDevice struct {
 	godep.Device
 }
@@ -514,6 +527,7 @@ type MDMAppleSetupPayload struct {
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
 	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          *bool `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
 	LockEndUserInfo             *bool `json:"lock_end_user_info"`
 }
 
@@ -525,22 +539,29 @@ func (p MDMAppleSetupPayload) AuthzType() string {
 // HostDEPAssignment represents a row in the host_dep_assignments table.
 type HostDEPAssignment struct {
 	// HostID is the id of the host in Fleet.
-	HostID uint `db:"host_id"`
+	HostID uint `db:"host_id" json:"-"`
 	// AddedAt is the timestamp when Fleet was notified that device was added to the Fleet MDM
-	// server in Apple Busines Manager (ABM).
-	AddedAt time.Time `db:"added_at"`
+	// server in Apple Busines Manager (AB).
+	AddedAt time.Time `db:"added_at" json:"added_at"`
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
-	// MDM server in Apple Busines Manager (ABM).
-	DeletedAt *time.Time `db:"deleted_at"`
+	// MDM server in Apple Busines Manager (AB).
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
-	ABMTokenID *uint `db:"abm_token_id"`
+	ABMTokenID *uint `db:"abm_token_id" json:"abm_token_id"`
 	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
 	// most recent sync.
-	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline"`
+	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline" json:"mdm_migration_deadline,omitempty"`
 	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
 	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
 	// date.
-	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed"`
+	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed" json:"mdm_migration_completed,omitempty"`
+	// ProfileUUID is the UUID of the enrollment profile last assigned by Fleet via ABM.
+	ProfileUUID *string `db:"profile_uuid" json:"profile_uuid,omitempty"`
+	// AssignProfileResponse is the status returned by Apple when Fleet last
+	// assigned the enrollment profile (SUCCESS, FAILED, NOT_ACCESSIBLE, THROTTLED).
+	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
+	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
+	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -610,6 +631,8 @@ type MDMAppleCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, used for indicating the profile added/removed, if any.
+	Name *string `json:"name" db:"name"`
 }
 
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
@@ -656,6 +679,13 @@ type SCEPIdentityAssociation struct {
 	// EnrollmentType is nano_enrollment.type and should be examined to determine
 	// the proper enrollment profile.
 	EnrollmentType string `db:"type"`
+}
+
+type DeviceInfoForACMERenewal struct {
+	HostUUID       string `db:"host_uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	HardwareModel  string `db:"hardware_model"`
+	OSVersion      string `db:"os_version"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -1021,6 +1051,66 @@ type MDMAppleMachineInfo struct {
 	Version                     string `plist:"VERSION"`
 }
 
+// macProductRe matches a macOS model identifier such as "MacBookPro18,3", capturing the
+// alphabetic family prefix (group 1) and the numeric major version (group 2).
+var macProductRe = regexp.MustCompile(`^([A-Za-z]+)(\d+),\d+$`)
+
+// appleSiliconMajorThreshold maps each traditional Mac product family to the first major
+// version number that corresponds to an Apple Silicon model. Any major version equal to or
+// greater than the threshold is Apple Silicon; lower versions are x86.
+var appleSiliconMajorThreshold = map[string]int{
+	// MacBookAir10,1 was the first Apple Silicon MacBook Air (M1, Late 2020).
+	"MacBookAir": 10,
+	// MacBookPro17,1 was the first Apple Silicon MacBook Pro (M1, Late 2020).
+	"MacBookPro": 17,
+	// Macmini9,1 was the first Apple Silicon Mac mini (M1, Late 2020).
+	"Macmini": 9,
+	// iMac21,1 was the first Apple Silicon iMac (M1, Early 2021).
+	"iMac": 21,
+}
+
+// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
+// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
+// devices like AppleTV will return an error.
+func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+	if strings.HasPrefix(modelIdentifier, "iPhone") ||
+		strings.HasPrefix(modelIdentifier, "iPod") ||
+		strings.HasPrefix(modelIdentifier, "iPad") {
+		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
+		// error; however, other non-Mac Apple devices like AppleTV will return an error
+		return false, nil
+	}
+
+	matches := macProductRe.FindStringSubmatch(modelIdentifier)
+	if matches == nil {
+		return false, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+	}
+
+	family := matches[1]
+	major, _ := strconv.Atoi(matches[2])
+
+	// Model identifiers starting with "Mac" immediately followed by a digit (e.g. "Mac13,1")
+	// represent the unified naming scheme Apple adopted for Apple Silicon products such as the
+	// Mac Studio and the M2/M3/M4-era Mac Pro. All such identifiers are Apple Silicon.
+	if family == "Mac" {
+		return true, nil
+	}
+
+	// MacBook (no suffix), iMacPro, and MacPro were all discontinued before Apple Silicon
+	// was introduced; every model in these families is x86.
+	switch family {
+	case "MacBook", "iMacPro", "MacPro":
+		return false, nil
+	}
+
+	threshold, ok := appleSiliconMajorThreshold[family]
+	if !ok {
+		return false, fmt.Errorf("unrecognized Mac product family in identifier: %q", modelIdentifier)
+	}
+
+	return major >= threshold, nil
+}
+
 // MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account
 // Driven User Enrollment requests[1] that only describes the base product attempting enrollment.
 //
@@ -1136,12 +1226,30 @@ type HostLocationData struct {
 
 // HostRecoveryLockPassword represents a recovery lock password for a host.
 type HostRecoveryLockPassword struct {
-	Password  string
-	UpdatedAt time.Time
+	Password     string
+	UpdatedAt    time.Time
+	AutoRotateAt *time.Time // When auto-rotation is scheduled (1 hour after password is viewed)
 }
 
 // HostRecoveryLockPasswordPayload contains the data needed to store a recovery lock password.
 type HostRecoveryLockPasswordPayload struct {
 	HostUUID string
 	Password string
+}
+
+// HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
+type HostRecoveryLockRotationStatus struct {
+	HostUUID            string  // Host UUID
+	HasPassword         bool    // encrypted_password is not null and deleted=0
+	Status              *string // current status (verified, failed, pending, NULL)
+	OperationType       string  // install or remove
+	HasPendingRotation  bool    // pending_encrypted_password is not null
+	PendingErrorMessage *string // error from failed rotation
+}
+
+// HostAutoRotationInfo contains the minimal host data needed for auto-rotation activity logging.
+type HostAutoRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
 }

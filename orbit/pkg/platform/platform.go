@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 var (

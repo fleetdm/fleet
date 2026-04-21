@@ -42,9 +42,11 @@ import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
-import PolicyPage from "pages/policies/PolicyPage";
+import PolicyDetailsPage from "pages/policies/details/PolicyDetailsPage";
+import EditPolicyPage from "pages/policies/edit";
 import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
 import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import LivePolicyPage from "pages/policies/live/LivePolicyPage";
 import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
@@ -283,6 +285,7 @@ const routes = (
                 <Route path="inventory" component={HostDetailsPage} />
                 <Route path="library" component={HostDetailsPage} />
               </Route>
+              <Route path="reports" component={HostDetailsPage} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
@@ -305,6 +308,10 @@ const routes = (
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
+                <Redirect
+                  from="os-settings/custom-settings"
+                  to="os-settings/configuration-profiles"
+                />
                 <Route path="os-settings/:section" component={OSSettings} />
 
                 <Route path="setup-experience" component={SetupExperience} />
@@ -404,9 +411,16 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManagePoliciesPage} />
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="new" component={PolicyPage} />
+              <Route path="new">
+                <IndexRoute component={EditPolicyPage} />
+                <Route path="live" component={LivePolicyPage} />
+              </Route>
             </Route>
-            <Route path=":id" component={PolicyPage} />
+            <Route path=":id">
+              <IndexRoute component={PolicyDetailsPage} />
+              <Route path="edit" component={EditPolicyPage} />
+              <Route path="live" component={LivePolicyPage} />
+            </Route>
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
           <Route path="account" component={AccountPage} />

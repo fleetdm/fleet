@@ -1,8 +1,6 @@
 import React from "react";
-import { screen, within, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
-import { getPathWithQueryParams } from "utilities/url";
-import PATHS from "router/paths";
 
 import InstallerStatusTable from "./InstallerStatusTable";
 

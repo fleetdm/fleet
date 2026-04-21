@@ -23,11 +23,6 @@ They switched to Fleet for its modern, API-driven workflows. The transparency of
 - **Customized remediation:** they now use SQL-based osquery queries to automate the "fix" when a device falls out of compliance.  
 - **Unified vitals:** direct streaming to Datadog centralizes device vitals within the same dashboards used for their banking infrastructure.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Banking platform guarantees script execution and audit-ready compliance">
 <meta name="authorFullName" value="Irena Reedy">
@@ -36,3 +31,4 @@ Fleet offers total deployment flexibility: on-premises, air-gapped, container-na
 <meta name="publishedOn" value="2026-02-22">
 <meta name="description" value="A banking platform replaced legacy tools with Fleet to guarantee script execution, unify Mac and Windows, and prove compliance in audits.">
 <meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="Banking platform">

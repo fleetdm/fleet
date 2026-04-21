@@ -644,8 +644,9 @@ func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byt
 }
 
 var appleMDMPremiumCommands = map[string]bool{
-	"EraseDevice": true,
-	"DeviceLock":  true,
+	"EraseDevice":   true,
+	"DeviceLock":    true,
+	"ClearPasscode": true,
 }
 
 func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
@@ -873,6 +874,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 						res.ResultsMetadata = make(map[string]any)
 					}
 					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
 				}
 			}
 		}
@@ -1823,6 +1825,10 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 
 	var teamName string
 	if teamID > 0 {
+		lic, _ := license.FromContext(ctx)
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -3171,7 +3177,7 @@ func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	if r.MultipartForm.File["certificate"] == nil || len(r.MultipartForm.File["certificate"]) == 0 {
+	if len(r.MultipartForm.File["certificate"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "certificate multipart field is required",
 			InternalErr: err,
@@ -3705,4 +3711,32 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 	return nil
+}
+
+type clearPasscodeRequest struct {
+	HostID uint `url:"id"`
+}
+
+type clearPasscodeResponse struct {
+	*fleet.CommandEnqueueResult
+	Err error `json:"error,omitempty"`
+}
+
+func (r clearPasscodeResponse) Error() error { return r.Err }
+
+func clearPasscodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*clearPasscodeRequest)
+	res, err := svc.ClearPasscode(ctx, req.HostID)
+	if err != nil {
+		return clearPasscodeResponse{Err: err}, nil
+	}
+	return clearPasscodeResponse{CommandEnqueueResult: res}, nil
+}
+
+func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

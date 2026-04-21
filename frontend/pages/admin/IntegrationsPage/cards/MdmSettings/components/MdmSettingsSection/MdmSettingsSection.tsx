@@ -1,10 +1,9 @@
-import React, { useContext } from "react";
+import React from "react";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { IMdmApple } from "interfaces/mdm";
-import { AppContext } from "context/app";
 
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";

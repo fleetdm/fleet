@@ -323,8 +323,9 @@ INSERT INTO software_installers (
 	fleet_maintained_app_id,
  	url,
  	upgrade_code,
- 	is_active
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?)`
+ 	is_active,
+	patch_query
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -348,6 +349,7 @@ INSERT INTO software_installers (
 			payload.URL,
 			payload.UpgradeCode,
 			true,
+			payload.PatchQuery,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -551,6 +553,14 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
+
+		// Update the software title name if this is a Windows FMA with an upgrade code. We already update
+		// software titles with macOS FMA names on FMA catalog sync, so we only do Windows here.
+		if payload.FleetMaintainedAppID != nil {
+			updateStmt = `UPDATE software_titles SET name = ?, upgrade_code = ? WHERE id = ?`
+			updateArgs = []any{payload.Title, payload.UpgradeCode, titleID}
+		}
+
 		_, err := ds.writer(ctx).ExecContext(ctx, updateStmt, updateArgs...)
 		if err != nil {
 			return 0, err
@@ -618,23 +628,29 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 
 	// insert new labels
 	if len(labelIds) > 0 {
-		var exclude bool
+		var exclude, requireAll bool
 		switch labels.LabelScope {
 		case fleet.LabelScopeIncludeAny:
 			exclude = false
+			requireAll = false
 		case fleet.LabelScopeExcludeAny:
 			exclude = true
+			requireAll = false
+		case fleet.LabelScopeIncludeAll:
+			exclude = false
+			requireAll = true
 		default:
 			// this should never happen
 			return ctxerr.New(ctx, "invalid label scope")
 		}
 
-		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
+		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude, require_all) VALUES %s
+							ON DUPLICATE KEY UPDATE exclude = VALUES(exclude), require_all = VALUES(require_all)`
 		var placeholders string
 		var insertArgs []interface{}
 		for _, lid := range labelIds {
-			placeholders += "(?, ?, ?),"
-			insertArgs = append(insertArgs, installerID, lid, exclude)
+			placeholders += "(?, ?, ?, ?),"
+			insertArgs = append(insertArgs, installerID, lid, exclude, requireAll)
 		}
 		placeholders = strings.TrimSuffix(placeholders, ",")
 
@@ -1003,7 +1019,8 @@ SELECT
   si.self_service,
   si.url,
   COALESCE(st.name, '') AS software_title,
-  COALESCE(st.bundle_identifier, '') AS bundle_identifier
+  COALESCE(st.bundle_identifier, '') AS bundle_identifier,
+  si.patch_query
   %s
 FROM
   software_installers si
@@ -1037,21 +1054,32 @@ LIMIT 1`,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "software installer has an unsupported label scope", "installer_id", dest.InstallerID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		// there's a bug somewhere
-		ds.logger.WarnContext(ctx, "software installer has both include and exclude labels", "installer_id", dest.InstallerID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "software installer has more than one scope of labels", "installer_id", dest.InstallerID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
+	dest.LabelsIncludeAll = inclAll
 
 	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
@@ -1094,7 +1122,8 @@ SELECT
 	label_id,
 	exclude,
 	l.name as label_name,
-	si.title_id
+	si.title_id,
+	require_all
 FROM
 	%[1]s_labels sil
 	JOIN %[1]ss si ON si.id = sil.%[1]s_id
@@ -2083,6 +2112,14 @@ WHERE
   team_id = ?
 `
 
+	const deleteAllPatchPolicies = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	type = 'patch'
+`
+
 	const deleteAllPendingUninstallScriptExecutions = `
 		DELETE FROM host_script_results WHERE execution_id IN (
 			SELECT execution_id FROM host_software_installs WHERE status = 'pending_uninstall'
@@ -2227,6 +2264,14 @@ WHERE
   )
 `
 
+	const deletePatchPoliciesWithInstallersNotInList = `
+DELETE FROM
+	policies
+WHERE
+	team_id = ? AND
+	patch_software_title_id NOT IN (?)
+`
+
 	const countInstallDuringSetupNotInList = `
 SELECT
   COUNT(*)
@@ -2285,10 +2330,13 @@ INSERT INTO software_installers (
 	package_ids,
 	install_during_setup,
 	fleet_maintained_app_id,
-	is_active
+	is_active,
+	http_etag,
+	patch_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?
+  (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
+  ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2307,7 +2355,9 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
-  is_active = VALUES(is_active)
+  is_active = VALUES(is_active),
+  http_etag = VALUES(http_etag),
+  patch_query = VALUES(patch_query)
 `
 
 	const updateInstaller = `
@@ -2319,7 +2369,8 @@ SET
 	install_script_content_id = ?,
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
-	pre_install_query = ?
+	pre_install_query = ?,
+	patch_query = ?
 WHERE id = ?
 `
 
@@ -2355,18 +2406,21 @@ INSERT INTO
 	software_installer_labels (
 		software_installer_id,
 		label_id,
-		exclude
+		exclude,
+		require_all
 	)
 VALUES
 	%s
 ON DUPLICATE KEY UPDATE
-	exclude = VALUES(exclude)
+	exclude = VALUES(exclude),
+	require_all = VALUES(require_all)
 `
 
 	const loadExistingInstallerLabels = `
 SELECT
 	label_id,
-	exclude
+	exclude,
+	require_all
 FROM
 	software_installer_labels
 WHERE
@@ -2449,6 +2503,10 @@ WHERE
 		if len(installers) == 0 {
 			if _, err := tx.ExecContext(ctx, unsetAllInstallersFromPolicies, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
+			}
+
+			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
 			}
 
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
@@ -2549,6 +2607,14 @@ WHERE
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
+		}
+
+		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one
@@ -2715,6 +2781,7 @@ WHERE
 				isActive = 1
 			}
 
+			// Args match insertNewOrEditedInstaller column order.
 			args := []interface{}{
 				tmID,
 				globalOrTeamID,
@@ -2731,14 +2798,16 @@ WHERE
 				installer.UpgradeCode,
 				titleID,
 				installer.UserID,
-				installer.UserID,
-				installer.UserID,
+				installer.UserID, // user_name subselect
+				installer.UserID, // user_email subselect
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
 				installer.InstallDuringSetup,
 				installer.FleetMaintainedAppID,
 				isActive,
-				installer.InstallDuringSetup,
+				installer.HTTPETag,
+				installer.PatchQuery,
+				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets
@@ -2767,6 +2836,7 @@ WHERE
 					uninstallScriptID,
 					postInstallScriptID,
 					installer.PreInstallQuery,
+					installer.PatchQuery,
 					existingID,
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {
@@ -2846,7 +2916,7 @@ WHERE
 				// Evict old FMA versions beyond the max per title per team.
 				// Always keep the active installer; fill remaining slots with
 				// the most recent versions, evict everything else.
-				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID)
+				fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, tx, []uint{titleID}, globalOrTeamID, false)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "list FMA installer versions for eviction for %q", installer.Filename)
 				}
@@ -2942,13 +3012,15 @@ WHERE
 				}
 
 				excludeLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeExcludeAny
+				requireAllLabels := installer.ValidatedLabels.LabelScope == fleet.LabelScopeIncludeAll
 				if len(existing) > 0 && !existing[0].IsMetadataModified {
 					// load the remaining labels for that installer, so that we can detect
 					// if any label changed (if the counts differ, then labels did change,
-					// otherwise if the exclude bool changed, the target did change).
+					// otherwise if the exclude/require all bool changed, the target did change).
 					var existingLabels []struct {
-						LabelID uint `db:"label_id"`
-						Exclude bool `db:"exclude"`
+						LabelID    uint `db:"label_id"`
+						Exclude    bool `db:"exclude"`
+						RequireAll bool `db:"require_all"`
 					}
 					if err := sqlx.SelectContext(ctx, tx, &existingLabels, loadExistingInstallerLabels, installerID); err != nil {
 						return ctxerr.Wrapf(ctx, err, "load existing labels for installer with name %q", installer.Filename)
@@ -2957,8 +3029,8 @@ WHERE
 					if len(existingLabels) != len(labelIDs) {
 						existing[0].IsMetadataModified = true
 					}
-					if len(existingLabels) > 0 && existingLabels[0].Exclude != excludeLabels {
-						// same labels are provided, but the include <-> exclude changed
+					if len(existingLabels) > 0 && (existingLabels[0].Exclude != excludeLabels || existingLabels[0].RequireAll != requireAllLabels) {
+						// same labels are provided, but the include <-> exclude or require all changed
 						existing[0].IsMetadataModified = true
 					}
 				}
@@ -2966,9 +3038,9 @@ WHERE
 				// upsert the new labels now that obsolete ones have been deleted
 				var upsertLabelArgs []any
 				for _, lblID := range labelIDs {
-					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels)
+					upsertLabelArgs = append(upsertLabelArgs, installerID, lblID, excludeLabels, requireAllLabels)
 				}
-				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
+				upsertLabelValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(installer.ValidatedLabels.ByName)), ",")
 
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
 				if err != nil {
@@ -3252,6 +3324,7 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 			WHERE
 				sil.%[1]s_id = :software_id
 				AND sil.exclude = 0
+				AND sil.require_all = 0
 			HAVING
 				count_installer_labels > 0 AND count_host_labels > 0
 
@@ -3281,8 +3354,27 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 			WHERE
 				sil.%[1]s_id = :software_id
 				AND sil.exclude = 1
+				AND sil.require_all = 0
 			HAVING
 				count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+			UNION
+
+			-- include all
+			SELECT
+				COUNT(*) AS count_installer_labels,
+				COUNT(lm.label_id) AS count_host_labels,
+				0 as count_host_updated_after_labels
+			FROM
+				%[1]s_labels sil
+				LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+				AND lm.host_id = :host_id
+			WHERE
+				sil.%[1]s_id = :software_id
+				AND sil.exclude = 0
+				AND sil.require_all = 1
+			HAVING
+				count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			) t
 	`
 
@@ -3460,32 +3552,36 @@ func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, ur
 	stmt := `
 SELECT
 	si.id AS installer_id,
-	si.team_id AS team_id,
-	si.filename AS filename,
-	si.extension AS extension,
-	si.version AS version,
-	si.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	si.team_id,
+	si.storage_id,
+	si.http_etag,
+	si.filename,
+	si.extension,
+	si.version,
+	si.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids AS package_ids
+	si.package_ids
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.storage_id = ? %s
+	si.storage_id = ? AND si.is_active = 1 %s
 
 UNION ALL
 
 SELECT
 	iha.id AS installer_id,
-	iha.team_id AS team_id,
-	iha.filename AS filename,
+	iha.team_id,
+	iha.storage_id,
+	NULL AS http_etag,
+	iha.filename,
 	'ipa' AS extension,
-	iha.version AS version,
-	iha.platform AS platform,
-	st.source AS source,
-	st.bundle_identifier AS bundle_identifier,
+	iha.version,
+	iha.platform,
+	st.source,
+	st.bundle_identifier,
 	st.name AS title,
 	'' AS package_ids
 FROM
@@ -3526,6 +3622,45 @@ WHERE
 	}
 
 	return byTeam, nil
+}
+
+func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	stmt := `
+SELECT
+	si.id AS installer_id,
+	si.team_id AS team_id,
+	si.storage_id AS storage_id,
+	si.filename AS filename,
+	si.extension AS extension,
+	si.version AS version,
+	si.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title,
+	si.package_ids AS package_ids,
+	si.http_etag AS http_etag
+FROM
+	software_installers si
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
+ORDER BY si.id DESC
+LIMIT 1
+`
+	var installer fleet.ExistingSoftwareInstaller
+	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
+	// runs, the replica may be slightly stale, which results in a cache miss (full download)
+	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get installer by team and URL")
+	}
+	if installer.PackageIDList != "" {
+		installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
+	}
+	return &installer, nil
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {

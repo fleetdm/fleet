@@ -9,5 +9,5 @@
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;
   discard_data: false

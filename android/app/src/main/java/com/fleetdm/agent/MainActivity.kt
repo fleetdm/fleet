@@ -135,10 +135,17 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                     context.startActivity(intent)
                 }
                 HorizontalDivider()
-                CertificateList(certificates = installedCerts)
-                AppVersion {
-                    if (++versionClicks >= CLICKS_TO_DEBUG) {
-                        onNavigateToDebug()
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    CertificateList(certificates = installedCerts)
+                    AppVersion {
+                        if (++versionClicks >= CLICKS_TO_DEBUG) {
+                            onNavigateToDebug()
+                        } else if (versionClicks == 1) {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                ?: error("ClipboardManager not available")
+                            clipboard.setPrimaryClip(ClipData.newPlainText("", "Fleet Android Agent: ${BuildConfig.VERSION_NAME}"))
+                            Toast.makeText(context, "Fleet Agent version copied", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
                 DeviceIdRow(deviceId = deviceId) {

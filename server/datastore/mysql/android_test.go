@@ -2268,6 +2268,18 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
 
+	// Insert a certificate template record for this host to verify it gets deleted on unenroll.
+	err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              res.Host.UUID,
+			CertificateTemplateID: 1,
+			Status:                fleet.CertificateTemplateVerified,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  "test-cert",
+		},
+	})
+	require.NoError(t, err)
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
@@ -2290,7 +2302,7 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
 	})
-	// validate profile records deleted
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
 	})
@@ -2298,6 +2310,11 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "", serverURL)
 	assert.Equal(t, 1, mdmIDIsNull)
 	assert.Equal(t, 0, profileCountForHost)
+
+	// Validate certificate template records deleted
+	certRecords, err := ds.GetHostCertificateTemplates(testCtx(), res.Host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, certRecords)
 }
 
 func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
@@ -2310,6 +2327,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
 	// Create 5 android hosts
+	var androidHostUUIDs []string
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
@@ -2318,6 +2336,19 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
+		// Insert a certificate template record for each host.
+		err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              res.Host.UUID,
+				CertificateTemplateID: 1,
+				Status:                fleet.CertificateTemplateVerified,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "test-cert",
+			},
+		})
+		require.NoError(t, err)
+		androidHostUUIDs = append(androidHostUUIDs, res.Host.UUID)
 	}
 
 	// Create a macOS host (to verify we don't unenroll non-Android hosts)
@@ -2345,6 +2376,12 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, 10, androidHostProfileCount)
 	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+	// Verify each android host has a certificate template record.
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+	}
 
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
@@ -2353,11 +2390,18 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, 1, enrolledCount)
 
-	// validate profile records deleted
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
 	})
 	assert.Equal(t, 0, androidHostProfileCount)
+
+	// Validate certificate template records deleted for all android hosts
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		assert.Empty(t, records)
+	}
 }
 
 // setupTestApp creates a test Android app in vpp_apps table

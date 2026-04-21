@@ -41,6 +41,7 @@ spec:
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    apple_require_hardware_attestation: false
     windows_entra_tenant_ids: null
     macos_migration:
       enable: false
@@ -61,6 +62,8 @@ spec:
     windows_updates:
       deadline_days: 7
       grace_period_days: 3
+    apple_settings:
+      configuration_profiles:
     macos_settings:
       custom_settings:
     macos_setup:
@@ -71,13 +74,27 @@ spec:
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
+      require_all_software_windows: false
       script:
+      software:
+    setup_experience:
+      macos_bootstrap_package:
+      enable_end_user_authentication: false
+      apple_enable_release_device_manually: false
+      lock_end_user_info: false
+      apple_setup_assistant:
+      macos_manual_agent_install:
+      require_all_software_macos: false
+      require_all_software_windows: false
+      macos_script:
       software:
     windows_settings:
       custom_settings: null
+      configuration_profiles: null
     android_settings:
       certificates: null
       custom_settings: null
+      configuration_profiles: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""
@@ -179,6 +196,7 @@ spec:
     databases_path: ""
     disable_data_sync: false
     disable_win_os_vulnerabilities: false
+    osv_for_vulnerabilities: true
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:
@@ -205,3 +223,7 @@ spec:
   gitops:
     gitops_mode_enabled: false
     repository_url: ""
+    exceptions:
+      labels: false
+      software: false
+      secrets: false

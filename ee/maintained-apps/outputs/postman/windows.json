@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.1.2",
+      "version": "12.6.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Postman x64 11.75.4' AND publisher = 'Postman';"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman' AND version_compare(version, '12.6.3') < 0);"
       },
-      "installer_url": "https://dl.pstmn.io/download/version/12.1.2/windows_64",
+      "installer_url": "https://dl.pstmn.io/download/version/12.6.3/windows_64",
       "install_script_ref": "538f63bf",
       "uninstall_script_ref": "cd01b68f",
-      "sha256": "f4b950306db2b9417d30a2986496caea270b760294d6567dc368353fed5b884d",
+      "sha256": "ef677cc7ead3bef96174207d9bb202ec68bf9a66103d355ab40ded3ee81098d3",
       "default_categories": [
         "Developer tools"
       ]

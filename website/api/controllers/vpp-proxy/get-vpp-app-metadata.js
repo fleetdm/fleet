@@ -53,6 +53,14 @@ module.exports = {
       description: 'This request is missing a VPP app token',
       responseType: 'badRequest',
     },
+    appleApiReturnedServerError: {
+      description: 'The Apple API returned a server error',
+      statusCode: 500,
+    },
+    appleApiReturnedForbiddenResponse: {
+      description: 'The Apple API returned a forbidden response',
+      statusCode: 403,
+    },
   },
 
 
@@ -122,10 +130,14 @@ module.exports = {
       }
     })
     .tolerate((err)=>{
-      if(err.statusCode === 401) {// Only log a warning for authentication errors related to the generated token for this request.
-        sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occured. Full error: ${require('util').inspect(err)}`);
+      if(err.raw.statusCode === 403){
+        throw {appleApiReturnedForbiddenResponse: err.raw.body};
       }
-      return err;
+      if(err.raw.statusCode === 500){
+        throw {appleApiReturnedServerError: err.raw.body};
+      }
+      sails.log.warn(`When a Fleet instance sent a proxied request to the Apple App Store API, an error occurred. Full error: ${require('util').inspect(err)}`);
+      return err.raw.body;
     });
 
     return responseFromAppleApi;

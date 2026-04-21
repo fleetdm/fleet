@@ -48,7 +48,8 @@ SELECT
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
     nvq.request_type as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    nvq.name
 FROM
     nano_view_queue nvq
 INNER JOIN
@@ -67,7 +68,8 @@ SELECT
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
-    h.team_id
+    h.team_id,
+    NULL as name
 FROM windows_mdm_commands wmc
 LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
 LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
@@ -225,7 +227,8 @@ SELECT
         WHEN COALESCE(NULLIF(ncr.status, ''), 'Pending') = 'Error' THEN 'failed'
         ELSE 'pending'
     END AS command_status,
-	request_type
+	request_type,
+	nc.name
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
@@ -251,7 +254,8 @@ WHERE
 		wc.created_at AS updated_at,
 		'101' AS status,
 		'pending' AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_queue wq
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
@@ -287,7 +291,8 @@ WHERE
             ) AS UNSIGNED
         ) >= 400 THEN 'failed'
     END AS command_status,
-		wc.target_loc_uri AS request_type
+		wc.target_loc_uri AS request_type,
+		NULL AS name
 	FROM
 		windows_mdm_command_results wcr
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
@@ -1761,6 +1766,42 @@ LIMIT ?`, expiryDays, limit)
 		return nil, ctxerr.Wrap(ctx, err, "get identity certs close to expiry")
 	}
 	return uuids, nil
+}
+
+func (ds *Datastore) GetDeviceInfoForACMERenewal(ctx context.Context, hostUUIDs []string) ([]fleet.DeviceInfoForACMERenewal, error) {
+	if len(hostUUIDs) == 0 {
+		return []fleet.DeviceInfoForACMERenewal{}, nil
+	}
+
+	// TODO(mna): anyone knows what those TODOs (from Sarah's PRs) were for?
+	// TODO: refactor this to use hw model from host_dep_assignments once we have that fully in place
+	// TODO: confirm we can rely on host_operating_system and operating_systems tables for accurate OS version information
+	stmt := `
+SELECT
+	h.uuid AS host_uuid,
+	h.hardware_serial AS hardware_serial,
+	h.hardware_model AS hardware_model,
+	os.version AS os_version
+FROM
+	hosts h
+	JOIN host_dep_assignments hda ON hda.host_id = h.id
+	JOIN host_operating_system hos ON hos.host_id = h.id
+	JOIN operating_systems os ON os.id = hos.os_id
+WHERE
+	h.uuid IN(?)
+	AND hda.deleted_at IS NULL
+	AND os.name = 'macOS'`
+
+	stmt, args, err := sqlx.In(stmt, hostUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query for ACME hardware attestation")
+	}
+
+	var dest []fleet.DeviceInfoForACMERenewal
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host details for ACME hardware attestation")
+	}
+	return dest, nil
 }
 
 func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {

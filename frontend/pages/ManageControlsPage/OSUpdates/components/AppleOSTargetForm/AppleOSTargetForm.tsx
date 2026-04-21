@@ -9,7 +9,6 @@ import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 import { ApplePlatform } from "interfaces/platform";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -215,7 +214,7 @@ const AppleOSTargetForm = ({
         disabled={gitOpsModeEnabled}
         name="deadline"
         label="Deadline"
-        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 19:00 (7PM), the host's local time."
+        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
         value={deadline}
         error={deadlineError}

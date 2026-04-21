@@ -211,6 +211,7 @@ const HQRTable = ({
           emptyComponent={() => null}
           defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
+          getRowId={(_row, index) => String(index)}
         />
       )}
     </div>

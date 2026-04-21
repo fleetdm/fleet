@@ -224,10 +224,12 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
 							assert.Contains(t, pkg.Categories, "Communication")
 							assert.Empty(t, pkg.LabelsExcludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsExcludeAny, "a")
 							assert.Empty(t, pkg.LabelsIncludeAny)
+							assert.Empty(t, pkg.LabelsIncludeAll)
 						}
 					}
 					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
@@ -255,10 +257,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
 					assert.True(t, ok, "server_settings not found")
-					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
-					assert.EqualValues(t, 2000, serverSettings.(map[string]interface{})["query_report_cap"])
+					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]any)["server_url"])
+					assert.EqualValues(t, 2000, serverSettings.(map[string]any)["report_cap"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
-					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
+					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]any)
 					assert.True(t, ok)
 					assert.Equal(t, "Fleet Device Management", orgInfo["org_name"])
 					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
@@ -326,6 +328,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
+				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
+				assert.True(t, ok, "apple_require_hardware_attestation not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
 				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_LENGTH"])
@@ -426,12 +430,32 @@ func TestManualLabelEmptyHostList(t *testing.T) {
 labels:
   - name: TestLabel
     description: Label for testing
+    hosts: []
+    label_membership_type: manual`
+
+	gitops, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
+}
+
+func TestManualLabelNullHostsKey(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{})
+	config += `
+labels:
+  - name: TestLabel
+    description: Label for testing
     hosts:
     label_membership_type: manual`
 
 	gitops, err := gitOpsFromString(t, config)
 	require.NoError(t, err)
-	assert.NotNil(t, gitops.Labels[0].Hosts)
+	// hosts key present with null value should produce a non-nil empty slice
+	// (meaning "clear all hosts"), distinct from a nil slice (key omitted,
+	// meaning "preserve existing membership").
+	require.NotNil(t, gitops.Labels[0].Hosts)
+	assert.Empty(t, gitops.Labels[0].Hosts)
 }
 
 func TestDuplicateQueryNames(t *testing.T) {
@@ -484,6 +508,25 @@ func TestUnicodeTeamName(t *testing.T) {
 	config += `name: 😊 TeamName`
 	_, err := gitOpsFromString(t, config)
 	assert.NoError(t, err)
+}
+
+func TestWhitespaceOnlyTeamName(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"name"})
+	config += `name: "     "`
+	_, err := gitOpsFromString(t, config)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "team 'name' is required")
+}
+
+func TestPaddedTeamNameIsTrimmed(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"name"})
+	config += `name: "  Team Name  "`
+	gitOps, err := gitOpsFromString(t, config)
+	require.NoError(t, err)
+	require.NotNil(t, gitOps.TeamName)
+	require.Equal(t, "Team Name", *gitOps.TeamName)
 }
 
 func TestVarExpansion(t *testing.T) {
@@ -605,7 +648,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"settings"})
@@ -777,7 +820,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config = getConfig([]string{"org_settings"})
 					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
 					_, err = gitOpsFromString(t, config)
-					assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+					assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 					// Invalid secrets 1
 					config = getConfig([]string{"org_settings"})
@@ -832,7 +875,7 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config = getConfig([]string{"agent_options"})
 				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
 				_, err = gitOpsFromString(t, config)
-				assert.ErrorContains(t, err, "expected type spec.BaseItem but got array")
+				assert.ErrorContains(t, err, "expected type fleet.BaseItem but got array")
 
 				// Invalid controls
 				config = getConfig([]string{"controls"})
@@ -1166,7 +1209,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -1178,7 +1221,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
+	assert.ErrorContains(t, err, "must have only one of package_path, app_store_id, hash_sha256 or fleet_maintained_app_slug")
 
 	// Software has a URL that's too big
 	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
@@ -1752,7 +1795,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.txt"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1770,7 +1813,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(subdir, "nested.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
@@ -1785,9 +1828,9 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob1.yaml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "glob2.yaml"), []byte(""), 0o644))
 
-		items := []BaseItem{
-			{Path: ptr.String("single.yml")},
-			{Paths: ptr.String("*.yaml")},
+		items := []fleet.BaseItem{
+			{Path: ptr.String("single.yml")}, //nolint:modernize
+			{Paths: ptr.String("*.yaml")},    //nolint:modernize
 		}
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
@@ -1799,28 +1842,28 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("paths_without_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Paths: ptr.String("foo.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("foo.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `does not contain glob characters`)
 	})
 
 	t.Run("path_with_glob_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		requireErrorContains(t, errs, `cannot have both "path" and "paths"`)
 	})
 
 	t.Run("inline_items_passed_through", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		result, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1830,7 +1873,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("require_file_reference_error", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := expandBaseItems(items, "/tmp", "test", GlobExpandOptions{
 			RequireFileReference: true,
 		})
@@ -1844,7 +1887,7 @@ func TestExpandBaseItems(t *testing.T) {
 		logFn := func(format string, args ...any) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
 		require.Empty(t, errs)
 		assert.Empty(t, result)
@@ -1862,7 +1905,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(sub1, "dup.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub2, "dup.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("**/*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("**/*.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
 		})
@@ -1877,9 +1920,9 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "item.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(sub, "item.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{
-			{Path: ptr.String("item.yml")},
-			{Paths: ptr.String("sub/*.yml")},
+		items := []fleet.BaseItem{
+			{Path: ptr.String("item.yml")},   //nolint:modernize
+			{Paths: ptr.String("sub/*.yml")}, //nolint:modernize
 		}
 		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			RequireUniqueBasenames: true,
@@ -1900,7 +1943,7 @@ func TestExpandBaseItems(t *testing.T) {
 			warnings = append(warnings, fmt.Sprintf(format, args...))
 		}
 
-		items := []BaseItem{{Paths: ptr.String("*")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".sh": true},
 			LogFn:             logFn,
@@ -1918,7 +1961,7 @@ func TestExpandBaseItems(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.yml"), []byte(""), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "m.yml"), []byte(""), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.yml")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.yml")}} //nolint:modernize
 		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
 		require.Empty(t, errs)
 		require.Len(t, result, 3)
@@ -1929,7 +1972,7 @@ func TestExpandBaseItems(t *testing.T) {
 
 	t.Run("multiple_errors_collected", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}}
+		items := []fleet.BaseItem{{Path: ptr.String("*.yml")}, {Paths: ptr.String("noglob.yml")}} //nolint:modernize
 		_, errs := expandBaseItems(items, "", "test", GlobExpandOptions{})
 		require.Len(t, errs, 2)
 		assert.Contains(t, errs[0].Error(), `contains glob characters`)
@@ -1945,7 +1988,7 @@ func TestResolveScriptPaths(t *testing.T) {
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "script.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Path: ptr.String("script.sh")}}
+		items := []fleet.BaseItem{{Path: ptr.String("script.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 1)
@@ -1958,15 +2001,34 @@ func TestResolveScriptPaths(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.sh"), []byte("#!/bin/bash"), 0o644))
 
-		items := []BaseItem{{Paths: ptr.String("*.sh")}}
+		items := []fleet.BaseItem{{Paths: ptr.String("*.sh")}} //nolint:modernize
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
 	})
 
+	t.Run("glob_filters_non_script_extensions", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ps1"), []byte("Write-Host"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.py"), []byte("#!/usr/bin/env python3"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "d.txt"), []byte("not a script"), 0o644))
+
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		got := make([]string, 0, len(result))
+		for _, r := range result {
+			got = append(got, filepath.Base(*r.Path))
+		}
+		assert.Equal(t, []string{"a.sh", "b.ps1", "c.py"}, got)
+	})
+
 	t.Run("inline_not_allowed", func(t *testing.T) {
 		t.Parallel()
-		items := []BaseItem{{}}
+		items := []fleet.BaseItem{{}}
 		_, errs := resolveScriptPaths(items, "/tmp", nopLogf)
 		require.NotEmpty(t, errs)
 		assert.Contains(t, errs[0].Error(), `no "path" or "paths" field`)
@@ -2150,6 +2212,127 @@ func TestGitOpsGlobScripts(t *testing.T) {
 	assert.Equal(t, filepath.Join(scriptsDir, "alpha.sh"), *result.Controls.Scripts[0].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "beta.sh"), *result.Controls.Scripts[1].Path)
 	assert.Equal(t, filepath.Join(scriptsDir, "gamma.ps1"), *result.Controls.Scripts[2].Path)
+}
+
+func TestGitOpsGlobProfiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("macos_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "gamma.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+      - path: profiles/beta.json
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 3)
+
+		// Glob results come first (sorted), then the explicit path
+		assert.Contains(t, macSettings.CustomSettings[0].Path, "alpha.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[1].Path, "gamma.mobileconfig")
+		assert.Contains(t, macSettings.CustomSettings[2].Path, "beta.json")
+	})
+
+	t.Run("windows_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "alpha.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.xml"), []byte("<xml/>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  windows_settings:
+    configuration_profiles:
+      - paths: profiles/*.xml
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		winSettings, ok := result.Controls.WindowsSettings.(fleet.WindowsSettings)
+		require.True(t, ok)
+		require.True(t, winSettings.CustomSettings.Valid)
+		require.Len(t, winSettings.CustomSettings.Value, 2)
+
+		assert.Contains(t, winSettings.CustomSettings.Value[0].Path, "alpha.xml")
+		assert.Contains(t, winSettings.CustomSettings.Value[1].Path, "beta.xml")
+	})
+
+	t.Run("android_profiles", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.xml"), []byte("<xml/>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "beta.json"), []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "skip.txt"), []byte("nope"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  android_settings:
+    configuration_profiles:
+      - paths: profiles/*
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		androidSettings, ok := result.Controls.AndroidSettings.(fleet.AndroidSettings)
+		require.True(t, ok)
+		require.True(t, androidSettings.CustomSettings.Valid)
+		require.Len(t, androidSettings.CustomSettings.Value, 1)
+
+		// Sorted alphabetically by path
+		assert.Contains(t, androidSettings.CustomSettings.Value[0].Path, "beta.json")
+	})
+
+	t.Run("macos_profiles_with_labels", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		profilesDir := filepath.Join(dir, "profiles")
+		require.NoError(t, os.MkdirAll(profilesDir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "a.mobileconfig"), []byte("<plist></plist>"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(profilesDir, "b.mobileconfig"), []byte("<plist></plist>"), 0o644))
+
+		config := getGlobalConfig([]string{"controls"})
+		config += `controls:
+  apple_settings:
+    configuration_profiles:
+      - paths: profiles/*.mobileconfig
+        labels_include_all:
+          - MyLabel
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		result, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
+		require.NoError(t, err)
+		macSettings, ok := result.Controls.MacOSSettings.(fleet.MacOSSettings)
+		require.True(t, ok)
+		require.Len(t, macSettings.CustomSettings, 2)
+		for _, p := range macSettings.CustomSettings {
+			assert.Equal(t, []string{"MyLabel"}, p.LabelsIncludeAll)
+		}
+	})
 }
 
 func TestUnknownKeyDetection(t *testing.T) {
@@ -2784,7 +2967,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2796,9 +2979,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
-		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_apple_custom_settings", func(t *testing.T) {
@@ -2812,7 +2995,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   apple_settings:
     configuration_profiles:
@@ -2825,9 +3008,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.apple_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_windows_custom_settings", func(t *testing.T) {
@@ -2841,7 +3024,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   windows_settings:
     configuration_profiles:
@@ -2854,9 +3037,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.windows_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_android_custom_settings", func(t *testing.T) {
@@ -2870,7 +3053,7 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   android_settings:
     configuration_profiles:
@@ -2883,9 +3066,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
-		require.Contains(t, err.Error(), "`custom_settings` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.android_settings.custom_settings' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
@@ -2899,19 +3082,19 @@ agent_options:
 org_settings:
   server_settings:
   org_info:
-  secrets:		
+  secrets:
 controls:
   setup_experience:
-  macos_setup:    
+  macos_setup:
 `
 		yamlPath := filepath.Join(dir, "gitops.yml")
 		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "setup_experience")
-		require.Contains(t, err.Error(), "`macos_setup` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.macos_setup' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
@@ -2934,9 +3117,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_bootstrap_package")
-		require.Contains(t, err.Error(), "`bootstrap_package` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.bootstrap_package' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
@@ -2959,9 +3142,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
-		require.Contains(t, err.Error(), "`enable_release_device_manually` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.enable_release_device_manually' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
@@ -2984,9 +3167,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_script")
-		require.Contains(t, err.Error(), "`script` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.script' (deprecated)")
 	})
 
 	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
@@ -3009,9 +3192,9 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "macos_manual_agent_install")
-		require.Contains(t, err.Error(), "`manual_agent_install` (deprecated)")
+		require.Contains(t, err.Error(), "'controls.setup_experience.manual_agent_install' (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -3042,7 +3225,7 @@ org_settings:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "Conflicting field names")
+		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
 		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
 	})
@@ -3082,6 +3265,30 @@ software:
 		assert.True(t, result.Software.Packages[0].SelfService)
 		assert.Empty(t, result.Software.Packages[0].URL)
 		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("sh_script_with_shell_variables", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/shell-vars.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a script that uses standard shell variables (not set in CI env).
+		_, expectedVarUnset := os.LookupEnv("SOMETHING_UNSET") // Make sure at least one is not set in the CI environment
+		require.False(t, expectedVarUnset, "SOMETHING_UNSET should not be set in the test environment")
+		scriptContent := []byte("#!/bin/bash\necho \"EUID=$EUID\"\necho \"USER=$USER\"\necho \"HOME=$HOME\"\necho \"SOMETHING_UNSET=$SOMETHING_UNSET\"\n")
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))                                  // nolint:gosec
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "shell-vars.sh"), scriptContent, 0o755)) // nolint:gosec
+
+		// Shell variables must not be expanded by the gitops parser.
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "shell-vars.sh"))
 	})
 
 	t.Run("valid_ps1_script_path", func(t *testing.T) {
@@ -3211,9 +3418,9 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware, // no package_path, app_store_id, or hash_sha256
 			},
 		}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id or a hash_sha256`)
+		assert.Equal(t, errs[0].Error(), `failed to parse policy install_software "my policy": install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug`)
 	})
 
 	t.Run("unknown key in package_path file", func(t *testing.T) {
@@ -3234,10 +3441,179 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 			},
 		}
 		packages := []*fleet.SoftwarePackageSpec{{SHA256: sha}}
-		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil)
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
 		var unknownErr *ParseUnknownKeyError
 		require.ErrorAs(t, errs[0], &unknownErr)
 		assert.Equal(t, "bad_field", unknownErr.Field)
+	})
+	t.Run("fleet_maintained_app_slug valid", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+	})
+
+	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "notreal/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "bad fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `fleet_maintained_app_slug "notreal/darwin" not found`)
+	})
+
+	t.Run("fleet_maintained_app_slug with other fields errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{
+			FleetMaintainedAppSlug: "zoom/darwin",
+			HashSHA256:             "abc123",
+		}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "conflicting policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software must have only one of")
+	})
+
+	t.Run("fleet_maintained_app_slug on global policy errors", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec:      fleet.PolicySpec{Name: "global fma policy"},
+				InstallSoftware: installSoftware,
+			},
+		}
+		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+	})
+}
+
+func TestGitOpsPresenceTracking(t *testing.T) {
+	t.Run("labels present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+	})
+
+	t.Run("labels absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.LabelsPresent)
+		assert.Nil(t, gitops.Labels, "absent labels should be nil")
+	})
+
+	t.Run("labels present but empty", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+labels:
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.LabelsPresent)
+		assert.Nil(t, gitops.Labels, "empty labels section should result in nil")
+	})
+
+	t.Run("secrets present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.SecretsPresent)
+	})
+
+	t.Run("secrets absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.SecretsPresent)
+	})
+
+	t.Run("software present on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+software:
+  packages:
+    - url: https://example.com/pkg.deb
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.True(t, gitops.SoftwarePresent)
+	})
+
+	t.Run("software absent on team", func(t *testing.T) {
+		premiumConfig := &fleet.EnrichedAppConfig{}
+		premiumConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+`)
+		gitops, err := GitOpsFromFile(path, basePath, premiumConfig, nopLogf)
+		require.NoError(t, err)
+		assert.False(t, gitops.SoftwarePresent)
 	})
 }

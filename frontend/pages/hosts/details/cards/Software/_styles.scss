@@ -56,6 +56,11 @@
             max-width: px-to-rem(140);
           }
         }
+        tbody {
+          .name__cell {
+            max-width: 250px;
+          }
+        }
       }
 
       @media (max-width: ($break-sm - 1)) {

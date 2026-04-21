@@ -70,6 +70,42 @@ func FmtErrorChain(chain []mdm.ErrorChain) string {
 	return sb.String()
 }
 
+// IsRecoveryLockPasswordMismatchError checks if the error chain indicates that the
+// recovery lock password provided does not match the one on the device. This is a
+// terminal error that should not be retried automatically.
+//
+// Known error signatures:
+// - MDMClientError (70): "Existing recovery lock password not provided"
+// - ROSLockoutServiceDaemonErrorDomain (8): "The provided recovery password failed to validate."
+func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		// MDMClientError 70: "Existing recovery lock password not provided"
+		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 70 {
+			return true
+		}
+		// ROSLockoutServiceDaemonErrorDomain 8: "The provided recovery password failed to validate"
+		if e.ErrorDomain == "ROSLockoutServiceDaemonErrorDomain" && e.ErrorCode == 8 {
+			return true
+		}
+	}
+	return false
+}
+
+// IsProfileNotFoundError checks if the error chain indicates that a profile
+// was not found on the device. When this error occurs during a RemoveProfile
+// command, it means the profile is already absent — the desired outcome.
+//
+// Known error signature:
+// - MDMClientError (89): "Profile with identifier '...' not found."
+func IsProfileNotFoundError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 89 {
+			return true
+		}
+	}
+	return false
+}
+
 // FmtDDMError formats a DDM error message
 func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 	var errMsg strings.Builder

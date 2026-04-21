@@ -1,0 +1,1 @@
+- Improved performance of distributed read endpoint by reducing mutex contention in shouldUpdate using sync.RWMutex instead of sync.Mutex.

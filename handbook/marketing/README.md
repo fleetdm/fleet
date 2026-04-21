@@ -3,29 +3,8 @@
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-
-
-
-
-
-| Role | Person | Github ID | Responsibilities |
-| ----- | ----- | ----- | ----- |
-| Chief marketing officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala)  | [*@akuthiala*](https://github.com/akuthiala) | Set, lead, and manage Fleet’s marketing strategy and execution across all aspects of marketing  Lead or own various functions of marketing as appropriate. |
-| Content specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/)  | [*@irenareedy*](https://github.com/irenareedy) | Manage and scale the Fleet Champions Community program by expanding the size and diversity of customer advocates while increasing the number of Fleet peer reviews across multiple platforms. Lead event execution in close collaboration with the Campaign Manager to ensure conferences, meetups, and community events are planned, coordinated, and delivered successfully. Oversee Fleet’s social media program by working with the Social Media Manager to coordinate content, messaging, and publishing across channels. Maintain the marketing operations board to ensure tasks are assigned, actively worked on, and completed so marketing initiatives remain organized and on track. Own and report on weekly marketing KPIs, tracking progress across initiatives and ensuring visibility into performance and outcomes  |
-| Product education manager | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/)  | [*@nonpunctual*](https://github.com/nonpunctual) | Create core technical assets to train internal, partners, prospects, and customer teams including Fleet certification program and teaching GitOps workshops.  Be the technical expert in validating all things marketing produces, be the Fleet relationship expert with Macadmins community |
-| Head of demand generation | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/)  | [*@johnjeremiah*](https://github.com/johnjeremiah) | Build pipeline,  Marketing ops |
-| Campaign manager | Hired (to be announced) |  | Build, run and measure all marketing campaigns.   Own Fleet swag strategy and execution |
-| Content specialist (Consultant) | [Anthony Critelli](https://www.linkedin.com/in/anthonycritelli/) | [@acritelli](https://github.com/acritelli) | Build out Fleet linux management capabilities content |
-| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) | [@dbgordon](https://github.com/danbgordon) | Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
-| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) | [@miskaek](https://github.com/miskaek) | Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
-| Analyst relations (Consultant) | [Preston Death](https://www.linkedin.com/in/preston-death/)  | [*@pfd76*](https://github.com/pfd76) | Manage analyst relations (with analysts) and drive program internally in Fleet |
-| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  | [*@tombasgil*](https://github.com/tombasgil) | Establish, manage and grow Fleet’s social media presence across all appropriate channels |
-| Public relations (Consultant) | [TBD]  |  | Establish Fleet PR program Identify and train key Fleet employees on PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
-
-
-
-
-
+ 
+The different roles in the marketing team and the DRIs executing the responsibilities of that role are listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-responsibilities).
 
 ## Contact us
 
@@ -39,17 +18,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
-### Marketing Assets
+### Marketing assets
 
 The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
 
+
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations,  Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
+Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
 
 ### Organize work in GitHub issues with marketing labels
@@ -72,7 +50,7 @@ Note: for event execution, additional labels are used to manage the process and 
 
 ### Prepare "Let's get you set up!" meeting notes
 
-Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
 Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
 
@@ -110,9 +88,14 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 
+### Manage LinkedIn ad creatives
+
+LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
+
+
 ### Settle content strategy
 
-The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
 
 1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
   - Release date: The date by which the content will be complete and finalized.
@@ -121,8 +104,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
 2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
 
 
-
-
+[Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
 
 
 
@@ -212,16 +194,128 @@ Here are some links that filter relevant conversations on each platform:
 4. If a post is helpful to our audience, reshare it.
 
 
+### Monitor and respond to LinkedIn comments
+
+The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
+
+To monitor and respond to LinkedIn comments:
+1. Check LinkedIn mentions and comments once per workday.
+2. Like mentions and respond to comments where appropriate.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+5. All interactions are cataloged in Hootsuite for future review.
+
+### Process to send out GitOps workshop certifications
+After every GitOps workshop, Fleet issues a certificate to all participants who passed via email.
+
+#### Collect attendee data
+
+1. Ask the AE or CSM to submit a GitHub issue after the workshop.  
+2. Make sure the issue is assigned to the DRI (Irena).  
+3. Confirm the issue includes:  
+   - Workshop date  
+   - Workshop location  
+   - First name  
+   - Last name  
+   - Email address  
+   - Registered (yes or no)  
+   - Attended (yes or no)  
+   - Certified by the trainer (passed)  
+4. Only issue certificates to attendees who passed the workshop.
+
+#### Create a new certificate collection
+
+1. Go to virtualbadge.io.  
+2. Find the most recent certificate collection.  
+3. Duplicate the collection.  
+4. Rename the collection using:  
+   - City  
+   - Date in YYYY-MM-DD format
+
+#### Update certificate details
+
+1. Open the duplicated collection.  
+2. Edit the certificate template:  
+   - Set the issue date to the workshop date.  
+   - Do not use the email send date.  
+   - Remove any expiration date.  
+   - Keep the contact email as the SVP of Customer Success  
+   - Update the Fleet version if needed.  
+     - It’s ok to reuse a version for up to 3-6 months. After this point, use the current version of Fleet.  
+3. Click **Customize** and update:  
+   - Event location  
+   - Event date  
+4. Do not edit the recipient name field. It is auto-filled.
+
+#### Add recipients
+
+1. Go to the recipient list.  
+2. Choose manual entry for speed.  
+3. Click **Add single**.  
+4. Enter:  
+   - Email address  
+   - Full name (first and last)  
+5. Repeat for each certified attendee.  
+6. If there are more than 10 attendees, consider uploading a CSV.  
+7. Click **Upload**, then **Confirm**.
+
+#### Generate certificates
+
+1. Check the **Certificate status** column.  
+2. Wait until all certificates show “generated”.
+
+#### Send certificates
+
+1. Select all recipients.  
+2. Click **Send emails**.
+
+#### Notes
+
+- Only send certificates to attendees who passed.  
+- Do not send certificates to registrants or attendees who did not pass.  
+- Use the workshop date for all certificate records.  
+- Keep the process simple and consistent for every workshop.
+
 ### Publish sprint demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording before publishing it. Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels. To fix this:
+After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. Download the sprint demo recording.
-2. Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor.
-3. Apply audio compression to even out the volume levels across all presenters.
-4. Export and download the processed video.
-5. Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+1. **Download the sprint demo recording**
 
+   This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
+   
+3. **Review and scrub the recording**
+
+   The Content Specialist reviews the original recording and will remove/edit any issues, including:
+   - Mentions of customer names or sensitive information  
+   - Long pauses or dead air  
+   - The opening ritual or internal-only discussion  
+   - Any unclear or unnecessary segments
+   - Make sure the video has a clean start and a clear ending.
+   
+4. **Share with Technical Marketing**
+
+   After scrubbing, the Content Specialist shares the project file with the Technical Marketer.
+
+5. **Edit audio and visuals**
+
+   The Technical Marketer adjusts sound and visual quality as needed.
+
+   Ensure audio is clear and visuals are easy to follow.
+
+   Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+  - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
+  - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
+  - Export and download the processed video.
+
+6. **Upload the video to Youtube**
+   Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+
+   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+
+   Add a brief description highlighting the new features.
+
+   Add the new video to the "Releases" playlist.
 
 ### Upload to YouTube
 
@@ -301,8 +395,28 @@ This view displays the website's efficiency by tracking the rate at which users 
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
-## Rituals
+## Fleet writing style, tone, and voice instructions for AI
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
 
+## Post blog articles
+Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
+
+1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+3. Title the file with the slug version of your blog title, ending in `.md`
+4. First line should be the Title of the blog with H1 markdown (`#`)
+5. Put in your article, using markdown to format it
+6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) first
+8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
+9. Once you think your blog is ready, commit the changes
+10. Before submitting a PR to merge it, preview it:
+    - GitHub: has a **Preview** button in the editor
+    - VS Code: right click on filename tab and select **Open Preview**
+    - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
+11. When ready, submit a PR to get it reviewed and merged
+
+## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 #### Stubs

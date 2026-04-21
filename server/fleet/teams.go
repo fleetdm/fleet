@@ -277,6 +277,7 @@ type TeamSpecAppStoreApp struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsIncludeAll []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
@@ -335,7 +336,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 

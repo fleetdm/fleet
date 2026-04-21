@@ -10,6 +10,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -46,6 +47,7 @@ class ApiClientReenrollTest {
         mockWebServer.start()
 
         ApiClient.initialize(context)
+        ApiClient.useActiveNetworkBinding = false
         clearDataStore()
 
         // Set up enrollment credentials pointing to mock server
@@ -196,6 +198,14 @@ class ApiClientReenrollTest {
         assertTrue(
             "Expected second-node-key in Authorization header",
             retryRequest.getHeader("Authorization")?.contains("second-node-key") == true,
+        )
+
+        // GET requests should not send Content-Type since they have no body.
+        // A Content-Type header on a bodyless GET can cause intermediaries (proxies, CDNs)
+        // to reject the request, which surfaces as misleading DNS errors on Android.
+        assertNull(
+            "GET request should not have Content-Type header",
+            retryRequest.getHeader("Content-Type"),
         )
     }
 

@@ -32,7 +32,7 @@ Domain name registrations are handled through Namecheap. Access is managed via 1
 
 ### Secure company-issued equipment for a team member
 
-As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
+As soon as an offer is accepted, Fleet provides laptops for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
 - [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
@@ -44,8 +44,6 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 - Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
-
- - Order a pack of two [YubiKey 5C NFC security keys](https://www.yubico.com/product/yubikey-5-series/yubikey-5c-nfc/) for new team member, shipped to them directly.
 
 - Include delivery tracking information when closing the support request so the new employee can be notified.
 
@@ -73,15 +71,20 @@ Upon receiving any device, follow these steps to process incoming equipment.
 Once the department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. Package equipment for shipment and include Yubikeys (if requested).
+3. Package equipment for shipment.
 4. Change the "host" info to reflect the new user. If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/it#process-incoming-equipment).
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
 
+### Monitor compliance tests
 
-   
-
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-it" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 

@@ -9,3 +9,8 @@
 .default-fleet-logo {
   transform: scale(0.5);
 }
+
+body.dark-mode .default-fleet-logo,
+body.dark-mode .org-logo-icon--invert-dark {
+  filter: brightness(0) invert(1);
+}
