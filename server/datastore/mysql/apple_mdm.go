@@ -7918,9 +7918,9 @@ func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUI
 // password (SetHostsRecoveryLockPasswords' ON DUPLICATE KEY UPDATE does not reset those
 // columns on re-animate). Safe to call idempotently — the deleted=0 guard makes repeat
 // calls no-ops. Keeps encrypted_password/status/operation_type/error_message for support
-// diagnostics. Used by MDM lifecycle hooks (re-enroll, explicit unenroll, refetch-detected
-// unenroll) — Apple wipes the device-side recovery lock whenever the MDM profile is removed,
-// so any of these signals invalidates Fleet's stored copy.
+// diagnostics. Used by MDM lifecycle hooks (re-enroll, explicit unenroll) — Apple wipes
+// the device-side recovery lock whenever the MDM profile is removed, so any of these
+// signals invalidates Fleet's stored copy.
 func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE host_recovery_key_passwords
@@ -7933,6 +7933,28 @@ func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext,
 		return ctxerr.Wrap(ctx, err, "soft-delete host recovery lock password")
 	}
 	return nil
+}
+
+// SoftDeleteRecoveryLockPasswordsForUnenrolledHosts is the cron-driven complement to the
+// explicit MDM lifecycle hooks. Catches hosts where MDM was disabled without Fleet receiving
+// either a CheckOut (paths handled by MDMTurnOff) or an Authenticate (handled by
+// MDMResetEnrollment) — typically when the device user manually removes the MDM profile
+// and only osquery refetch eventually reports host_mdm.enrolled=0. Runs inside the recovery
+// lock cron every few minutes; bounded by the recovery lock table size, not host count.
+func (ds *Datastore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords rkp
+		JOIN hosts h     ON h.uuid = rkp.host_uuid AND h.platform = 'darwin'
+		JOIN host_mdm hm ON hm.host_id = h.id AND hm.enrolled = 0
+		SET rkp.deleted = 1,
+		    rkp.pending_encrypted_password = NULL,
+		    rkp.pending_error_message = NULL,
+		    rkp.auto_rotate_at = NULL
+		WHERE rkp.deleted = 0`)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts")
+	}
+	return res.RowsAffected()
 }
 
 func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error) {

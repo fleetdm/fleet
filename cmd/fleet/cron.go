@@ -2211,7 +2211,7 @@ func newRecoveryLockPasswordSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
-		defaultInterval = 5 * time.Minute
+		defaultInterval = 30 * time.Second
 	)
 
 	logger = logger.With("cron", name)

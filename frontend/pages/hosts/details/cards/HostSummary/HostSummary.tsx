@@ -170,7 +170,14 @@ const HostSummary = ({
       : [linuxDiskEncryptionSetting];
   }
 
-  if (platform === "darwin" && osSettings?.recovery_lock_password?.status) {
+  const hostIsMdmEnrolled =
+    !!mdm?.enrollment_status && mdm.enrollment_status.startsWith("On ");
+
+  if (
+    platform === "darwin" &&
+    hostIsMdmEnrolled &&
+    osSettings?.recovery_lock_password?.status
+  ) {
     const recoveryLockSetting = generateRecoveryLockPasswordSetting(
       osSettings.recovery_lock_password.status,
       osSettings.recovery_lock_password.detail

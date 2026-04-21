@@ -103,7 +103,7 @@ const generateTableConfig = (
         const isAndroidCertificate =
           platform === "android" &&
           cellProps.row.original.profile_uuid ===
-            FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
+          FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID;
 
         const isRecoveryLockRow =
           cellProps.row.original.profile_uuid ===
@@ -188,6 +188,7 @@ const makeDarwinRows = ({
   profiles,
   apple_settings,
   os_settings,
+  enrollment_status,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
@@ -201,7 +202,10 @@ const makeDarwinRows = ({
     }
   }
 
-  if (os_settings?.recovery_lock_password?.status) {
+  const hostIsMdmEnrolled =
+    !!enrollment_status && enrollment_status.startsWith("On ");
+
+  if (hostIsMdmEnrolled && os_settings?.recovery_lock_password?.status) {
     rows = [
       ...rows,
       generateRecoveryLockPasswordSetting(

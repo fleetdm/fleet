@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -197,7 +196,6 @@ func TestHosts(t *testing.T) {
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
-		{"SetOrUpdateMDMDataSoftDeletesRecoveryLockOnTransition", testSetOrUpdateMDMDataSoftDeletesRecoveryLockOnTransition},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -13481,113 +13479,3 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 	})
 }
 
-// testSetOrUpdateMDMDataSoftDeletesRecoveryLockOnTransition exercises the transition
-// detection added to SetOrUpdateMDMData: only a darwin host going from enrolled=1 to
-// enrolled=0 should soft-delete its recovery lock row. Spurious or replayed enrolled=0
-// reports must not wipe a password that an admin still needs.
-func testSetOrUpdateMDMDataSoftDeletesRecoveryLockOnTransition(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	type rawRow struct {
-		Encrypted []byte `db:"encrypted_password"`
-		Deleted   bool   `db:"deleted"`
-	}
-	readRaw := func(t *testing.T, hostUUID string) *rawRow {
-		t.Helper()
-		var row rawRow
-		err := ds.writer(ctx).GetContext(ctx, &row, `
-			SELECT encrypted_password, deleted
-			FROM host_recovery_key_passwords
-			WHERE host_uuid = ?`, hostUUID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		require.NoError(t, err)
-		return &row
-	}
-
-	seedRecoveryLockRow := func(t *testing.T, hostUUID string) {
-		t.Helper()
-		pw := apple_mdm.GenerateRecoveryLockPassword()
-		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: hostUUID, Password: pw}}))
-		require.NoError(t, ds.SetRecoveryLockVerified(ctx, hostUUID))
-	}
-
-	const mdmURL = "https://mdm.example.com"
-
-	t.Run("darwin enrolled 1->0 soft-deletes recovery lock", func(t *testing.T) {
-		host := test.NewHost(t, ds, "transition-darwin-10", "10.0.0.1", "key-darwin-10", "uuid-darwin-10", time.Now())
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, mdmURL, false, "Fleet", "", false))
-		seedRecoveryLockRow(t, host.UUID)
-
-		// Now flip to enrolled=false (osquery refetch reports manual profile removal).
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
-
-		row := readRaw(t, host.UUID)
-		require.NotNil(t, row)
-		assert.True(t, row.Deleted, "darwin enrolled 1->0 must soft-delete the recovery lock row")
-	})
-
-	t.Run("darwin 0->0 idempotent: does not touch a deleted=0 row", func(t *testing.T) {
-		host := test.NewHost(t, ds, "transition-darwin-00", "10.0.0.2", "key-darwin-00", "uuid-darwin-00", time.Now())
-		// Establish the host as enrolled=false from the start (no host_mdm row), then
-		// directly upsert with enrolled=false to simulate the prior state.
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
-		// Manually insert a stranded recovery lock row (would only happen if a prior
-		// MDM lifecycle event was missed). Soft-delete must NOT fire on a 0->0 update.
-		seedRecoveryLockRow(t, host.UUID)
-		before := readRaw(t, host.UUID)
-		require.NotNil(t, before)
-		require.False(t, before.Deleted)
-
-		// Repeat the enrolled=false write — should be a true no-op for the recovery lock row.
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
-
-		after := readRaw(t, host.UUID)
-		require.NotNil(t, after)
-		assert.False(t, after.Deleted, "0->0 update must not soft-delete a stranded row; only true 1->0 transitions should")
-		assert.Equal(t, before.Encrypted, after.Encrypted)
-	})
-
-	t.Run("darwin 1->1 does not soft-delete", func(t *testing.T) {
-		host := test.NewHost(t, ds, "transition-darwin-11", "10.0.0.3", "key-darwin-11", "uuid-darwin-11", time.Now())
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, mdmURL, false, "Fleet", "", false))
-		seedRecoveryLockRow(t, host.UUID)
-
-		// Re-confirm enrolled=true on next refetch.
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, mdmURL, false, "Fleet", "", false))
-
-		row := readRaw(t, host.UUID)
-		require.NotNil(t, row)
-		assert.False(t, row.Deleted, "1->1 must not soft-delete")
-	})
-
-	t.Run("first-ingest enrolled=false (NULL prior state) does not soft-delete", func(t *testing.T) {
-		host := test.NewHost(t, ds, "transition-darwin-null", "10.0.0.4", "key-darwin-null", "uuid-darwin-null", time.Now())
-		// Manually insert a stranded recovery lock row before any host_mdm row exists.
-		// This simulates the boundary case where the LEFT JOIN returns NULL for enrolled
-		// — which must not be treated as a 1->0 transition.
-		seedRecoveryLockRow(t, host.UUID)
-
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
-
-		row := readRaw(t, host.UUID)
-		require.NotNil(t, row)
-		assert.False(t, row.Deleted, "NULL prior enrolled state must not be treated as a 1->0 transition")
-	})
-
-	t.Run("non-darwin platform skips soft-delete on 1->0", func(t *testing.T) {
-		// recovery lock only applies to macOS; an iOS/iPadOS/Windows/Linux host's
-		// transition must not touch host_recovery_key_passwords even if a row somehow
-		// exists for it.
-		host := test.NewHost(t, ds, "transition-ios", "10.0.0.5", "key-ios", "uuid-ios", time.Now(), test.WithPlatform("ios"))
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, mdmURL, false, "Fleet", "", false))
-		seedRecoveryLockRow(t, host.UUID) // pretend a row exists
-
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false))
-
-		row := readRaw(t, host.UUID)
-		require.NotNil(t, row)
-		assert.False(t, row.Deleted, "non-darwin transition must not soft-delete")
-	})
-}
