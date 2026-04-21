@@ -170,7 +170,7 @@ software:
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
-      display_name: Enable Touch ID for sudo
+      display_name: "Enable Touch ID for sudo"
       self_service: true
       categories:
         - Security
