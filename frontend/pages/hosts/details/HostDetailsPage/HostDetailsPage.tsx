@@ -165,6 +165,7 @@ interface IHostDetailsProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       fleet_id?: string;
+      show_mdm_status?: string;
     };
     search?: string;
   };
@@ -237,7 +238,9 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
-  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(
+    location.query.show_mdm_status === "true"
+  );
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
 
   // General-use updating state
