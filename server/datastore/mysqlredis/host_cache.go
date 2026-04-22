@@ -74,7 +74,10 @@ func (d *Datastore) jitteredHostCacheTTL() time.Duration {
 		return 0
 	}
 	half := float64(d.hostCacheTTL) * hostCacheTTLJitterFraction / 2
-	delta := (mathrand.Float64()*2 - 1) * half
+	// TTL jitter is a coarse scheduling concern, not a security boundary;
+	// crypto/rand would be overkill and its failure modes (EAGAIN on low
+	// entropy) are worse than using math/rand/v2 here.
+	delta := (mathrand.Float64()*2 - 1) * half //nolint:gosec // non-security randomness
 	return d.hostCacheTTL + time.Duration(delta)
 }
 
@@ -228,7 +231,10 @@ func (d *Datastore) hostCacheDeleteByID(ctx context.Context, hostID uint, reason
 		d.recordHostCacheInvalidation(ctx, reason)
 		return
 	case err != nil:
-		d.recordHostCacheErr(ctx, "del", err)
+		// The failing op is a GET (the reverse-index lookup), so label it
+		// accordingly; the "del" op label is reserved for actual DEL failures
+		// below.
+		d.recordHostCacheErr(ctx, "get", err)
 		d.recordHostCacheInvalidation(ctx, reason)
 		return
 	}
@@ -295,13 +301,30 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
 	}
 
+	// Detach the inner call's context from the initiating caller's
+	// cancellation. Without this, if caller A starts the flight and A's
+	// request is canceled (client disconnect or timeout), the DB call is
+	// canceled and every joiner waiting in singleflight also fails — a
+	// single flaky client would multiply into a wave of auth failures.
+	// Preserve values and any parent deadline so timeout-based SLOs still
+	// apply, but drop the Done channel so joiners' healthy contexts aren't
+	// poisoned. Joiners still observe their own ctx.Done via singleflight.Do
+	// returning the shared result only after the flight completes, which is
+	// bounded by the deadline (or the configured Redis/MySQL timeouts).
+	flightCtx := context.WithoutCancel(ctx)
+	if dl, ok := ctx.Deadline(); ok {
+		var cancel context.CancelFunc
+		flightCtx, cancel = context.WithDeadline(flightCtx, dl)
+		defer cancel()
+	}
+
 	v, err, _ := d.hostCacheSF.Do(nodeKey, func() (any, error) {
-		h, derr := d.Datastore.LoadHostByNodeKey(ctx, nodeKey)
+		h, derr := d.Datastore.LoadHostByNodeKey(flightCtx, nodeKey)
 		switch {
 		case derr == nil && h != nil:
-			d.hostCachePut(ctx, h)
+			d.hostCachePut(flightCtx, h)
 		case fleet.IsNotFound(derr):
-			d.hostCachePutNotFound(ctx, nodeKey)
+			d.hostCachePutNotFound(flightCtx, nodeKey)
 			// Other (transient) errors are intentionally not cached — retry on next call.
 		}
 		return h, derr

@@ -126,67 +126,105 @@ func (d *Datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 
 func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	h, err := d.Datastore.NewHost(ctx, host)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return h, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return h, err
+	// A newly inserted host has no positive cache entry, but a stale negative
+	// cache entry for the new node_key could linger (up to hostCacheNegativeTTL)
+	// if the node_key had been probed moments before enrollment. Clearing it
+	// here ensures the next LoadHostByNodeKey populates the positive cache
+	// instead of returning a false NotFound.
+	d.invalidateAfterHostWrite(ctx, h, "enroll")
+	return h, nil
 }
 
 func (d *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 	h, err := d.Datastore.EnrollOsquery(ctx, opts...)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return h, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return h, err
+	// EnrollOsquery can update an existing row's node_key + team_id on
+	// re-enrollment, so the cached snapshot is stale after the call.
+	d.invalidateAfterHostWrite(ctx, h, "enroll")
+	return h, nil
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.Datastore.DeleteHost(ctx, hid)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, hid); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return err
+	// Deleted row must not serve from cache: a stale hit would let the host
+	// authenticate after its deletion.
+	d.hostCacheDeleteByID(ctx, hid, "delete")
+	return nil
 }
 
 func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	err := d.Datastore.DeleteHosts(ctx, ids)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return err
+	for _, id := range ids {
+		d.hostCacheDeleteByID(ctx, id, "delete")
+	}
+	return nil
 }
 
 func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
 	details, err := d.Datastore.CleanupExpiredHosts(ctx)
-	if err == nil && d.enforceHostLimit > 0 {
-		// Extract IDs from details for redis cleanup
-		ids := make([]uint, len(details))
-		for i, detail := range details {
-			ids[i] = detail.ID
-		}
+	if err != nil {
+		return details, err
+	}
+	ids := make([]uint, len(details))
+	for i, detail := range details {
+		ids[i] = detail.ID
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return details, err
+	for _, id := range ids {
+		d.hostCacheDeleteByID(ctx, id, "delete")
+	}
+	return details, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	ids, err := d.Datastore.CleanupIncomingHosts(ctx, now)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return ids, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return ids, err
+	for _, id := range ids {
+		d.hostCacheDeleteByID(ctx, id, "delete")
+	}
+	return ids, nil
 }
 
 func (d *Datastore) CanEnrollNewHost(ctx context.Context) (bool, error) {

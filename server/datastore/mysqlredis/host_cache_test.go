@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -82,7 +83,7 @@ func TestHostCacheHelpers(t *testing.T) {
 			assert.Equal(t, nk, *loaded.NodeKey)
 
 			// Reverse index should be populated.
-			conn := pool.Get()
+			conn := redis.ConfigureDoer(pool, pool.Get())
 			defer conn.Close()
 			got, err := redigo.String(conn.Do("GET", hostCacheIndexByID(stored.ID)))
 			require.NoError(t, err)
@@ -148,7 +149,7 @@ func TestHostCacheHelpers(t *testing.T) {
 			_, result := wrapped.hostCacheGet(ctx, nk)
 			assert.Equal(t, hostCacheLookupMiss, result)
 
-			conn := pool.Get()
+			conn := redis.ConfigureDoer(pool, pool.Get())
 			defer conn.Close()
 			for _, k := range []string{
 				hostCacheKeyByNodeKey(nk),
@@ -172,7 +173,7 @@ func TestHostCacheHelpers(t *testing.T) {
 			_, result := wrapped.hostCacheGet(ctx, nk)
 			assert.Equal(t, hostCacheLookupMiss, result)
 
-			conn := pool.Get()
+			conn := redis.ConfigureDoer(pool, pool.Get())
 			defer conn.Close()
 			exists, err := redigo.Bool(conn.Do("EXISTS", hostCacheIndexByID(11)))
 			require.NoError(t, err)
@@ -193,7 +194,7 @@ func TestHostCacheHelpers(t *testing.T) {
 
 			// No primary key should have been created; pick a sentinel key and
 			// verify the space is clean.
-			conn := pool.Get()
+			conn := redis.ConfigureDoer(pool, pool.Get())
 			defer conn.Close()
 			exists, err := redigo.Bool(conn.Do("EXISTS", hostCacheIndexByID(12)))
 			require.NoError(t, err)
@@ -535,6 +536,58 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 				assert.NotSame(t, hosts[0], hosts[i], "callers must receive independent structs")
 			}
 		})
+
+		t.Run("canceled caller does not poison the shared DB call", func(t *testing.T) {
+			// Regression test for the PR review finding: without ctx detach,
+			// cancelling the caller whose goroutine happens to be the
+			// singleflight leader would cancel the shared DB query and fail
+			// every joiner even though their own contexts are alive.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+
+			ds := new(mock.Store)
+			release := make(chan struct{})
+			ds.LoadHostByNodeKeyFunc = func(innerCtx context.Context, nodeKey string) (*fleet.Host, error) {
+				<-release
+				// The inner ctx should not observe the canceling caller's
+				// Done signal. If it does, this returns ctx.Err() and the
+				// joiners fail.
+				if err := innerCtx.Err(); err != nil {
+					return nil, err
+				}
+				nk := nodeKey
+				return &fleet.Host{ID: 77, NodeKey: &nk}, nil
+			}
+			wrapped := New(ds, pool, WithHostCache(30*time.Second))
+
+			cancellableCtx, cancel := context.WithCancel(t.Context())
+			joinerDone := make(chan struct{})
+			joinerCtx := t.Context()
+			var joinerHost *fleet.Host
+			var joinerErr error
+
+			// Start the joiner that should survive cancellation of the leader.
+			go func() {
+				joinerHost, joinerErr = wrapped.LoadHostByNodeKey(joinerCtx, "nk-cancel")
+				close(joinerDone)
+			}()
+
+			// Start the leader; give it a moment to enter singleflight first.
+			leaderDone := make(chan struct{})
+			go func() {
+				_, _ = wrapped.LoadHostByNodeKey(cancellableCtx, "nk-cancel")
+				close(leaderDone)
+			}()
+
+			time.Sleep(50 * time.Millisecond)
+			cancel() // cancel the leader while inner DB call is still blocked
+			close(release)
+			<-joinerDone
+			<-leaderDone
+
+			require.NoError(t, joinerErr, "joiner must not see the leader's cancellation")
+			require.NotNil(t, joinerHost)
+			assert.Equal(t, uint(77), joinerHost.ID)
+		})
 	}
 
 	t.Run("standalone", func(t *testing.T) {
@@ -587,39 +640,21 @@ func TestLoadHostByNodeKey_RedisErrorFallsThrough(t *testing.T) {
 }
 
 // cleanupHostCacheKeys removes all host-cache keys between subtests so leftover
-// state doesn't leak across cases. The test-wide redistest cleanup also runs,
-// but between-subtest isolation is what we want here.
+// state doesn't leak across cases. Uses redis.ScanKeys which walks every node
+// in cluster mode (not just the one backing pool.Get()), so subtests running
+// against a cluster pool are fully isolated.
 func cleanupHostCacheKeys(t *testing.T, pool fleet.RedisPool) {
 	t.Helper()
-	conn := pool.Get()
-	defer conn.Close()
 
-	// SCAN-and-DEL across the three known subspaces. Redis cluster-safe
-	// because every DEL is a single-key op.
 	for _, sub := range []string{":nk:*", ":nk_miss:*", ":id2nk:*"} {
 		pattern := hostCacheKeyPrefix + sub
-		cursor := "0"
-		for {
-			// SCAN on cluster visits one node at a time; the pool wrapper does
-			// not auto-broadcast. For test hygiene we rely on the
-			// redistest.SetupRedis prefix cleanup to handle the cluster case
-			// fully, and locally only clean the primary node's keys.
-			reply, err := redigo.Values(conn.Do("SCAN", cursor, "MATCH", pattern, "COUNT", 100))
-			if err != nil {
-				return
-			}
-			var next string
-			var keys []string
-			if _, err := redigo.Scan(reply, &next, &keys); err != nil {
-				return
-			}
-			for _, k := range keys {
-				_, _ = conn.Do("DEL", k)
-			}
-			if next == "0" {
-				break
-			}
-			cursor = next
+		keys, err := redis.ScanKeys(pool, pattern, 100)
+		require.NoError(t, err, "scan %q", pattern)
+		for _, k := range keys {
+			conn := redis.ConfigureDoer(pool, pool.Get())
+			_, err := conn.Do("DEL", k)
+			conn.Close()
+			require.NoError(t, err, "del %q", k)
 		}
 	}
 }
