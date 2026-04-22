@@ -138,8 +138,8 @@ const ChartFilterModal = ({
   );
 
   const { data: labels } = useQuery<ILabelSummary[]>(
-    ["labelsSummary"],
-    () => labelsAPI.summary().then((res) => res.labels),
+    ["labelsSummary", currentTeamId],
+    () => labelsAPI.summary(currentTeamId ?? null).then((res) => res.labels),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 60000,

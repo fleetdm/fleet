@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
 import { SingleValue } from "react-select-5";
@@ -73,6 +73,17 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     hostFilterMode: "none",
     selectedHosts: [],
   });
+
+  // Labels and selected hosts are team-scoped, so clear filters when the
+  // active fleet changes to avoid submitting stale IDs under the new scope.
+  useEffect(() => {
+    setChartFilters({
+      labelIDs: [],
+      platforms: [],
+      hostFilterMode: "none",
+      selectedHosts: [],
+    });
+  }, [currentTeamId]);
 
   const currentDataset = getDataset(selectedMetric);
 
