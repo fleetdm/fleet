@@ -164,7 +164,7 @@ export enum ActivityType {
   ClearedPasscode = "cleared_passcode",
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
-  ViewedManagedLocalAccount = "viewed_managed_local_account",
+  ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
 }
 
