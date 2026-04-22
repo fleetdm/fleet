@@ -2863,8 +2863,6 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
-			// Installer rows to delete after running side effects (so
-			// upcoming_activities aren't left with NULL installer IDs).
 			var installerIDsToDelete []uint
 
 			// For non-FMA (custom) packages, enforce one installer per title per team.
@@ -2974,8 +2972,7 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
 				}
 
-				// Re-point policies from any non-FMA installers for this title
-				// to the active FMA installer.
+				// Re-point policies from any non-FMA installers for this title to the active FMA installer.
 				if _, err := tx.ExecContext(ctx, `
 					UPDATE policies SET software_installer_id = ?
 					WHERE software_installer_id IN (
@@ -2985,8 +2982,7 @@ WHERE
 				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
 				}
-				// Mark previous custom installers for this title for deletion;
-				// they shouldn't be kept for rollback.
+				// Mark previous custom package installers for this title for deletion;
 				for _, e := range existing {
 					if e.FleetMaintainedAppID == nil {
 						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
@@ -3117,7 +3113,7 @@ WHERE
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
 			}
 
-			// Run side effects and delete unnecessary installers.
+			// Perform side effects and delete unnecessary installers.
 			for _, id := range installerIDsToDelete {
 				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
 				if err != nil {
