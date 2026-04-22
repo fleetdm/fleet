@@ -928,6 +928,25 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 		res.Hostname = host.Hostname
 	}
 
+	// Enrich VPP command results with install status and verify timeout metadata,
+	// matching what the admin path does in GetMDMCommandResults.
+	if len(results) > 0 {
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
+				}
+			}
+		}
+	}
+
 	return results, nil
 }
 
