@@ -10,7 +10,7 @@ The engineering-driven stack is ready. Now the question is who gets to use it. W
 
 ## Where we left off
 
-In Part 1, we covered the confidence gap: the void between what legacy MDM dashboards report and what is actually happening on your devices. In Part 2, we laid out the modern stack that closes that gap: real-time device visibility, Fleet for orchestration, and Infrastructure as Code (IaC) for rigor.
+In [Part 1](https://fleetdm.com/articles/the-confidence-gap), we covered the confidence gap: the void between what legacy MDM dashboards report and what is actually happening on your devices. In [Part 2](https://fleetdm.com/articles/rethinking-endpoint-management), we laid out the modern stack that closes that gap: real-time device visibility, Fleet for orchestration, and Infrastructure as Code (IaC) for rigor.
 
 That stack is powerful. It is also, on its face, intimidating. Writing live queries against hundreds of device state tables. Authoring YAML configuration profiles. Opening pull requests. Running CI pipelines. For an IT team whose day job is answering tickets and keeping laptops patched, this reads like a DevOps job description.
 
@@ -34,7 +34,7 @@ Here is the practical picture. An IT admin opens Slack and types:
 
 "Make sure every workstation in the Finance team is on macOS 15.2 or later. Give people a 3-day grace period before enforcing."
 
-An AI assistant connected to your Fleet GitOps repo reads the existing structure - the directory conventions, the label schema, how other policies are written - and proposes a pull request. The PR contains a new policy file, scoped to the Finance team label, with the grace period set. It lands in the right directory because that is where the other policies live. It sets the severity correctly. It links back to the Slack thread for context.
+An AI assistant connected to your Fleet GitOps repo reads the existing structure - the directory conventions, the label schema, how other policies are written - and proposes a pull request. The PR contains a new policy file, scoped to the Finance team label, with the grace period set. It lands in the right directory because that is where the other policies live. It sets the severity correctly. Its back to the Slack thread for context.
 
 The human reviews the PR. Edits anything that is off. Approves. Merges. Fleet applies the change across devices within minutes.
 
@@ -125,7 +125,7 @@ The modern stack - live device visibility, Fleet for orchestration, IaC for rigo
 
 You do not need to rebuild your team to get there. You need an open, API-first control plane that AI models can read and event systems can call. That is what Fleet was designed to be.
 
-If you are an IT or Security leader looking to close the confidence gap, consolidate your tool sprawl, and give your team the leverage of modern engineering practices, [get a demo](https://fleetdm.com/demand/request-demo) or join a GitOps workshop. The tools are ready. The practices are proven. The only question is how quickly you move.
+If you are an IT or Security leader looking to close the confidence gap, consolidate your tool sprawl, and give your team the leverage of modern engineering practices, [get a demo](https://fleetdm.com/contact) or [join a GitOps workshop[(https://fleetdm.com/gitops-workshop)]. The tools are ready. The practices are proven. The only question is how quickly you move.
 
 <meta name="articleTitle" value="Supercharging endpoint management with AI assistants and event-driven automation">
 <meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">
