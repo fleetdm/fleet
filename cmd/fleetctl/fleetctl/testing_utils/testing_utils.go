@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -447,11 +449,16 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, &notFoundError{}
 	}
 	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		// Match production semantics: both sides get NFC-normalized before
+		// the case-insensitive compare, so two names that only differ by
+		// Unicode composition (e.g., precomposed "é" vs. "e" + combining
+		// acute accent) are treated as equal.
+		needle := norm.NFC.String(name)
 		for _, tm := range savedTeams {
 			if (*tm).ID == excludeID {
 				continue
 			}
-			if strings.EqualFold((*tm).Name, name) {
+			if strings.EqualFold(norm.NFC.String((*tm).Name), needle) {
 				return *tm, nil
 			}
 		}

@@ -209,11 +209,17 @@ const TeamManagementPage = (): JSX.Element => {
               setBackendValidators({
                 name: "A fleet with this name already exists",
               });
-            } else if (errMsg.includes("all teams")) {
+            } else if (
+              errMsg.includes("all teams") ||
+              errMsg.includes("all fleets")
+            ) {
               setBackendValidators({
                 name: `"All fleets" is a reserved fleet name.`,
               });
-            } else if (errMsg.includes("no team")) {
+            } else if (
+              errMsg.includes("no team") ||
+              errMsg.includes("unassigned")
+            ) {
               setBackendValidators({
                 name: `"Unassigned" is a reserved fleet name. Please try another name.`,
               });
