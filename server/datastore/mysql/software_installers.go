@@ -2290,6 +2290,7 @@ WHERE
   title_id NOT IN (?)
 `
 
+	// ORDER BY is_active DESC, id DESC makes existing[0] the previously-active row.
 	const checkExistingInstaller = `
 SELECT
 	id,
@@ -2305,6 +2306,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	title_id = ?
+ORDER BY is_active DESC, id DESC
 `
 
 	const insertNewOrEditedInstaller = `

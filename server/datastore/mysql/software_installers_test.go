@@ -60,6 +60,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
+		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
 	}
 
 	for _, c := range cases {
@@ -4612,9 +4613,6 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 	})
 }
 
-// testCustomToFMAInstallerReplacement verifies that when a title's custom
-// installer is replaced by an FMA installer via GitOps, the stale custom
-// row is cleaned up and policies are re-pointed to the new FMA row.
 func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -4963,4 +4961,76 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
 	require.NotNil(t, existing.HTTPETag)
 	assert.Equal(t, etag, *existing.HTTPETag)
+}
+
+func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_fma_ordering"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "host_fma_ordering", "1", "hostkey_fma_ordering", "hostuuid_fma_ordering", time.Now())
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg_ord",
+		Slug:             "pkg_ord",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg_ord",
+	})
+	require.NoError(t, err)
+
+	basePayload := func(version, storageID, installScript string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storageID), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			FleetMaintainedAppID: &fma.ID,
+			Title:                "pkg_ord",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1",
+			InstallScript:        installScript,
+			PostInstallScript:    "echo post",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            storageID,
+			Filename:             "pkg_ord.pkg",
+			Version:              version,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &team.ID,
+		}
+	}
+
+	// v1.0 first (active), then v2.0 (active, v1 demoted to inactive cache).
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("1.0", "storage_v1", "echo v1")}))
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("2.0", "storage_v2", "echo v2")}))
+
+	var v2ID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &v2ID, `
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND version = ? AND is_active = 1
+		`, team.ID, "2.0")
+	})
+
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, v2ID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	var pending int
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &pending, `
+			SELECT COUNT(*) FROM software_install_upcoming_activities
+			WHERE software_installer_id = ?
+		`, v2ID)
+	})
+	require.Equal(t, 1, pending)
+
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("2.0", "storage_v2_updated", "echo v2 updated")}))
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &pending, `
+			SELECT COUNT(*) FROM software_install_upcoming_activities
+			WHERE software_installer_id = ?
+		`, v2ID)
+	})
+	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
 }
