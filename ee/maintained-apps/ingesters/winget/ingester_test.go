@@ -36,6 +36,19 @@ func TestWingetVersionManifestDirs(t *testing.T) {
 	require.Len(t, got, 2)
 	assert.Equal(t, "0.9.6", got[0].GetName())
 	assert.Equal(t, "0.20.4", got[1].GetName())
+
+	// Legacy year-only folders (e.g. Microsoft.Office keeps "2010" alongside
+	// its current "16.0.x" versions) must be excluded so they don't outrank
+	// real versions in the descending version sort.
+	in = []*github.RepositoryContent{
+		dir("2010"),
+		dir("16.0.19822.20114"),
+		dir("16.0.19929.20062"),
+	}
+	got = wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "16.0.19822.20114", got[0].GetName())
+	assert.Equal(t, "16.0.19929.20062", got[1].GetName())
 }
 
 func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
