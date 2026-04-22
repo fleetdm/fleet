@@ -1,11 +1,14 @@
 package apple_mdm
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"howett.net/plist"
 )
 
 func TestMDMAppleEnrollURL(t *testing.T) {
@@ -158,4 +161,42 @@ func TestIsRecoveryLockPasswordMismatchError(t *testing.T) {
 			require.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestGenerateManagedAccountPassword(t *testing.T) {
+	pw := GenerateManagedAccountPassword()
+
+	// Format: XXXX-XXXX-XXXX-XXXX-XXXX-XXXX (6 groups of 4 chars separated by dashes)
+	groups := strings.Split(pw, "-")
+	require.Len(t, groups, ManagedAccountPasswordGroupCount)
+	for _, g := range groups {
+		require.Len(t, g, ManagedAccountPasswordGroupLen)
+		for _, c := range g {
+			assert.Contains(t, RecoveryLockPasswordCharset, string(c))
+		}
+	}
+
+	// Two calls should produce different passwords (with overwhelming probability).
+	pw2 := GenerateManagedAccountPassword()
+	require.NotEqual(t, pw, pw2)
+}
+
+func TestGenerateSaltedSHA512PBKDF2Hash(t *testing.T) {
+	data, err := GenerateSaltedSHA512PBKDF2Hash("test-password")
+	require.NoError(t, err)
+	require.NotEmpty(t, data)
+
+	// Parse the plist and verify the structure.
+	var result saltedSHA512PBKDF2
+	_, err = plist.Unmarshal(data, &result)
+	require.NoError(t, err)
+
+	assert.Len(t, result.PBKDF2.Salt, pbkdf2SaltLen, "salt should be %d bytes", pbkdf2SaltLen)
+	assert.Len(t, result.PBKDF2.Entropy, pbkdf2KeyLen, "entropy should be %d bytes", pbkdf2KeyLen)
+	assert.Equal(t, pbkdf2Iterations, result.PBKDF2.Iterations)
+
+	// Two calls with the same password should produce different outputs (different random salts).
+	data2, err := GenerateSaltedSHA512PBKDF2Hash("test-password")
+	require.NoError(t, err)
+	require.NotEqual(t, data, data2)
 }

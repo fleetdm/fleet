@@ -195,6 +195,9 @@ type Service interface {
 	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
+	// ModifyAPIOnlyUser updates an API-only user
+	ModifyAPIOnlyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
+
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) (*User, error)
 
@@ -1341,6 +1344,10 @@ type Service interface {
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
+
+	// GetHostManagedAccountPassword retrieves and decrypts the managed local account
+	// password for the given host ID only if it has a verified status.
+	GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*HostManagedLocalAccountPassword, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers

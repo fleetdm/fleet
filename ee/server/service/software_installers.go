@@ -2746,10 +2746,18 @@ func (svc *Service) softwareBatchUpload(
 					var existingForCache *fleet.ExistingSoftwareInstaller
 					var ifNoneMatch string
 					if !p.AlwaysDownload && p.SHA256 == "" && p.URL != "" {
-						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
+						// First try same-team lookup, then fall back to any team.
+						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, &tmID, p.URL)
 						if lookupErr != nil {
 							svc.logger.WarnContext(ctx, "conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
-						} else if existing != nil && existing.StorageID != "" &&
+						} else if existing == nil {
+							// Cross-team fallback: another team may already have this URL cached.
+							existing, lookupErr = svc.ds.GetInstallerByTeamAndURL(ctx, nil, p.URL)
+							if lookupErr != nil {
+								svc.logger.WarnContext(ctx, "cross-team conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+							}
+						}
+						if lookupErr == nil && existing != nil && existing.StorageID != "" &&
 							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
 							existing.Extension != "ipa" && // skip conditional download for .ipa (multi-platform extraInstallers)
 							validETag(*existing.HTTPETag) { // re-validate before use as defense-in-depth

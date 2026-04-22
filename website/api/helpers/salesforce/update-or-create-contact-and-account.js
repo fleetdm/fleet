@@ -58,6 +58,8 @@ module.exports = {
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
+        'Website - Gated document',
+        'Webinar',
       ],
     },
     getStartedResponses: {

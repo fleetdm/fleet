@@ -45,6 +45,10 @@ export default {
 
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_USERS_NEW_HUMAN: `${URL_PREFIX}/settings/users/new/human`,
+  ADMIN_USERS_NEW_API: `${URL_PREFIX}/settings/users/new/api`,
+  ADMIN_USERS_EDIT: (userId: number) =>
+    `${URL_PREFIX}/settings/users/${userId}/edit`,
 
   // Integrations pages
 

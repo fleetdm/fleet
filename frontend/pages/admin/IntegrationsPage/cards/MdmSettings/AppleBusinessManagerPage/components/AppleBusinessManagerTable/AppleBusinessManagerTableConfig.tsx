@@ -36,7 +36,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   warning: {
     tooltipText: (
       <>
-        ABM server token is less than 30 days from expiration.
+        AB server token is less than 30 days from expiration.
         <br /> To renew, go to <b>Actions {">"} Renew.</b>
       </>
     ),
@@ -44,7 +44,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   error: {
     tooltipText: (
       <>
-        ABM server token is expired.
+        AB server token is expired.
         <br /> To renew, go to <b>Actions {">"} Renew</b>.
       </>
     ),
@@ -98,7 +98,7 @@ export const generateTableConfig = (
             tipContent={
               <>
                 macOS hosts are automatically added to this fleet on initial
-                sync from ABM. If a host is manually assigned to a different
+                sync from AB. If a host is manually assigned to a different
                 fleet before enrollment, it will enroll to the newly assigned
                 fleet and not the default.
               </>
@@ -123,7 +123,7 @@ export const generateTableConfig = (
             tipContent={
               <>
                 iOS hosts are automatically added to this fleet on initial sync
-                from ABM. If a host is manually assigned to a different fleet
+                from AB. If a host is manually assigned to a different fleet
                 before enrollment, it will enroll to the newly assigned fleet
                 and not the default.
               </>
@@ -148,7 +148,7 @@ export const generateTableConfig = (
             tipContent={
               <>
                 iPadOS hosts are automatically added to this fleet on initial
-                sync from ABM. If a host is manually assigned to a different
+                sync from AB. If a host is manually assigned to a different
                 fleet before enrollment, it will enroll to the newly assigned
                 fleet and not the default.
               </>

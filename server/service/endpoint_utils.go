@@ -136,6 +136,9 @@ func (e *fleetEndpointer) Service() any {
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
+	// Full-slice expression prevents aliasing into the caller's backing array
+	// if it happens to have spare capacity.
+	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(auth.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &fleetEndpointer{
 			svc: svc,
@@ -144,7 +147,7 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 		EncodeFn:      encodeResponse,
 		Opts:          opts,
 		AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
-			return auth.AuthenticatedUser(svc, next)
+			return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 		},
 		Router:   r,
 		Versions: versions,

@@ -13,6 +13,7 @@ import { ApplePlatform } from "interfaces/platform";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -135,9 +136,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely enforce software updates.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Remotely enforce software updates."
+      />
       <>
         <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection

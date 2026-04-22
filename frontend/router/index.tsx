@@ -17,6 +17,9 @@ import {
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
+import CreateUserPage from "pages/admin/UserManagementPage/CreateUserPage";
+import CreateApiUserPage from "pages/admin/UserManagementPage/CreateApiUserPage";
+import EditUserPage from "pages/admin/UserManagementPage/EditUserPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
@@ -67,7 +70,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
+import Variables from "pages/ManageControlsPage/Variables/Variables";
 import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
@@ -239,6 +242,13 @@ const routes = (
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
+            <Route component={ExcludeInSandboxRoutes}>
+              <Route component={AuthGlobalAdminRoutes}>
+                <Route path="users/new/human" component={CreateUserPage} />
+                <Route path="users/new/api" component={CreateApiUserPage} />
+                <Route path="users/:user_id/edit" component={EditUserPage} />
+              </Route>
+            </Route>
 
             <Redirect from="teams" to="fleets" />
             <Redirect from="teams/users" to="fleets/users" />
@@ -329,7 +339,7 @@ const routes = (
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
-                <Route path="variables" component={Secrets} />
+                <Route path="variables" component={Variables} />
               </Route>
             </Route>
             <Route

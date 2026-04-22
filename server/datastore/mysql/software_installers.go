@@ -3626,7 +3626,7 @@ WHERE
 	return byTeam, nil
 }
 
-func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
 	si.id AS installer_id,
@@ -3645,15 +3645,22 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
+	si.url = ? AND si.is_active = 1`
+
+	args := []any{url}
+	if teamID != nil {
+		stmt += ` AND si.global_or_team_id = ?`
+		args = append(args, *teamID)
+	}
+	stmt += `
 ORDER BY si.id DESC
-LIMIT 1
-`
+LIMIT 1`
+
 	var installer fleet.ExistingSoftwareInstaller
 	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
 	// runs, the replica may be slightly stale, which results in a cache miss (full download)
 	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, args...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}

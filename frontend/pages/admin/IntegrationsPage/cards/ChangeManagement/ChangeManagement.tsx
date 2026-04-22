@@ -227,7 +227,7 @@ const ChangeManagement = () => {
               Exceptions
             </TooltipWrapper>
           </div>
-          <div>
+          <div className="form-field">
             <Checkbox
               onChange={onInputChange}
               name="exceptLabels"
