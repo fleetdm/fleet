@@ -17,6 +17,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -3032,8 +3033,10 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	// Skip the UPSERT when the stored token already matches. Orbit and Fleet Desktop resend the
 	// same token on their refresh cycle, and the ON DUPLICATE KEY UPDATE path is a no-op at the
 	// row level anyway (see comment below) but still costs a writer round-trip + commit.
+	// Read from the primary: this is a read-before-write consistency check, and replica lag
+	// could otherwise cause us to skip a write the primary actually needs.
 	var currentToken string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &currentToken,
+	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &currentToken,
 		`SELECT token FROM host_device_auth WHERE host_id = ?`, hostID)
 	switch {
 	case err == nil:
@@ -4188,6 +4191,27 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 	})
 }
 
+// decimal2Equal reports whether two float64 values round to the same DECIMAL(10,2).
+// MySQL rounds float inputs to the column's 2-decimal precision on write, so raw float64
+// equality against values loaded back from DECIMAL columns is brittle when callers pass
+// higher-precision inputs.
+func decimal2Equal(a, b float64) bool {
+	const decimal2Tolerance = 0.005
+	diff := a - b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff < decimal2Tolerance
+}
+
+// float64PtrDecimal2Equal is the nil-aware counterpart to decimal2Equal.
+func float64PtrDecimal2Equal(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return decimal2Equal(*a, *b)
+}
+
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, updateQuery, args...)
 	if err != nil {
@@ -4735,23 +4759,25 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	// Skip the UPDATE entirely when stored values already match. At load-test scale these
 	// calls fire on every /osquery/config request, and most carry the same disk-space values
-	// as the last ingest.
+	// as the last ingest. Read from the primary so replica lag can't cause us to skip a
+	// needed write. The host_disks columns are DECIMAL(10,2), so we compare with tolerance
+	// matching that precision rather than raw float64 equality.
 	var current struct {
 		GigsAvailable    float64  `db:"gigs_disk_space_available"`
 		PercentAvailable float64  `db:"percent_disk_space_available"`
 		GigsTotal        float64  `db:"gigs_total_disk_space"`
 		GigsAll          *float64 `db:"gigs_all_disk_space"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &current,
 		`SELECT gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space FROM host_disks WHERE host_id = ?`,
 		hostID,
 	)
 	switch {
 	case err == nil:
-		if current.GigsAvailable == gigsAvailable &&
-			current.PercentAvailable == percentAvailable &&
-			current.GigsTotal == gigsTotal &&
-			ptr.Equal(current.GigsAll, gigsAll) {
+		if decimal2Equal(current.GigsAvailable, gigsAvailable) &&
+			decimal2Equal(current.PercentAvailable, percentAvailable) &&
+			decimal2Equal(current.GigsTotal, gigsTotal) &&
+			float64PtrDecimal2Equal(current.GigsAll, gigsAll) {
 			return nil
 		}
 	case !errors.Is(err, sql.ErrNoRows):
@@ -4793,12 +4819,13 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 ) error {
 	// Skip the UPDATE when stored values already match. Orbit sends the same version/desktop_version/
 	// scripts_enabled until the agent is upgraded, so at load-test scale most of these writes are no-ops.
+	// Read from the primary so replica lag can't cause us to skip a write the primary needs.
 	var current struct {
 		Version        string         `db:"version"`
 		DesktopVersion sql.NullString `db:"desktop_version"`
 		ScriptsEnabled sql.NullBool   `db:"scripts_enabled"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &current,
 		`SELECT version, desktop_version, scripts_enabled FROM host_orbit_info WHERE host_id = ?`,
 		hostID,
 	)

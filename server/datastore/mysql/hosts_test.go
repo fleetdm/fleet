@@ -9842,9 +9842,14 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
 
-	// Repeating the same values must not bump host_disks.updated_at. The skip-if-unchanged
-	// path should return before the writer is touched. Pin updated_at to a known past value
-	// and verify it is preserved on a no-op call, then advances on a real change.
+	// Regression check around the skip-if-unchanged path. Pin updated_at to a known past
+	// value and confirm:
+	//   1. a no-op call (same values) leaves updated_at at the pinned value, and
+	//   2. a real change bumps updated_at.
+	// Note: (1) alone does not prove the writer was never touched — MySQL also leaves
+	// updated_at alone when the UPDATE is a row-level no-op. The assertion still catches
+	// regressions where a caller or an underlying statement starts explicitly setting
+	// updated_at (the way SetOrUpdateHostDisksEncryption does).
 	loadUpdatedAt := func(hostID uint) time.Time {
 		var ts time.Time
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -9865,6 +9870,15 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	// A real change must bump updated_at.
 	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 7, 8, 80.0, nil))
 	require.True(t, loadUpdatedAt(host.ID).After(pinned), "updated_at should advance when values change")
+
+	// A caller passing higher-precision floats that round to the same DECIMAL(10,2) as the
+	// stored row must also hit the skip path — otherwise the optimization is defeated for
+	// any caller with sub-cent precision.
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 7.001, 8.001, 80.004, nil))
+	h, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.InDelta(t, 7.0, h.GigsDiskSpaceAvailable, 0.001)
+	require.InDelta(t, 8.0, h.PercentDiskSpaceAvailable, 0.001)
 }
 
 // testHostOrder tests listing a host sorted by different keys.
