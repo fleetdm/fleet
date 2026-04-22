@@ -304,9 +304,6 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
-  waysToUse:
-    - description: Resend an Android MDM certificate to a specific host to troubleshoot enrollment issues (4.84.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
 - industryName: Account-based user enrollment for iOS/iPadOS
   description: Manage work data on personally-owned (BYOD) iPhones and iPads using a user’s managed Apple Account, without accessing personal apps or data.
   documentationUrl: https://github.com/fleetdm/fleet/issues/27390
@@ -1227,6 +1224,9 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  waysToUse:
+    - description: Resend certificates to a specific Android host to troubleshoot issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
