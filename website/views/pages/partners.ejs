@@ -276,7 +276,7 @@
             <div class="invalid-feedback">Please provide more information</div>
           </div>
         </div>
-        <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+        <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
           <p>
             Please enter your work email address.
           </p>
@@ -449,7 +449,7 @@
             <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide more information</div>
           </div>
         </div>
-        <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+        <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
           <p>
             Please enter your work email address.
           </p>
