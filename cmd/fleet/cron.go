@@ -596,7 +596,7 @@ func checkRHELOSVVulnerabilities(
 
 	var now time.Time
 	if !config.DisableDataSync {
-		now = time.Now()
+		now = time.Now().UTC()
 	}
 
 	if !config.DisableDataSync {
