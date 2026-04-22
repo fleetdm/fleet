@@ -11,7 +11,7 @@
 					<key>AuthenticateAsLoginUserShortName</key>
 					<false/>
 					<key>Hide</key>
-					<false/>
+					<true/>
 					<key>Path</key>
 					<string>/Applications/Fleet Desktop.app</string>
 				</dict>
