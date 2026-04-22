@@ -1,9 +1,9 @@
 #!/bin/bash
 # --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2026_05-GitOps-Workshop-test2"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1_2J8h1rOJB6WdJDo1e-RDfUtDC_sph8a-nqJZUlE8Tc/edit?tab=t.0#heading=h.qajphvmsy5v4"
+WORKSHOP_SLUG="2026_05-GitOps-Workshop-test3"
+PLANNING_DOC_URL="https://docs.google.com"
 REQUEST_ISSUE="#14944"
-LOCATION="test"
+LOCATION="test3"
 MKTG_DRI="mb-chigoose312"
 CHANNEL_DRI="escomeau"
 SOCIAL_DRI="tombasgil"
