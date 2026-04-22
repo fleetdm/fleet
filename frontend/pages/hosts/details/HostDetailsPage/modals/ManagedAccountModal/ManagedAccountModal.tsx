@@ -45,7 +45,6 @@ const ManagedAccountModal = ({
     <Modal
       title="Managed account"
       onExit={onCancel}
-      onEnter={onCancel}
       className={baseClass}
     >
       {isLoading && <Spinner />}

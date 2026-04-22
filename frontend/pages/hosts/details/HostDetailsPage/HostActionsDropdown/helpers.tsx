@@ -636,15 +636,20 @@ const modifyOptions = (
     );
     if (managedAccountOption) {
       managedAccountOption.disabled = true;
-      if (
-        managedAccountStatus === "pending" ||
-        managedAccountStatus === "failed"
-      ) {
+      if (managedAccountStatus === "pending") {
         managedAccountOption.tooltipContent = (
           <>
             The managed account is still being
             <br />
             created.
+          </>
+        );
+      } else if (managedAccountStatus === "failed") {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account failed to be
+            <br />
+            created. It will retry at the next enrollment.
           </>
         );
       } else {

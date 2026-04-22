@@ -1625,7 +1625,12 @@ const HostDetailsPage = ({
           {showManagedAccountModal && host && (
             <ManagedAccountModal
               hostId={host.id}
-              onCancel={() => setShowManagedAccountModal(false)}
+              onCancel={() => {
+                setShowManagedAccountModal(false);
+                // Opening the modal triggers a "viewed managed account"
+                // activity server-side, so refetch to show it in the feed.
+                refetchPastActivities();
+              }}
             />
           )}
           {showBootstrapPackageModal &&
