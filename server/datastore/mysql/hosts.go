@@ -17,7 +17,6 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -3033,10 +3032,12 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	// Skip the UPSERT when the stored token already matches. Orbit and Fleet Desktop resend the
 	// same token on their refresh cycle, and the ON DUPLICATE KEY UPDATE path is a no-op at the
 	// row level anyway (see comment below) but still costs a writer round-trip + commit.
-	// Read from the primary: this is a read-before-write consistency check, and replica lag
-	// could otherwise cause us to skip a write the primary actually needs.
+	// Read from the replica (the whole point of this optimization is to reduce writer load).
+	// Under replication lag a stale replica value may match the incoming token and cause us to
+	// skip a needed write on the primary; the next refresh-cycle call — seconds later — re-reads
+	// the replica once it has caught up and writes the rotated token.
 	var currentToken string
-	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &currentToken,
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &currentToken,
 		`SELECT token FROM host_device_auth WHERE host_id = ?`, hostID)
 	switch {
 	case err == nil:
@@ -4759,16 +4760,17 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	// Skip the UPDATE entirely when stored values already match. At load-test scale these
 	// calls fire on every /osquery/config request, and most carry the same disk-space values
-	// as the last ingest. Read from the primary so replica lag can't cause us to skip a
-	// needed write. The host_disks columns are DECIMAL(10,2), so we compare with tolerance
-	// matching that precision rather than raw float64 equality.
+	// as the last ingest. Read from the replica on purpose — the goal is to avoid writer load,
+	// and in the worst case (replica lag matching a stale value) the next ingest round will
+	// write through once the replica catches up. The host_disks columns are DECIMAL(10,2),
+	// so we compare with tolerance matching that precision rather than raw float64 equality.
 	var current struct {
 		GigsAvailable    float64  `db:"gigs_disk_space_available"`
 		PercentAvailable float64  `db:"percent_disk_space_available"`
 		GigsTotal        float64  `db:"gigs_total_disk_space"`
 		GigsAll          *float64 `db:"gigs_all_disk_space"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &current,
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
 		`SELECT gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space FROM host_disks WHERE host_id = ?`,
 		hostID,
 	)
@@ -4818,14 +4820,15 @@ func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 ) error {
 	// Skip the UPDATE when stored values already match. Orbit sends the same version/desktop_version/
-	// scripts_enabled until the agent is upgraded, so at load-test scale most of these writes are no-ops.
-	// Read from the primary so replica lag can't cause us to skip a write the primary needs.
+	// scripts_enabled until the agent is upgraded, so at load-test scale most of these writes are
+	// no-ops. Read from the replica on purpose — the goal is to avoid writer load, and if replica
+	// lag briefly hides a real change the next osquery ingest will write through.
 	var current struct {
 		Version        string         `db:"version"`
 		DesktopVersion sql.NullString `db:"desktop_version"`
 		ScriptsEnabled sql.NullBool   `db:"scripts_enabled"`
 	}
-	err := sqlx.GetContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &current,
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
 		`SELECT version, desktop_version, scripts_enabled FROM host_orbit_info WHERE host_id = ?`,
 		hostID,
 	)
