@@ -281,9 +281,9 @@ func TestRemoveOldRHELOSVArtifacts(t *testing.T) {
 	today := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
 
 	files := []string{
-		"osv-rhel-9-2026-04-08.json.gz", // today — keep
-		"osv-rhel-9-2026-04-07.json.gz", // yesterday — remove
-		"osv-rhel-8-2026-04-07.json.gz", // yesterday, different version, not in successful — keep
+		"osv-rhel-9-2026-04-08.json.gz",      // today — keep
+		"osv-rhel-9-2026-04-07.json.gz",      // yesterday — remove
+		"osv-rhel-8-2026-04-07.json.gz",      // yesterday, different version, not in successful — keep
 		"osv-ubuntu-2204-2026-04-07.json.gz", // ubuntu — not touched
 		"some-other-file.json",               // unrelated — not touched
 	}
