@@ -32,7 +32,7 @@ GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 
 ### Entra conditional access for Windows
 
-Fleet now supports [Microsoft Entra conditional access](TODO) for Windows hosts. IT admins can mark policies as conditional access policies targeting Windows hosts — when a host fails one of those policies, Entra blocks the end user from accessing corporate resources such as Microsoft Teams and Office.
+Fleet now supports [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) for Windows hosts. IT admins can mark policies as conditional access policies targeting Windows hosts — when a host fails one of those policies, Entra blocks the end user from accessing corporate resources such as Microsoft Teams and Office.
 
 This extends the existing macOS conditional access integration to Windows, using the same Fleet + Entra setup. To configure, head to **Integrations > Conditional access** and enable conditional access on any policy targeting Windows.
 
