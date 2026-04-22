@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -341,7 +342,92 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		svc.logger.ErrorContext(ctx, "record fleet enroll activity", "err", err)
 	}
 
+	// Apply the team's `orbit.debug_logging_on_enroll_duration` agent option
+	// (or global, for no-team hosts), if set. Hosts that enroll into a team
+	// with this configured run orbit in debug mode for the configured duration
+	// so admins can capture setup-experience logs without flipping per-host
+	// debug after the fact. We use host.TeamID rather than secret.TeamID so
+	// that sticky-MDM-enrollment (which can keep a host on its prior team
+	// regardless of the secret used) gets the prior team's setting — matching
+	// what GetOrbitConfig will resolve on subsequent polls.
+	if err := svc.maybeStampOrbitDebugFromAgentOptions(ctx, host, appConfig); err != nil {
+		// Non-fatal: enrollment must succeed even if the debug stamp fails.
+		// Worst case: this host doesn't get debug logging on enroll. Other
+		// observability (server logs, host details) is unaffected. The
+		// hardware_uuid is already in the logging context (set above), so we
+		// don't need host.ID here — also keeps nilaway happy in the
+		// theoretically-impossible nil-host path.
+		svc.logger.ErrorContext(ctx, "failed to stamp orbit debug from agent options on enroll",
+			"err", err)
+	}
+
 	return orbitNodeKey, nil
+}
+
+// maybeStampOrbitDebugFromAgentOptions reads the effective orbit agent options
+// for the freshly-enrolled host and, if `debug_logging_on_enroll_duration` is
+// > 0, stamps the host's `orbit_debug_until` to `now() + duration`. The
+// existing GetOrbitConfig + DebugLogReceiver + FlagRunner machinery picks it
+// up on the next config poll. Falls through silently when the option is unset
+// or zero. See docs/Contributing/architecture/orbit-debug-logging.md.
+func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) error {
+	rawOpts, err := svc.loadAgentOptionsForHost(ctx, host, appConfig)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load agent options for enroll debug stamp")
+	}
+	if len(rawOpts) == 0 {
+		return nil
+	}
+
+	var opts fleet.AgentOptions
+	if err := json.Unmarshal(rawOpts, &opts); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal agent options for enroll debug stamp")
+	}
+	if opts.Orbit == nil || opts.Orbit.DebugLoggingOnEnrollDuration.Duration <= 0 {
+		return nil
+	}
+
+	// Defensive cap: the validator enforces this on write, but if a stale or
+	// out-of-band value snuck in, still cap here.
+	duration := min(opts.Orbit.DebugLoggingOnEnrollDuration.Duration, fleet.MaxOrbitDebugLoggingOnEnrollDuration)
+
+	// ExtendHostOrbitDebugUntil ensures a short rollout window cannot shorten
+	// a longer admin-set host override — the conditional UPDATE is a no-op
+	// when the existing value is already later. Necessary because the `host`
+	// returned by svc.ds.EnrollOrbit does not populate orbit_debug_until, so
+	// we can't make the decision in Go without a refetch, and a refetch would
+	// be racy against concurrent admin writes.
+	until := time.Now().Add(duration).UTC().Truncate(time.Second)
+	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {
+		return ctxerr.Wrap(ctx, err, "set orbit_debug_until on enroll")
+	}
+	svc.logger.InfoContext(ctx, "stamped orbit debug logging on enroll",
+		"host_id", host.ID,
+		"team_id", host.TeamID,
+		"orbit_debug_until", until,
+		"duration", duration.String(),
+	)
+	return nil
+}
+
+// loadAgentOptionsForHost returns the raw agent_options JSON that applies to
+// the given host: the team's options if the host belongs to a team, otherwise
+// the global options from the supplied AppConfig.
+func (svc *Service) loadAgentOptionsForHost(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (json.RawMessage, error) {
+	if host.TeamID != nil {
+		opts, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
+		if err != nil {
+			return nil, err
+		}
+		if opts == nil {
+			return nil, nil
+		}
+		return *opts, nil
+	}
+	if appConfig.AgentOptions == nil {
+		return nil, nil
+	}
+	return *appConfig.AgentOptions, nil
 }
 
 func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -350,6 +436,55 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 		return fleet.OrbitGetConfigResponse{Err: err}, nil
 	}
 	return fleet.OrbitGetConfigResponse{OrbitConfig: cfg}, nil
+}
+
+// resolveOrbitDebugLogging computes the effective debug-logging state for a
+// host and merges the corresponding osquery verbose flags into the supplied
+// command-line flags blob when debug is enabled.
+//
+// Precedence:
+//   - team-level agent_options.orbit.debug_logging provides the baseline
+//   - an unexpired host-level override (host.OrbitDebugUntil in the future)
+//     forces debug ON regardless of the team setting (host override is
+//     force-on only; it cannot force OFF)
+//
+// When debug is on, `verbose` and `tls_dump` are added to the flags blob only
+// if the admin has not already set them explicitly — admin-specified values
+// always win. When debug is off, the flags blob is returned unchanged.
+//
+// See docs/Contributing/architecture/orbit-debug-logging.md for the design.
+func resolveOrbitDebugLogging(ctx context.Context, orbitOpts *fleet.OrbitAgentOptions, host *fleet.Host, flags json.RawMessage) (json.RawMessage, *bool, error) {
+	debug := false
+	if orbitOpts != nil {
+		debug = orbitOpts.DebugLogging
+	}
+	if host != nil && host.OrbitDebugUntil != nil && host.OrbitDebugUntil.After(time.Now()) {
+		debug = true
+	}
+
+	if !debug {
+		return flags, &debug, nil
+	}
+
+	// Decode into a map so we can add keys without clobbering admin values.
+	adminFlags := map[string]any{}
+	if len(flags) > 0 {
+		if err := json.Unmarshal(flags, &adminFlags); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: parse command_line_flags")
+		}
+	}
+	if _, ok := adminFlags["verbose"]; !ok {
+		adminFlags["verbose"] = true
+	}
+	if _, ok := adminFlags["tls_dump"]; !ok {
+		adminFlags["tls_dump"] = true
+	}
+
+	merged, err := json.Marshal(adminFlags)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: marshal merged flags")
+	}
+	return merged, &debug, nil
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
@@ -571,13 +706,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 		}
 
+		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, opts.Orbit, host, opts.CommandLineStartUpFlags)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            opts.CommandLineStartUpFlags,
+			Flags:            mergedFlags,
 			Extensions:       extensionsFiltered,
 			Notifications:    notifs,
 			NudgeConfig:      nudgeConfig,
 			UpdateChannels:   updateChannels,
+			DebugLogging:     debugLogging,
 		}, nil
 	}
 
@@ -646,13 +787,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 	}
 
+	mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, opts.Orbit, host, opts.CommandLineStartUpFlags)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
-		Flags:            opts.CommandLineStartUpFlags,
+		Flags:            mergedFlags,
 		Extensions:       extensionsFiltered,
 		Notifications:    notifs,
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
+		DebugLogging:     debugLogging,
 	}, nil
 }
 

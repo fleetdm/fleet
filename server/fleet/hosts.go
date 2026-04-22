@@ -298,10 +298,14 @@ type Host struct {
 	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
 	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
 	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
-	NodeKey          *string   `json:"-" db:"node_key" csv:"-"`
-	OrbitNodeKey     *string   `json:"-" db:"orbit_node_key" csv:"-"`
-	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
+	// OrbitDebugUntil, if non-nil and in the future, forces orbit debug
+	// logging ON for this host regardless of the team-level setting. See
+	// docs/Contributing/architecture/orbit-debug-logging.md.
+	OrbitDebugUntil *time.Time `json:"orbit_debug_until,omitempty" db:"orbit_debug_until" csv:"-"`
+	NodeKey         *string    `json:"-" db:"node_key" csv:"-"`
+	OrbitNodeKey    *string    `json:"-" db:"orbit_node_key" csv:"-"`
+	Hostname        string     `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID            string     `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
 	Platform       string        `json:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`

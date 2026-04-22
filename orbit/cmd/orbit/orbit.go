@@ -1256,10 +1256,25 @@ func orbitAction(c *cli.Context) error {
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
 
+	// startedInDebug captures whether orbit was launched with --debug or
+	// ORBIT_DEBUG=1. Passed into both the flag and debug-log receivers so
+	// the startup flag acts as a floor — the server can raise debug to on
+	// but cannot lower it when the operator has pinned it at startup. See
+	// docs/Contributing/architecture/orbit-debug-logging.md.
+	startedInDebug := c.Bool("debug")
+
 	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-		RootDir: c.String("root-dir"),
+		RootDir:        c.String("root-dir"),
+		StartedInDebug: startedInDebug,
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+	// Runtime orbit debug logging toggle. The server sets OrbitConfig.DebugLogging
+	// based on team agent options + any unexpired host-level override; this
+	// receiver flips zerolog's global level accordingly. Osquery verbose flags
+	// are merged server-side into OrbitConfig.Flags, so flagUpdateReceiver above
+	// will restart osqueryd if and only if the flags actually change.
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(

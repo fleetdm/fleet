@@ -75,6 +75,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Enable debug logging",
+    value: "debugLogging",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -108,7 +113,31 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  /**
+   * True when an unexpired host-level orbit debug-logging override is active.
+   * Controls whether the action label reads "Enable" or "Disable".
+   */
+  orbitDebugActive: boolean;
 }
+
+// canToggleDebugLogging controls visibility of the "Enable/Disable debug
+// logging" action. Debug logging only applies to platforms that run orbit
+// (desktop hosts), and flipping it can expose verbose osquery output, so we
+// restrict to admin/maintainer.
+const canToggleDebugLogging = (config: IHostActionConfigOptions) => {
+  const {
+    hostPlatform,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = config;
+  // iOS/iPadOS/Android don't run orbit — no debug logging to toggle.
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+};
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
   const {
@@ -426,6 +455,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "unlock");
   }
 
+  if (!canToggleDebugLogging(config)) {
+    options = options.filter((option) => option.value !== "debugLogging");
+  }
+
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
   // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options.
   // This is a bit confusing since we remove options instead of add options
@@ -479,6 +512,19 @@ const formatTurnOffOptionLabel = (
   }
 };
 
+/** Swap the debug-logging option label based on the host's current state. */
+const formatDebugLoggingOptionLabel = (
+  options: IDropdownOption[],
+  orbitDebugActive: boolean
+) => {
+  const option = options.find((opt) => opt.value === "debugLogging");
+  if (option) {
+    option.label = orbitDebugActive
+      ? "Disable debug logging"
+      : "Enable debug logging";
+  }
+};
+
 const modifyOptions = (
   options: IDropdownOption[],
   {
@@ -489,6 +535,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    orbitDebugActive,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -618,6 +665,7 @@ const modifyOptions = (
   }
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
+  formatDebugLoggingOptionLabel(options, orbitDebugActive);
   return options;
 };
 

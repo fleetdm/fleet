@@ -1825,6 +1825,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledHostOrbitDebugLogging: (activity: IActivity) => {
+    const expiresAt = activity.details?.expires_at;
+    return (
+      <>
+        enabled orbit debug logging on{" "}
+        <b>{activity.details?.host_display_name}</b>
+        {expiresAt ? ` until ${new Date(expiresAt).toLocaleString()}` : ""}.
+      </>
+    );
+  },
+  disabledHostOrbitDebugLogging: (activity: IActivity) => {
+    return (
+      <>
+        disabled orbit debug logging on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2231,6 +2249,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);
+    }
+    case ActivityType.EnabledHostOrbitDebugLogging: {
+      return TAGGED_TEMPLATES.enabledHostOrbitDebugLogging(activity);
+    }
+    case ActivityType.DisabledHostOrbitDebugLogging: {
+      return TAGGED_TEMPLATES.disabledHostOrbitDebugLogging(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

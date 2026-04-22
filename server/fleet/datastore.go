@@ -1083,6 +1083,21 @@ type Datastore interface {
 	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
 
+	// UpdateHostOrbitDebugUntil sets the host-level orbit debug logging
+	// override. A non-nil value in the future forces debug logging ON for
+	// this host regardless of the team-level agent options setting; nil
+	// clears the override and reverts to the team default. Enforcement
+	// happens in GetOrbitConfig at poll time.
+	UpdateHostOrbitDebugUntil(ctx context.Context, hostID uint, until *time.Time) error
+
+	// ExtendHostOrbitDebugUntil sets the host-level orbit debug logging
+	// override to `until` only if it would extend an existing value — i.e.
+	// when the current column is NULL or earlier than `until`. Used by the
+	// enroll-time agent-options stamp so a short team rollout window can't
+	// silently clobber a longer admin-set override. The comparison is done
+	// atomically in SQL to avoid a read-then-write race.
+	ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error
+
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first
 	//	run, and those that were passing on the previous run and are failing on the incoming execution.

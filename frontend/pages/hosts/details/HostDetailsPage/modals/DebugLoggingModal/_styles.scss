@@ -1,0 +1,15 @@
+.debug-logging-modal {
+  p {
+    margin: 0;
+  }
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__duration-dropdown {
+    max-width: 320px;
+  }
+}

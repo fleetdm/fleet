@@ -2246,6 +2246,81 @@ func TestRefetchHost(t *testing.T) {
 	assert.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
 }
 
+func TestSetHostOrbitDebugLogging(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	host := &fleet.Host{ID: 42, Hostname: "h42"}
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+
+	var lastUntil *time.Time
+	ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, id uint, until *time.Time) error {
+		require.Equal(t, host.ID, id)
+		lastUntil = until
+		return nil
+	}
+	var emitted []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		emitted = append(emitted, activity)
+		return nil
+	}
+
+	userCtx := test.UserContext(ctx, test.UserAdmin)
+
+	// Enable with explicit duration.
+	until, err := svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "2h")
+	require.NoError(t, err)
+	require.NotNil(t, until)
+	require.NotNil(t, lastUntil)
+	require.WithinDuration(t, time.Now().Add(2*time.Hour), *lastUntil, 5*time.Second)
+	require.Len(t, emitted, 1)
+	require.Equal(t, "enabled_host_orbit_debug_logging", emitted[0].ActivityName())
+
+	// Enable with empty duration falls back to the default (24h).
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "")
+	require.NoError(t, err)
+	require.WithinDuration(t, time.Now().Add(24*time.Hour), *lastUntil, 5*time.Second)
+
+	// Duration above cap is rejected.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "720h") // 30 days
+	require.Error(t, err)
+	var iae *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &iae)
+
+	// Negative duration is rejected.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "-1s")
+	require.Error(t, err)
+
+	// Unparseable duration is rejected with an InvalidArgumentError.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "not-a-duration")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &iae)
+
+	// Sub-minimum duration is rejected — otherwise the endpoint would 200 OK
+	// but the override would expire before orbit's next config poll and debug
+	// would never actually turn on.
+	_, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, true, "500ms")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &iae)
+
+	// Disable clears the override and emits the disable activity.
+	emitted = emitted[:0]
+	lastUntil = nil
+	ds.UpdateHostOrbitDebugUntilFunc = func(ctx context.Context, id uint, until *time.Time) error {
+		require.Nil(t, until)
+		return nil
+	}
+	until, err = svc.SetHostOrbitDebugLogging(userCtx, host.ID, false, "")
+	require.NoError(t, err)
+	require.Nil(t, until)
+	require.Len(t, emitted, 1)
+	require.Equal(t, "disabled_host_orbit_debug_logging", emitted[0].ActivityName())
+}
+
 func TestRefetchHostUserInTeams(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

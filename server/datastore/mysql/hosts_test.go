@@ -196,6 +196,8 @@ func TestHosts(t *testing.T) {
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
+		{"UpdateHostOrbitDebugUntil", testUpdateHostOrbitDebugUntil},
+		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -13477,4 +13479,76 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "IdP account should be deleted when Windows host is the last one deleted")
 	})
+}
+
+func testUpdateHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "ohdu", "1.1.1.1", "1", "1", time.Now())
+
+	// Initial state: NULL.
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.OrbitDebugUntil)
+
+	// Set a future timestamp.
+	future := time.Now().Add(2 * time.Hour).UTC().Truncate(time.Second)
+	require.NoError(t, ds.UpdateHostOrbitDebugUntil(ctx, host.ID, &future))
+
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.OrbitDebugUntil)
+	require.True(t, got.OrbitDebugUntil.Equal(future))
+
+	// Unconditional clear (unlike Extend, this path must always overwrite —
+	// admin disable should respect "turn it off now" even if the existing
+	// value is in the future).
+	require.NoError(t, ds.UpdateHostOrbitDebugUntil(ctx, host.ID, nil))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.OrbitDebugUntil)
+
+	// Unconditional shorten from far-future to soon-future: must succeed.
+	// Exercises the "admin shortens window" path that differs from Extend.
+	far := time.Now().Add(7 * 24 * time.Hour).UTC().Truncate(time.Second)
+	require.NoError(t, ds.UpdateHostOrbitDebugUntil(ctx, host.ID, &far))
+	soon := time.Now().Add(10 * time.Minute).UTC().Truncate(time.Second)
+	require.NoError(t, ds.UpdateHostOrbitDebugUntil(ctx, host.ID, &soon))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(soon))
+}
+
+func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "ehdu", "1.1.1.2", "2", "2", time.Now())
+
+	// NULL → any value: extend writes.
+	first := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, first))
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(first))
+
+	// Existing earlier than new: extend moves it forward.
+	later := first.Add(2 * time.Hour)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
+
+	// Existing later than new: extend is a no-op — the critical property
+	// that prevents a short rollout stamp from clobbering a long admin
+	// override.
+	shorter := first.Add(5 * time.Minute)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, shorter))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later), "extend must not shorten an existing later value")
+
+	// Equal timestamp: the `<` comparison makes this a no-op (safe — no state
+	// change, no risk of clobber).
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
 }

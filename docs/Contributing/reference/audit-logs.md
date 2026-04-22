@@ -1237,6 +1237,42 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_host_orbit_debug_logging
+
+Generated when a user enables orbit debug logging on a single host via the host debug-logging endpoint.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "expires_at": RFC3339 timestamp at which the host-level debug override will lapse and the host reverts to the team-level setting.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "expires_at": "2026-04-15T18:00:00Z"
+}
+```
+
+## disabled_host_orbit_debug_logging
+
+Generated when a user clears a host-level orbit debug logging override (before its natural expiry).
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a team (or no team).

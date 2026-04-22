@@ -16612,3 +16612,215 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
 }
+
+// TestHostOrbitDebugLogging exercises the POST /hosts/:id/debug-logging
+// endpoint that enables or disables orbit debug logging for a single host.
+// It covers: happy-path enable with a custom duration, the default duration
+// when omitted, the 7d cap, rejection of invalid/negative durations, the
+// disable flow, 404 for missing hosts, and authz (observer denied).
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (s *integrationTestSuite) TestHostOrbitDebugLogging() {
+	t := s.T()
+	ctx := context.Background()
+
+	hosts := s.createHosts(t)
+	host := hosts[0]
+
+	// ---- Enable with explicit duration ----
+	var enableResp hostOrbitDebugLoggingResponse
+	beforeEnable := time.Now()
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusOK, &enableResp,
+	)
+	require.NoError(t, enableResp.Err)
+	require.NotNil(t, enableResp.OrbitDebugUntil)
+	// Expiry should be ~1h from now.
+	require.WithinDuration(t, beforeEnable.Add(time.Hour), *enableResp.OrbitDebugUntil, time.Minute)
+
+	// DB row should reflect the override.
+	dbHost, err := s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, dbHost.OrbitDebugUntil)
+	require.True(t, dbHost.OrbitDebugUntil.After(time.Now()))
+
+	// Activity was emitted.
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHostOrbitDebugLogging{}.ActivityName(),
+		"",
+		0,
+	)
+
+	// ---- Enable with omitted duration falls back to the 24h default ----
+	var defaultResp hostOrbitDebugLoggingResponse
+	beforeDefault := time.Now()
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true},
+		http.StatusOK, &defaultResp,
+	)
+	require.NoError(t, defaultResp.Err)
+	require.NotNil(t, defaultResp.OrbitDebugUntil)
+	require.WithinDuration(t,
+		beforeDefault.Add(24*time.Hour),
+		*defaultResp.OrbitDebugUntil,
+		time.Minute,
+	)
+
+	// ---- Duration above the 7d cap is rejected ----
+	var capResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "720h"}, // 30 days
+		http.StatusUnprocessableEntity, &capResp,
+	)
+
+	// ---- Invalid duration string returns 422 ----
+	var badResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "not-a-duration"},
+		http.StatusUnprocessableEntity, &badResp,
+	)
+
+	// ---- Negative duration is rejected ----
+	var negResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "-1h"},
+		http.StatusUnprocessableEntity, &negResp,
+	)
+
+	// ---- Disable clears the override and emits the disable activity ----
+	var disableResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: false},
+		http.StatusOK, &disableResp,
+	)
+	require.NoError(t, disableResp.Err)
+	require.Nil(t, disableResp.OrbitDebugUntil)
+
+	dbHost, err = s.ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, dbHost.OrbitDebugUntil)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHostOrbitDebugLogging{}.ActivityName(),
+		"",
+		0,
+	)
+
+	// ---- Unknown host ID returns 404 ----
+	var notFoundResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", hosts[len(hosts)-1].ID+9999),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusNotFound, &notFoundResp,
+	)
+
+	// ---- Observer is forbidden ----
+	// Create a fresh observer user and switch tokens for the check. The
+	// endpoint authorizes against fleet.ActionWrite on the host, which
+	// observers must not have.
+	observerPwd := test.GoodPassword
+	observerEmail := "orbit-debug-observer@example.com"
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:                     ptr.String("orbit-debug-observer"),
+		Email:                    ptr.String(observerEmail),
+		Password:                 ptr.String(observerPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: new(false),
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	defer func() { s.token = s.getTestAdminToken() }()
+	s.token = s.getTestToken(observerEmail, observerPwd)
+
+	var forbiddenResp hostOrbitDebugLoggingResponse
+	s.DoJSON("POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/debug-logging", host.ID),
+		hostOrbitDebugLoggingRequest{Enabled: true, Duration: "1h"},
+		http.StatusForbidden, &forbiddenResp,
+	)
+}
+
+// TestOrbitDebugLoggingOnEnroll exercises the new global agent option
+// `orbit.debug_logging_on_enroll_duration`. When set, every host that orbit-
+// enrolls into the matching scope (no-team in this test) should be stamped
+// with an `orbit_debug_until` of `now() + duration`, so the existing
+// debug-logging machinery picks it up on the host's first /orbit/config poll
+// without any per-host action by the admin. Covers: stamp on enroll, reject
+// over-cap (>24h), reject negative, and clearing the option stops stamping
+// future enrollments.
+//
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
+	t := s.T()
+	ctx := context.Background()
+
+	// ---- Reject duration above 24h cap ----
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "25h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// ---- Reject negative duration ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "-1h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// ---- Set a valid 1h window in global agent options ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "1h"} }
+	}`), http.StatusOK, &acResp)
+
+	// Create an enroll secret in no-team.
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// ---- Enroll a host. The stamp happens server-side after enroll. ----
+	beforeEnroll := time.Now()
+	var enrollResp enrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey)
+
+	stampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, stampedHost.OrbitDebugUntil, "host should be stamped with orbit_debug_until")
+	// Expiry is ~1h from the enroll moment.
+	require.WithinDuration(t, beforeEnroll.Add(time.Hour), *stampedHost.OrbitDebugUntil, time.Minute)
+
+	// ---- Clearing the option (zero duration) stops stamping future enrolls ----
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "0s"} }
+	}`), http.StatusOK, &acResp)
+
+	var enrollResp2 enrollOrbitResponse
+	hostUUID2 := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID2,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-not-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp2)
+
+	unstampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp2.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Nil(t, unstampedHost.OrbitDebugUntil, "host should not be stamped when option is zero")
+}

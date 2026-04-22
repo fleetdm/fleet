@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -28,7 +29,39 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+	// Orbit holds options that configure the orbit agent itself, as opposed to
+	// osquery. Kept in a separate block so orbit-level concerns don't pollute
+	// the osquery schema validated in agent_options_generated.go.
+	Orbit *OrbitAgentOptions `json:"orbit,omitempty"`
 }
+
+// OrbitAgentOptions holds team-level configuration for the orbit agent itself.
+// See docs/Contributing/architecture/orbit-debug-logging.md for the debug
+// logging flow.
+type OrbitAgentOptions struct {
+	// DebugLogging enables debug-level logging for orbit on all hosts in the
+	// team (or globally, if set on app_config agent options). Off by default.
+	// Individual hosts can additionally force debug on via the host-level
+	// debug-logging endpoint.
+	DebugLogging bool `json:"debug_logging,omitempty"`
+
+	// DebugLoggingOnEnrollDuration, when greater than zero, causes every host
+	// that enrolls (or re-enrolls) into this team — or into no-team for global
+	// agent options — to be stamped with an `orbit_debug_until` of
+	// `now() + DebugLoggingOnEnrollDuration`. The host then runs orbit in
+	// debug mode for that long after its individual enrollment, after which
+	// it reverts to the team default via the existing host-level expiry
+	// mechanism. Use case: capturing setup-experience logs during a rollout
+	// without having to flip debug on each host afterward. Capped at 24h.
+	DebugLoggingOnEnrollDuration Duration `json:"debug_logging_on_enroll_duration"`
+}
+
+// MaxOrbitDebugLoggingOnEnrollDuration is the upper bound enforced on the
+// per-team `orbit.debug_logging_on_enroll_duration` agent option. Past this,
+// admins should use the team-wide `debug_logging` toggle instead — the
+// per-enrollment stamp is for time-boxed rollout windows, not indefinite
+// verbose logging.
+const MaxOrbitDebugLoggingOnEnrollDuration = 24 * time.Hour
 
 type AgentOptionsOverrides struct {
 	// Platforms is a map from platform name to the config override.
@@ -112,6 +145,17 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		var updateChannels OrbitUpdateChannels
 		if err := JSONStrictDecode(bytes.NewReader(opts.UpdateChannels), &updateChannels); err != nil {
 			return fmt.Errorf("update_channels: %w", err)
+		}
+	}
+
+	if opts.Orbit != nil {
+		if d := opts.Orbit.DebugLoggingOnEnrollDuration.Duration; d != 0 {
+			if d < 0 {
+				return errors.New("orbit.debug_logging_on_enroll_duration must not be negative")
+			}
+			if d > MaxOrbitDebugLoggingOnEnrollDuration {
+				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %s", MaxOrbitDebugLoggingOnEnrollDuration)
+			}
 		}
 	}
 

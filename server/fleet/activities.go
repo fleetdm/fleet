@@ -240,6 +240,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledManagedLocalAccount{},
 
 	ActivityTypeCanceledSetupExperience{},
+
+	ActivityTypeEnabledHostOrbitDebugLogging{},
+	ActivityTypeDisabledHostOrbitDebugLogging{},
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
@@ -1947,4 +1950,37 @@ func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
 
 func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
 	return true
+}
+
+// ActivityTypeEnabledHostOrbitDebugLogging is logged when an admin enables
+// orbit debug logging on a single host via the host debug-logging endpoint.
+// See docs/Contributing/architecture/orbit-debug-logging.md.
+type ActivityTypeEnabledHostOrbitDebugLogging struct {
+	HostID          uint      `json:"host_id"`
+	HostDisplayName string    `json:"host_display_name"`
+	ExpiresAt       time.Time `json:"expires_at"`
+}
+
+func (a ActivityTypeEnabledHostOrbitDebugLogging) ActivityName() string {
+	return "enabled_host_orbit_debug_logging"
+}
+
+func (a ActivityTypeEnabledHostOrbitDebugLogging) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+// ActivityTypeDisabledHostOrbitDebugLogging is logged when an admin disables a
+// host-level orbit debug logging override (or when they explicitly clear one
+// before its natural expiry).
+type ActivityTypeDisabledHostOrbitDebugLogging struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeDisabledHostOrbitDebugLogging) ActivityName() string {
+	return "disabled_host_orbit_debug_logging"
+}
+
+func (a ActivityTypeDisabledHostOrbitDebugLogging) HostIDs() []uint {
+	return []uint{a.HostID}
 }

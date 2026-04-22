@@ -290,6 +290,12 @@ export interface IHost {
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
+  /**
+   * When set and in the future, orbit debug logging is forced on for this host
+   * regardless of the team-level agent-options setting. See
+   * docs/Contributing/architecture/orbit-debug-logging.md.
+   */
+  orbit_debug_until?: string | null;
   hostname: string;
   uuid: string;
   platform: HostPlatform;

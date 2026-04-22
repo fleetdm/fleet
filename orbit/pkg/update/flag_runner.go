@@ -30,6 +30,12 @@ type FlagRunner struct {
 type FlagUpdateOptions struct {
 	// RootDir is the root directory for orbit state
 	RootDir string
+	// StartedInDebug captures whether orbit was launched with --debug /
+	// ORBIT_DEBUG=1. When true, FlagRunner preserves the osquery verbose
+	// flags (--verbose and --tls_dump) in the osquery.flags file even when
+	// the server doesn't push them, so the startup debug flag cannot be
+	// silently overridden by server config.
+	StartedInDebug bool
 }
 
 // NewFlagRunner creates a new runner with provided options
@@ -57,14 +63,35 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		flagFileExists = false
 	}
 
-	if len(config.Flags) == 0 {
-		// command_line_flags not set in YAML, nothing to do
-		return nil
+	// Decode whatever the server sent; nil/empty means "no flags" which is a
+	// valid state we must be able to reconcile TO (e.g. admin removed
+	// command_line_flags, or orbit debug logging was turned off and the
+	// server-side merge no longer pushes verbose/tls_dump).
+	osqueryFlagMapFromFleet := map[string]string{}
+	if len(config.Flags) > 0 {
+		osqueryFlagMapFromFleet, err = getFlagsFromJSON(config.Flags)
+		if err != nil {
+			return fmt.Errorf("error parsing flags: %w", err)
+		}
 	}
 
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
-	if err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
+	// Startup flag is a floor: if orbit was launched with --debug, keep
+	// --verbose and --tls_dump in the map even when the server doesn't push
+	// them. If the admin has explicitly set either to a different value in
+	// command_line_flags, their choice wins.
+	if r.opt.StartedInDebug {
+		if _, ok := osqueryFlagMapFromFleet["--verbose"]; !ok {
+			osqueryFlagMapFromFleet["--verbose"] = "true"
+		}
+		if _, ok := osqueryFlagMapFromFleet["--tls_dump"]; !ok {
+			osqueryFlagMapFromFleet["--tls_dump"] = "true"
+		}
+	}
+
+	// Nothing on disk, nothing from the server: no-op. This preserves the
+	// original behavior for hosts that have never had agent-options flags.
+	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
+		return nil
 	}
 
 	// compare both flags, if they are equal, nothing to do

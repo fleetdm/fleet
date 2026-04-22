@@ -178,6 +178,33 @@ const HostHeader = ({
     );
   };
 
+  const renderDebugLoggingTag = () => {
+    const orbitDebugUntil = summaryData.orbit_debug_until;
+    if (!orbitDebugUntil) return null;
+    const expiresAt = new Date(orbitDebugUntil);
+    if (!(expiresAt.getTime() > Date.now())) return null;
+
+    const classNames = classnames(`${baseClass}__device-status-tag`, "warning");
+
+    return (
+      <TooltipWrapper
+        tipContent={
+          <>
+            Orbit debug logging is on for this host.
+            <br />
+            Expires {expiresAt.toLocaleString()}.
+          </>
+        }
+        position="top"
+        underline={false}
+        showArrow
+        className={`${baseClass}__device-status-tag-wrapper`}
+      >
+        <span className={classNames}>Debug logging</span>
+      </TooltipWrapper>
+    );
+  };
+
   return (
     <div className={`${baseClass} header title`}>
       <div className="title__inner">
@@ -201,6 +228,7 @@ const HostHeader = ({
           </TooltipWrapper>
 
           {renderDeviceStatusTag()}
+          {renderDebugLoggingTag()}
 
           <div className={`${baseClass}__last-fetched`}>
             {"Last fetched"} {lastFetched}

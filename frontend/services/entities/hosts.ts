@@ -564,6 +564,25 @@ export default {
 
     return sendRequest("POST", path);
   },
+  /**
+   * Enable or disable orbit debug logging for a single host. When enabling,
+   * `duration` is a Go-style duration string (e.g. "1h", "30m"); omit or pass
+   * empty to use the server default (24h). Max 7d, enforced server-side.
+   *
+   * See docs/Contributing/architecture/orbit-debug-logging.md.
+   */
+  setOrbitDebugLogging: (
+    hostId: number,
+    enabled: boolean,
+    duration?: string
+  ): Promise<{ orbit_debug_until: string | null }> => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostId}/debug-logging`;
+    return sendRequest("POST", path, {
+      enabled,
+      duration: duration ?? "",
+    });
+  },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;

@@ -821,6 +821,7 @@ SELECT
   h.last_enrolled_at,
   h.refetch_requested,
   h.refetch_critical_queries_until,
+  h.orbit_debug_until,
   h.team_id,
   h.policy_updated_at,
   h.public_ip,
@@ -2903,6 +2904,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.last_enrolled_at,
       h.refetch_requested,
       h.refetch_critical_queries_until,
+      h.orbit_debug_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -3389,6 +3391,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       h.last_enrolled_at,
       h.refetch_requested,
       h.refetch_critical_queries_until,
+      h.orbit_debug_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -5419,6 +5422,27 @@ func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id ui
 	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
 	_, err := tx.ExecContext(ctx, sqlStatement, value, id)
 	return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
+}
+
+// UpdateHostOrbitDebugUntil sets or clears the host-level orbit debug logging
+// override. Pass nil to clear. Enforcement happens in GetOrbitConfig.
+func (ds *Datastore) UpdateHostOrbitDebugUntil(ctx context.Context, id uint, until *time.Time) error {
+	const stmt = `UPDATE hosts SET orbit_debug_until = ? WHERE id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, until, id)
+	return ctxerr.Wrapf(ctx, err, "update host %d orbit_debug_until", id)
+}
+
+// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+// current value (or the current value is NULL). The conditional WHERE keeps
+// the read-and-compare atomic, so the enroll-stamp path can never shorten an
+// admin-set override via a lost-update race.
+func (ds *Datastore) ExtendHostOrbitDebugUntil(ctx context.Context, id uint, until time.Time) error {
+	const stmt = `
+		UPDATE hosts
+		SET orbit_debug_until = ?
+		WHERE id = ? AND (orbit_debug_until IS NULL OR orbit_debug_until < ?)`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, until, id, until)
+	return ctxerr.Wrapf(ctx, err, "extend host %d orbit_debug_until", id)
 }
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
