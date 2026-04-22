@@ -1017,6 +1017,9 @@ const HostDetailsPage = ({
         isManagedLocalAccountEnabled={
           mdmConfig?.setup_experience?.enable_managed_local_account ?? false
         }
+        managedAccountStatus={
+          host.mdm.os_settings?.managed_local_account?.status
+        }
       />
     );
   };

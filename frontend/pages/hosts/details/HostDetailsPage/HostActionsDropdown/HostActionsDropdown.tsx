@@ -27,6 +27,7 @@ interface IHostActionsDropdownProps {
   diskEncryptionProfileStatus?: string;
   recoveryLockPasswordAvailable?: boolean;
   isManagedLocalAccountEnabled?: boolean;
+  managedAccountStatus?: string | null;
 }
 
 const HostActionsDropdown = ({
@@ -44,6 +45,7 @@ const HostActionsDropdown = ({
   diskEncryptionProfileStatus,
   recoveryLockPasswordAvailable = false,
   isManagedLocalAccountEnabled = false,
+  managedAccountStatus,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -99,6 +101,7 @@ const HostActionsDropdown = ({
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     isManagedLocalAccountEnabled,
+    managedAccountStatus,
   });
 
   // No options to render. Exit early

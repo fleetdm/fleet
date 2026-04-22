@@ -10,7 +10,7 @@ const CreatedManagedLocalAccountActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>Fleet </b>
-      created the managed account for this host.
+      created a managed local account for this host.
     </ActivityItem>
   );
 };

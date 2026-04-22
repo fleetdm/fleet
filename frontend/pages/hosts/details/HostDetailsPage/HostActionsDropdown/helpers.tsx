@@ -114,6 +114,7 @@ interface IHostActionConfigOptions {
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
   isManagedLocalAccountEnabled: boolean;
+  managedAccountStatus: string | null | undefined;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -327,14 +328,14 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    isEnrolledInMdm,
     hostPlatform,
+    hostMdmEnrollmentStatus,
     isManagedLocalAccountEnabled,
   } = config;
   if (!isPremiumTier) return false;
   if (hostPlatform !== "darwin") return false;
   if (!isConnectedToFleetMdm) return false;
-  if (!isEnrolledInMdm) return false;
+  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
   return isManagedLocalAccountEnabled;
 };
 
@@ -514,6 +515,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    managedAccountStatus,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -620,6 +622,38 @@ const modifyOptions = (
           while pending or has failed.
         </>
       );
+    }
+  }
+
+  if (managedAccountStatus !== "verified") {
+    const managedAccountOption = options.find(
+      (option) => option.value === "managedAccount"
+    );
+    if (managedAccountOption) {
+      managedAccountOption.disabled = true;
+      if (
+        managedAccountStatus === "pending" ||
+        managedAccountStatus === "failed"
+      ) {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account is still being
+            <br />
+            created.
+          </>
+        );
+      } else {
+        // status is null/undefined — no record exists for this host
+        managedAccountOption.tooltipContent = (
+          <>
+            This host will receive a managed account
+            <br />
+            at the next enrollment. Already enrolled
+            <br />
+            hosts don&apos;t get a managed account.
+          </>
+        );
+      }
     }
   }
 

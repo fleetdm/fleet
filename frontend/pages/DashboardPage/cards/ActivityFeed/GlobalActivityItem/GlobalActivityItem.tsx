@@ -516,7 +516,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        turned on managed local account for{" "}
+        enabled managed local accounts for hosts assigned to the{" "}
         {activity.details?.team_name ? (
           <>
             <b>{activity.details.team_name}</b> fleet.
@@ -531,7 +531,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        turned off managed local account for{" "}
+        disabled managed local accounts for hosts assigned to the{" "}
         {activity.details?.team_name ? (
           <>
             <b>{activity.details.team_name}</b> fleet.
@@ -546,7 +546,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        viewed the managed account for{" "}
+        viewed the managed local account on{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -555,7 +555,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created the managed account for{" "}
+        created a managed local account for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -564,7 +564,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        rotated the managed account password for{" "}
+        rotated the managed local account password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );

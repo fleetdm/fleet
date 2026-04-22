@@ -10,7 +10,7 @@ const ReadManagedLocalAccountActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>{activity.actor_full_name} </b>
-      viewed the managed account for this host.
+      viewed the managed local account on this host.
     </ActivityItem>
   );
 };

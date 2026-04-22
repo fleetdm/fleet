@@ -129,6 +129,10 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 

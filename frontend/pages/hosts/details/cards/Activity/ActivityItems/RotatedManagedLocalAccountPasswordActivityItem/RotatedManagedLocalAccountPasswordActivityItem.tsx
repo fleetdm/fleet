@@ -10,7 +10,7 @@ const RotatedManagedLocalAccountPasswordActivityItem = ({
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
       <b>Fleet </b>
-      rotated the managed account password for this host.
+      rotated the managed local account password for this host.
     </ActivityItem>
   );
 };
