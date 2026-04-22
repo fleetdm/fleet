@@ -39,6 +39,7 @@ func Analyze(
 	if err != nil {
 		return nil, err
 	}
+	defer func() { _ = db.Close() }()
 
 	// For kernel-only platforms (e.g., RHEL), we only scan kernel packages via goval-dictionary.
 	// Non-kernel packages are scanned via regular OVAL processing.  This keeps the testing
