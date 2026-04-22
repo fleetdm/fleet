@@ -23257,3 +23257,271 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		"mdm": map[string]any{"enable_recovery_lock_password": false},
 	}, http.StatusOK, &appConfigResponse{})
 }
+
+func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+	abmOrgName := t.Name()
+	s.enableABM(abmOrgName)
+
+	// Create a team used by enrollment subtests
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+	team := createTeamResp.Team
+
+	// Enable managed local account on the team
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+
+	// Assign ABM org to the team
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_business_manager": [{
+				"organization_name": %q,
+				"macos_team": %q,
+				"ios_team": "",
+				"ipados_team": ""
+			}]
+		}
+	}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
+
+	// Mock DEP response with devices
+	serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2", "MANAGED_ACCT_3"}
+	syncCount := 0
+	s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "abc"}`))
+		case "/devices/sync":
+			var devices []godep.Device
+			for i := 0; i <= syncCount && i < len(serials); i++ {
+				devices = append(devices, godep.Device{SerialNumber: serials[i]})
+			}
+			syncCount++
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{Devices: devices})
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	t.Run("Enrollment flow", func(t *testing.T) {
+
+		// DEP-enroll the first host and run the post-enrollment worker
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[0], "MacBookPro16,1")
+		require.NoError(t, mdmDevice.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Verify managed account row exists with status = NULL (pending)
+		var status *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+		})
+		require.Nil(t, status)
+
+		host, err := s.ds.HostByIdentifier(ctx, serials[0])
+		require.NoError(t, err)
+
+		// Get host API should show managed account as pending
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "pending", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
+		// Device acknowledges AccountConfiguration command → status becomes verified
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		var foundAccountConfig bool
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.AccountConfigurationCmdName {
+				foundAccountConfig = true
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.True(t, foundAccountConfig, "AccountConfiguration command should have been queued")
+
+		// Managed account row should be status = verified
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+		})
+		require.NotNil(t, status)
+		require.Equal(t, string(fleet.MDMDeliveryVerified), *status)
+
+		// Get host API should show managed account as verified with password available
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "verified", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
+		// Activity for creating a local account was created
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Read the managed account password
+		var pwdResp getHostManagedAccountPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		require.NotEmpty(t, pwdResp.ManagedLocalAccount.Password)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeViewedManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Disable managed local account
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+
+		// Existing host's password is still readable
+		pwdResp = getHostManagedAccountPasswordResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		require.NotEmpty(t, pwdResp.ManagedLocalAccount.Password)
+
+		// Second host enrolled after disable — should NOT get a managed account
+		s.runDEPSchedule()
+		mdmDevice2 := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[1], "MacBookPro16,1")
+		require.NoError(t, mdmDevice2.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		cmd, err = mdmDevice2.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice2.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		host2, err := s.ds.HostByIdentifier(ctx, serials[1])
+		require.NoError(t, err)
+		var pwdResp2 getHostManagedAccountPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host2.ID), nil, http.StatusBadRequest, &pwdResp2)
+	})
+
+	t.Run("Failed enrollment", func(t *testing.T) {
+		// Re-enable managed local account on the team
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		// DEP-enroll a third host
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice3 := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[2], "MacBookPro16,1")
+		require.NoError(t, mdmDevice3.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Device sends error response to AccountConfiguration command
+		cmd, err := mdmDevice3.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.AccountConfigurationCmdName {
+				cmd, err = mdmDevice3.Err(cmd.CommandUUID, []mdm.ErrorChain{
+					// TODO(JK): Not sure if this error is correct, need to test failure on a real device
+					{ErrorCode: 12064, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Failed to create the admin account.", USEnglishDescription: "Failed to create the admin account."},
+				})
+			} else {
+				cmd, err = mdmDevice3.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+
+		// Verify status is "failed"
+		var status *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice3.UUID)
+		})
+		require.NotNil(t, status)
+		require.Equal(t, string(fleet.MDMDeliveryFailed), *status)
+
+		// Get host API should show managed account as failed with no password available
+		host3, err := s.ds.HostByIdentifier(ctx, serials[2])
+		require.NoError(t, err)
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host3.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "failed", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+	})
+
+	t.Run("Setup experience global config", func(t *testing.T) {
+		// Enable via PATCH /setup_experience
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		var acResp appConfigResponse
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+		// Patching same value again should not create a new activity
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.False(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+	})
+
+	t.Run("Setup experience team config", func(t *testing.T) {
+		// Create a team
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		tm := createTeamResp.Team
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
+
+		// Enable via PATCH /setup_experience
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		var tmResp teamResponse
+		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0)
+
+		// Patching same value again should not create a new activity
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+
+		tmResp = teamResponse{}
+		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.False(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0), lastActivityID)
+	})
+}
