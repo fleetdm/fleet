@@ -1,0 +1,1 @@
+- Allow saving policies whose SQL is flagged as a syntax error. The "Save" button is no longer disabled for syntax errors in the Create/Edit policy forms; the error message is still shown. Save remains disabled when the query is empty. Matches the existing behavior on the Reports Create/Edit forms.
