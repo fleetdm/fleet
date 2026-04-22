@@ -86,6 +86,12 @@
       "format": "uri",
       "minLength": 1,
       "pattern": "^https?://"
+    },
+    "cask_path": {
+      "type": "string",
+      "description": "Path (relative to the repo root) to a local file containing the cask JSON in the same schema as https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask metadata for third-party taps directly into this repo under inputs/homebrew/custom-casks/. Takes priority over api_base_url.",
+      "minLength": 1,
+      "pattern": "\\.json$"
     }
   },
   "not": {

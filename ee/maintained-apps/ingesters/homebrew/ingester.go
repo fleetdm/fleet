@@ -96,50 +96,15 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	// Allow per-app override of the brew API base URL so we can ingest casks
-	// from third-party taps that publish a JSON endpoint matching the
-	// formulae.brew.sh schema (e.g. a custom tap's GitHub Pages / raw content).
-	// When api_base_url is not set, fall back to the shared default.
-	baseURL := i.baseURL
-	if input.APIBaseURL != "" {
-		baseURL = input.APIBaseURL
-	}
-	if !strings.HasSuffix(baseURL, "/") {
-		baseURL += "/"
-	}
-	apiURL := fmt.Sprintf("%scask/%s.json", baseURL, input.Token)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	// Resolve the cask JSON from one of three sources, in priority order:
+	//   1. cask_path      — read a local file in this repo. Used for casks
+	//                       that live in a custom tap whose JSON we've
+	//                       committed under inputs/homebrew/custom-casks/.
+	//   2. api_base_url   — HTTP fetch from a per-app override host.
+	//   3. default        — HTTP fetch from formulae.brew.sh.
+	cask, err := i.fetchCask(ctx, input)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := i.client.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
-	}
-
-	var cask brewCask
-	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+		return nil, err
 	}
 
 	out := &maintained_apps.FMAManifestApp{}
@@ -238,6 +203,66 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	return out, nil
 }
 
+// fetchCask resolves the brew cask JSON for the given input app from
+// (in priority order): a local file (cask_path), an HTTP override
+// (api_base_url), or the default brew API.
+func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask, error) {
+	var cask brewCask
+
+	if input.CaskPath != "" {
+		body, err := os.ReadFile(input.CaskPath)
+		if err != nil {
+			return cask, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
+		}
+		if err := json.Unmarshal(body, &cask); err != nil {
+			return cask, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
+		}
+		return cask, nil
+	}
+
+	baseURL := i.baseURL
+	if input.APIBaseURL != "" {
+		baseURL = input.APIBaseURL
+	}
+	if !strings.HasSuffix(baseURL, "/") {
+		baseURL += "/"
+	}
+	apiURL := fmt.Sprintf("%scask/%s.json", baseURL, input.Token)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "create http request")
+	}
+
+	res, err := i.client.Do(req)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "execute http request")
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "read http response body")
+	}
+
+	switch res.StatusCode {
+	case http.StatusOK:
+		// success, go on
+	case http.StatusNotFound:
+		return cask, ctxerr.New(ctx, "app not found in brew API")
+	default:
+		if len(body) > 512 {
+			body = body[:512]
+		}
+		return cask, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, &cask); err != nil {
+		return cask, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+	}
+	return cask, nil
+}
+
 type inputApp struct {
 	// Name is the user-friendly name of the app.
 	Name string `json:"name"`
@@ -262,6 +287,12 @@ type inputApp struct {
 	// https://formulae.brew.sh/api/. Used to support third-party taps.
 	// When empty, the ingester falls back to formulae.brew.sh.
 	APIBaseURL string `json:"api_base_url"`
+	// CaskPath optionally points at a local file (relative to the repo
+	// root) containing the cask JSON in the same schema as
+	// https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask
+	// metadata for third-party taps directly into this repo (see
+	// inputs/homebrew/custom-casks/). Takes priority over APIBaseURL.
+	CaskPath string `json:"cask_path"`
 }
 
 type brewCask struct {

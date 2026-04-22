@@ -246,3 +246,75 @@ func TestIngestCustomAPIBaseURL(t *testing.T) {
 	require.Equal(t, 1, defaultHits)
 	require.Equal(t, 2, overrideHits)
 }
+
+// TestIngestCaskPath verifies that when an input app sets cask_path, the
+// ingester reads cask JSON from that local file and makes no HTTP call.
+// This is the path used for casks committed into inputs/homebrew/custom-casks/.
+func TestIngestCaskPath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	caskJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{"Local Cask"},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+
+	caskPath := path.Join(tempDir, "local-cask.json")
+	require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+	// Server that should never be called when cask_path is set; any hit is a
+	// bug because it means the ingester fell back to HTTP.
+	var httpHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		httpHits++
+	}))
+	t.Cleanup(srv.Close)
+
+	ctx := context.Background()
+	i := &brewIngester{
+		logger:  slog.New(slog.DiscardHandler),
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL: srv.URL + "/",
+	}
+
+	out, err := i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         caskPath,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/local/installer.pkg", out.InstallerURL)
+	require.Equal(t, "9.9.9", out.Version)
+	require.Equal(t, "deadbeef", out.SHA256)
+	require.Equal(t, 0, httpHits, "cask_path path must not make an HTTP call")
+
+	// Missing file yields an actionable error.
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "missing",
+		UniqueIdentifier: "com.example.missing",
+		InstallerFormat:  "pkg",
+		Name:             "Missing",
+		CaskPath:         path.Join(tempDir, "does-not-exist.json"),
+	})
+	require.ErrorContains(t, err, "reading local cask JSON file")
+	require.Equal(t, 0, httpHits)
+
+	// cask_path takes priority over api_base_url (the override URL would
+	// be unreachable if it were attempted).
+	out, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         caskPath,
+		APIBaseURL:       "http://127.0.0.1:1/unreachable/",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/local/installer.pkg", out.InstallerURL)
+	require.Equal(t, 0, httpHits)
+}

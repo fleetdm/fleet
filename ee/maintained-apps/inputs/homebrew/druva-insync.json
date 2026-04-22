@@ -5,5 +5,5 @@
   "installer_format": "dmg",
   "slug": "druva-insync/darwin",
   "default_categories": ["Productivity"],
-  "api_base_url": "https://raw.githubusercontent.com/allenhouchins/homebrew-fleet/main/api/"
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/druva-insync.json"
 }
