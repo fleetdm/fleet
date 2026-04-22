@@ -148,6 +148,9 @@ spec:
     updates are deferred, they should not be deferred for more than 30 days.
     This control only verifies that deferred software updates are not deferred for more than 30 days.
     Note: Software deferment is deprecated by Apple and will be removed in a future OS release/update.
+    Rationale:
+    Apple software updates almost always include security updates. Attackers evaluate updates to create exploit code in order to attack unpatched systems. The longer a system remains unpatched, the greater an exploit possibility exists in which there are publicly reported vulnerabilities.
+    Software updates being deferred are specifically referring to OS updates and not either major upgrades (ex. upgrading from macOS 15.0 to macOS 26) or applications from the App Store.
   resolution: "Ask your system administrator to deploy an MDM profile configures update deferment to a value of 30 days or less."
   query: |
     SELECT 1 WHERE 
@@ -631,10 +634,15 @@ spec:
         path = '/var/db/com.apple.xpc.launchd/disabled.plist' AND
         key = 'com.openssh.sshd' AND
         value = '0'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM processes WHERE path = '/usr/sbin/sshd'
     );
-  # We are not using the launchd table because it does not check if services
-  # are disabled via disabled.plist, which the preference pane uses whenever
-  # a service is disabled after it has been enabled in the past.
+  # The plist check catches services toggled off via the preference pane
+  # (which the launchd table does not reflect). The processes check catches
+  # the v2.0.0 audit's "service not running at the time of audit" requirement,
+  # which the plist check alone misses when SSH is started outside the
+  # preference pane.
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
