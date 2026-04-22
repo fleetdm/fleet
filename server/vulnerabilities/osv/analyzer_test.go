@@ -751,6 +751,8 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 		require.Len(t, result, 1)
 		require.Equal(t, "CVE-2024-1234", result[0].CVE)
 		require.Equal(t, uint(1), result[0].SoftwareID)
+		require.NotNil(t, result[0].ResolvedInVersion)
+		require.Equal(t, "0:7.76.1-29.el9_4.2", *result[0].ResolvedInVersion)
 	})
 
 	t.Run("package not in artifact", func(t *testing.T) {
@@ -768,6 +770,8 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 		result := matchSoftwareToRHELOSV(software, artifact)
 		require.Len(t, result, 1)
 		require.Equal(t, "CVE-2025-5678", result[0].CVE)
+		require.NotNil(t, result[0].ResolvedInVersion)
+		require.Equal(t, "0:5.14.0-611.8.1.el9_7", *result[0].ResolvedInVersion)
 	})
 
 	t.Run("kernel-modules maps to kernel", func(t *testing.T) {

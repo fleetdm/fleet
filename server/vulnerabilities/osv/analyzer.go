@@ -451,9 +451,15 @@ func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact
 
 		for _, vuln := range vulns {
 			if isVulnerableRPM(sw.Version, sw.Release, vuln) {
+				var resolvedIn *string
+				if vuln.Fixed != "" {
+					fixed := vuln.Fixed
+					resolvedIn = &fixed
+				}
 				result = append(result, fleet.SoftwareVulnerability{
-					SoftwareID: sw.ID,
-					CVE:        vuln.CVE,
+					SoftwareID:        sw.ID,
+					CVE:               vuln.CVE,
+					ResolvedInVersion: resolvedIn,
 				})
 			}
 		}
