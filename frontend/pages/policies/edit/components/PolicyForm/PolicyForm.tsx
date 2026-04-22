@@ -610,7 +610,7 @@ const PolicyForm = ({
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
         })) ||
-      (!!errors.query && errors.query === EMPTY_QUERY_ERR);
+      errors.query === EMPTY_QUERY_ERR;
 
     return (
       <>
