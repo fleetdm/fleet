@@ -20,7 +20,7 @@ func (u *UptimeDataset) SampleStrategy() api.SampleStrategy { return api.SampleS
 func (u *UptimeDataset) DefaultVisualization() string       { return "checkerboard" }
 
 func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, uptimeRecentlySeenWindow)
+	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow))
 	if err != nil {
 		return err
 	}

@@ -29,10 +29,10 @@ type HostFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported within the given
-	// lookback window. Used by datasets like uptime that derive their sample from
+	// FindRecentlySeenHostIDs returns host IDs that have reported since the
+	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error)
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of

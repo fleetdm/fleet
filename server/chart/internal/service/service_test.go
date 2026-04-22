@@ -58,14 +58,14 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	findRecentlySeenHostIDsFn func(ctx context.Context, lookback time.Duration) ([]uint, error)
+	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time) ([]uint, error)
 	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
 	recordBucketDataInvoked   bool
 }
 
-func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error) {
+func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
 	if m.findRecentlySeenHostIDsFn != nil {
-		return m.findRecentlySeenHostIDsFn(ctx, lookback)
+		return m.findRecentlySeenHostIDsFn(ctx, since)
 	}
 	return nil, nil
 }
@@ -451,8 +451,8 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.findRecentlySeenHostIDsFn = func(_ context.Context, lookback time.Duration) ([]uint, error) {
-		assert.Equal(t, 10*time.Minute, lookback)
+	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time) ([]uint, error) {
+		assert.Equal(t, now.Add(-10*time.Minute), since)
 		return []uint{1, 2, 3}, nil
 	}
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {

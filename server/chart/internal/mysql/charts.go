@@ -64,12 +64,10 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindRecentlySeenHostIDs returns host IDs with any activity signal newer than now-lookback.
+// FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
 // "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
 // or host details/creation timestamps.
-func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error) {
-	cutoff := time.Now().UTC().Add(-lookback)
-
+func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
 	const query = `
 		SELECT h.id
 		FROM hosts h
@@ -86,7 +84,7 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.
 		) >= ?`
 
 	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, cutoff); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, since.UTC()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
 	}
 	return ids, nil

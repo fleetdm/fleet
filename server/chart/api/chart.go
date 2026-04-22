@@ -61,10 +61,10 @@ type Dataset interface {
 // method. It is satisfied by the chart internal Datastore, keeping dataset
 // implementations decoupled from internals.
 type DatasetStore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported within the given
-	// lookback window. Used by datasets like uptime that derive their sample from
+	// FindRecentlySeenHostIDs returns host IDs that have reported since the
+	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, lookback time.Duration) ([]uint, error)
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.
