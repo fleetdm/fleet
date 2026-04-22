@@ -119,27 +119,35 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 }
 
 // invalidateAfterHostWrite is the common tail for write paths that hand us a
-// *fleet.Host. When the caller has one or both keys, we invalidate by each
-// key directly (skipping the ID→key reverse-index lookup); if neither key is
-// present we fall back to the ID path, which resolves both reverse indices.
-// Hosts running both Orbit and osquery have both keys set and get both caches
-// cleared.
+// *fleet.Host. Invalidates via the reverse indices on the host's ID — the
+// only path that's guaranteed to clear BOTH cache families (osquery and
+// orbit) regardless of which keys are populated on the caller-supplied Host
+// struct. Some write paths hand us only a partial Host (e.g., the returned
+// *Host from mysql.EnrollOrbit has ID but not NodeKey/OrbitNodeKey), and
+// relying on direct-key DEL in those cases would silently miss the other
+// family and leave it stale until TTL.
+//
+// Additionally clears direct-key entries for any keys the caller DOES have
+// on the struct. This covers the case where a NotFound was negatively-cached
+// under a key before the host existed — the reverse index can't find that
+// entry (the host has no id-to-key mapping yet), so it must be cleared by
+// the caller-supplied key. Matters most for NewHost / EnrollOsquery which
+// can race with pre-enrollment probes.
 func (d *Datastore) invalidateAfterHostWrite(ctx context.Context, host *fleet.Host, reason string) {
-	if host == nil {
+	if host == nil || host.ID == 0 {
 		return
 	}
-	hasNK := host.NodeKey != nil && *host.NodeKey != ""
-	hasONK := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
+	d.hostCacheDeleteByID(ctx, host.ID, reason)
 
-	if hasNK {
-		d.hostCacheDeleteByNodeKey(ctx, *host.NodeKey, host.ID, reason)
+	// Belt-and-braces clear of direct keys. Does not record a second
+	// invalidation — hostCacheDeleteByID already did.
+	nk := ""
+	if host.NodeKey != nil {
+		nk = *host.NodeKey
 	}
-	if hasONK {
-		d.hostCacheDeleteByOrbitNodeKey(ctx, *host.OrbitNodeKey, host.ID, reason)
+	onk := ""
+	if host.OrbitNodeKey != nil {
+		onk = *host.OrbitNodeKey
 	}
-	if !hasNK && !hasONK && host.ID != 0 {
-		// Neither key on the struct — resolve via reverse indices. This
-		// handles both sides (osquery + orbit) in one call.
-		d.hostCacheDeleteByID(ctx, host.ID, reason)
-	}
+	d.hostCacheClearDirectEntries(ctx, nk, onk)
 }
