@@ -146,16 +146,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/41409
     - description: Add Fleet-maintained apps to policies via GitOps to automatically install software when a policy fails (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
-- industryName: GitOps mode exceptions
-  description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/gitops
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Configuration]
-  usualDepartment: IT
+    - description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
 #
 #  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
