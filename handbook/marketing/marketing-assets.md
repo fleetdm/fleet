@@ -69,7 +69,7 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 | Asset | Description | Speakers | Date updated |  Social Sharing /Registration | Direct Replay | 
 | --- | --- | --- | --- | --- | --- |
-| **Device management that actually works for IT** | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> | [Registration]() | [Direct Replay](https://player.mediadelivery.net/play/637410/0ecc433a-fa3c-4ff9-a178-621d6da0847e) |
+| **Device management that actually works for IT** | Explore how to help your IT teams get out of the way by giving employees their time back, reducing spend, and proving compliance in real time.| Brock Walters - Fleet, Philipp Hoffmann - Deeploi, Viktor Filipsson - Sonos | <nobr>2026‑02‑14</nobr> | [Registration](https://fleetdm.com/webinars/device-management-that-actually-works-for-it) | [Direct Replay](https://fleetdm.com/webinars/device-management-that-actually-works-for-it/watch) |
 | **Beyond the Hype: Practical AI for Device Management** | Moving from manual MDM engineering workflows to AI | Allen Houchins - Fleet, Harley Williams and Mike Meyer - Foursquare | <nobr>2026-04-02</nobr>| [Registration](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management) | [Direct Replay](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management/watch) |
 
 
