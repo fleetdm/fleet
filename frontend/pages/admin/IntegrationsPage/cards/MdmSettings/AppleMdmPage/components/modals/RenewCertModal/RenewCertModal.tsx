@@ -62,7 +62,7 @@ const RenewCertModal = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if ((e as any)?.response?.headers?.["invalidEmailDomain"]) {
+      if (msg.toLowerCase().includes("email address is not valid")) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
