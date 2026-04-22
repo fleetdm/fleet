@@ -1523,6 +1523,7 @@ func RandSerialNumber() string {
 
 func randStr(n int) string {
 	b := make([]byte, n)
+
 	for i := range b {
 		//nolint:gosec // not used for crypto, only to generate random serial for testing
 		b[i] = serialLetters[mrand.Intn(len(serialLetters))]
@@ -1530,9 +1531,24 @@ func randStr(n int) string {
 	return string(b)
 }
 
+func RandSerialNumberWithSeed(seed int64) string {
+	return randStrWithSeed(12, seed)
+}
+
+func randStrWithSeed(n int, seed int64) string {
+	b := make([]byte, n)
+	r := mrand.New(mrand.NewSource(seed))
+
+	for i := range b {
+		//nolint:gosec // not used for crypto, only to generate random serial for testing
+		b[i] = serialLetters[r.Intn(len(serialLetters))]
+	}
+	return string(b)
+}
+
 // RandUDID returns a fake random iOS/iPadOS 17+ UDID.
-func RandUDID() string {
-	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
+func RandUDID(seed int64) string {
+	return fmt.Sprintf("%s-%s", randStrWithSeed(8, seed), randStrWithSeed(16, seed))
 }
 
 type scepClient interface {

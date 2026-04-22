@@ -231,6 +231,7 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
+	randSeed              int64
 	agentIndex            int
 	MDMCheckInInterval    time.Duration
 	model                 string
@@ -315,6 +316,7 @@ var adamIDsToSoftware = map[int]*fleet.Software{
 }
 
 type agent struct {
+	randSeed                      int64
 	agentIndex                    int
 	hostCount                     int
 	totalHostCount                int
@@ -506,16 +508,17 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	randSeed int64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
 	}
-	serialNumber := mdmtest.RandSerialNumber()
+	serialNumber := mdmtest.RandSerialNumberWithSeed(randSeed)
 	if rand.Float64() <= emptySerialProb {
 		serialNumber = ""
 	}
-	hostUUID := strings.ToUpper(uuid.New().String())
+	hostUUID := strings.ToUpper(mdmtest.RandUDID(randSeed))
 
 	// determine the simulated host's OS based on the template name (see
 	// validTemplateNames below for the list of possible names, the OS is always
@@ -3382,7 +3385,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 }
 
 func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
-	udid := mdmtest.RandUDID()
+	udid := mdmtest.RandUDID(a.randSeed)
 
 	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: mdmSCEPChallenge,
@@ -3390,7 +3393,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
 	}, a.model)
 	mdmClient.UUID = udid
-	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	mdmClient.SerialNumber = mdmtest.RandSerialNumberWithSeed(a.randSeed)
 	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
 	productName := a.model
 	softwareSource := "ios_apps"
@@ -3398,10 +3401,13 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		softwareSource = "ipados_apps"
 	}
 
-	if err := mdmClient.Enroll(); err != nil {
-		log.Printf("%s MDM enroll failed: %s", a.model, err)
-		a.stats.IncrementMDMErrors()
-		return
+	if _, err := mdmClient.Idle(); err != nil {
+		// enroll only if we can't do idle (aka. already exist with the MDM server)
+		if err := mdmClient.Enroll(); err != nil {
+			log.Printf("%s MDM enroll failed: %s", a.model, err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
 	}
 
 	a.stats.IncrementMDMEnrollments()
@@ -3725,6 +3731,7 @@ func main() {
 				model = "iPad 13,18"
 			}
 			mobileDevice := mdmAgent{
+				randSeed:           *randSeed,
 				agentIndex:         i + 1,
 				MDMCheckInInterval: *mdmCheckInInterval,
 				model:              model,
@@ -3817,6 +3824,7 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*randSeed,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
