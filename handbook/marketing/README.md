@@ -324,8 +324,16 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
-- Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
-- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video title.
+- Fill out relevant information such as:
+    * title - make sure it is SEO friendly
+    * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
+    * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
+    * playlists - Add to approrpiate one(s)
+    * audience - not "made for kids"
+    * video details - allow auto chapters, no featured places or automatic concepts
+    * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
+    * end screen - set these!! Subscribe logo and at least one video of "next interest" (pick one using your judgement).
+- Create a new video thumbnail within Figma using the [YouTube covers board](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media--logos--covers--banners-?node-id=1148-57414&p=f&t=cDvD2NcWwN6NaTKv-0) with the video title. Upload it.
 - Set the visibility to "Public".
 - Share video link on social media.
 
