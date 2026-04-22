@@ -16,8 +16,15 @@ func Up_20260422153019(tx *sql.Tx) error {
 	// (global_or_team_id, title_id) was replaced with
 	// (global_or_team_id, title_id, version), allowing multiple versions, but
 	// the upload path did not deactivate the old installer.
-	_, err := tx.Exec(`
-		CREATE TEMPORARY TABLE tmp_active_installers AS
+	// Use a regular table instead of TEMPORARY to avoid GTID replication
+	// issues in some MySQL configurations. See #2462.
+	_, err := tx.Exec(`DROP TABLE IF EXISTS tmp_active_installers`)
+	if err != nil {
+		return fmt.Errorf("dropping pre-existing temp table: %w", err)
+	}
+
+	_, err = tx.Exec(`
+		CREATE TABLE tmp_active_installers AS
 		SELECT MAX(id) AS keep_id, global_or_team_id, title_id
 		FROM software_installers
 		WHERE is_active = 1 AND fleet_maintained_app_id IS NULL
@@ -52,7 +59,7 @@ func Up_20260422153019(tx *sql.Tx) error {
 		return fmt.Errorf("deactivating duplicate active installers: %w", err)
 	}
 
-	_, err = tx.Exec(`DROP TEMPORARY TABLE tmp_active_installers`)
+	_, err = tx.Exec(`DROP TABLE IF EXISTS tmp_active_installers`)
 	if err != nil {
 		return fmt.Errorf("dropping temp table: %w", err)
 	}

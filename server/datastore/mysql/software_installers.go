@@ -374,12 +374,13 @@ INSERT INTO software_installers (
 		// upload should be active. FMA version lifecycle is managed separately
 		// by BatchSetSoftwareInstallers.
 		if payload.FleetMaintainedAppID == nil {
-			// Re-point policies from old installers to the new one
+			// Re-point policies from the currently active old installer to the new one
 			if _, err := tx.ExecContext(ctx, `
 				UPDATE policies SET software_installer_id = ?
 				WHERE software_installer_id IN (
 					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND id != ? AND fleet_maintained_app_id IS NULL
+					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
+						AND fleet_maintained_app_id IS NULL AND is_active = 1
 				)`,
 				installerID, globalOrTeamID, titleID, installerID,
 			); err != nil {
