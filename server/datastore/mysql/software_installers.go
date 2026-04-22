@@ -2356,6 +2356,7 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
+  fleet_maintained_app_id = VALUES(fleet_maintained_app_id),
   is_active = VALUES(is_active),
   http_etag = VALUES(http_etag),
   patch_query = VALUES(patch_query)
@@ -2982,9 +2983,9 @@ WHERE
 				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
 				}
-				// Mark previous custom package installers for this title for deletion;
+				// Mark previous custom package installers for this title for deletion.
 				for _, e := range existing {
-					if e.FleetMaintainedAppID == nil {
+					if e.FleetMaintainedAppID == nil && e.InstallerID != installerID {
 						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
 					}
 				}

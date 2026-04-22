@@ -4730,6 +4730,81 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policyAfter.SoftwareInstallerID)
 	require.Equal(t, metadata.InstallerID, *policyAfter.SoftwareInstallerID)
 	require.NotEqual(t, customInstallerID, *policyAfter.SoftwareInstallerID)
+
+	// Same-version case: custom installer and incoming FMA share a version
+	// string. ON DUPLICATE KEY UPDATE on (team, title, version) upserts in
+	// place; the row must be converted to FMA, not deleted.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma_same_version"})
+	require.NoError(t, err)
+
+	fma2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg2",
+		Slug:             "pkg2",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg2",
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:              "pkg2",
+		Source:             "apps",
+		Platform:           "darwin",
+		PreInstallQuery:    "SELECT 1",
+		InstallScript:      "echo install",
+		PostInstallScript:  "echo post install",
+		UninstallScript:    "echo uninstall",
+		InstallerFile:      tfr,
+		StorageID:          "storageid_custom2",
+		Filename:           "pkg2.pkg",
+		Version:            "1.0",
+		UserID:             user.ID,
+		ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		InstallDuringSetup: new(true),
+		TeamID:             new(team2.ID),
+	})
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, new(team2.ID), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			FleetMaintainedAppID: new(fma2.ID),
+			Title:                "pkg2",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1",
+			InstallScript:        "echo install",
+			PostInstallScript:    "echo post install",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            "storageid_fma2",
+			Filename:             "pkg2_fma.pkg",
+			Version:              "1.0", // same version as the custom installer
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup:   new(true),
+			TeamID:               new(team2.ID),
+		},
+	})
+	require.NoError(t, err)
+
+	tmFilter2 := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team2.ID)}
+	titles2, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team2.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter2)
+	require.NoError(t, err)
+	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA upsert")
+
+	var installerRows []struct {
+		FMAID    *uint `db:"fleet_maintained_app_id"`
+		IsActive bool  `db:"is_active"`
+	}
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &installerRows, `
+			SELECT fleet_maintained_app_id, is_active FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+		`, team2.ID, titles2[0].ID)
+	})
+	require.Len(t, installerRows, 1)
+	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA via ON DUPLICATE KEY UPDATE")
+	require.Equal(t, fma2.ID, *installerRows[0].FMAID)
+	require.True(t, installerRows[0].IsActive)
 }
 
 func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
