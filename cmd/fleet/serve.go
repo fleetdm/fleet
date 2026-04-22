@@ -500,6 +500,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}
+	if config.Redis.HostCacheEnabled {
+		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
+		logger.InfoContext(cmd.Context(), "host-by-node_key redis cache enabled",
+			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
+	}
 	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 	ds = redisWrapperDS
 
