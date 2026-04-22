@@ -26,10 +26,19 @@ module.exports = {
   exits: {
     success: {description: 'A partner registration email was successfully sent.'},
     missingInput: {description: 'The form submission is missing a required input', responseType: 'badRequest'},
+    unexpectedValue: {description: 'This form submission has an unexpectedValue', responseType: 'badRequest'},
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
   },
 
 
   fn: async function (inputs) {
+    let emailDomain = inputs.submittersEmailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
     if(!sails.config.custom.dealRegistrationContactEmailAddress){
       throw new Error('Missing config variable! Please set sails.config.custom.dealRegistrationContactEmailAddress to be the email address of the person who receives deal registration submissions.');
     }
@@ -53,6 +62,10 @@ module.exports = {
       'integrations': 'Build integrations with Fleet'
     };
     emailTemplateData.goal = partnerTypeFriendlyNameValuesByFormValue[inputs.partnerType];
+
+    if(!emailTemplateData.goal) {
+      throw 'unexpectedValue';
+    }
     // Default to sending these to the configured fromEmailAddress
     let toEmail = sails.config.custom.fromEmailAddress;
     if(inputs.partnerType === 'reseller') {

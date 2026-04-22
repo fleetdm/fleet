@@ -276,7 +276,12 @@
             <div class="invalid-feedback">Please provide more information</div>
           </div>
         </div>
-        <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+        <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+          <p>
+            Please enter your work email address.
+          </p>
+        </cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
         <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
       </ajax-form>
@@ -444,7 +449,12 @@
             <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide more information</div>
           </div>
         </div>
-        <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+        <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+          <p>
+            Please enter your work email address.
+          </p>
+        </cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <p class="small">By submitting you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
         <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
