@@ -255,6 +255,34 @@ func TestWritePathInvalidation(t *testing.T) {
 			}
 		})
 
+		t.Run("UpdateHost with both keys clears both osquery and orbit caches", func(t *testing.T) {
+			// Regression test for the dual-invalidation design: a host
+			// running both agents has both nk and onk entries in the cache.
+			// UpdateHost should clear both.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-dual"
+			onk := "onk-dual"
+			host := &fleet.Host{ID: 101, NodeKey: &nk, OrbitNodeKey: &onk, Hostname: "dual"}
+			d.hostCachePut(ctx, host)
+			d.hostCachePutByOrbit(ctx, host)
+
+			_, res := d.hostCacheGet(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, host))
+
+			_, res = d.hostCacheGet(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
 		t.Run("inner error preserves cache", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
