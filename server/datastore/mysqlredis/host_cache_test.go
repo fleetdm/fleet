@@ -560,27 +560,32 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
 			cancellableCtx, cancel := context.WithCancel(t.Context())
-			joinerDone := make(chan struct{})
 			joinerCtx := t.Context()
 			var joinerHost *fleet.Host
 			var joinerErr error
 
-			// Start the joiner that should survive cancellation of the leader.
-			go func() {
-				joinerHost, joinerErr = wrapped.LoadHostByNodeKey(joinerCtx, "nk-cancel")
-				close(joinerDone)
-			}()
-
-			// Start the leader; give it a moment to enter singleflight first.
+			// Start the CANCELLABLE caller first and give it time to enter
+			// singleflight before the joiner races in. This guarantees the
+			// cancellable context is the flight leader — otherwise a lucky
+			// scheduling could let the healthy joiner become leader and the
+			// test would pass for the wrong reason.
 			leaderDone := make(chan struct{})
 			go func() {
 				_, _ = wrapped.LoadHostByNodeKey(cancellableCtx, "nk-cancel")
 				close(leaderDone)
 			}()
-
 			time.Sleep(50 * time.Millisecond)
-			cancel() // cancel the leader while inner DB call is still blocked
-			close(release)
+
+			joinerDone := make(chan struct{})
+			go func() {
+				joinerHost, joinerErr = wrapped.LoadHostByNodeKey(joinerCtx, "nk-cancel")
+				close(joinerDone)
+			}()
+
+			// Give the joiner a moment to enter Do() and attach to the flight.
+			time.Sleep(20 * time.Millisecond)
+			cancel()       // cancel the leader while inner DB call is still blocked
+			close(release) // let the inner DB call finish
 			<-joinerDone
 			<-leaderDone
 
