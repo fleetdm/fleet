@@ -47,7 +47,7 @@ func (ds *Datastore) rebind(query string) string {
 }
 
 func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error) {
-	subquery, args := buildHostCountFilterClauses(hostFilter)
+	subquery, args := buildHostFilterClauses(hostFilter)
 
 	query := fmt.Sprintf(`SELECT h.id FROM hosts h WHERE 1=1 %s`, subquery)
 
@@ -92,9 +92,10 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, lookback time.
 	return ids, nil
 }
 
-// buildHostCountFilterClauses builds filter clauses for matching hosts directly from the hosts table.
-// Uses "h" as the table alias. Args may contain slices — caller must use sqlx.In to expand them.
-func buildHostCountFilterClauses(filter *types.HostFilter) (string, []any) {
+// buildHostFilterClauses translates a HostFilter into SQL WHERE clauses for
+// the hosts table. Uses "h" as the table alias. Args may contain slices —
+// caller must use sqlx.In to expand them.
+func buildHostFilterClauses(filter *types.HostFilter) (string, []any) {
 	if filter == nil {
 		return "", nil
 	}
