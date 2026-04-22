@@ -3609,14 +3609,14 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 		})
 		require.NoError(t, err)
 		deviceID := windowsEnroll(t, ds, host)
+		enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
 
 		// buildWipeResponse constructs an EnrichedSyncML that contains a status
 		// entry for the given wipe command UUID. It sets Cmd to nil so that the
 		// profile-payload builder is not triggered (wipe commands are not profiles).
 		buildWipeResponse := func(t *testing.T, cmdUUID string, statusCode string) fleet.EnrichedSyncML {
 			t.Helper()
-			enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-			require.NoError(t, err)
 
 			// Start from a minimal valid response (the helper gives us the SyncHdr ack).
 			resp := createResponseAsEnrichedSyncML(t, enrolled, []enrichResponseEntry{})
@@ -3641,7 +3641,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			})
 			require.NoError(t, err)
 
-			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, "500"), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "500"), []string{})
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
@@ -3659,7 +3659,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 
 			// First response — failure, clears wipe_ref.
 			resp := buildWipeResponse(t, wipeCmdUUID, "500")
-			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, resp, []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, resp, []string{})
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
@@ -3668,11 +3668,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			// command itself stays in windows_mdm_commands). Do NOT restore
 			// wipe_ref — it was cleared by the first failure.
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-				if err != nil {
-					return err
-				}
-				_, err = q.ExecContext(ctx,
+				_, err := q.ExecContext(ctx,
 					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
 					enrolled.ID, wipeCmdUUID)
 				return err
@@ -3680,7 +3676,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 
 			// Second response — wipe_ref is already NULL, so 0 rows affected.
 			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
-			result, err = ds.MDMWindowsSaveResponse(ctx, deviceID, resp2, []string{})
+			result, err = ds.MDMWindowsSaveResponse(ctx, enrolled, resp2, []string{})
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
@@ -3696,7 +3692,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			})
 			require.NoError(t, err)
 
-			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, "200"), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "200"), []string{})
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
@@ -3714,7 +3710,7 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 
 			// Pass empty status — the command UUID is in CmdRefUUIDs but has
 			// no entry in CmdRefUUIDToStatus, so statusCode stays "".
-			result, err := ds.MDMWindowsSaveResponse(ctx, deviceID, buildWipeResponse(t, wipeCmdUUID, ""), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, ""), []string{})
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
