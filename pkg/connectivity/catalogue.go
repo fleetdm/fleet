@@ -84,6 +84,12 @@ func rawCatalogue() []Check {
 	return []Check{
 		{Feature: FeatureOsquery, Method: "POST", Path: "/api/osquery/enroll", Description: "osquery enroll", Fingerprint: FingerprintFleetJSONError},
 		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/enroll", Description: "osquery enroll (v1)", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/config", Description: "osquery config", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/distributed/read", Description: "osquery distributed read (live query)", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/distributed/write", Description: "osquery distributed write (live query)", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/log", Description: "osquery logger", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/carve/begin", Description: "osquery carve begin", Fingerprint: FingerprintFleetJSONError},
+		{Feature: FeatureOsquery, Method: "POST", Path: "/api/v1/osquery/carve/block", Description: "osquery carve block", Fingerprint: FingerprintFleetJSONError},
 
 		// /api/fleet/device/ping has no reliable fingerprint: the endpoint
 		// only sets X-Fleet-Capabilities when FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
