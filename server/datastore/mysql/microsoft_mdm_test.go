@@ -4272,6 +4272,83 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		assert.True(t, h2HasX, "h2: should delete X")
 		assert.True(t, h2HasY, "h2: should delete Y (profB doesn't apply, not in label scope)")
 	})
+
+	// Reproduces the regression where deleting a no-team profile failed with
+	// "expected profiles from 1 team, got 2" because some hosts that once had
+	// the profile had since been moved to a different team.
+	t.Run("stale rows from moved host do not block delete", func(t *testing.T) {
+		t.Cleanup(func() {
+			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
+		})
+
+		prof := &fleet.MDMWindowsConfigProfile{Name: "no-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+			return err
+		})
+		require.NoError(t, err)
+		var profUUID string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profUUID,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = 'no-team-prof'`)
+		})
+
+		// Both hosts start with the profile installed and verified.
+		verified := fleet.MDMDeliveryVerified
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h2.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+		}))
+
+		// Move h2 out of no-team; replicate the post-move reconciliation the
+		// service layer does so h2's row flips to operation=remove, status=NULL.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "moved-host-destination"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
+		_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{h2.ID}, nil, nil, nil)
+		require.NoError(t, err)
+		// Restore h2 to no-team at the end so the next subtest starts clean.
+		t.Cleanup(func() {
+			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))
+		})
+
+		// Insert a destination-team profile with the same LocURI. If LocURI
+		// protection ever leaks across teams, this would be treated as a
+		// protector for the no-team delete and the <Delete> would be empty.
+		destTeamProf := &fleet.MDMWindowsConfigProfile{Name: "dest-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>2</Data></Item></Replace>`)}
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, &team.ID, []*fleet.MDMWindowsConfigProfile{destTeamProf}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// GitOps path: submit an empty profile set for no-team, which deletes
+		// the remaining profile.
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// Both hosts should now have a queued <Delete>: h1 as the direct
+		// consequence of the deletion, h2 because phase 2 upgrades the
+		// already remove+NULL row to a concrete command. This also proves
+		// offline moved hosts still receive the removal on next check-in,
+		// and that the destination-team profile with the same LocURI did
+		// not spuriously protect ./Device/Z from the no-team deletion.
+		for _, h := range []*fleet.Host{h1, h2} {
+			var rawCmd []byte
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &rawCmd,
+					`SELECT wc.raw_command FROM windows_mdm_commands wc
+					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
+					WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
+					h.UUID, profUUID)
+			})
+			require.NotEmpty(t, rawCmd, "host %s should have a queued <Delete>", h.Hostname)
+			assert.Contains(t, string(rawCmd), "./Device/Z")
+		}
+	})
 }
 
 func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
