@@ -251,8 +251,8 @@ spec:
   platform: darwin
   description: |
     The iCloud Passwords & Keychain is Apple's synchronization service that works with Apple Accounts to synchronize password, passkey, and credit card information across macOS, iOS, iPadOS. The capability allows users to use synced password, passkey, and credit card information in either macOS, iOS, or iPadOS for use in Safari and other applications.
-    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on Enterprise-managed computer.
-    When using personal Apple Accounts and credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
+    The password, passkey, and credit card information stored on macOS in the keychain is stored in Apple's cloud, including on enterprise-managed computers.
+    When using personal Apple Accounts, credentials may include both enterprise-related and personal data, depending on user behavior and account usage patterns.
     Rationale:
     Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
     Impact:
