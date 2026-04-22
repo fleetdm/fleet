@@ -28,6 +28,7 @@ export interface IChartRequestParams {
   days?: number;
   downsample?: number;
   tz_offset?: number;
+  fleet_id?: number;
   label_ids?: string;
   platforms?: string;
   include_host_ids?: string;

@@ -61,7 +61,11 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
   );
 };
 
-const ChartCard = (): JSX.Element => {
+interface IChartCardProps {
+  currentTeamId?: number;
+}
+
+const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
@@ -78,6 +82,7 @@ const ChartCard = (): JSX.Element => {
       days: CHART_DAYS,
       downsample: DOWNSAMPLE_HOURS,
       tz_offset: new Date().getTimezoneOffset(),
+      fleet_id: currentTeamId,
       label_ids: chartFilters.labelIDs.length
         ? chartFilters.labelIDs.join(",")
         : undefined,
@@ -95,7 +100,7 @@ const ChartCard = (): JSX.Element => {
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
     };
-  }, [chartFilters]);
+  }, [chartFilters, currentTeamId]);
 
   const { data: chartData, isLoading, error } = useQuery<
     IChartResponse,

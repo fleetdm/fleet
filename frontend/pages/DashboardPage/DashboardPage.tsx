@@ -946,7 +946,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <HostsEnrolledCard counts={totalCounts} />
           </Card>
           <Card paddingSize="xlarge" borderRadiusSize="large">
-            <ChartCard />
+            <ChartCard currentTeamId={teamIdForApi} />
           </Card>
         </div>
         <div className={`${baseClass}__platforms`}>
