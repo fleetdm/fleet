@@ -20,7 +20,9 @@ func TestDatabaseCloseReleasesFileHandle(t *testing.T) {
 		t.Fatalf("create temp: %v", err)
 	}
 	path := tmpFile.Name()
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		t.Fatalf("close temp file: %v", err)
+	}
 	defer os.Remove(path)
 
 	// Seed the goval schema so Verfiy's query succeeds.
