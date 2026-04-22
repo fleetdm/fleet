@@ -4633,7 +4633,7 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Seed a custom installer for title "pkg1".
-	customInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	customInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:              "pkg1",
 		Source:             "apps",
 		Platform:           "darwin",
@@ -4663,7 +4663,25 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// GitOps run: same title, now an FMA payload.
+	// Seed a display name for the title so we can verify it's updated in
+	// place (rather than deleted + re-inserted) when the batch sets a new
+	// display name.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO software_title_display_names (team_id, software_title_id, display_name)
+			VALUES (?, ?, ?)
+		`, team.ID, titleID, "Initial Name")
+		return err
+	})
+	var initialDisplayNameID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &initialDisplayNameID, `
+			SELECT id FROM software_title_display_names
+			WHERE team_id = ? AND software_title_id = ?
+		`, team.ID, titleID)
+	})
+
+	// GitOps run: same title, now an FMA payload with a display name.
 	err = ds.BatchSetSoftwareInstallers(ctx, new(team.ID), []*fleet.UploadSoftwareInstallerPayload{
 		{
 			FleetMaintainedAppID: new(fma.ID),
@@ -4682,6 +4700,7 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 			InstallDuringSetup:   new(true),
 			SelfService:          true,
+			DisplayName:          "Cool Package",
 			TeamID:               new(team.ID),
 		},
 	})
@@ -4730,6 +4749,21 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policyAfter.SoftwareInstallerID)
 	require.Equal(t, metadata.InstallerID, *policyAfter.SoftwareInstallerID)
 	require.NotEqual(t, customInstallerID, *policyAfter.SoftwareInstallerID)
+
+	// The display name from the batch payload must survive the side-effect
+	// cleanup. The display_name row should be UPDATEd in place (same id),
+	// not DELETEd and re-INSERTed.
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, team.ID, titles[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, "Cool Package", displayName)
+	var afterDisplayNameID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &afterDisplayNameID, `
+			SELECT id FROM software_title_display_names
+			WHERE team_id = ? AND software_title_id = ?
+		`, team.ID, titles[0].ID)
+	})
+	require.Equal(t, initialDisplayNameID, afterDisplayNameID, "display_name row should be upserted in place, not deleted and re-inserted")
 
 	// Same-version case: custom installer and incoming FMA share a version
 	// string. ON DUPLICATE KEY UPDATE on (team, title, version) upserts in
