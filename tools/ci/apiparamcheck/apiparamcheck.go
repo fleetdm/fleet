@@ -49,6 +49,13 @@ func run(pass *analysis.Pass) (any, error) {
 				continue
 			}
 			tag := reflect.StructTag(strings.Trim(raw, "`"))
+			// A non-empty `renameto:"new_name"` tag opts the field out of this
+			// check. It declares the new tag name this field will eventually
+			// be renamed to, letting us grandfather legacy names while still
+			// flagging anything new.
+			if renameTo, ok := tag.Lookup("renameto"); ok && renameTo != "" {
+				continue
+			}
 			for _, key := range checkedTagKeys {
 				v, ok := tag.Lookup(key)
 				if !ok {

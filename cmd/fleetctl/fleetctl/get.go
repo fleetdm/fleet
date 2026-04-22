@@ -229,13 +229,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team"`
+	Team string `json:"team"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams"`
+	Teams      []TeamRole `json:"teams"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {

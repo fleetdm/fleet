@@ -22,6 +22,17 @@ type queriesBad struct {
 	L string `json:"scheduled_query_id"` // want `json tag "scheduled_query_id": uses "query"/"queries" as part of a name`
 }
 
+// --- renameto escape hatch ---
+
+type renameToEscape struct {
+	// Non-empty renameto suppresses the check.
+	AA string `json:"team_id" renameto:"fleet_id"`
+	BB string `json:"query_id" renameto:"report_id"`
+	CC string `url:"teams" renameto:"fleets"`
+	// Empty renameto does NOT suppress.
+	DD string `json:"team_id" renameto:""` // want `json tag "team_id": uses deprecated "team"/"teams"`
+}
+
 // --- allowed ---
 
 type okStruct struct {
