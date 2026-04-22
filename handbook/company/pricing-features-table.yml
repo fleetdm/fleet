@@ -757,7 +757,7 @@
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
 #  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
-- industryName: Queries
+- industryName: Reports
   description: Reports with optional AI-generated descriptions, and, live reports for real-time data collection.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
   tier: Free
