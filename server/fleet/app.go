@@ -566,6 +566,10 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
+	if mos.EndUserLocalAccountType != nil && *mos.EndUserLocalAccountType != "admin" {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+	}
+
 	return nil
 }
 

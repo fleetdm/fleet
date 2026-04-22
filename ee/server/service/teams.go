@@ -1549,9 +1549,6 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = spec.MDM.MacOSSetup.EnableManagedLocalAccount
 	}
 	if spec.MDM.MacOSSetup.EndUserLocalAccountType != nil {
-		if *spec.MDM.MacOSSetup.EndUserLocalAccountType != "admin" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`))
-		}
 		didUpdateEndUserLocalAccountType = ptr.ValOrZero(oldMacOSSetup.EndUserLocalAccountType) != *spec.MDM.MacOSSetup.EndUserLocalAccountType
 		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = spec.MDM.MacOSSetup.EndUserLocalAccountType
 	}
