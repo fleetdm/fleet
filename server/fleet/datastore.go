@@ -1900,11 +1900,11 @@ type Datastore interface {
 
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
-	// MDMWindowsGetPendingCommands returns all the pending commands for a device
-	MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*MDMWindowsCommand, error)
+	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
+	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
-	// MDMWindowsSaveResponse saves a full response
-	MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
+	// MDMWindowsSaveResponse saves a full response for the given enrollment.
+	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
@@ -2409,10 +2409,12 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint][]*ExistingSoftwareInstaller, error)
 
-	// GetInstallerByTeamAndURL looks up an existing software installer by team
-	// and URL. Returns the most recently inserted installer matching the team and
-	// URL, including its storage_id (SHA256) and http_etag for conditional downloads.
-	GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*ExistingSoftwareInstaller, error)
+	// GetInstallerByTeamAndURL looks up an existing software installer by URL.
+	// When teamID is non-nil, filters to that team. When nil, searches all teams
+	// (cross-team fallback). Returns the most recently inserted active installer
+	// matching the URL, including its storage_id and http_etag for conditional
+	// downloads.
+	GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*ExistingSoftwareInstaller, error)
 
 	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
 	// have the setup experience IdP (End user authentication) enabled. It uses
