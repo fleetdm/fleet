@@ -80,8 +80,10 @@ const CheckerboardViz = ({
   const hourRows = 24 / hoursPerSlot;
 
   const { grid, dayLabels } = useMemo(() => {
+    // 24h view: each incoming data point becomes a single column in a
+    // one-row strip. No day grouping, no slot aggregation — the backend has
+    // already produced one point per hour and we render them in order.
     if (is24h) {
-      // 24h: flat sequence of data points as columns, no day grouping
       const cells: ICellData[] = data.map((point, i) => {
         const date = parseISO(point.timestamp);
         return {
@@ -95,6 +97,11 @@ const CheckerboardViz = ({
       return { grid: cells, dayLabels: ["today"] };
     }
 
+    // Multi-day view: build a day × time-slot grid.
+    //
+    // `dayMap` is keyed by calendar day (yyyy-MM-dd) and each day holds a
+    // map of slot-index → data point. `dayOrder` preserves first-seen order
+    // so columns render chronologically regardless of Map iteration quirks.
     const dayMap = new Map<string, Map<number, IFormattedDataPoint>>();
     const dayOrder: string[] = [];
 
@@ -102,6 +109,8 @@ const CheckerboardViz = ({
       const date = parseISO(point.timestamp);
       const dayKey = format(date, "yyyy-MM-dd");
       const hour = date.getHours();
+      // `hoursPerSlot` > 1 for wider windows (2 for 7/14-day, 3 for 30-day),
+      // so multiple hourly points collapse into the same slot row.
       const slot = Math.floor(hour / hoursPerSlot);
 
       if (!dayMap.has(dayKey)) {
@@ -110,6 +119,9 @@ const CheckerboardViz = ({
       }
       const hourMap = dayMap.get(dayKey);
       if (hourMap) {
+        // When several hourly points land in the same slot, keep the max
+        // percentage. This biases visualizations toward "hosts had data
+        // at some point during this window".
         const existing = hourMap.get(slot);
         if (!existing || point.percentage > existing.percentage) {
           hourMap.set(slot, point);
@@ -117,6 +129,9 @@ const CheckerboardViz = ({
       }
     });
 
+    // Emit one cell per (day, slot) pair in a fixed grid. Days with no data
+    // for a given slot still get a cell with percentage 0 so the grid stays
+    // rectangular and the color ramp renders the "no data" swatch.
     const labels: string[] = [];
     const cells: ICellData[] = [];
 
