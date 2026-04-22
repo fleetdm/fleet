@@ -11,9 +11,9 @@ func TestUp_20260422153019(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Set up prerequisite data: titles, script contents, and installers.
-	titleA := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ('AppA', 'deb_packages', '')`)
-	titleB := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ('AppB', 'programs', '')`)
-	titleFMA := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, browser) VALUES ('FMA App', 'programs', '')`)
+	titleA := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, extension_for) VALUES ('AppA', 'deb_packages', '')`)
+	titleB := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, extension_for) VALUES ('AppB', 'programs', '')`)
+	titleFMA := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source, extension_for) VALUES ('FMA App', 'programs', '')`)
 
 	scriptID := execNoErrLastID(t, db, `INSERT INTO script_contents (md5_checksum, contents) VALUES ('md5abc', 'echo hello')`)
 
@@ -21,43 +21,43 @@ func TestUp_20260422153019(t *testing.T) {
 	installerA1 := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
 			(team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
-			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active)
-		VALUES (NULL, 0, ?, 'storageA1', 'appA-1.0.deb', 'deb', '1.0', ?, ?, 'linux', '', 1)`,
+			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active, patch_query)
+		VALUES (NULL, 0, ?, 'storageA1', 'appA-1.0.deb', 'deb', '1.0', ?, ?, 'linux', '', 1, '')`,
 		titleA, scriptID, scriptID)
 
 	installerA2 := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
 			(team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
-			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active)
-		VALUES (NULL, 0, ?, 'storageA2', 'appA-2.0.deb', 'deb', '2.0', ?, ?, 'linux', '', 1)`,
+			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active, patch_query)
+		VALUES (NULL, 0, ?, 'storageA2', 'appA-2.0.deb', 'deb', '2.0', ?, ?, 'linux', '', 1, '')`,
 		titleA, scriptID, scriptID)
 
 	// -- Case 2: titleB has a single active installer — should NOT be touched.
 	installerB := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
 			(team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
-			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active)
-		VALUES (NULL, 0, ?, 'storageB1', 'appB-1.0.msi', 'msi', '1.0', ?, ?, 'windows', '', 1)`,
+			 install_script_content_id, uninstall_script_content_id, platform, package_ids, is_active, patch_query)
+		VALUES (NULL, 0, ?, 'storageB1', 'appB-1.0.msi', 'msi', '1.0', ?, ?, 'windows', '', 1, '')`,
 		titleB, scriptID, scriptID)
 
 	// -- Case 3: titleFMA has two active FMA installers — should NOT be touched by the migration.
-	fmaID := execNoErrLastID(t, db, `INSERT INTO fleet_maintained_apps (name, version, platform, installer_url, sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id)
-		VALUES ('FMA App', '1.0', 'linux', 'https://example.com', 'sha256abc', 'com.example.fma', ?, ?)`, scriptID, scriptID)
+	fmaID := execNoErrLastID(t, db, `INSERT INTO fleet_maintained_apps (name, slug, unique_identifier, platform)
+		VALUES ('FMA App', 'fma-app/linux', 'com.example.fma', 'linux')`)
 
 	installerFMA1 := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
 			(team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
 			 install_script_content_id, uninstall_script_content_id, platform, package_ids,
-			 is_active, fleet_maintained_app_id)
-		VALUES (NULL, 0, ?, 'storageFMA1', 'fma-1.0.deb', 'deb', '1.0', ?, ?, 'linux', '', 1, ?)`,
+			 is_active, fleet_maintained_app_id, patch_query)
+		VALUES (NULL, 0, ?, 'storageFMA1', 'fma-1.0.deb', 'deb', '1.0', ?, ?, 'linux', '', 1, ?, '')`,
 		titleFMA, scriptID, scriptID, fmaID)
 
 	installerFMA2 := execNoErrLastID(t, db, `
 		INSERT INTO software_installers
 			(team_id, global_or_team_id, title_id, storage_id, filename, extension, version,
 			 install_script_content_id, uninstall_script_content_id, platform, package_ids,
-			 is_active, fleet_maintained_app_id)
-		VALUES (NULL, 0, ?, 'storageFMA2', 'fma-2.0.deb', 'deb', '2.0', ?, ?, 'linux', '', 1, ?)`,
+			 is_active, fleet_maintained_app_id, patch_query)
+		VALUES (NULL, 0, ?, 'storageFMA2', 'fma-2.0.deb', 'deb', '2.0', ?, ?, 'linux', '', 1, ?, '')`,
 		titleFMA, scriptID, scriptID, fmaID)
 
 	// -- Create a policy pointing to the OLD installer (A1); migration should re-point to A2.

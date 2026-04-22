@@ -59,6 +59,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
+		{"MatchOrCreateDeactivatesOldVersion", testMatchOrCreateDeactivatesOldVersion},
 	}
 
 	for _, c := range cases {
@@ -4745,4 +4746,79 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
 	require.NotNil(t, existing.HTTPETag)
 	assert.Equal(t, etag, *existing.HTTPETag)
+}
+
+func testMatchOrCreateDeactivatesOldVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deactivate-test-team"})
+	require.NoError(t, err)
+
+	mkPayload := func(version, storageID string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("pkg-"+version), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title:           "TestPkg",
+			Source:          "deb_packages",
+			Platform:        "linux",
+			InstallScript:   "echo install",
+			UninstallScript: "echo uninstall",
+			InstallerFile:   tfr,
+			StorageID:       storageID,
+			Filename:        fmt.Sprintf("testpkg-%s.deb", version),
+			Extension:       "deb",
+			Version:         version,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          &team.ID,
+		}
+	}
+
+	// Upload v1.0
+	installerID1, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload("1.0", "hash-v1"))
+	require.NoError(t, err)
+
+	// Create a policy linked to v1.0
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                "auto-install",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: &installerID1,
+	})
+	require.NoError(t, err)
+
+	// Upload v2.0 for the same title
+	installerID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload("2.0", "hash-v2"))
+	require.NoError(t, err)
+	require.Equal(t, titleID, titleID2, "should resolve to the same title")
+	require.NotEqual(t, installerID1, installerID2, "should be a new installer row")
+
+	// Verify v1.0 is deactivated and v2.0 is active
+	var isActive1, isActive2 bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &isActive1,
+			`SELECT is_active FROM software_installers WHERE id = ?`, installerID1); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &isActive2,
+			`SELECT is_active FROM software_installers WHERE id = ?`, installerID2)
+	})
+	assert.False(t, isActive1, "old installer v1.0 should be deactivated")
+	assert.True(t, isActive2, "new installer v2.0 should be active")
+
+	// Verify policy was re-pointed to v2.0
+	updatedPolicy, err := ds.TeamPolicy(ctx, team.ID, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, updatedPolicy.SoftwareInstallerID)
+	assert.Equal(t, installerID2, *updatedPolicy.SoftwareInstallerID, "policy should be re-pointed to new installer")
+
+	// Verify GetSoftwareInstallerMetadataByTeamAndTitleID returns v2.0
+	meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
+	require.NoError(t, err)
+	assert.Equal(t, installerID2, meta.InstallerID)
+	assert.Equal(t, "2.0", meta.Version)
+
+	// Verify SoftwareTitleByID counts exactly 1 active installer
+	title, err := ds.SoftwareTitleByID(ctx, titleID, &team.ID, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	assert.Equal(t, 1, title.SoftwareInstallersCount)
 }
