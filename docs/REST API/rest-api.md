@@ -1454,7 +1454,10 @@ None.
 {
   "org_info": {
     "org_name": "fleet",
+    "org_logo_url_dark_mode": "",
+    "org_logo_url_light_mode": "",
     "org_logo_url": "",
+    "org_logo_url_light_background": "",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -1770,6 +1773,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "org_info": {
     "org_name": "Fleet Device Management",
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_mode": "https://fleetdm.com/logo-light.png",
     "org_logo_url": "https://fleetdm.com/logo.png",
     "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
@@ -2009,9 +2014,11 @@ Modifies the Fleet's configuration with the supplied information.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
 | org_name                          | string  | The organization name.                                                              |
-| org_logo_url                      | string  | The URL for the organization logo.                                                  |
-| org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
+| org_logo_url_dark_mode                      | string  | The URL for the organization logo displayed on top of dark backgrounds. |
+| org_logo_url_light_mode     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
 | contact_url                       | string  | A URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that can be used by end users to contact the organization.                    |
+
+> `org_logo_url` and `org_logo_url_light_background` are deprecated. They are maintained for backwards compatibility. Please use `org_logo_url_dark_mode` and `org_logo_url_light_mode` instead.
 
 <br/>
 
@@ -2021,6 +2028,8 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "org_info": {
     "org_name": "Fleet Device Management",
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png",
+    "org_logo_url_light_mode": "https://fleetdm.com/logo-light.png",
     "org_logo_url": "https://fleetdm.com/logo.png",
     "org_logo_url_light_background": "https://fleetdm.com/logo-light.png",
     "contact_url": "https://fleetdm.com/company/contact"
@@ -4116,7 +4125,10 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
-    "org_logo_url": "https://example.com/logo.jpg",
+    "org_logo_url_dark_mode": "https://example.com/logo.png",
+    "org_logo_url_light_mode": "https://example.com/logo-light.png",
+    "org_logo_url": "https://example.com/logo.png",
+    "org_logo_url_light_background": "https://example.com/logo-light.png",
     "conditional_access_bypassed": false,
     "license": {
       "tier": "free",
