@@ -70,6 +70,8 @@ This activity contains the following fields:
 - "policy_name": the name of the created policy.
 - "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
 - "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -78,7 +80,9 @@ This activity contains the following fields:
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -91,6 +95,8 @@ This activity contains the following fields:
 - "policy_name": the name of the edited policy.
 - "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
 - "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -99,7 +105,9 @@ This activity contains the following fields:
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -112,6 +120,8 @@ This activity contains the following fields:
 - "policy_name": the name of the deleted policy.
 - "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
 - "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -120,7 +130,9 @@ This activity contains the following fields:
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -172,6 +184,8 @@ This activity contains the following fields:
 - "query_name": the name of the created query.
 - "team_id": the ID of the team the query belongs to.
 - "team_name": the name of the team the query belongs to.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -180,7 +194,9 @@ This activity contains the following fields:
 	"query_id": 123,
 	"query_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -193,6 +209,8 @@ This activity contains the following fields:
 - "query_name": the name of the query being edited.
 - "team_id": the ID of the team the query belongs to.
 - "team_name": the name of the team the query belongs to.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -201,7 +219,9 @@ This activity contains the following fields:
 	"query_id": 123,
 	"query_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -213,6 +233,8 @@ This activity contains the following fields:
 - "query_name": the name of the query being deleted.
 - "team_id": the ID of the team the query belongs to.
 - "team_name": the name of the team the query belongs to.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -220,7 +242,9 @@ This activity contains the following fields:
 {
 	"query_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -232,6 +256,8 @@ This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.
 - "team_id": the ID of the team the queries belonged to. -1 for global queries, null for no team.
 - "team_name": the name of the team the queries belonged to. null for global or no team queries.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -239,7 +265,9 @@ This activity contains the following fields:
 {
 	"query_ids": [1, 42, 100],
 	"team_id": 123,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -273,13 +301,17 @@ Generated when creating teams.
 This activity contains the following fields:
 - "team_id": unique ID of the created team.
 - "team_name": the name of the created team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
 	"team_id": 123,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -290,13 +322,17 @@ Generated when deleting teams.
 This activity contains the following fields:
 - "team_id": unique ID of the deleted team.
 - "team_name": the name of the deleted team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
 	"team_id": 123,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 123,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -328,6 +364,8 @@ Generated when a user transfers a host (or multiple hosts) to a team (or no team
 This activity contains the following fields:
 - "team_id": The ID of the team that the hosts were transferred to, `null` if transferred to no team.
 - "team_name": The name of the team that the hosts were transferred to, `null` if transferred to no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "host_ids": The list of identifiers of the hosts that were transferred.
 - "host_display_names": The list of display names of the hosts that were transferred (in the same order as the "host_ids").
 
@@ -337,6 +375,8 @@ This activity contains the following fields:
 {
   "team_id": 123,
   "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
   "host_ids": [1, 2, 3],
   "host_display_names": ["alice-macbook-air", "bob-macbook-pro", "linux-server"]
 }
@@ -350,6 +390,8 @@ This activity contains the following fields:
 - "global": "true" if the user updated the global agent options, "false" if the agent options of a team were updated.
 - "team_id": unique ID of the team for which the agent options were updated (`null` if global is true).
 - "team_name": the name of the team for which the agent options were updated (`null` if global is true).
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -357,6 +399,8 @@ This activity contains the following fields:
 {
 	"team_id": 123,
 	"team_name": "Workstations",
+	"fleet_id": 123,
+	"fleet_name": "Workstations",
 	"global": false
 }
 ```
@@ -532,6 +576,8 @@ This activity contains the following fields:
 - "role": Team role set to the edited user.
 - "team_id": Unique ID of the team of the changed role.
 - "team_name": Name of the team of the changed role.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -542,7 +588,9 @@ This activity contains the following fields:
 	"user_email": "foo@example.com",
 	"role": "Maintainer",
 	"team_id": 5,
-	"team_name": "Bar"
+	"team_name": "Bar",
+	"fleet_id": 5,
+	"fleet_name": "Bar"
 }
 ```
 
@@ -557,6 +605,8 @@ This activity contains the following fields:
 - "role": Team role deleted from the edited user.
 - "team_id": Unique ID of the team of the deleted role.
 - "team_name": Name of the team of the deleted role.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -567,7 +617,9 @@ This activity contains the following fields:
 	"user_email": "foo@example.com",
 	"role": "Observer",
 	"team_id": 2,
-	"team_name": "Zoo"
+	"team_name": "Zoo",
+	"fleet_id": 2,
+	"fleet_name": "Zoo"
 }
 ```
 
@@ -645,6 +697,8 @@ Generated when the minimum required macOS version or deadline is modified.
 This activity contains the following fields:
 - "team_id": The ID of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the minimum macOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "minimum_version": The minimum macOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -654,6 +708,8 @@ This activity contains the following fields:
 {
   "team_id": 3,
   "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
   "minimum_version": "13.0.1",
   "deadline": "2023-06-01"
 }
@@ -666,6 +722,8 @@ Generated when the minimum required iOS version or deadline is modified.
 This activity contains the following fields:
 - "team_id": The ID of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "minimum_version": The minimum iOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -675,6 +733,8 @@ This activity contains the following fields:
 {
   "team_id": 3,
   "team_name": "iPhones",
+  "fleet_id": 3,
+  "fleet_name": "iPhones",
   "minimum_version": "17.5.1",
   "deadline": "2023-06-01"
 }
@@ -687,6 +747,8 @@ Generated when the minimum required iPadOS version or deadline is modified.
 This activity contains the following fields:
 - "team_id": The ID of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
 - "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
 
@@ -696,6 +758,8 @@ This activity contains the following fields:
 {
   "team_id": 3,
   "team_name": "iPads",
+  "fleet_id": 3,
+  "fleet_name": "iPads",
   "minimum_version": "17.5.1",
   "deadline": "2023-06-01"
 }
@@ -708,6 +772,8 @@ Generated when the Windows OS updates deadline or grace period is modified.
 This activity contains the following fields:
 - "team_id": The ID of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
 - "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
 
@@ -717,6 +783,8 @@ This activity contains the following fields:
 {
   "team_id": 3,
   "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
   "deadline_days": 5,
   "grace_period_days": 2
 }
@@ -729,13 +797,17 @@ Generated when a user turns on updates during macOS Setup Assistant for hosts th
 This activity contains the following fields:
 - "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -746,13 +818,17 @@ Generated when a user turns off updates during macOS Setup Assistant for hosts t
 This activity contains the following fields:
 - "team_id": The ID of the team that the setting applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the setting applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -782,6 +858,8 @@ This activity contains the following fields:
 - "profile_identifier": Identifier of the profile.
 - "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -790,7 +868,9 @@ This activity contains the following fields:
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -803,6 +883,8 @@ This activity contains the following fields:
 - "profile_identifier": Identifier of deleted the profile.
 - "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
 - "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -811,7 +893,9 @@ This activity contains the following fields:
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -822,13 +906,17 @@ Generated when a user edits the macOS profiles of a team (or no team) via the fl
 This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -840,6 +928,8 @@ This activity contains the following fields:
 - "name": Name of the macOS setup assistant file.
 - "team_id": The ID of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the setup assistant applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -847,7 +937,9 @@ This activity contains the following fields:
 {
   "name": "dep_profile.json",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -859,6 +951,8 @@ This activity contains the following fields:
 - "name": Name of the deleted macOS setup assistant file.
 - "team_id": The ID of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
 - "team_name": The name of the team that the setup assistant applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -866,7 +960,9 @@ This activity contains the following fields:
 {
   "name": "dep_profile.json",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -877,13 +973,17 @@ Generated when a user turns on disk encryption for a team (or no team).
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -894,13 +994,17 @@ Generated when a user turns off disk encryption for a team (or no team).
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -924,6 +1028,8 @@ This activity contains the following fields:
 - "package_name": Name of the package.
 - "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -931,7 +1037,9 @@ This activity contains the following fields:
 {
   "bootstrap_package_name": "bootstrap-package.pkg",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -943,6 +1051,8 @@ This activity contains the following fields:
 - "package_name": Name of the package.
 - "team_id": The ID of the team that the package applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the package applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -950,7 +1060,9 @@ This activity contains the following fields:
 {
   "package_name": "bootstrap-package.pkg",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -961,13 +1073,17 @@ Generated when a user turns on end user authentication for macOS hosts that auto
 This activity contains the following fields:
 - "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -978,13 +1094,17 @@ Generated when a user turns off end user authentication for macOS hosts that aut
 This activity contains the following fields:
 - "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1061,6 +1181,8 @@ This activity contains the following fields:
 - "script_name": Name of the script.
 - "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1068,7 +1190,9 @@ This activity contains the following fields:
 {
   "script_name": "set-timezones.sh",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1080,6 +1204,8 @@ This activity contains the following fields:
 - "script_name": Name of the script.
 - "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1087,7 +1213,9 @@ This activity contains the following fields:
 {
   "script_name": "set-timezones.sh",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1098,13 +1226,17 @@ Generated when a user edits the scripts of a team (or no team) via the fleetctl 
 This activity contains the following fields:
 - "team_id": The ID of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the scripts apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1116,6 +1248,8 @@ This activity contains the following fields:
 - "script_name": Name of the script.
 - "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1123,7 +1257,9 @@ This activity contains the following fields:
 {
   "script_name": "set-timezones.sh",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1135,6 +1271,8 @@ This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1142,7 +1280,9 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1154,6 +1294,8 @@ This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
 - "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1161,7 +1303,9 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1172,13 +1316,17 @@ Generated when a user edits the Windows profiles of a team (or no team) via the 
 This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1246,6 +1394,8 @@ This activity contains the following fields:
 - "identifier": Identifier of the declaration.
 - "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1254,7 +1404,9 @@ This activity contains the following fields:
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1267,6 +1419,8 @@ This activity contains the following fields:
 - "identifier": Identifier of the declaration.
 - "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1275,7 +1429,9 @@ This activity contains the following fields:
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1286,13 +1442,17 @@ Generated when a user edits the macOS declarations of a team (or no team) via th
 This activity contains the following fields:
 - "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1304,6 +1464,8 @@ This activity contains the following fields:
 - "profile_name": Name of the profile.
 - "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1311,7 +1473,9 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1323,6 +1487,8 @@ This activity contains the following fields:
 - "profile_name": Name of the deleted profile.
 - "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
 - "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -1330,7 +1496,9 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1341,13 +1509,17 @@ Generated when a user edits the Android profiles of a team (or no team) via the 
 This activity contains the following fields:
 - "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1358,13 +1530,17 @@ Generated when a user adds or removes Android certificate templates of a team (o
 This activity contains the following fields:
 - "team_id": The ID of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
 - "team_name": The name of the team that the certificate templates apply to, `null` if they apply to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -1475,6 +1651,8 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1488,6 +1666,8 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
   "self_service": true,
   "software_title_id": 2234,
   "labels_include_any": [
@@ -1512,6 +1692,8 @@ This activity contains the following fields:
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "self_service": Whether the software is available for installation by the end user.
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
@@ -1526,6 +1708,8 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
   "self_service": true,
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
@@ -1552,6 +1736,8 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "self_service": Whether the software was available for installation by the end user.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
@@ -1564,6 +1750,8 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
+  "fleet_id": 123,
+  "fleet_name": "Workstations",
   "self_service": true,
   "software_icon_url": "",
   "labels_include_any": [
@@ -1621,6 +1809,8 @@ This activity contains the following fields:
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 
@@ -1635,6 +1825,8 @@ This activity contains the following fields:
   "self_service": false,
   "team_name": "Workstations",
   "team_id": 1,
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1658,6 +1850,8 @@ This activity contains the following fields:
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array
 
@@ -1670,6 +1864,8 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
   "software_icon_url": "",
   "labels_include_any": [
     {
@@ -1763,6 +1959,8 @@ This activity contains the following fields:
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
 - "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
@@ -1782,6 +1980,8 @@ This activity contains the following fields:
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "fleet_id": 1,
+  "fleet_name": "Workstations",
   "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
@@ -2169,6 +2369,8 @@ This activity contains the following fields:
 - "script_name": Name of the script.
 - "batch_execution_id": Execution ID of the batch script run.
 - "host_count": Number of hosts in the batch.
+- "team_id": The ID of the team, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
 
 #### Example
 
@@ -2176,7 +2378,9 @@ This activity contains the following fields:
 {
   "script_name": "set-timezones.sh",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "host_count": 12
+  "host_count": 12,
+  "team_id": 123,
+  "fleet_id": 123
 }
 ```
 
@@ -2189,6 +2393,8 @@ This activity contains the following fields:
 - "script_name": Name of the script.
 - "host_count": Number of hosts in the batch.
 - "not_before": Time that the batch activity is scheduled to launch.
+- "team_id": The ID of the team, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
 
 #### Example
 
@@ -2197,7 +2403,9 @@ This activity contains the following fields:
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "script_name": "set-timezones.sh",
   "host_count": 12,
-  "not_before": "2025-08-06T17:49:21.810204Z"
+  "not_before": "2025-08-06T17:49:21.810204Z",
+  "team_id": 123,
+  "fleet_id": 123
 }
 ```
 
@@ -2253,13 +2461,17 @@ Generated when conditional access automations are enabled for a team.
 This activity contains the following field:
 - "team_id": The ID of the team  ("null" for "No team").
 - "team_name": The name of the team (empty for "No team").
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 5,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 5,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2270,13 +2482,17 @@ Generated when conditional access automations are disabled for a team.
 This activity contains the following field:
 - "team_id": The ID of the team (`null` for "No team").
 - "team_name": The name of the team (empty for "No team").
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 5,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 5,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2339,6 +2555,8 @@ This activity contains the following fields:
 - "platform": the platform of the host ("darwin", "android", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
@@ -2346,7 +2564,9 @@ This activity contains the following fields:
 {
 	"platform": "darwin",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
@@ -2393,13 +2613,17 @@ Generated when global or team enroll secrets are edited.
 This activity contains the following fields:
 - "team_id": The ID of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that the enroll secret applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2444,13 +2668,17 @@ Generated when a user turns on Recovery Lock password for a team (or no team).
 This activity contains the following fields:
 - "team_id": The ID of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -2461,13 +2689,17 @@ Generated when a user turns off Recovery Lock password for a team (or no team).
 This activity contains the following fields:
 - "team_id": The ID of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
 - "team_name": The name of the team that Recovery Lock password applies to, `null` if it applies to devices that are not in a team.
+- "fleet_id": same value as "team_id". Provided for backwards compatibility.
+- "fleet_name": same value as "team_name". Provided for backwards compatibility.
 
 #### Example
 
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
