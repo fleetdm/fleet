@@ -241,7 +241,7 @@ func (ds *Datastore) recordSnapshot(
 // only hosts visible to the caller. Returns numBuckets =
 // (endDate - startDate) / bucketSize data points, labeled by bucket *start*
 // (the first label is startDate + bucketSize; the last label is endDate).
-// Zero-valued buckets are emitted.
+// Zero-valued buckets are included with value 0, not omitted.
 //
 // The caller is responsible for passing bucket-aligned startDate/endDate (e.g.
 // local-midnight-aligned for tz-sensitive rendering); the walker does not
