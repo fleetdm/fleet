@@ -276,7 +276,7 @@
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
       moreInfoUrl: https://youtu.be/secV4NCGYPg
-- industryName: Apple Business Manager (ABM) assignment visibility
+- industryName: Apple Business (AB) assignment visibility
   description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
