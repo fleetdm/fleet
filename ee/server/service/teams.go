@@ -1527,7 +1527,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall bool
+	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
@@ -1544,6 +1544,17 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateManualAgentInstall = oldMacOSSetup.ManualAgentInstall.Value != spec.MDM.MacOSSetup.ManualAgentInstall.Value
 		team.Config.MDM.MacOSSetup.ManualAgentInstall = spec.MDM.MacOSSetup.ManualAgentInstall
 	}
+	if spec.MDM.MacOSSetup.EnableManagedLocalAccount != nil {
+		didUpdateEnableManagedLocalAccount = ptr.ValOrZero(oldMacOSSetup.EnableManagedLocalAccount) != *spec.MDM.MacOSSetup.EnableManagedLocalAccount
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = spec.MDM.MacOSSetup.EnableManagedLocalAccount
+	}
+	if spec.MDM.MacOSSetup.EndUserLocalAccountType != nil {
+		if *spec.MDM.MacOSSetup.EndUserLocalAccountType != "admin" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`))
+		}
+		didUpdateEndUserLocalAccountType = ptr.ValOrZero(oldMacOSSetup.EndUserLocalAccountType) != *spec.MDM.MacOSSetup.EndUserLocalAccountType
+		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = spec.MDM.MacOSSetup.EndUserLocalAccountType
+	}
 	// TODO(mna): doesn't look like we create an activity for macos updates when
 	// modified via spec? Doing the same for Windows, but should we?
 
@@ -1551,7 +1562,9 @@ func (svc *Service) editTeamFromSpec(
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
 			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) ||
-			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)) {
+			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value) ||
+			(didUpdateEnableManagedLocalAccount && team.Config.MDM.MacOSSetup.EnableManagedLocalAccount != nil) ||
+			(didUpdateEndUserLocalAccountType && team.Config.MDM.MacOSSetup.EndUserLocalAccountType != nil)) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience",
 			`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}

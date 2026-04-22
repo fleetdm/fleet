@@ -594,6 +594,12 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
 	}
+	if mos.EnableManagedLocalAccount == nil {
+		mos.EnableManagedLocalAccount = new(false)
+	}
+	if mos.EndUserLocalAccountType == nil {
+		mos.EndUserLocalAccountType = new("admin")
+	}
 }
 
 func NewMacOSSetupWithDefaults() *MacOSSetup {
