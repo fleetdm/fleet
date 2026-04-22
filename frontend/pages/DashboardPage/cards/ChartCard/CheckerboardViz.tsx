@@ -40,6 +40,7 @@ interface ICheckerboardVizProps {
   selectedDays: number;
 }
 
+// These are calculated at a chart width of 580px and columns.
 const CELL_W = 16.75;
 const CELL_H = 19;
 const CELL_GAP = 2;

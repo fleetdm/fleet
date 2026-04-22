@@ -60,9 +60,12 @@ const ChartFilterModal = ({
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(
     filters.platforms
   );
+  // Host filter mode is either "include" or "exclude", used when selecting
+  // individual hosts to filter on.
   const [hostFilterMode, setHostFilterMode] = useState<HostFilterMode>(
     filters.hostFilterMode === "none" ? "exclude" : filters.hostFilterMode
   );
+  // Individual hosts selected for filtering.
   const [selectedHosts, setSelectedHosts] = useState<IHost[]>(
     filters.selectedHosts
   );
@@ -87,7 +90,10 @@ const ChartFilterModal = ({
     return () => debouncedSetSearchQuery.cancel();
   }, [debouncedSetSearchQuery]);
 
-  // Fetch hosts with pagination — load all pages up to pageCount
+  // Fetch hosts with pagination — load all pages up to pageCount.
+  // Note that we use infinite scrolling in the UI, rather than
+  // traditional pagination controls, so we keep previously loaded
+  // pages in the cache and just increase the page count as the user scrolls.
   const { data: hostsData, isLoading: isLoadingHosts } = useQuery<
     ILoadHostsResponse,
     Error
@@ -109,6 +115,8 @@ const ChartFilterModal = ({
   const hosts = hostsData?.hosts ?? [];
   const hasMore = hosts.length === pageCount * PAGE_SIZE;
 
+  // This implements "infinite" scrolling by increasing the page count when the user scrolls
+  // near the bottom of the list.
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el || !hasMore || isLoadingHosts) return;
