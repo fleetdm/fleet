@@ -533,6 +533,8 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 
 In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
 
+JSON configuration profiles (Apple DDM declarations and Android profiles) require characters like `"`, `\`, and control characters to be escaped inside string values. GitHub/GitLab environment variables, custom variables (`$FLEET_SECRET_*`), and Fleet's reserved variables (`$FLEET_VAR_*`) are automatically JSON-escaped when expanded inside a JSON profile, so you can reference them directly without pre-escaping. Custom variable values are stored on the server unescaped so they are not double-encoded when the profile is delivered to a host.
+
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
 To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
