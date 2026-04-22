@@ -3029,6 +3029,21 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
+	// Skip the UPSERT when the stored token already matches. Orbit and Fleet Desktop resend the
+	// same token on their refresh cycle, and the ON DUPLICATE KEY UPDATE path is a no-op at the
+	// row level anyway (see comment below) but still costs a writer round-trip + commit.
+	var currentToken string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &currentToken,
+		`SELECT token FROM host_device_auth WHERE host_id = ?`, hostID)
+	switch {
+	case err == nil:
+		if currentToken == authToken {
+			return nil
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "select host_device_auth token")
+	}
+
 	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
 	// of the statement, it inherits the default behaviour which is that the updated_at
 	// timestamp will NOT be changed if the new token is the same as the old token
@@ -3049,7 +3064,7 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 				IF(updated_at >= DATE_SUB(NOW(), INTERVAL 3600 SECOND), token, NULL)),
 			token = VALUES(token)
 `
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
 		if IsDuplicate(err) {
 			return fleet.ConflictError{Message: "auth token conflicts with another host"}
@@ -4718,6 +4733,30 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+	// Skip the UPDATE entirely when stored values already match. At load-test scale these
+	// calls fire on every /osquery/config request, and most carry the same disk-space values
+	// as the last ingest.
+	var current struct {
+		GigsAvailable    float64  `db:"gigs_disk_space_available"`
+		PercentAvailable float64  `db:"percent_disk_space_available"`
+		GigsTotal        float64  `db:"gigs_total_disk_space"`
+		GigsAll          *float64 `db:"gigs_all_disk_space"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+		`SELECT gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space FROM host_disks WHERE host_id = ?`,
+		hostID,
+	)
+	switch {
+	case err == nil:
+		if current.GigsAvailable == gigsAvailable &&
+			current.PercentAvailable == percentAvailable &&
+			current.GigsTotal == gigsTotal &&
+			ptr.Equal(current.GigsAll, gigsAll) {
+			return nil
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "select host_disks")
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
@@ -4752,6 +4791,27 @@ func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint,
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 ) error {
+	// Skip the UPDATE when stored values already match. Orbit sends the same version/desktop_version/
+	// scripts_enabled until the agent is upgraded, so at load-test scale most of these writes are no-ops.
+	var current struct {
+		Version        string         `db:"version"`
+		DesktopVersion sql.NullString `db:"desktop_version"`
+		ScriptsEnabled sql.NullBool   `db:"scripts_enabled"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+		`SELECT version, desktop_version, scripts_enabled FROM host_orbit_info WHERE host_id = ?`,
+		hostID,
+	)
+	switch {
+	case err == nil:
+		if current.Version == version &&
+			current.DesktopVersion == desktopVersion &&
+			current.ScriptsEnabled == scriptsEnabled {
+			return nil
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "select host_orbit_info")
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_orbit_info SET version = ?, desktop_version = ?, scripts_enabled = ? WHERE host_id = ?`,

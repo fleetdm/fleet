@@ -9841,6 +9841,30 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
+
+	// Repeating the same values must not bump host_disks.updated_at. The skip-if-unchanged
+	// path should return before the writer is touched. Pin updated_at to a known past value
+	// and verify it is preserved on a no-op call, then advances on a real change.
+	loadUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &ts, `SELECT updated_at FROM host_disks WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			`UPDATE host_disks SET updated_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+	pinned := loadUpdatedAt(host.ID)
+
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0, nil))
+	require.True(t, pinned.Equal(loadUpdatedAt(host.ID)), "updated_at should not change on no-op SetOrUpdateHostDisksSpace")
+
+	// A real change must bump updated_at.
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 7, 8, 80.0, nil))
+	require.True(t, loadUpdatedAt(host.ID).After(pinned), "updated_at should advance when values change")
 }
 
 // testHostOrder tests listing a host sorted by different keys.
