@@ -26,7 +26,7 @@ export interface IChartResponse {
 
 export interface IChartRequestParams {
   days?: number;
-  downsample?: number;
+  resolution?: number;
   tz_offset?: number;
   fleet_id?: number;
   label_ids?: string;

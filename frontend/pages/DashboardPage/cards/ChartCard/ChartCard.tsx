@@ -28,7 +28,6 @@ const baseClass = "chart-card";
 // All charts are currently fixed at a 30-day window. When the server supports
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
-const DOWNSAMPLE_HOURS = 3;
 
 const DATASETS: IDataSet[] = [
   {
@@ -80,7 +79,6 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
   const queryParams: IChartRequestParams = useMemo(() => {
     return {
       days: CHART_DAYS,
-      downsample: DOWNSAMPLE_HOURS,
       tz_offset: new Date().getTimezoneOffset(),
       fleet_id: currentTeamId,
       label_ids: chartFilters.labelIDs.length
