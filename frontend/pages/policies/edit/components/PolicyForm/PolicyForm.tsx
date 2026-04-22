@@ -405,6 +405,17 @@ const PolicyForm = ({
       return;
     }
 
+    // Synchronously block empty queries. The button-level `disableSaveFormErrors`
+    // relies on the debounced `errors.query`, so a fast click before the debounce
+    // fires could otherwise submit an empty query. Mirrors the guard in
+    // EditQueryForm's handleSaveQuery (see #38348).
+    if (!lastEditedQueryBody?.trim()) {
+      return setErrors({
+        ...errors,
+        query: EMPTY_QUERY_ERR,
+      });
+    }
+
     let selectedPlatforms = getSelectedPlatforms();
     if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
       // If no platforms are selected, default to all compatible platforms

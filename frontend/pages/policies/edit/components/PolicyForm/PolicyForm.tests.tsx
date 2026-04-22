@@ -156,6 +156,80 @@ describe("PolicyForm - component", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
+    // Regression test for #38348: clicking Save with an empty query body must
+    // not submit, even if the debounced SQL validator has not yet populated
+    // errors.query. The synchronous guard in promptSavePolicy enforces this.
+    it("does not call onUpdate when Save is clicked with an empty query body", async () => {
+      const onUpdate = jest.fn();
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: "", // empty query body
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
+          policyIdForEdit={mockPolicy.id}
+          showOpenSchemaActionText={false}
+          storedPolicy={createMockPolicy({ query: "" })}
+          isStoredPolicyLoading={false}
+          isTeamObserver={false}
+          isUpdatingPolicy={false}
+          onCreatePolicy={jest.fn()}
+          onOsqueryTableSelect={jest.fn()}
+          goToSelectTargets={jest.fn()}
+          onUpdate={onUpdate}
+          onOpenSchemaSidebar={jest.fn()}
+          renderLiveQueryWarning={jest.fn()}
+          backendValidators={{}}
+          onClickAutofillDescription={jest.fn()}
+          onClickAutofillResolution={jest.fn()}
+          isFetchingAutofillDescription={false}
+          isFetchingAutofillResolution={false}
+          resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      // Force the click even if the button is disabled; the synchronous guard
+      // in promptSavePolicy is what we are testing.
+      await user.click(saveButton);
+
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+
     it("disables save and run button with tooltip for missing policy platforms", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
