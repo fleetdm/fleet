@@ -1261,7 +1261,7 @@ type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.C
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
-type MDMWindowsSaveResponseFunc func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error
+type MDMWindowsSaveResponseFunc func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error)
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
@@ -9000,7 +9000,7 @@ func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollment
 	return s.MDMWindowsGetPendingCommandsFunc(ctx, enrollmentID)
 }
 
-func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	s.mu.Lock()
 	s.MDMWindowsSaveResponseFuncInvoked = true
 	s.mu.Unlock()

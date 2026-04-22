@@ -565,15 +565,18 @@ ORDER BY
 	return commands, nil
 }
 
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	if len(enrichedSyncML.Raw) == 0 {
-		return ctxerr.New(ctx, "empty raw response")
+		return nil, ctxerr.New(ctx, "empty raw response")
 	}
 	if enrolledDevice == nil {
-		return ctxerr.New(ctx, "enrolled device is nil")
+		return nil, ctxerr.New(ctx, "enrolled device is nil")
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var result *fleet.MDMWindowsSaveResponseResult
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result = nil
+
 		// store the full response
 		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
@@ -710,10 +713,20 @@ ON DUPLICATE KEY UPDATE
 
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
-			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
-				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
-			); err != nil {
+			wipeSucceeded := strings.HasPrefix(wipeCmdStatus, "2")
+			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
+				"wipe_ref", wipeCmdUUID, wipeSucceeded, false,
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
+			}
+
+			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
+				result = &fleet.MDMWindowsSaveResponseResult{
+					WipeFailed: &fleet.MDMWindowsWipeResult{
+						HostUUID: enrolledDevice.HostUUID,
+					},
+				}
 			}
 		}
 
@@ -732,7 +745,10 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential

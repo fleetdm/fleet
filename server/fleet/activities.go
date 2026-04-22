@@ -156,6 +156,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeWipeFailedHost{},
 	ActivityTypeRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
@@ -1058,6 +1059,23 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeWipeFailedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipeFailedHost) ActivityName() string {
+	return "failed_wipe"
+}
+
+func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeWipeFailedHost) WasFromAutomation() bool {
+	return true
 }
 
 // ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.

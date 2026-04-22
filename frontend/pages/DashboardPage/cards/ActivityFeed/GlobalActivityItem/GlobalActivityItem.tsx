@@ -1206,6 +1206,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  failedWipe: (activity: IActivity) => {
+    return (
+      <>
+        Wipe failed on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
@@ -2134,6 +2141,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.FailedWipe: {
+      return TAGGED_TEMPLATES.failedWipe(activity);
     }
     case ActivityType.CreatedDeclarationProfile: {
       return TAGGED_TEMPLATES.createdDeclarationProfile(
