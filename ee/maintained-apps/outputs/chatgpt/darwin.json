@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.2026.051",
+      "version": "1.2026.099",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' AND version_compare(bundle_short_version, '1.2026.051') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' AND version_compare(bundle_short_version, '1.2026.099') < 0);"
       },
-      "installer_url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2026.051_1775834670.dmg",
+      "installer_url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT_Desktop_public_1.2026.099_1776706502.dmg",
       "install_script_ref": "105f16ab",
       "uninstall_script_ref": "dbaa4d2e",
-      "sha256": "4d5db720e5625514b34d53e52de9360413f0fb32de9d932eb88fcca66f99f7a7",
+      "sha256": "f3a6d63494ff9ef8af8abf6dd3be5297db7f904ea01040b790251e6846b4ac88",
       "default_categories": [
         "Productivity"
       ]

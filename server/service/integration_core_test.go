@@ -535,12 +535,15 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// An API-only user cannot modify their own record via this endpoint.
+	// An API-only user cannot reach this admin endpoint: the api_only middleware
+	// rejects it at the catalog check (the user-management endpoint is not in the catalog).
+	//
+	// This is to protect against privilege escalation vulnerability.
 	s.token = apiUserToken
 	defer func() { s.token = s.getTestAdminToken() }()
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"name": "Self Update",
-	}, http.StatusUnprocessableEntity)
+	}, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
@@ -7722,6 +7725,26 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
+
+	// uploading a DDM declaration with a Fleet variable returns a license error
+	// (single profile upload endpoint)
+	ddmWithFleetVar := []byte(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": "com.example.fleetvar-test",
+		"Payload": {"Value": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+	}`)
+	body, headers := generateNewProfileMultipartRequest(t, "fleetvar-test.json", ddmWithFleetVar, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusPaymentRequired, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
+	// uploading a DDM declaration with a Fleet variable returns a license error
+	// (batch profiles endpoint)
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: ddmWithFleetVar},
+	}}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// software titles
 	// a normal request works fine
@@ -15052,7 +15075,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_NAME1}"}`),
 		TeamID:     &foobarTeam.ID,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)

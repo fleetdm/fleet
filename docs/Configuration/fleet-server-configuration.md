@@ -3388,6 +3388,8 @@ Allows users to add custom Apple MDM profiles for OS updates and FileVault manag
 
 Allows all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) to be sent, bypassing all safety checks. By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
 
+Currently, Fleet only supports device-scoped declarations. User-scoped declarations are [coming soon](https://github.com/fleetdm/fleet/issues/38986).
+
 > Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
 
 [Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).

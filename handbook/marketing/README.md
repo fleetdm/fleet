@@ -199,12 +199,82 @@ Here are some links that filter relevant conversations on each platform:
 The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
 
 To monitor and respond to LinkedIn comments:
-1. Check LinkedIn mentions and comments once per work day.
+1. Check LinkedIn mentions and comments once per workday.
 2. Like mentions and respond to comments where appropriate.
 3. Repost content related to GitOps certification or from Fleeties.
 4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
-5. All interactions are catalogued in Hootsuite for future review.
+5. All interactions are cataloged in Hootsuite for future review.
 
+### Process to send out GitOps workshop certifications
+After every GitOps workshop, Fleet issues a certificate to all participants who passed via email.
+
+#### Collect attendee data
+
+1. Ask the AE or CSM to submit a GitHub issue after the workshop.  
+2. Make sure the issue is assigned to the DRI (Irena).  
+3. Confirm the issue includes:  
+   - Workshop date  
+   - Workshop location  
+   - First name  
+   - Last name  
+   - Email address  
+   - Registered (yes or no)  
+   - Attended (yes or no)  
+   - Certified by the trainer (passed)  
+4. Only issue certificates to attendees who passed the workshop.
+
+#### Create a new certificate collection
+
+1. Go to virtualbadge.io.  
+2. Find the most recent certificate collection.  
+3. Duplicate the collection.  
+4. Rename the collection using:  
+   - City  
+   - Date in YYYY-MM-DD format
+
+#### Update certificate details
+
+1. Open the duplicated collection.  
+2. Edit the certificate template:  
+   - Set the issue date to the workshop date.  
+   - Do not use the email send date.  
+   - Remove any expiration date.  
+   - Keep the contact email as the SVP of Customer Success  
+   - Update the Fleet version if needed.  
+     - It’s ok to reuse a version for up to 3-6 months. After this point, use the current version of Fleet.  
+3. Click **Customize** and update:  
+   - Event location  
+   - Event date  
+4. Do not edit the recipient name field. It is auto-filled.
+
+#### Add recipients
+
+1. Go to the recipient list.  
+2. Choose manual entry for speed.  
+3. Click **Add single**.  
+4. Enter:  
+   - Email address  
+   - Full name (first and last)  
+5. Repeat for each certified attendee.  
+6. If there are more than 10 attendees, consider uploading a CSV.  
+7. Click **Upload**, then **Confirm**.
+
+#### Generate certificates
+
+1. Check the **Certificate status** column.  
+2. Wait until all certificates show “generated”.
+
+#### Send certificates
+
+1. Select all recipients.  
+2. Click **Send emails**.
+
+#### Notes
+
+- Only send certificates to attendees who passed.  
+- Do not send certificates to registrants or attendees who did not pass.  
+- Use the workshop date for all certificate records.  
+- Keep the process simple and consistent for every workshop.
 
 ### Publish sprint demo video
 
@@ -328,8 +398,25 @@ This view displays the website's efficiency by tracking the rate at which users 
 ## Fleet writing style, tone, and voice instructions for AI
 When using an AI to create written content for Fleet, give your AI [these instructions first](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing. These instructions are aggregated and token-optimized from the handbook, in addition to fine tuned from usage results, which we should all continue to contribute to.
 
-## Rituals
+## Post blog articles
+Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
 
+1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivelent
+3. Title the file with the slug version of your blog title, ending in `.md`
+4. First line should be the Title of the blog with H1 markdown (`#`)
+5. Put in your article, using markdown to format it
+6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://fleetdm.com/handbook/marketing/fleet-ai-writing-instructions) first
+8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
+9. Once you think your blog is ready, commit the changes
+10. Before submitting a PR to merge it, preview it:
+    - GitHub: has a **Preview** button in the editor
+    - VS Code: right click on filename tab and select **Open Preview**
+    - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
+11. When ready, submit a PR to get it reviewed and merged
+
+## Rituals
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
 
 #### Stubs

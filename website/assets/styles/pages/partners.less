@@ -15,35 +15,15 @@
   @inner-gap-xxs: 8px;
   padding-bottom: 64px;
   h1 {
-    color: #192147;
-    /* Heading/H1 */
-    font-family: Inter;
-    font-size: 48px;
-    font-style: normal;
-    font-weight: 800;
-    line-height: @heading-lineheight;
+    .title-xl();
     margin-bottom: 0px;
   }
   h2 {
-    color: #192147;
-
-    /* Heading/H2 */
-    font-family: Inter;
-    font-size: 32px;
-    font-style: normal;
-    font-weight: 800;
-    line-height: 120%;
+    .title-l();
     margin-bottom: 0px;
   }
   h4 {
-    color: #515774;
-    font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
-    font-family: Roboto Mono;
-    font-size: 16px;
-    font-style: normal;
-    font-weight: 400;
-    line-height: 150%;
-    text-transform: uppercase;
+    .kicker-title();
     margin-bottom: 0px;
   }
   p {
@@ -90,40 +70,14 @@
     gap: @inner-gap-s;
   }
   [purpose='cta-button'] {
-    cursor: pointer;
-    background: @core-vibrant-green;
-    border-radius: 8px;
+    .cta-button();
     padding: 8px 16px;
     height: 36px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #FFF;
-    position: relative;
-    text-decoration: none;
-    overflow: hidden;
     min-width: 140px;
     font-weight: 700;
     font-size: 14px;
     line-height: @text-lineheight;
     white-space: nowrap;
-  }
-  [purpose='cta-button']::before {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    opacity: 1;
-    content: ' ';
-    position: absolute;
-    top: 0;
-    left: -5px;
-    width: 70%;
-    height: 100%;
-    transform: skew(-10deg);
-    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-  }
-  [purpose='cta-button']:hover:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
   }
 
   [purpose='logos'] {
@@ -192,6 +146,7 @@
 
       }
       [purpose='checklist'] {
+        .checklist();
         padding: 8px 0px;
         display: flex;
         flex-direction: column;
@@ -199,23 +154,7 @@
         gap: 24px;
         align-self: stretch;
         p {
-          font-size: 16px;
-          font-style: normal;
-          font-weight: 400;
-          padding-left: 37px;
-          text-indent: -37px;
           margin-bottom: 0px;
-        }
-        p::before {
-          content: ' ';
-          background-image: url('/images/icon-checkmark-green-20x20@2x.png');
-          background-size: 20px 20px;
-          display: inline-block;
-          position: relative;
-          top: 5px;
-          margin-right: 16px;
-          width: 20px;
-          height: 20px;
         }
       }
     }

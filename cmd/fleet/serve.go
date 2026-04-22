@@ -114,7 +114,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -1935,9 +1935,10 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		activityACLAdapter,
 		logger,
 	)
-	// Create auth middleware for activity bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on activity routes.
 	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
 	return activitySvc, activityRoutes

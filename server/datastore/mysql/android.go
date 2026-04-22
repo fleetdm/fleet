@@ -29,57 +29,10 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
-		stmt := `
-		INSERT INTO hosts (
-			node_key,
-			hostname,
-			computer_name,
-			platform,
-			os_version,
-			build,
-			memory,
-			team_id,
-			hardware_serial,
-			cpu_type,
-			hardware_model,
-			hardware_vendor,
-			detail_updated_at,
-			label_updated_at,
-			uuid
-		) VALUES (
-			:node_key,
-			:hostname,
-			:computer_name,
-			:platform,
-			:os_version,
-			:build,
-			:memory,
-			:team_id,
-			:hardware_serial,
-			:cpu_type,
-			:hardware_model,
-			:hardware_vendor,
-			:detail_updated_at,
-			:label_updated_at,
-			:uuid
-		) ON DUPLICATE KEY UPDATE
-			hostname = VALUES(hostname),
-			computer_name = VALUES(computer_name),
-			platform = VALUES(platform),
-			os_version = VALUES(os_version),
-			build = VALUES(build),
-			memory = VALUES(memory),
-			team_id = VALUES(team_id),
-			hardware_serial = VALUES(hardware_serial),
-			cpu_type = VALUES(cpu_type),
-			hardware_model = VALUES(hardware_model),
-			hardware_vendor = VALUES(hardware_vendor),
-			detail_updated_at = VALUES(detail_updated_at),
-			label_updated_at = VALUES(label_updated_at),
-			uuid = VALUES(uuid)
-		`
-		result, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
+		// If the Fleet Android agent already orbit-enrolled this device, a hosts row exists
+		// keyed by uuid = enterpriseSpecificId. Reuse it instead of inserting a duplicate.
+		// (platform = '' covers agents that didn't send platform on orbit enroll.)
+		params := map[string]any{
 			"node_key":          host.NodeKey,
 			"hostname":          host.Hostname,
 			"computer_name":     host.ComputerName,
@@ -95,21 +48,125 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			"detail_updated_at": host.DetailUpdatedAt,
 			"label_updated_at":  host.LabelUpdatedAt,
 			"uuid":              host.UUID,
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "new Android host")
 		}
-		id, _ := result.LastInsertId()
-		if id == 0 {
-			// This was an UPDATE, not an INSERT, so we need to get the host ID
-			var hostID uint
-			err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE node_key = ?`, host.NodeKey)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get host ID after update")
+
+		// Only look up an existing host when we have a non-empty UUID. An empty UUID
+		// would match every hosts row with uuid='' and falsely dedupe unrelated hosts.
+		// When multiple rows share this uuid (e.g. one orbit-enrolled with
+		// node_key=<orbitKey> and one Android with node_key=android/<uuid>), prefer the
+		// row whose node_key already matches host.NodeKey. Updating that row's node_key
+		// to itself is a no-op and avoids colliding with the UNIQUE idx_host_unique_nodekey
+		// constraint that would fire if we picked the other duplicate and tried to flip
+		// its node_key over to an already-taken value.
+		var (
+			existingID uint
+			foundHost  bool
+		)
+		if host.UUID != "" {
+			err := sqlx.GetContext(ctx, tx, &existingID,
+				`SELECT id FROM hosts WHERE uuid = ? AND platform IN ('android', '') ORDER BY (node_key = ?) DESC, id LIMIT 1`,
+				host.UUID, host.NodeKey,
+			)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "check for existing orbit-enrolled Android host")
 			}
-			host.Host.ID = hostID
+			foundHost = err == nil
+		}
+
+		if !foundHost {
+			// No orbit-enrolled host for this uuid. Insert as usual.
+			// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
+			insertStmt := `
+			INSERT INTO hosts (
+				node_key,
+				hostname,
+				computer_name,
+				platform,
+				os_version,
+				build,
+				memory,
+				team_id,
+				hardware_serial,
+				cpu_type,
+				hardware_model,
+				hardware_vendor,
+				detail_updated_at,
+				label_updated_at,
+				uuid
+			) VALUES (
+				:node_key,
+				:hostname,
+				:computer_name,
+				:platform,
+				:os_version,
+				:build,
+				:memory,
+				:team_id,
+				:hardware_serial,
+				:cpu_type,
+				:hardware_model,
+				:hardware_vendor,
+				:detail_updated_at,
+				:label_updated_at,
+				:uuid
+			) ON DUPLICATE KEY UPDATE
+				hostname = VALUES(hostname),
+				computer_name = VALUES(computer_name),
+				platform = VALUES(platform),
+				os_version = VALUES(os_version),
+				build = VALUES(build),
+				memory = VALUES(memory),
+				team_id = VALUES(team_id),
+				hardware_serial = VALUES(hardware_serial),
+				cpu_type = VALUES(cpu_type),
+				hardware_model = VALUES(hardware_model),
+				hardware_vendor = VALUES(hardware_vendor),
+				detail_updated_at = VALUES(detail_updated_at),
+				label_updated_at = VALUES(label_updated_at),
+				uuid = VALUES(uuid)
+			`
+			result, err := sqlx.NamedExecContext(ctx, tx, insertStmt, params)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "new Android host")
+			}
+			id, _ := result.LastInsertId()
+			if id == 0 {
+				// This was an UPDATE, not an INSERT, so we need to get the host ID
+				var hostID uint
+				err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE node_key = ?`, host.NodeKey)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host ID after update")
+				}
+				host.Host.ID = hostID
+			} else {
+				host.Host.ID = uint(id) // nolint:gosec
+			}
 		} else {
-			host.Host.ID = uint(id) // nolint:gosec
+			// Orbit-enrolled Android host already exists; update it in place so both
+			// enrollment paths converge on a single hosts row.
+			params["id"] = existingID
+			updateStmt := `
+			UPDATE hosts SET
+				node_key = :node_key,
+				hostname = :hostname,
+				computer_name = :computer_name,
+				platform = :platform,
+				os_version = :os_version,
+				build = :build,
+				memory = :memory,
+				team_id = :team_id,
+				hardware_serial = :hardware_serial,
+				cpu_type = :cpu_type,
+				hardware_model = :hardware_model,
+				hardware_vendor = :hardware_vendor,
+				detail_updated_at = :detail_updated_at,
+				label_updated_at = :label_updated_at,
+				uuid = :uuid
+			WHERE id = :id`
+			if _, err := sqlx.NamedExecContext(ctx, tx, updateStmt, params); err != nil {
+				return ctxerr.Wrap(ctx, err, "update existing orbit-enrolled Android host")
+			}
+			host.Host.ID = existingID
 		}
 		host.Device.HostID = host.Host.ID
 
