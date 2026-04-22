@@ -1209,7 +1209,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
 	man.addConfigBool("redis.host_cache_enabled", false,
 		"Enable Redis-backed cache for host-by-node_key lookups on the osquery auth path")
-	man.addConfigDuration("redis.host_cache_ttl", 30*time.Second,
+	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
 		"TTL for Redis-backed host-by-node_key cache entries; actual per-entry TTL is jittered by ±10%")
 
 	// Server
