@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -203,20 +202,26 @@ func TestLoadHostByOrbitNodeKey_Override(t *testing.T) {
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
 			cancellableCtx, cancel := context.WithCancel(t.Context())
-			joinerDone := make(chan struct{})
 			var joinerHost *fleet.Host
 			var joinerErr error
 
-			go func() {
-				joinerHost, joinerErr = wrapped.LoadHostByOrbitNodeKey(t.Context(), "onk-cancel")
-				close(joinerDone)
-			}()
+			// Start the CANCELLABLE caller first so it's guaranteed to be the
+			// flight leader; otherwise the healthy joiner could accidentally
+			// become leader and the test would pass without exercising the
+			// cancelled-leader case.
 			leaderDone := make(chan struct{})
 			go func() {
 				_, _ = wrapped.LoadHostByOrbitNodeKey(cancellableCtx, "onk-cancel")
 				close(leaderDone)
 			}()
 			time.Sleep(50 * time.Millisecond)
+
+			joinerDone := make(chan struct{})
+			go func() {
+				joinerHost, joinerErr = wrapped.LoadHostByOrbitNodeKey(t.Context(), "onk-cancel")
+				close(joinerDone)
+			}()
+			time.Sleep(20 * time.Millisecond)
 			cancel()
 			close(release)
 			<-joinerDone
@@ -386,7 +391,3 @@ func TestLoadHostByOrbitNodeKey_RedisErrorFallsThrough(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, ds.LoadHostByOrbitNodeKeyFuncInvoked, "Redis errors must not prevent DB fallthrough")
 }
-
-// Prevent the "imported and not used" compilation error on redigo if the
-// package isn't referenced elsewhere in this file.
-var _ = redigo.ErrNil

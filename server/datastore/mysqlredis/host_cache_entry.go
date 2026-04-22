@@ -186,49 +186,49 @@ func (e *hostCacheEntry) toHost() *fleet.Host {
 // `json:"-"` (OrbitNodeKey notably) that would silently drop on
 // encoding/json round-trip and break auth.
 //
-// TestOrbitHostCacheEntryRoundTrip (host_cache_test.go) catches drift when
-// LoadHostByOrbitNodeKey's SELECT adds or removes a column.
+// TestOrbitHostCacheEntryRoundTrip (host_orbit_cache_test.go) catches drift
+// when LoadHostByOrbitNodeKey's SELECT adds or removes a column.
 type orbitHostCacheEntry struct {
-	ID                          uint       `json:"id"`
-	OsqueryHostID               *string    `json:"osquery_host_id,omitempty"`
-	CreatedAt                   time.Time  `json:"created_at"`
-	UpdatedAt                   time.Time  `json:"updated_at"`
-	DetailUpdatedAt             time.Time  `json:"detail_updated_at"`
-	NodeKey                     *string    `json:"node_key,omitempty"`
-	Hostname                    string     `json:"hostname"`
-	UUID                        string     `json:"uuid"`
-	Platform                    string     `json:"platform"`
-	OsqueryVersion              string     `json:"osquery_version"`
-	OSVersion                   string     `json:"os_version"`
-	Build                       string     `json:"build"`
-	PlatformLike                string     `json:"platform_like"`
-	CodeName                    string     `json:"code_name"`
+	ID                          uint          `json:"id"`
+	OsqueryHostID               *string       `json:"osquery_host_id,omitempty"`
+	CreatedAt                   time.Time     `json:"created_at"`
+	UpdatedAt                   time.Time     `json:"updated_at"`
+	DetailUpdatedAt             time.Time     `json:"detail_updated_at"`
+	NodeKey                     *string       `json:"node_key,omitempty"`
+	Hostname                    string        `json:"hostname"`
+	UUID                        string        `json:"uuid"`
+	Platform                    string        `json:"platform"`
+	OsqueryVersion              string        `json:"osquery_version"`
+	OSVersion                   string        `json:"os_version"`
+	Build                       string        `json:"build"`
+	PlatformLike                string        `json:"platform_like"`
+	CodeName                    string        `json:"code_name"`
 	Uptime                      time.Duration `json:"uptime"`
-	Memory                      int64      `json:"memory"`
-	CPUType                     string     `json:"cpu_type"`
-	CPUSubtype                  string     `json:"cpu_subtype"`
-	CPUBrand                    string     `json:"cpu_brand"`
-	CPUPhysicalCores            int        `json:"cpu_physical_cores"`
-	CPULogicalCores             int        `json:"cpu_logical_cores"`
-	HardwareVendor              string     `json:"hardware_vendor"`
-	HardwareModel               string     `json:"hardware_model"`
-	HardwareVersion             string     `json:"hardware_version"`
-	HardwareSerial              string     `json:"hardware_serial"`
-	ComputerName                string     `json:"computer_name"`
-	PrimaryNetworkInterfaceID   *uint      `json:"primary_ip_id,omitempty"`
-	DistributedInterval         uint       `json:"distributed_interval"`
-	LoggerTLSPeriod             uint       `json:"logger_tls_period"`
-	ConfigTLSRefresh            uint       `json:"config_tls_refresh"`
-	PrimaryIP                   string     `json:"primary_ip"`
-	PrimaryMac                  string     `json:"primary_mac"`
-	LabelUpdatedAt              time.Time  `json:"label_updated_at"`
-	LastEnrolledAt              time.Time  `json:"last_enrolled_at"`
-	RefetchRequested            bool       `json:"refetch_requested"`
-	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until,omitempty"`
-	TeamID                      *uint      `json:"team_id,omitempty"`
-	PolicyUpdatedAt             time.Time  `json:"policy_updated_at"`
-	PublicIP                    string     `json:"public_ip"`
-	OrbitNodeKey                *string    `json:"orbit_node_key,omitempty"`
+	Memory                      int64         `json:"memory"`
+	CPUType                     string        `json:"cpu_type"`
+	CPUSubtype                  string        `json:"cpu_subtype"`
+	CPUBrand                    string        `json:"cpu_brand"`
+	CPUPhysicalCores            int           `json:"cpu_physical_cores"`
+	CPULogicalCores             int           `json:"cpu_logical_cores"`
+	HardwareVendor              string        `json:"hardware_vendor"`
+	HardwareModel               string        `json:"hardware_model"`
+	HardwareVersion             string        `json:"hardware_version"`
+	HardwareSerial              string        `json:"hardware_serial"`
+	ComputerName                string        `json:"computer_name"`
+	PrimaryNetworkInterfaceID   *uint         `json:"primary_ip_id,omitempty"`
+	DistributedInterval         uint          `json:"distributed_interval"`
+	LoggerTLSPeriod             uint          `json:"logger_tls_period"`
+	ConfigTLSRefresh            uint          `json:"config_tls_refresh"`
+	PrimaryIP                   string        `json:"primary_ip"`
+	PrimaryMac                  string        `json:"primary_mac"`
+	LabelUpdatedAt              time.Time     `json:"label_updated_at"`
+	LastEnrolledAt              time.Time     `json:"last_enrolled_at"`
+	RefetchRequested            bool          `json:"refetch_requested"`
+	RefetchCriticalQueriesUntil *time.Time    `json:"refetch_critical_queries_until,omitempty"`
+	TeamID                      *uint         `json:"team_id,omitempty"`
+	PolicyUpdatedAt             time.Time     `json:"policy_updated_at"`
+	PublicIP                    string        `json:"public_ip"`
+	OrbitNodeKey                *string       `json:"orbit_node_key,omitempty"`
 
 	// Orbit-specific fields (not in hostCacheEntry):
 	DEPAssignedToFleet     *bool   `json:"dep_assigned_to_fleet,omitempty"`

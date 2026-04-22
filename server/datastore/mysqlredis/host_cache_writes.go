@@ -90,9 +90,9 @@ func (d *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 // AddHostsToTeam invalidates every host in the batch after a successful team
 // reassignment. The invalidation is intentionally synchronous so test harnesses
 // observe a stable cache state on return; operators running very large batches
-// (> ~1000 hosts) will see proportionally longer write latency today. See
-// claude/host-by-node/PLAN.md for the pipelining optimization deferred to a
-// later iteration.
+// (> ~1000 hosts) will see proportionally longer write latency today. A later
+// optimization could pipeline the Redis invalidations to reduce that latency
+// without changing the synchronous semantics of this method.
 func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	if err := d.Datastore.AddHostsToTeam(ctx, params); err != nil {
 		return err

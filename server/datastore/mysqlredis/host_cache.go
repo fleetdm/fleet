@@ -200,6 +200,11 @@ func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
 // when the caller already has the (nodeKey, hostID) pair. Pass hostID=0 if the
 // caller does not know the ID; the index is skipped in that case.
 // `reason` is a low-cardinality label recorded on the invalidations counter.
+//
+// When hostID > 0 and the reverse index points at a DIFFERENT (prior) key —
+// e.g., osquery re-enrollment rotated node_key from OLD to NEW and we're
+// called with NEW — the entry under the OLD key is also cleared. Without
+// this step the rotated key would keep authenticating for up to TTL.
 func (d *Datastore) hostCacheDeleteByNodeKey(ctx context.Context, nodeKey string, hostID uint, reason string) {
 	if !d.hostCacheEnabled || nodeKey == "" {
 		return
@@ -207,6 +212,18 @@ func (d *Datastore) hostCacheDeleteByNodeKey(ctx context.Context, nodeKey string
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
+
+	if hostID > 0 {
+		if priorKey, err := redigo.String(conn.Do("GET", hostCacheIndexByID(hostID))); err == nil && priorKey != "" && priorKey != nodeKey {
+			for _, k := range []string{hostCacheKeyByNodeKey(priorKey), hostCacheKeyMiss(priorKey)} {
+				if _, err := conn.Do("DEL", k); err != nil {
+					d.recordHostCacheErr(ctx, "del", err)
+				}
+			}
+		} else if err != nil && !errors.Is(err, redigo.ErrNil) {
+			d.recordHostCacheErr(ctx, "get", err)
+		}
+	}
 
 	for _, k := range []string{
 		hostCacheKeyByNodeKey(nodeKey),
@@ -321,6 +338,9 @@ func (d *Datastore) hostCachePutNotFoundByOrbitNodeKey(ctx context.Context, orbi
 // hostCacheDeleteByOrbitNodeKey is the orbit-side analog of
 // hostCacheDeleteByNodeKey: clears the primary, negative, and index keys for
 // an orbit-enrolled host when the caller has the (orbitNodeKey, hostID) pair.
+// When hostID > 0 and the reverse index points at a DIFFERENT (prior) key, the
+// entry under the old key is also cleared — this guards against a rotated
+// orbit_node_key continuing to authenticate until TTL.
 func (d *Datastore) hostCacheDeleteByOrbitNodeKey(ctx context.Context, orbitNodeKey string, hostID uint, reason string) {
 	if !d.hostCacheEnabled || orbitNodeKey == "" {
 		return
@@ -328,6 +348,18 @@ func (d *Datastore) hostCacheDeleteByOrbitNodeKey(ctx context.Context, orbitNode
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
+
+	if hostID > 0 {
+		if priorKey, err := redigo.String(conn.Do("GET", hostCacheOrbitIndexByID(hostID))); err == nil && priorKey != "" && priorKey != orbitNodeKey {
+			for _, k := range []string{hostCacheKeyByOrbitNodeKey(priorKey), hostCacheKeyOrbitMiss(priorKey)} {
+				if _, err := conn.Do("DEL", k); err != nil {
+					d.recordHostCacheErr(ctx, "del", err)
+				}
+			}
+		} else if err != nil && !errors.Is(err, redigo.ErrNil) {
+			d.recordHostCacheErr(ctx, "get", err)
+		}
+	}
 
 	for _, k := range []string{
 		hostCacheKeyByOrbitNodeKey(orbitNodeKey),
@@ -459,21 +491,14 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	}
 
 	// Detach the inner call's context from the initiating caller's
-	// cancellation. Without this, if caller A starts the flight and A's
-	// request is canceled (client disconnect or timeout), the DB call is
-	// canceled and every joiner waiting in singleflight also fails — a
-	// single flaky client would multiply into a wave of auth failures.
-	// Preserve values and any parent deadline so timeout-based SLOs still
-	// apply, but drop the Done channel so joiners' healthy contexts aren't
-	// poisoned. Joiners still observe their own ctx.Done via singleflight.Do
-	// returning the shared result only after the flight completes, which is
-	// bounded by the deadline (or the configured Redis/MySQL timeouts).
+	// cancellation AND deadline. Without the detach, if caller A starts the
+	// flight and A's request is canceled or its deadline expires (e.g.,
+	// A has a tight 50ms LB timeout), the DB call is aborted and every
+	// joiner — including those with much more generous deadlines — receives
+	// A's error. We rely on the Redis pool's read_timeout / connect_timeout
+	// and the MySQL driver's own timeouts to bound the flight duration,
+	// which is what every non-cached call is already bounded by today.
 	flightCtx := context.WithoutCancel(ctx)
-	if dl, ok := ctx.Deadline(); ok {
-		var cancel context.CancelFunc
-		flightCtx, cancel = context.WithDeadline(flightCtx, dl)
-		defer cancel()
-	}
 
 	// Prefix the singleflight key so osquery and orbit flights can't collide
 	// if a node_key ever happened to equal an orbit_node_key (astronomically
@@ -522,12 +547,9 @@ func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey str
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
 	}
 
+	// See LoadHostByNodeKey for the rationale on detaching without
+	// reapplying the caller's deadline.
 	flightCtx := context.WithoutCancel(ctx)
-	if dl, ok := ctx.Deadline(); ok {
-		var cancel context.CancelFunc
-		flightCtx, cancel = context.WithDeadline(flightCtx, dl)
-		defer cancel()
-	}
 
 	v, err, _ := d.hostCacheSF.Do("onk:"+orbitNodeKey, func() (any, error) {
 		h, derr := d.Datastore.LoadHostByOrbitNodeKey(flightCtx, orbitNodeKey)
