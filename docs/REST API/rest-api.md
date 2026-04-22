@@ -6870,11 +6870,11 @@ _Available in Fleet Premium_
 
 Gets the Fleet default MDM setup enrollment profile. This is the profile Fleet registers with Apple for devices in fleets that do not have a custom MDM setup enrollment profile uploaded.
 
+`GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
 The default profile is a single profile per Fleet instance. It is shared across all fleets and all Apple Business Manager (ABM) tokens and cannot be scoped by `fleet_id`.
 
 If the default profile has not yet been stored (for example, on a new Fleet instance that has not completed its first automatic enrollment registration), Fleet returns the in-code defaults that will be registered on first use, and `updated_at` is `null`.
-
-`GET /api/v1/fleet/enrollment_profiles/automatic/default`
 
 #### Parameters
 
