@@ -94,9 +94,9 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
 	}
 
-	// Downsample only makes sense for hourly datasets and must be 0 or a positive divisor of 24.
-	if opts.Downsample < 0 || (opts.Downsample != 0 && 24%opts.Downsample != 0) {
-		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid downsample value: %d (must be 0 or a positive divisor of 24)", opts.Downsample)}
+	// Resolution must be 0 or a positive divisor of 24.
+	if opts.Resolution < 0 || (opts.Resolution != 0 && 24%opts.Resolution != 0) {
+		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid resolution value: %d (must be 0 or a positive divisor of 24)", opts.Resolution)}
 	}
 
 	// Resolve dataset-specific filters to entity IDs.
@@ -105,11 +105,11 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, err
 	}
 
-	// Compute effective bucket size. Downsample applies only to sub-daily datasets.
-	bucketSize := dataset.BucketSize()
-	if bucketSize < 24*time.Hour && opts.Downsample > 1 {
-		bucketSize = time.Duration(opts.Downsample) * time.Hour
+	hours := opts.Resolution
+	if hours <= 0 {
+		hours = dataset.DefaultResolutionHours()
 	}
+	bucketSize := time.Duration(hours) * time.Hour
 
 	startDate, endDate := computeBucketRange(time.Now(), bucketSize, opts.Days, opts.TZOffsetMinutes)
 

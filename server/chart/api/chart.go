@@ -40,12 +40,12 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// BucketSize returns the default display granularity for this dataset (e.g.
-	// time.Hour for uptime, 24*time.Hour for CVE). The chart walker queries at
-	// this granularity by default. Write-side granularity is a separate concern
-	// handled by each strategy's collector (snapshot always writes at 1h; see
-	// SampleStrategy for details).
-	BucketSize() time.Duration
+	// DefaultResolutionHours returns the default display granularity in hours
+	// (1 for uptime, 24 for CVE). Used when the caller doesn't specify
+	// RequestOpts.Resolution. Unrelated to write-side granularity — all
+	// collectors write at 1h regardless of display resolution; see
+	// SampleStrategy for details.
+	DefaultResolutionHours() int
 
 	// SampleStrategy returns how samples combine within and across buckets.
 	SampleStrategy() SampleStrategy
@@ -129,9 +129,9 @@ type Response struct {
 // RequestOpts captures the parsed query parameters for a chart request.
 type RequestOpts struct {
 	Days int
-	// Downsample groups hours into N-hour blocks. Must be 0 or a positive
-	// divisor of 24. Both 0 (default) and 1 mean no downsampling (hourly data).
-	Downsample int
+	// Resolution is the display granularity in hours. Must be 0 or a positive
+	// divisor of 24. 0 means "use the dataset's default resolution."
+	Resolution int
 	// TZOffsetMinutes is the client's UTC offset as reported by JavaScript's
 	// Date.getTimezoneOffset() (positive = west of UTC, e.g. CDT = 300).
 	// Used to align hourly bucket boundaries to local time.

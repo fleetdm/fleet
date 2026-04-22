@@ -115,14 +115,14 @@ func TestGetChartDataInvalidDays(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid days value")
 }
 
-func TestGetChartDataInvalidDownsample(t *testing.T) {
+func TestGetChartDataInvalidResolution(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
 	cases := []struct {
 		name       string
-		downsample int
+		resolution int
 	}{
 		{"not a divisor of 24", 5},
 		{"negative divisor of 24", -2},
@@ -130,9 +130,9 @@ func TestGetChartDataInvalidDownsample(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7, Downsample: tc.downsample})
+			_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7, Resolution: tc.resolution})
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid downsample value")
+			assert.Contains(t, err.Error(), "invalid resolution value")
 		})
 	}
 }
@@ -179,11 +179,11 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	assert.Equal(t, 7*24*time.Hour, gotEnd.Sub(gotStart))
 }
 
-func TestGetChartDataDownsampleResolution(t *testing.T) {
+func TestGetChartDataUptimeResolution(t *testing.T) {
 	for _, tc := range []struct {
-		downsample int
-		resolution string
-		bucketSize time.Duration
+		resolution    int
+		resolutionStr string
+		bucketSize    time.Duration
 	}{
 		{0, "hourly", time.Hour},
 		{1, "hourly", time.Hour},
@@ -191,7 +191,7 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 		{4, "4-hour", 4 * time.Hour},
 		{8, "8-hour", 8 * time.Hour},
 	} {
-		t.Run(tc.resolution, func(t *testing.T) {
+		t.Run(tc.resolutionStr, func(t *testing.T) {
 			ds := &mockDatastore{}
 			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 			svc.RegisterDataset(&chart.UptimeDataset{})
@@ -202,32 +202,47 @@ func TestGetChartDataDownsampleResolution(t *testing.T) {
 				return nil, nil
 			}
 
-			resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 30, Downsample: tc.downsample})
+			resp, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 30, Resolution: tc.resolution})
 			require.NoError(t, err)
-			assert.Equal(t, tc.resolution, resp.Resolution)
+			assert.Equal(t, tc.resolutionStr, resp.Resolution)
 			assert.Equal(t, tc.bucketSize, gotBucketSize)
 		})
 	}
 }
 
-func TestGetChartDataDailyIgnoresDownsample(t *testing.T) {
-	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-	svc.RegisterDataset(&chart.CVEDataset{})
+func TestGetChartDataCVEResolution(t *testing.T) {
+	// Resolution applies uniformly regardless of the dataset's default:
+	// omitted → dataset default (24h for CVE), specified → that value in hours.
+	for _, tc := range []struct {
+		name          string
+		resolution    int
+		resolutionStr string
+		bucketSize    time.Duration
+	}{
+		{"default", 0, "daily", 24 * time.Hour},
+		{"hourly override", 1, "hourly", time.Hour},
+		{"4-hour override", 4, "4-hour", 4 * time.Hour},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := &mockDatastore{}
+			svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+			svc.RegisterDataset(&chart.CVEDataset{})
 
-	var gotBucketSize time.Duration
-	var gotStrategy api.SampleStrategy
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
-		gotBucketSize = bucketSize
-		gotStrategy = strategy
-		return nil, nil
+			var gotBucketSize time.Duration
+			var gotStrategy api.SampleStrategy
+			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
+				gotBucketSize = bucketSize
+				gotStrategy = strategy
+				return nil, nil
+			}
+
+			resp, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 30, Resolution: tc.resolution})
+			require.NoError(t, err)
+			assert.Equal(t, tc.resolutionStr, resp.Resolution)
+			assert.Equal(t, tc.bucketSize, gotBucketSize)
+			assert.Equal(t, api.SampleStrategySnapshot, gotStrategy)
+		})
 	}
-
-	resp, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 30, Downsample: 4})
-	require.NoError(t, err)
-	assert.Equal(t, "daily", resp.Resolution)
-	assert.Equal(t, 24*time.Hour, gotBucketSize)
-	assert.Equal(t, api.SampleStrategySnapshot, gotStrategy)
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
@@ -405,7 +420,7 @@ func TestComputeBucketRange(t *testing.T) {
 		assert.Equal(t, time.Date(2026, 4, 7, 14, 0, 0, 0, time.UTC), start)
 	})
 
-	t.Run("hourly with downsample aligns to step", func(t *testing.T) {
+	t.Run("sub-daily resolution aligns to step", func(t *testing.T) {
 		now := time.Date(2026, 4, 8, 15, 30, 0, 0, time.UTC)
 		_, end := computeBucketRange(now, 4*time.Hour, 1, 0)
 		// 15 / 4 * 4 = 12 — aligned to nearest step hour within the day.
@@ -458,7 +473,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
-	assert.Equal(t, time.Hour, d.BucketSize())
+	assert.Equal(t, 1, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategyAccumulate, d.SampleStrategy())
 	assert.Equal(t, "checkerboard", d.DefaultVisualization())
 	assert.False(t, d.HasEntityDimension())
@@ -472,7 +487,7 @@ func TestUptimeDatasetMetadata(t *testing.T) {
 func TestCVEDatasetMetadata(t *testing.T) {
 	d := &chart.CVEDataset{}
 	assert.Equal(t, "cve", d.Name())
-	assert.Equal(t, 24*time.Hour, d.BucketSize())
+	assert.Equal(t, 24, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategySnapshot, d.SampleStrategy())
 	assert.Equal(t, "line", d.DefaultVisualization())
 	assert.True(t, d.HasEntityDimension())

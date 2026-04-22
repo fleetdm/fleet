@@ -7,7 +7,7 @@ import "github.com/fleetdm/fleet/v4/server/chart/api"
 type GetChartDataRequest struct {
 	Metric     string `url:"metric"`
 	Days       int    `query:"days,optional"`
-	Downsample int    `query:"downsample,optional"`
+	Resolution int    `query:"resolution,optional"`
 	TZOffset   int    `query:"tz_offset,optional"`
 	// TeamID is a pointer so we can distinguish "absent" (auto-scope to the
 	// viewer) from fleet_id=0 (no-team hosts, a valid Fleet filter).
