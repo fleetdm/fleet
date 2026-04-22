@@ -769,6 +769,8 @@
   waysToUse:
     - description: View each report and its first result directly on the Host details page, similar to extension attributes in Jamf (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/40187
+    - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
   demos:
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
@@ -807,9 +809,6 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Devices]
   usualDepartment: IT
-  waysToUse:
-    - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
 #
 #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
 #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
