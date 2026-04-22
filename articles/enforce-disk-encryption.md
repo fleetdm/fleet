@@ -12,7 +12,7 @@ For macOS hosts that automatically enroll, end users are forced to enable disk e
 
 For Windows, currently, disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). BitLocker PIN can only be enforced on hosts that do not have the C: volume already encrypted.
 
-For Linux, encryption requires end user interaction.
+For Linux, encryption requires end user interaction. [Learn more](#enforce-disk-encryption-on-linux).
 
 ## Enforce disk encryption
 
