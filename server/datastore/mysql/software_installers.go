@@ -254,9 +254,9 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		}
 		if found, exists := teamsByHash[tmID]; exists {
 			// If the existing installer has the same title and source, allow the insert to proceed
-			// so that the existing UNIQUE (global_or_team_id, title_id) constraint yields a
-			// Conflict error with the expected message.
-			// Since this is not an in-house app, only one installer per team can exist.
+			// so that the DB unique constraint (global_or_team_id, title_id, version) yields a
+			// Conflict error when the version also matches. If the version differs, the insert
+			// succeeds and old active installers are deactivated within the transaction below.
 			if !(found[0].Title == payload.Title && found[0].Source == payload.Source) {
 				return 0, 0, fleet.NewInvalidArgumentError(
 					"software",
@@ -367,6 +367,33 @@ INSERT INTO software_installers (
 
 		id, _ := res.LastInsertId()
 		installerID = uint(id) //nolint:gosec // dismiss G115
+
+		// For non-FMA installers, deactivate any previous active installers for
+		// the same title+team. The unique index (global_or_team_id, title_id,
+		// version) allows multiple versions to coexist, but only the latest
+		// upload should be active. FMA version lifecycle is managed separately
+		// by BatchSetSoftwareInstallers.
+		if payload.FleetMaintainedAppID == nil {
+			// Re-point policies from old installers to the new one
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE policies SET software_installer_id = ?
+				WHERE software_installer_id IN (
+					SELECT id FROM software_installers
+					WHERE global_or_team_id = ? AND title_id = ? AND id != ? AND fleet_maintained_app_id IS NULL
+				)`,
+				installerID, globalOrTeamID, titleID, installerID,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-point policies to new installer")
+			}
+			// Deactivate old installers
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE software_installers SET is_active = 0
+				WHERE global_or_team_id = ? AND title_id = ? AND id != ? AND fleet_maintained_app_id IS NULL`,
+				globalOrTeamID, titleID, installerID,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "deactivate old installers")
+			}
+		}
 
 		if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, installerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
