@@ -71,7 +71,7 @@ Replace:
 3. Copy the profile to a new `.mobileconfig` file and save.
 4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
 
-Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days.Automatically renewal for this certificate is [coming soon](https://github.com/fleetdm/fleet/issues/40639). When the certificate is renewed, the old certificate isn't removed. To clean up the old certificate, you can run [this script](TODO).
+Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days.Automatically renewal for this certificate is [coming soon](https://github.com/fleetdm/fleet/issues/40639). When the certificate is renewed, the old certificate isn't removed. To clean up the old certificate, you can run [this script](https://github.com/fleetdm/fleet/blob/31ec68e325801bfd2199191f70d021383a45161f/assets/scripts/delete-duplicate-scep-certificates.sh).
 
 ## Step 3: Create IdP in Okta
 
