@@ -3004,25 +3004,6 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	// Skip the UPSERT when the stored token already matches. Orbit and Fleet Desktop resend the
-	// same token on their refresh cycle, and the ON DUPLICATE KEY UPDATE path is a no-op at the
-	// row level anyway (see comment below) but still costs a writer round-trip + commit.
-	// Read from the replica (the whole point of this optimization is to reduce writer load).
-	// Under replication lag a stale replica value may match the incoming token and cause us to
-	// skip a needed write on the primary; the next refresh-cycle call — seconds later — re-reads
-	// the replica once it has caught up and writes the rotated token.
-	var currentToken string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &currentToken,
-		`SELECT token FROM host_device_auth WHERE host_id = ?`, hostID)
-	switch {
-	case err == nil:
-		if currentToken == authToken {
-			return nil
-		}
-	case !errors.Is(err, sql.ErrNoRows):
-		return ctxerr.Wrap(ctx, err, "select host_device_auth token")
-	}
-
 	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
 	// of the statement, it inherits the default behaviour which is that the updated_at
 	// timestamp will NOT be changed if the new token is the same as the old token
@@ -3043,7 +3024,7 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 				IF(updated_at >= DATE_SUB(NOW(), INTERVAL 3600 SECOND), token, NULL)),
 			token = VALUES(token)
 `
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, authToken)
 	if err != nil {
 		if IsDuplicate(err) {
 			return fleet.ConflictError{Message: "auth token conflicts with another host"}
