@@ -84,6 +84,9 @@ export interface IMdmConfig {
     require_all_software_macos: boolean | null;
     lock_end_user_info: boolean | null;
   };
+  macos_setup: {
+    enable_managed_local_account?: boolean;
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
