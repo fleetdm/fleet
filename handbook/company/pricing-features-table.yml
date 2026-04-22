@@ -235,7 +235,7 @@
 #  ╔╦╗╔╦╗╔╦╗  ╔╦╗╦╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
+- industryName: MDM migration
   description: Easily move your macOS, iOS/iPadOS, Windows, and Linux devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
@@ -244,6 +244,9 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
+  waysToUse:
+    - description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
 #  
 #  ╔═╗╔═╗╦═╗╔═╗  ╔╦╗╔═╗╦ ╦╔═╗╦ ╦  ╔═╗╔═╗╔╦╗╦ ╦╔═╗
 #  ╔═╝║╣ ╠╦╝║ ║───║ ║ ║║ ║║  ╠═╣  ╚═╗║╣  ║ ║ ║╠═╝
@@ -268,16 +271,6 @@
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
       moreInfoUrl: https://youtu.be/secV4NCGYPg
-- industryName: Apple Business (AB) assignment visibility
-  description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
-  tier: Premium
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Devices]
 #
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
