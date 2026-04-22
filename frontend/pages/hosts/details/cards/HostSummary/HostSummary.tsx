@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
+  isEnrolledInMdm,
   isWindowsDiskEncryptionStatus,
   isLinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
@@ -170,12 +171,9 @@ const HostSummary = ({
       : [linuxDiskEncryptionSetting];
   }
 
-  const hostIsMdmEnrolled =
-    !!mdm?.enrollment_status && mdm.enrollment_status.startsWith("On ");
-
   if (
     platform === "darwin" &&
-    hostIsMdmEnrolled &&
+    isEnrolledInMdm(mdm?.enrollment_status ?? null) &&
     osSettings?.recovery_lock_password?.status
   ) {
     const recoveryLockSetting = generateRecoveryLockPasswordSetting(
