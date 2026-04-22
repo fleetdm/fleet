@@ -74,7 +74,7 @@ X-Fleet-Capabilities header or Fleet's JSON error body shape.`,
 		checks := connectivity.Catalogue(features...)
 
 		if c.Bool("list") {
-			return connectivity.ListCatalogue(os.Stdout, checks)
+			return connectivity.ListCatalogue(c.App.Writer, checks)
 		}
 
 		target, err := resolveTarget(resolveInput{
@@ -102,11 +102,11 @@ X-Fleet-Capabilities header or Fleet's JSON error body shape.`,
 		}
 
 		if c.Bool("json") {
-			if err := connectivity.RenderJSON(os.Stdout, target.baseURL, results); err != nil {
+			if err := connectivity.RenderJSON(c.App.Writer, target.baseURL, results); err != nil {
 				return cli.Exit(err.Error(), 2)
 			}
 		} else {
-			if err := connectivity.RenderHuman(os.Stdout, target.baseURL, results); err != nil {
+			if err := connectivity.RenderHuman(c.App.Writer, target.baseURL, results); err != nil {
 				return cli.Exit(err.Error(), 2)
 			}
 		}

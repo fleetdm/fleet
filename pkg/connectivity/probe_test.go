@@ -232,6 +232,65 @@ func TestProbeAuthOrbitNodeKey(t *testing.T) {
 	assert.Empty(t, bodyReceived, "probe must not send body when OrbitNodeKey is unset")
 }
 
+func TestLooksLikeFleetHTMLTitle(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"exact title", `<html><title>Fleet</title></html>`, true},
+		{"uppercase tag", `<HTML><TITLE>FLEET</TITLE>`, true},
+		{"fleet with suffix", `<title>Fleet | device</title>`, true},
+		{"other brand", `<title>Okta</title>`, false},
+		{"no title", `<html></html>`, false},
+		{"empty", ``, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, looksLikeFleetHTMLTitle([]byte(tc.body)))
+		})
+	}
+}
+
+func TestProbePrepareRequestFallsBackWhenKeyMissing(t *testing.T) {
+	// When a check asks for orbit-key auth but no key is available, the
+	// probe must drop to unauthenticated: no body, no Content-Type.
+	var got struct {
+		contentType string
+		body        []byte
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.contentType = r.Header.Get("Content-Type")
+		got.body, _ = io.ReadAll(r.Body)
+		w.Header().Set("X-Fleet-Capabilities", "orbit_endpoints")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	check := []Check{{
+		Feature: FeatureDesktop, Method: "POST", Path: "/x",
+		Fingerprint: FingerprintCapabilitiesHeader, Auth: AuthOrbitNodeKey,
+	}}
+	// No OrbitNodeKey in Options.
+	_, err := Probe(t.Context(), Options{BaseURL: srv.URL}, check)
+	require.NoError(t, err)
+	assert.Empty(t, got.contentType)
+	assert.Empty(t, got.body)
+}
+
+func TestProbeFingerprintHTMLTitleMatches(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<!doctype html><html><head><title>Fleet</title></head></html>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	check := []Check{{Feature: FeatureMDMIOS, Method: "GET", Path: "/enroll", Fingerprint: FingerprintFleetHTMLTitle}}
+	got, err := Probe(t.Context(), Options{BaseURL: srv.URL}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusReachable, got[0].Status)
+}
+
 func TestLooksLikeFleetJSONError(t *testing.T) {
 	cases := []struct {
 		name string

@@ -1,14 +1,176 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
+
+func newTestApp(writer io.Writer) *cli.App {
+	return &cli.App{
+		Writer:    writer,
+		ErrWriter: io.Discard,
+		Flags:     []cli.Flag{&cli.StringFlag{Name: "root-dir"}},
+		Commands:  []*cli.Command{connectivityCommand},
+		// cli.ExitErrHandler is a no-op so os.Exit isn't called in tests.
+		ExitErrHandler: func(*cli.Context, error) {},
+	}
+}
+
+// fleetishServer returns an httptest server that sets the Fleet capabilities
+// header on every response and echoes 200 — enough to pass the default
+// unauthenticated fingerprint checks for most of the catalogue.
+func fleetishServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(fleet.CapabilitiesHeader, "orbit_endpoints")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"message":"ok","errors":[]}`))
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func exitCodeOf(err error) int {
+	if err == nil {
+		return 0
+	}
+	if ec, ok := err.(cli.ExitCoder); ok {
+		return ec.ExitCode()
+	}
+	return -1
+}
+
+func TestConnectivityCommand_Reachable(t *testing.T) {
+	srv := fleetishServer(t)
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--fleet-url", srv.URL,
+		"--features", "osquery,fleet-desktop",
+		"--timeout", "2s",
+	})
+	assert.Equal(t, 0, exitCodeOf(err))
+	assert.Contains(t, out.String(), "Summary:")
+	assert.Contains(t, out.String(), srv.URL)
+}
+
+func TestConnectivityCommand_Blocked(t *testing.T) {
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--fleet-url", "http://127.0.0.1:1",
+		"--features", "osquery",
+		"--timeout", "1s",
+	})
+	assert.Equal(t, 1, exitCodeOf(err))
+	assert.Contains(t, out.String(), "blocked")
+}
+
+func TestConnectivityCommand_NotFleet(t *testing.T) {
+	// Returns 200 with no Fleet markers — fingerprinted endpoints will flag
+	// this as not-fleet (exit 3).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`<html>not fleet</html>`))
+	}))
+	t.Cleanup(srv.Close)
+
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--fleet-url", srv.URL,
+		"--features", "fleetctl",
+		"--timeout", "2s",
+	})
+	assert.Equal(t, 3, exitCodeOf(err))
+	assert.Contains(t, out.String(), "not-fleet")
+}
+
+func TestConnectivityCommand_List(t *testing.T) {
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{"orbit", "connectivity-check", "--list"})
+	assert.Equal(t, 0, exitCodeOf(err))
+	assert.Contains(t, out.String(), "/api/osquery/enroll")
+	assert.Contains(t, out.String(), "/mdm/apple/scep")
+}
+
+func TestConnectivityCommand_JSON(t *testing.T) {
+	srv := fleetishServer(t)
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--fleet-url", srv.URL,
+		"--features", "osquery",
+		"--timeout", "2s",
+		"--json",
+	})
+	assert.Equal(t, 0, exitCodeOf(err))
+
+	var parsed map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(out.Bytes(), &parsed), "output must be valid JSON")
+	assert.Contains(t, parsed, "fleet_url")
+	assert.Contains(t, parsed, "results")
+	assert.Contains(t, parsed, "summary")
+}
+
+func TestConnectivityCommand_BadFeaturesIsUsageError(t *testing.T) {
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--features", "bogus",
+	})
+	assert.Equal(t, 2, exitCodeOf(err))
+}
+
+func TestConnectivityCommand_MissingEnrollmentStateIsUsageError(t *testing.T) {
+	// No --fleet-url and no --root-dir set → resolveTarget errors as usage.
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{"orbit", "connectivity-check"})
+	assert.Equal(t, 2, exitCodeOf(err))
+}
+
+func TestConnectivityCommand_FromEnrollmentState(t *testing.T) {
+	srv := fleetishServer(t)
+	rootDir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(rootDir, constant.FleetURLFileName),
+		[]byte(srv.URL+"\n"), 0o600,
+	))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(rootDir, constant.OrbitNodeKeyFileName),
+		[]byte("enrolled-key\n"), 0o600,
+	))
+
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "--root-dir", rootDir, "connectivity-check",
+		"--features", "osquery",
+		"--timeout", "2s",
+	})
+	assert.Equal(t, 0, exitCodeOf(err))
+	assert.Contains(t, out.String(), srv.URL)
+}
 
 func TestResolveTargetOverride(t *testing.T) {
 	srcCert, err := os.ReadFile(filepath.Join("..", "..", "pkg", "cryptoinfo", "testdata", "test_crt.pem"))
