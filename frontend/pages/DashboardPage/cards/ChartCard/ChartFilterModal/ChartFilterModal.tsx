@@ -293,7 +293,7 @@ const ChartFilterModal = ({
       </div>
       <div className={`${baseClass}__btn-wrap`}>
         {hasFilters && (
-          <Button variant="text-link" onClick={handleClear}>
+          <Button variant="inverse" onClick={handleClear}>
             Clear all
           </Button>
         )}
