@@ -3942,11 +3942,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestJSONConfigurationProfileEscap
 	const (
 		declIdentifier     = "com.fleetdm.json.escape.test"
 		secretPasswordName = "JSON_ESCAPE_PASSWORD"
+
+		// Values contain characters that break naive JSON string interpolation
+		// (double quote, backslash, and XML-significant chars for completeness).
+		secretPasswordValue = `custom"password\tag&<>` //nolint:gosec // G101: test fixture, not a credential
+		apiKeyValue         = `my"api&key\v`           //nolint:gosec // G101: test fixture, not a credential
 	)
-	// Values contain characters that break naive JSON string interpolation
-	// (double quote, backslash, and XML-significant chars for completeness).
-	const secretPasswordValue = `custom"password\tag&<>` //nolint:gosec // G101: test fixture, not a credential
-	const apiKeyValue = `my"api&key\v`                   //nolint:gosec // G101: test fixture, not a credential
 
 	t.Setenv("FLEET_SECRET_"+secretPasswordName, secretPasswordValue)
 	t.Setenv("API_KEY", apiKeyValue)
