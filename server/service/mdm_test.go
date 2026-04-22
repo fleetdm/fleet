@@ -2983,3 +2983,73 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 }
+
+func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
+	ds := new(mock.Store)
+	cfg := config.TestConfig()
+	cfg.Server.VPPVerifyTimeout = 30 * time.Second // non-default to distinguish from frontend fallback of 600s
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	testHost := &fleet.Host{ID: 1, UUID: "host-uuid-1", Hostname: "test-host"}
+	const testCommandUUID = "cmd-uuid-1"
+
+	t.Run("populates metadata with timeout and install status", func(t *testing.T) {
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{
+				{HostUUID: hostUUID, CommandUUID: commandUUID, RequestType: "InstallApplication"},
+			}, nil
+		}
+		ds.GetVPPAppInstallStatusByCommandUUIDFunc = func(ctx context.Context, commandUUID string) (bool, error) {
+			return true, nil
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NotNil(t, results[0].ResultsMetadata)
+		require.Equal(t, true, results[0].ResultsMetadata["software_installed"])
+		require.Equal(t, 30, results[0].ResultsMetadata["vpp_verify_timeout_seconds"])
+		require.Equal(t, testHost.Hostname, results[0].Hostname)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.True(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+
+	t.Run("returns results without metadata on install status error", func(t *testing.T) {
+		ds.GetVPPCommandResultsFuncInvoked = false
+		ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = false
+
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{
+				{HostUUID: hostUUID, CommandUUID: commandUUID, RequestType: "InstallApplication"},
+			}, nil
+		}
+		ds.GetVPPAppInstallStatusByCommandUUIDFunc = func(ctx context.Context, commandUUID string) (bool, error) {
+			return false, errors.New("db error")
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.Nil(t, results[0].ResultsMetadata)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.True(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+
+	t.Run("skips install status check on empty results", func(t *testing.T) {
+		ds.GetVPPCommandResultsFuncInvoked = false
+		ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = false
+
+		ds.GetVPPCommandResultsFunc = func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+			return []*fleet.MDMCommandResult{}, nil
+		}
+
+		deviceCtx := test.HostContext(ctx, testHost)
+		results, err := svc.GetMDMCommandResults(deviceCtx, testCommandUUID, "")
+		require.NoError(t, err)
+		require.Empty(t, results)
+		require.True(t, ds.GetVPPCommandResultsFuncInvoked)
+		require.False(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
+	})
+}
