@@ -1085,7 +1085,6 @@ type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRota
 
 type SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
 
-
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3455,7 +3454,6 @@ type DataStore struct {
 
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc        SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked bool
-
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8340,7 +8338,6 @@ func (s *DataStore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx contex
 	s.mu.Unlock()
 	return s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc(ctx)
 }
-
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
