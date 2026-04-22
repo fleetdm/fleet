@@ -130,7 +130,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage
-  description: Fork the best practices GitHub repo and use the included GitHub Actions or GitLab CI/CD pipelines to quickly automate Fleet console and configuration workflow management.
+  description: Run `fleetctl new` and use the included GitHub Actions or GitLab CI/CD pipelines to quickly manage your computers as code (configuration as code).
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
@@ -146,16 +146,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/41409
     - description: Add Fleet-maintained apps to policies via GitOps to automatically install software when a policy fails (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
-- industryName: GitOps mode exceptions
-  description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/gitops
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Configuration]
-  usualDepartment: IT
+    - description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
 #
 #  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
@@ -243,7 +235,7 @@
 #  ╔╦╗╔╦╗╔╦╗  ╔╦╗╦╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
+- industryName: MDM migration
   description: Easily move your macOS, iOS/iPadOS, Windows, and Linux devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
@@ -252,6 +244,9 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
+  waysToUse:
+    - description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
 #  
 #  ╔═╗╔═╗╦═╗╔═╗  ╔╦╗╔═╗╦ ╦╔═╗╦ ╦  ╔═╗╔═╗╔╦╗╦ ╦╔═╗
 #  ╔═╝║╣ ╠╦╝║ ║───║ ║ ║║ ║║  ╠═╣  ╚═╗║╣  ║ ║ ║╠═╝
@@ -273,21 +268,13 @@
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
     - description: Configuration profiles are delivered to Apple hosts almost immediately after DEP enrollment instead of waiting for the next reconciler cycle (4.84).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/34433
+    - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
   demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
       moreInfoUrl: https://youtu.be/secV4NCGYPg
-- industryName: Apple Business (AB) assignment visibility
-  description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
-  tier: Premium
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Devices]
 #
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
@@ -301,9 +288,6 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
-  waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
 - industryName: Work profiles for personal (BYOD) Android
   description: Separate work data and apps from personal ones with work profiles on personal Android devices.
   documentationUrl: https://fleetdm.com/guides/android-mdm-setup
@@ -322,9 +306,6 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
-  waysToUse:
-    - description: Resend an Android MDM certificate to a specific host to troubleshoot enrollment issues (4.84.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
 - industryName: Account-based user enrollment for iOS/iPadOS
   description: Manage work data on personally-owned (BYOD) iPhones and iPads using a user’s managed Apple Account, without accessing personal apps or data.
   documentationUrl: https://github.com/fleetdm/fleet/issues/27390
@@ -478,18 +459,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Automatically rotate the Recovery Lock password on a schedule so passwords are never reused (4.84.0).
+    - description: Automatically rotate the Recovery Lock password 1 hour after they're viewed so passwords are never reused (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/41003
-- industryName: ACME for MDM protocol certificates
-  description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/31289
-  tier: Premium
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Devices]
 #  
 #  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗╔═╗
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╠═╝║╣ ╠╦╝╠═╣ ║ ║║║║║ ╦  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ║ ║╠═╝ ║║╠═╣ ║ ║╣ ╚═╗
@@ -558,12 +529,13 @@
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
-- industryName: Device health
-  friendlyName: Automate device health
-  description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+- industryName: Conditional access
+  friendlyName: Device health
+  description: Block end users from accessing corporate resources when their device fails Fleet policies, using Okta or Microsoft Entra ID conditional access.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
   screenshotSrc:
-  tier: Free
+  tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
   productCategories: [Device management,Endpoint operations]
@@ -578,6 +550,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
+    - description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
   demos:
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
@@ -777,7 +750,7 @@
 #
 #      
 - industryName: Dashboard widgets
-  description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard (4.84.0).
+  description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/41519
   tier: Free
   jamfProHasFeature: yes
@@ -790,8 +763,8 @@
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
 #  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
-- industryName: Queries
-  description: Scheduled or saved queries with optional AI-generated descriptions, and, live queries for real-time data collection.
+- industryName: Reports
+  description: Reports with optional AI-generated descriptions, and, live reports for real-time data collection.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
   tier: Free
   jamfProHasFeature: no
@@ -802,6 +775,8 @@
   waysToUse:
     - description: View each report and its first result directly on the Host details page, similar to extension attributes in Jamf (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/40187
+    - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
   demos:
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
@@ -840,9 +815,6 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Devices]
   usualDepartment: IT
-  waysToUse:
-    - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
 #
 #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
 #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
@@ -1254,6 +1226,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/38002
     - description: Automatically retry failed certificate installations up to 3 times on Android hosts (4.84).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37546
+    - description: Resend certificates to a specific Android host to troubleshoot issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
@@ -1307,6 +1281,7 @@
     - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Torq,Custom IdP]
+<<<<<<< HEAD
 - industryName: Entra conditional access (Windows)
   description: Block end users from accessing corporate resources when their Windows device fails Fleet policies, using Microsoft Entra ID conditional access (4.84.0).
   documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
@@ -1321,6 +1296,8 @@
   waysToUse:
     - description: Block end users from accessing corporate resources (e.g. Microsoft 365, SharePoint) when their Windows device fails Fleet policies (4.84).
       moreInfoUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+=======
+>>>>>>> 07a5e70281e71dc9a67450bdd7fa91e4637aad37
 #
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝
