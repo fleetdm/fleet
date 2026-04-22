@@ -61,7 +61,7 @@ func Analyze(
 	logger *slog.Logger,
 	date time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
-	if !IsPlatformSupported(ver.Platform) {
+	if strings.ToLower(ver.Platform) != "ubuntu" {
 		return nil, ErrUnsupportedPlatform
 	}
 
