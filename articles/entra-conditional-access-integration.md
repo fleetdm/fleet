@@ -1,8 +1,6 @@
 # Conditional access: Entra
 
-With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS hosts.
-
-When a host fails a policy in Fleet, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
+This guide covers the Microsoft Entra-specific setup for Fleet's conditional access feature. For an overview of how conditional access works and how to configure policies in Fleet, see the [Conditional access](https://fleetdm.com/guides/conditional-access) guide.
 
 Entra conditional access is supported even if you're not using MDM features in Fleet.
 
@@ -159,11 +157,7 @@ If you're using another MDM solution, add the same configuration profile and tar
 
 ## Step 5: Add Fleet policies
 
-Next, add policies in Fleet that will determine whether a device is marked as "compliant" or "not compliant" in Entra.
-
-Head to **Policies > Automations > Conditional access**.
-1. Make sure the feature is enabled for the fleet.
-2. Select the policies you want enforce conditional access with.
+Follow the steps in the [Conditional access](https://fleetdm.com/guides/conditional-access#configure-conditional-access-policies-in-fleet) guide to enable conditional access and select the policies that will determine whether a device is marked as "compliant" or "not compliant" in Entra.
 
 ## Step 6: Add Entra policies
 

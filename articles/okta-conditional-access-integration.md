@@ -1,8 +1,6 @@
 # Conditional access: Okta
 
-With Fleet, you can integrate with Okta to enforce conditional access on macOS hosts.
-
-When a host fails a policy in Fleet, IT and Security teams can block access to third-party apps until the issue is resolved.
+This guide covers the Okta-specific setup for Fleet's conditional access feature. For an overview of how conditional access works and how to configure policies in Fleet, see the [Conditional access](https://fleetdm.com/guides/conditional-access) guide.
 
 ## Prerequisites
 
@@ -121,13 +119,7 @@ Create an authentication policy rule that requires Fleet verification for macOS 
 
 ## Step 7: Configure conditional access policies in Fleet
 
-Once Okta is configured in settings, head to **Policies**. Select the fleet that you want to enable conditional access for.
-
-1. Go to **Manage automations** > **Conditional access** and enable conditional access.
-2. Select the policies you want to block login via Okta.
-3. Save.
-
-Once enabled, if a user tries to log in to an app that requires Fleet as a factor and their host is failing a selected policy, they will be blocked from logging in. To regain access, the user must fix the issue on their host and then click **Refetch** on the **My device** page to verify the policy is now passing.
+Once Okta is configured, follow the steps in the [Conditional access](https://fleetdm.com/guides/conditional-access#configure-conditional-access-policies-in-fleet) guide to enable conditional access and select policies for your fleet.
 
 ## Disabling Okta conditional access
 
@@ -142,22 +134,7 @@ Once disabled on the Okta side, you can delete the conditional access configurat
 
 ## Bypassing conditional access
 
-End users can temporarily bypass conditional access from their **My device** page if their host is not failing any critical policies. To trigger a bypass, click a non-critical failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
-
-If a host is failing multiple conditional access policies, the bypass option is only available if **no** failing policy is marked critical. If any one of the failing policies is marked critical, the end user will not see the option to bypass and must resolve the issue to regain access. (You can update a policy's `critical` setting on the **Edit policy** page.)
-
-This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**. 
-
-
-
-
-### Per-policy bypass
-
-> **Experimental feature.** The per-policy bypass setting is experimental, and will be replaced with a reference to the policy's `critical` setting in Fleet 4.83.0. To ensure a seamless upgrade, please avoid enabling bypass for policies marked critical.
-
-By default, all conditional access policies allow bypassing. You can control which policies allow bypass individually in **Manage automations** > **Conditional access**. Each policy with conditional access enabled has an additional checkbox to allow or disallow bypass.
-
-If a host is failing multiple conditional access policies, the bypass option is only available if **every** failing policy allows bypass. If any one of the failing policies does not allow bypass, the end user will not see the option to bypass and must resolve the issue to regain access.
+See the [Conditional access](https://fleetdm.com/guides/conditional-access#bypassing-conditional-access) guide for details on how end users can temporarily bypass conditional access.
 
 <meta name="articleTitle" value="Conditional access: Okta">
 <meta name="authorFullName" value="Rachael Shaw">
