@@ -2010,9 +2010,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.hover(option);
       await waitFor(() => {
-        expect(
-          screen.getByText(/at the next enrollment/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/at the next enrollment/i)).toBeInTheDocument();
       });
     });
 
