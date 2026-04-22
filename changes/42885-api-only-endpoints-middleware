@@ -1,0 +1,1 @@
+- Added new middleware (APIOnlyEndpointCheck) that enforces 403 for API-only users whose request either isn't in the API endpoint catalog or falls outside their configured per-user endpoint restrictions.

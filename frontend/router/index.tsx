@@ -70,7 +70,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
+import Variables from "pages/ManageControlsPage/Variables/Variables";
 import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
@@ -338,7 +338,7 @@ const routes = (
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
-                <Route path="variables" component={Secrets} />
+                <Route path="variables" component={Variables} />
               </Route>
             </Route>
             <Route

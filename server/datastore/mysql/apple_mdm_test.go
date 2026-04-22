@@ -113,6 +113,7 @@ func TestMDMApple(t *testing.T) {
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
 		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
 		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
@@ -10117,6 +10118,96 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		// Deleting unexisting declaration should not fail.
 		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D3")
 		require.NoError(t, err)
+	}
+
+	t.Run("No team", func(t *testing.T) {
+		runTest(t, nil)
+	})
+
+	t.Run("Team", func(t *testing.T) {
+		team, err := ds.NewTeam(t.Context(), &fleet.Team{
+			Name: t.Name(),
+		})
+		require.NoError(t, err)
+		runTest(t, &team.ID)
+	})
+}
+
+func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	runTest := func(t *testing.T, teamID *uint) {
+		// Create a declaration with mixed-case name.
+		appleDecls := []*fleet.MDMAppleDeclaration{
+			declForTest("Software Update Settings", "SUS", "{}"),
+		}
+		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Read back and capture the declaration UUID.
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		origUUID := profs[0].ProfileUUID
+		require.Equal(t, "Software Update Settings", profs[0].Name)
+		origIdentifier := profs[0].Identifier
+
+		// Create two hosts and enroll them.
+		var opts []test.NewHostOption
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		host1 := test.NewHost(t, ds, "host1", "1"+t.Name(), "h1key"+t.Name(), "host1uuid"+t.Name(), time.Now(), opts...)
+		host2 := test.NewHost(t, ds, "host2", "2"+t.Name(), "h2key"+t.Name(), "host2uuid"+t.Name(), time.Now(), opts...)
+		nanoEnroll(t, ds, host1, false)
+		nanoEnroll(t, ds, host2, false)
+		for _, h := range []*fleet.Host{host1, host2} {
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			require.NoError(t, err)
+		}
+
+		// Force host1 to have a verified install, host2 to have a pending install.
+		forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, "")
+
+		// Batch-set again with only the name case changed (lowercase).
+		appleDecls = []*fleet.MDMAppleDeclaration{
+			declForTest("software update settings", "SUS", "{}"),
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Sub-test 1: case change preserves declaration UUID and updates name.
+		t.Run("preserves declaration UUID", func(t *testing.T) {
+			profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, profs, 1, "expected exactly 1 declaration, got %d (duplicate created)", len(profs))
+			require.Equal(t, origUUID, profs[0].ProfileUUID, "declaration UUID should not change on name case change")
+			require.Equal(t, "software update settings", profs[0].Name, "name should be updated to new case")
+			require.Equal(t, origIdentifier, profs[0].Identifier, "identifier should be unchanged")
+		})
+
+		// Sub-test 2: verified install is NOT turned into a remove+reinstall.
+		t.Run("verified install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host1.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 3: pending install is NOT turned into a remove.
+		t.Run("pending install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host2.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 4: host profile has updated name for the declaration.
+		t.Run("host profile reflects name change", func(t *testing.T) {
+			profs, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+			require.NoError(t, err)
+			require.Len(t, profs, 1)
+			require.Equal(t, "software update settings", profs[0].Name, "host profile should reflect declaration name change")
+		})
 	}
 
 	t.Run("No team", func(t *testing.T) {
