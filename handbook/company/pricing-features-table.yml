@@ -150,7 +150,6 @@
   description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows.
   documentationUrl: https://fleetdm.com/docs/using-fleet/gitops
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
-  comingSoonOn: "2026-04-24 (4.84.0)"
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -281,7 +280,6 @@
   description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
-  comingSoonOn: "2026-04-24 (4.84.0)"
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -484,7 +482,6 @@
   description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/31289
-  comingSoonOn: "2026-04-24 (4.84.0)"
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -778,7 +775,6 @@
 - industryName: Dashboard widgets
   description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/41519
-  comingSoonOn: "2026-04-24 (4.84.0)"
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -1304,7 +1300,6 @@
   description: Block end users from accessing corporate resources when their Windows device fails Fleet policies, using Microsoft Entra ID conditional access.
   documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
-  comingSoonOn: "2026-04-24 (4.84.0)"
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
