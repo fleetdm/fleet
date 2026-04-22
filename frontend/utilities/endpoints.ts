@@ -197,6 +197,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_DEVICE_URL: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/device_url`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
