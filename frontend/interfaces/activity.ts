@@ -163,6 +163,10 @@ export enum ActivityType {
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
   ClearedPasscode = "cleared_passcode",
+  EnabledManagedLocalAccount = "enabled_managed_local_account",
+  DisabledManagedLocalAccount = "disabled_managed_local_account",
+  ViewedManagedLocalAccount = "read_managed_local_account",
+  CreatedManagedLocalAccount = "created_managed_local_account",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -186,7 +190,9 @@ export type IHostPastActivityType =
   | ActivityType.CanceledSetupExperience
   | ActivityType.InstalledCertificate
   | ActivityType.ResentCertificate
-  | ActivityType.ClearedPasscode;
+  | ActivityType.ClearedPasscode
+  | ActivityType.ViewedManagedLocalAccount
+  | ActivityType.CreatedManagedLocalAccount;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -469,4 +475,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
   [ActivityType.ClearedPasscode]: "Cleared passcode",
+  [ActivityType.EnabledManagedLocalAccount]: "Turned on managed local account",
+  [ActivityType.DisabledManagedLocalAccount]:
+    "Turned off managed local account",
+  [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
+  [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
 };

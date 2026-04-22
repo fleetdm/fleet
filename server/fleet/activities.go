@@ -825,7 +825,7 @@ type ActivityTypeViewedManagedLocalAccount struct {
 }
 
 func (a ActivityTypeViewedManagedLocalAccount) ActivityName() string {
-	return "viewed_managed_local_account"
+	return "read_managed_local_account"
 }
 
 func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {

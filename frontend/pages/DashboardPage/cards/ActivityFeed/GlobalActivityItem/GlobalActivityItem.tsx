@@ -512,6 +512,54 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enabled managed local accounts for hosts assigned to the{" "}
+        {activity.details?.team_name ? (
+          <>
+            <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "hosts with no fleet."
+        )}
+      </>
+    );
+  },
+  disabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled managed local accounts for hosts assigned to the{" "}
+        {activity.details?.team_name ? (
+          <>
+            <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "hosts with no fleet."
+        )}
+      </>
+    );
+  },
+  viewedManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the managed local account on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        created a managed local account for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -1922,6 +1970,18 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.EnabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.enabledManagedLocalAccount(activity);
+    }
+    case ActivityType.DisabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.disabledManagedLocalAccount(activity);
+    }
+    case ActivityType.ViewedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
+    }
+    case ActivityType.CreatedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
     }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
