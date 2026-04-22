@@ -2269,7 +2269,7 @@ func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, t
 
 func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
+	tx sqlx.QueryerContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
@@ -2328,13 +2328,7 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
-	var result []*fleet.MDMWindowsProfilePayload
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = ds.listMDMWindowsProfilesToInstallDB(ctx, tx, []string{hostUUID}, nil)
-		return err
-	})
-	return result, err
+	return ds.listMDMWindowsProfilesToInstallDB(ctx, ds.reader(ctx), []string{hostUUID}, nil)
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {

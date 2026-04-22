@@ -2020,7 +2020,8 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
 			// BlockInStatusPage: 2 = block user, show "Try again" button on failure.
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "2"),
-			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds)),
+			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
 			// PolicyProviders/{providerID} is a dynamic node -- must be created
 			// with Add before its children can be set with Replace.
 			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
@@ -2117,9 +2118,15 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
 
-	if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone); err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to set awaiting configuration to none", "err", err)
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
+	}
+	if !transitioned {
+		// Another concurrent checkin already released the device. Skip
+		// re-sending release commands to avoid churn.
+		return nil, nil
 	}
 
 	svc.logger.InfoContext(ctx, "ESP: releasing device from setup", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "timed_out", timedOut)
