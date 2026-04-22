@@ -30,7 +30,7 @@
 		</dict>
 		<dict>
 			<key>PayloadDisplayName</key>
-			<string>CIS 2.6.3.1 - allowDiagnosticSubmission</string>
+			<string>CIS 2.6.3.4 - allowDiagnosticSubmission</string>
 			<key>PayloadType</key>
 			<string>com.apple.applicationaccess</string>
 			<key>PayloadIdentifier</key>
