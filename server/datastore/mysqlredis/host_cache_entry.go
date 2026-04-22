@@ -8,16 +8,16 @@ import (
 
 // hostCacheEntry is the cached shape of a fleet.Host as returned by
 // LoadHostByNodeKey. It exists because fleet.Host tags several critical fields
-// with `json:"-"` — NodeKey, OrbitNodeKey, OsqueryHostID, HasHostIdentityCert,
-// Platform — to keep them out of HTTP API responses. Using fleet.Host directly
-// with encoding/json would silently drop those fields on cache round-trip and
-// break auth (HasHostIdentityCert → nil would skip the httpsig check).
+// with `json:"-"` — NodeKey, OrbitNodeKey, OsqueryHostID, HasHostIdentityCert
+// — to keep them out of HTTP API responses. Using fleet.Host directly with
+// encoding/json would silently drop those fields on cache round-trip and break
+// auth (HasHostIdentityCert → nil would skip the httpsig check).
 //
 // The field set mirrors LoadHostByNodeKey's SELECT list in
 // server/datastore/mysql/hosts.go. When that query gains a new column that
 // downstream code reads, this struct and the conversion functions below must
-// be updated in lockstep. TestHostCachePreservesLoadHostByNodeKeyFields (in
-// host_cache_test.go) is intended to catch drift.
+// be updated in lockstep. TestHostCacheEntryRoundTrip (in host_cache_test.go)
+// is intended to catch drift.
 type hostCacheEntry struct {
 	ID                          uint          `json:"id"`
 	OsqueryHostID               *string       `json:"osquery_host_id,omitempty"`
