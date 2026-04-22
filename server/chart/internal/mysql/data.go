@@ -71,17 +71,6 @@ func (ds *Datastore) recordAccumulate(
 	}
 
 	// Fetch the current in-bucket bitmaps so we can OR-merge before writing.
-	// ODKU alone can't do this — VALUES(host_bitmap) would overwrite, not OR.
-	// @todo: MySQL 8.0 supports bitwise ops on binary strings, so this could
-	//        be collapsed into a single ODKU statement like:
-	//          host_bitmap = RPAD(host_bitmap, GREATEST(LENGTH(host_bitmap),
-	//                         LENGTH(new.host_bitmap)), _binary 0x00)
-	//                      | RPAD(new.host_bitmap, ..., _binary 0x00)
-	//        using the row-alias form (VALUES() is deprecated in 8.0.20+).
-	//        Skipped for now: single-writer cron means no concurrent-OR race,
-	//        the SELECT is a unique-key lookup, and the SQL reads less
-	//        clearly than Go-side merge. Revisit if we ever have multiple
-	//        concurrent writers or if the round-trip becomes a hotspot.
 	existing := make(map[string][]byte, len(entityIDs))
 	if len(entityIDs) > 0 {
 		query, args, err := sqlx.In(

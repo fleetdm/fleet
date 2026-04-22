@@ -29,6 +29,8 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 	}
 	bucketStart := now.UTC().Truncate(time.Hour)
 	return store.RecordBucketData(ctx, u.Name(), bucketStart, time.Hour, u.SampleStrategy(),
+		// The empty string key means "all entities" since uptime isn't tracked per host.
+		// The value is a bitmap of host IDs that were active in this bucket.
 		map[string][]byte{"": HostIDsToBlob(hostIDs)})
 }
 
