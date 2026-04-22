@@ -1314,32 +1314,20 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
-### osquery_max_log_write_body_size
+### osquery_allow_body_auth_fallback
 
-> `osquery_max_log_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+Selects how host-authenticated osquery requests are authenticated.
 
-Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+When `true` (default), the `Authorization: NodeKey` header is ignored entirely and only body-based `node_key` auth is used.
 
-- Default value: `10MiB`
-- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+When `false`, the `Authorization: NodeKey` header is required and the body's `node_key` field is not consulted. The HTTP-level pre-auth middleware rejects requests with absent or invalid headers BEFORE the request body is read. On `/api/osquery/carve/block` the same pre-auth additionally enforces that the carve's `host_id` matches the authenticated host.
+
+- Default value: `true`
+- Environment variable: `FLEET_OSQUERY_ALLOW_BODY_AUTH_FALLBACK`
 - Config file format:
   ```yaml
   osquery:
-    max_log_write_body_size: 20MiB
-  ```
-
-### osquery_max_distributed_write_body_size
-
-> `osquery_max_distributed_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
-
-Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
-
-- Default value: `5MiB`
-- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
-- Config file format:
-  ```yaml
-  osquery:
-    max_distributed_write_body_size: 10MiB
+    allow_body_auth_fallback: false
   ```
 
 ## External activity audit logging
