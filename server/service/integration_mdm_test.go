@@ -23242,6 +23242,229 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	// =========================================================================
+	// Test: MDM re-enrollment invalidates the stored recovery lock password
+	// =========================================================================
+	t.Run("re-enrollment soft-deletes stored password and cron re-SETs", func(t *testing.T) {
+		// Enable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		// Run cron → pending, then ack → verified.
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		originalCmdUUID := cmd.CommandUUID
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Host detail API reports verified.
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// Capture the original password so we can assert it changes after re-SET.
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotEmpty(t, originalPassword)
+
+		// Simulate device re-enrollment (MDM profile was removed, device re-enrolls).
+		// macOS clears the recovery lock password on MDM profile renewal or wipe.
+		require.NoError(t, mdmClient.Reenroll())
+
+		// Host detail API should now report no recovery lock state — same as a fresh host.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after re-enrollment; row was soft-deleted")
+		assert.False(t, rlpStatus.PasswordAvailable, "stored password must not be viewable after re-enrollment")
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		// Run cron again: it must see the host as eligible and enqueue a fresh SetRecoveryLock.
+		runRecoveryLockCron(t)
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status, "cron must re-enqueue SetRecoveryLock after re-enrollment")
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// Ack the re-enrollment's fresh command.
+		cmd, err = mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "a fresh SetRecoveryLock command must be delivered after re-enrollment")
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		assert.NotEqual(t, originalCmdUUID, cmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Verified again, with a different password than before the re-enrollment.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password,
+			"a new password must be generated after re-enrollment; the original is no longer on the device")
+
+		// Disable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: Admin-initiated MDM unenroll soft-deletes the stored recovery lock
+	// =========================================================================
+	t.Run("admin API unenroll soft-deletes stored recovery lock password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Verified before the unenroll.
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// PATCH /mdm/hosts/:id/unenroll → UnenrollMDM → MDMTurnOff.
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", host.ID), nil, http.StatusNoContent)
+
+		// Host detail API now reports no recovery lock; view-password endpoint 404s.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after admin-initiated unenroll")
+		assert.False(t, rlpStatus.PasswordAvailable, "stored password must not be viewable after unenroll")
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		// Direct DB row is soft-deleted.
+		var deleted bool
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &deleted,
+				`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		})
+		assert.True(t, deleted, "row must be soft-deleted")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: Device-initiated CheckOut soft-deletes the stored recovery lock
+	// =========================================================================
+	t.Run("device CheckOut soft-deletes stored recovery lock password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Device sends CheckOut (user removed the MDM profile and the device voluntarily
+		// signaled it). nanomdm dispatches to MDMAppleCheckinAndCommandService.CheckOut →
+		// mdmLifecycle.Do(HostActionTurnOff) → MDMTurnOff → soft-delete via the helper.
+		require.NoError(t, mdmClient.Checkout())
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after device CheckOut")
+		assert.False(t, rlpStatus.PasswordAvailable)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: manual profile removal (osquery reports enrolled=false) is caught
+	// by the recovery-lock cron sweep on its next tick.
+	// =========================================================================
+	t.Run("cron sweep soft-deletes stored recovery lock password when host reports enrolled=false", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Helper: read the deleted flag directly from host_recovery_key_passwords,
+		// bypassing the deleted=0 filter used by the datastore readers. This lets us
+		// distinguish "row soft-deleted" from "row hard-deleted" — the cron sweep must
+		// only soft-delete.
+		readDeleted := func() bool {
+			t.Helper()
+			var deleted bool
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &deleted,
+					`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+			})
+			return deleted
+		}
+
+		// Simulate the osquery ingest path that detects manual profile removal: the
+		// device user removed the MDM profile but no CheckOut fired. osquery reports
+		// enrolled=false via SetOrUpdateMDMData. The status is still stale until the
+		// recovery-lock cron runs its sweep.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, false, "", false, "", "", false))
+
+		// Pre-cron precondition: the row is live (deleted=0). SetOrUpdateMDMData only
+		// flipped host_mdm.enrolled; the stale verified row still exists and the API
+		// still returns it. The UI guard (hostIsMdmEnrolled check) hides it on the
+		// client side until the next cron tick reconciles the backend.
+		assert.False(t, readDeleted(), "precondition: row must still be live before cron sweep")
+
+		// Cron tick runs SoftDeleteRecoveryLockPasswordsForUnenrolledHosts which sweeps
+		// any live row whose host_mdm.enrolled=0.
+		runRecoveryLockCron(t)
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "cron sweep must soft-delete rows for unenrolled hosts")
+		assert.False(t, rlpStatus.PasswordAvailable)
+		assert.True(t, readDeleted(), "cron sweep must soft-delete the row (deleted=1), not hard-delete it")
+
+		// A second cron tick is idempotent — the rkp.deleted=0 guard excludes the
+		// already-swept row.
+		runRecoveryLockCron(t)
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status)
+		assert.True(t, readDeleted(), "row still soft-deleted after a second cron tick")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 		"mdm": map[string]any{"enable_recovery_lock_password": false},

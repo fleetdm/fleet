@@ -618,6 +618,11 @@ var hostRefs = []string{
 // want to keep the enrollment relationship even if the host is temporarily
 // deleted from the UI. Re-enrollment sometimes is not straightforward like it
 // is for osquery/fleetd
+// - host_recovery_key_passwords: keyed by host_uuid, intentionally preserved across
+// host deletion. The device may still be enrolled in MDM with the password intact;
+// Orbit re-enrollment recreates the host row and the existing password row remains
+// reachable for view/rotate. Apple-MDM unenroll/re-enroll is handled separately by
+// MDMResetEnrollment, which soft-deletes the row.
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
