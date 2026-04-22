@@ -758,7 +758,7 @@
 #  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
 #  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
 - industryName: Queries
-  description: Scheduled or saved queries with optional AI-generated descriptions, and, live queries for real-time data collection.
+  description: Reports with optional AI-generated descriptions, and, live reports for real-time data collection.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
   tier: Free
   jamfProHasFeature: no
