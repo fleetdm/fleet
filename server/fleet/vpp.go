@@ -86,6 +86,10 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
+	// MetadataRegion is the App Store storefront region ("us", "gb", ...) from which this
+	// app's metadata was last successfully fetched. Used to target the correct storefront
+	// when refreshing metadata. Empty for apps added before the multi-region feature.
+	MetadataRegion string `db:"metadata_region" json:"-"`
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.

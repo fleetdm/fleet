@@ -757,9 +757,11 @@ func (ds *Datastore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) er
 }
 
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
+	// metadata_region uses COALESCE on update so that callers refreshing latest_version
+	// without knowing the region (e.g., the refresh cron) don't accidentally null it out.
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform, metadata_region)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -767,14 +769,19 @@ ON DUPLICATE KEY UPDATE
 	latest_version = VALUES(latest_version),
 	icon_url = VALUES(icon_url),
 	name = VALUES(name),
-	title_id = VALUES(title_id)
+	title_id = VALUES(title_id),
+	metadata_region = COALESCE(VALUES(metadata_region), metadata_region)
 	`
 	var args []any
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?, ?),`)
+		var region any
+		if a.MetadataRegion != "" {
+			region = a.MetadataRegion
+		}
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform, region)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -1997,7 +2004,8 @@ SELECT
 	icon_url,
 	name,
 	latest_version,
-	platform
+	platform,
+	COALESCE(metadata_region, '') AS metadata_region
 FROM vpp_apps WHERE platform IN (?)`
 
 	query, args, err := sqlx.In(query, fleet.ApplePlatforms)

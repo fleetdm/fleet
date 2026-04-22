@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
-		baseURL := getBaseURL(false)
+		baseURL := getBaseURL(false, "")
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -27,11 +28,16 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
+	t.Run("Region argument picks storefront", func(t *testing.T) {
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/gb?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "gb"))
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/de/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(true, "de"))
+	})
+
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL, t)
-		require.Equal(t, customURL, getBaseURL(false))
-		require.Equal(t, customURL, getBaseURL(true)) // dev env var should override config param default behavior
+		require.Equal(t, customURL, getBaseURL(false, "us"))
+		require.Equal(t, customURL, getBaseURL(true, "us")) // dev env var should override config param default behavior
 
 		req, err := buildMetadataRequest(customURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
@@ -39,16 +45,17 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
-	t.Run("Custom Region", func(t *testing.T) {
+	t.Run("Custom Region via dev env var", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false))
+		// Dev override takes precedence over caller-provided region.
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "us"))
 	})
 
 	t.Run("Direct to Apple via FLEET_DEV env var", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "", t)
-		baseURL := getBaseURL(false)
+		baseURL := getBaseURL(false, "")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -59,7 +66,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 
 	t.Run("Direct to Apple due to bearer token override", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		baseURL := getBaseURL(true)
+		baseURL := getBaseURL(true, "us")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/fr/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -74,8 +81,8 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) Config {
 	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL, t)
 	t.Cleanup(server.Close)
 	return Config{
-		baseURL:       server.URL,
-		authenticator: func(bool) (string, error) { return "bearer-token", nil },
+		baseURLForRegion: func(string) string { return server.URL },
+		authenticator:    func(bool) (string, error) { return "bearer-token", nil },
 	}
 }
 
@@ -95,7 +102,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"123"}, "vppToken", config)
+		result, err := GetMetadata([]string{"123"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 1, callCount)
 		require.Len(t, result, 1)
@@ -120,7 +127,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"456"}, "vppToken", config)
+		result, err := GetMetadata([]string{"456"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 2, callCount)
 		require.Len(t, result, 1)
@@ -135,7 +142,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_, _ = w.Write([]byte("persistent server error"))
 		})
 
-		_, err := GetMetadata([]string{"789"}, "vppToken", config)
+		_, err := GetMetadata([]string{"789"}, "us", "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieving asset metadata")
 		// Should have retried 3 times (max attempts)
@@ -150,7 +157,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_, _ = w.Write([]byte("unauthorized"))
 		})
 
-		_, err := GetMetadata([]string{"999"}, "vppToken", config)
+		_, err := GetMetadata([]string{"999"}, "us", "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "auth")
 		// Should have called twice: initial + one retry with forceRenew, then bail
@@ -170,12 +177,159 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"111", "222", "333"}, "vppToken", config)
+		result, err := GetMetadata([]string{"111", "222", "333"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 		require.Equal(t, "App One", result["111"].Attributes.Name)
 		require.Equal(t, "App Two", result["222"].Attributes.Name)
 		require.Equal(t, "App Three", result["333"].Attributes.Name)
+	})
+}
+
+// setupFakeRegionalServer returns a Config whose URL carries ?region=<r> so the handler
+// can respond differently per region.
+func setupFakeRegionalServer(t *testing.T, handler func(region string, w http.ResponseWriter, r *http.Request)) Config {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler(r.URL.Query().Get("region"), w, r)
+	}))
+	t.Cleanup(server.Close)
+	return Config{
+		baseURLForRegion: func(region string) string {
+			return server.URL + "?region=" + region
+		},
+		authenticator: func(bool) (string, error) { return "bearer-token", nil },
+	}
+}
+
+func TestGetMetadataWithFallback(t *testing.T) {
+	t.Run("all adamIDs resolve in us on first call", func(t *testing.T) {
+		var callsByRegion = map[string]int{}
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			callsByRegion[region]++
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(metadataResp{Data: []Metadata{
+				{ID: "111", Attributes: Attributes{Name: "App One"}},
+				{ID: "222", Attributes: Attributes{Name: "App Two"}},
+			}})
+		})
+
+		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "222"}, nil, "tok", config)
+		require.NoError(t, err)
+		require.Len(t, metadata, 2)
+		require.Equal(t, "App One", metadata["111"].Attributes.Name)
+		require.Equal(t, "us", resolved["111"])
+		require.Equal(t, "us", resolved["222"])
+		require.Equal(t, 1, callsByRegion["us"])
+		require.Zero(t, callsByRegion["gb"])
+	})
+
+	t.Run("walks fallback chain and shrinks batch per hop", func(t *testing.T) {
+		// Coverage per region: us has 111; gb has 222; fr has 333.
+		coverage := map[string]map[string]bool{
+			"us": {"111": true},
+			"gb": {"222": true},
+			"fr": {"333": true},
+		}
+		callsByRegion := map[string]int{}
+		batchSizes := map[string]int{}
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			callsByRegion[region]++
+			ids := strings.Split(r.URL.Query().Get("ids"), ",")
+			batchSizes[region] = len(ids)
+			var data []Metadata
+			for _, id := range ids {
+				if coverage[region][id] {
+					data = append(data, Metadata{ID: id, Attributes: Attributes{Name: "App " + id + " from " + region}})
+				}
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(metadataResp{Data: data})
+		})
+
+		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "222", "333"}, nil, "tok", config)
+		require.NoError(t, err)
+		require.Len(t, metadata, 3)
+		require.Equal(t, "us", resolved["111"])
+		require.Equal(t, "gb", resolved["222"])
+		require.Equal(t, "fr", resolved["333"])
+		require.Equal(t, 1, callsByRegion["us"])
+		require.Equal(t, 1, callsByRegion["gb"])
+		require.Equal(t, 1, callsByRegion["de"])
+		require.Equal(t, 1, callsByRegion["fr"])
+		require.Zero(t, callsByRegion["it"], "should have short-circuited once all adamIDs were resolved")
+		require.Zero(t, callsByRegion["es"])
+		require.Equal(t, 3, batchSizes["us"])
+		require.Equal(t, 2, batchSizes["gb"], "gb batch should exclude what us already resolved")
+		require.Equal(t, 1, batchSizes["de"])
+	})
+
+	t.Run("silently omits adamIDs not found in any region", func(t *testing.T) {
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			if region == "us" {
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(metadataResp{Data: []Metadata{
+					{ID: "111", Attributes: Attributes{Name: "App One"}},
+				}})
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(metadataResp{})
+		})
+
+		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "does-not-exist"}, nil, "tok", config)
+		require.NoError(t, err)
+		require.Len(t, metadata, 1)
+		require.Contains(t, metadata, "111")
+		require.Equal(t, "us", resolved["111"])
+		require.NotContains(t, resolved, "does-not-exist")
+	})
+
+	t.Run("known regions short-circuit the fallback chain", func(t *testing.T) {
+		callsByRegion := map[string]int{}
+		seenIDsPerRegion := map[string][]string{}
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			callsByRegion[region]++
+			ids := strings.Split(r.URL.Query().Get("ids"), ",")
+			seenIDsPerRegion[region] = append(seenIDsPerRegion[region], ids...)
+			data := make([]Metadata, 0, len(ids))
+			for _, id := range ids {
+				data = append(data, Metadata{ID: id, Attributes: Attributes{Name: "App " + id + " from " + region}})
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(metadataResp{Data: data})
+		})
+
+		metadata, resolved, err := GetMetadataWithFallback(
+			context.Background(),
+			nil,
+			[]string{"111", "222", "333"},
+			map[string]string{"111": "de", "222": "fr"},
+			"tok",
+			config,
+		)
+		require.NoError(t, err)
+		require.Len(t, metadata, 3)
+		require.Equal(t, "de", resolved["111"])
+		require.Equal(t, "fr", resolved["222"])
+		require.Equal(t, "us", resolved["333"], "unknowns start from us")
+		require.Equal(t, 1, callsByRegion["de"])
+		require.Equal(t, 1, callsByRegion["fr"])
+		require.Equal(t, 1, callsByRegion["us"])
+		require.ElementsMatch(t, []string{"111"}, seenIDsPerRegion["de"])
+		require.ElementsMatch(t, []string{"222"}, seenIDsPerRegion["fr"])
+		require.ElementsMatch(t, []string{"333"}, seenIDsPerRegion["us"])
+	})
+
+	t.Run("empty input returns empty maps without calling Apple", func(t *testing.T) {
+		called := false
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			called = true
+		})
+		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, nil, nil, "tok", config)
+		require.NoError(t, err)
+		require.Empty(t, metadata)
+		require.Empty(t, resolved)
+		require.False(t, called)
 	})
 }
 
@@ -256,7 +410,8 @@ func TestConfig(t *testing.T) {
 		// Should not have accessed the datastore
 		require.False(t, ds.getAssetsByNameCalled)
 
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURL)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURLForRegion("us"))
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/gb/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURLForRegion("gb"))
 	})
 }
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -66,19 +67,28 @@ type metadataResp struct {
 
 const appleHostAndScheme = "https://api.ent.apple.com"
 
+// DefaultMetadataRegion is the storefront region used when none is known for an adamID.
+// It also heads the fallback chain in GetMetadataWithFallback.
+const DefaultMetadataRegion = "us"
+
+// MetadataFallbackRegions is the ordered list of regions to try when an adamID's metadata
+// isn't available in the default region. Most App Store apps are global, so fallbacks are
+// expected to fire only for region-exclusive apps.
+var MetadataFallbackRegions = []string{"us", "gb", "de", "fr", "it", "es"}
+
 // authenticator returns a bearer token for the VPP metadata service (proxied or direct), or an error if once can't be
 // retrieved. If forceRenew is true, bypasses the database bearer token cache if it would've otherwise been used.
 type authenticator func(forceRenew bool) (string, error)
 
 type Config struct {
-	baseURL       string
-	authenticator authenticator
+	baseURLForRegion func(region string) string
+	authenticator    authenticator
 }
 
 func StubbedConfig() Config {
 	return Config{
-		baseURL:       getBaseURL(false),
-		authenticator: func(forceRenew bool) (string, error) { return "", nil },
+		baseURLForRegion: func(region string) string { return getBaseURL(false, region) },
+		authenticator:    func(forceRenew bool) (string, error) { return "", nil },
 	}
 }
 
@@ -88,8 +98,17 @@ func StubbedConfig() Config {
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
-func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]Metadata, error) {
-	req, err := buildMetadataRequest(config.baseURL, adamIDs, vppToken)
+// GetMetadata fetches metadata for the given adamIDs from a single storefront region.
+// Missing adamIDs are silently omitted from the returned map.
+func GetMetadata(adamIDs []string, region string, vppToken string, config Config) (map[string]Metadata, error) {
+	if len(adamIDs) == 0 {
+		return map[string]Metadata{}, nil
+	}
+	if region == "" {
+		region = DefaultMetadataRegion
+	}
+
+	req, err := buildMetadataRequest(config.baseURLForRegion(region), adamIDs, vppToken)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +140,120 @@ func GetMetadata(adamIDs []string, vppToken string, config Config) (map[string]M
 	}
 
 	return metadata, nil
+}
+
+// GetMetadataWithFallback fetches metadata for the given adamIDs, using known regions when
+// provided and walking MetadataFallbackRegions for any adamIDs without a known region.
+//
+// adamIDs:        full set of adamIDs to look up.
+// knownRegions:   optional map of adamID -> region to use directly (no fallback). adamIDs
+//
+//	listed here are grouped by region and fetched in a single batched call
+//	per region.
+//
+// If logger is non-nil, the fallback walk is logged verbosely at InfoContext level — useful
+// while dogfooding multi-region support. Pass nil to disable logging (e.g., in tests).
+//
+// Returns the union of metadata found across all regions plus a map of adamID -> region that
+// resolved each one. AdamIDs that couldn't be resolved in any region are silently omitted.
+func GetMetadataWithFallback(ctx context.Context, logger *slog.Logger, adamIDs []string, knownRegions map[string]string, vppToken string, config Config) (map[string]Metadata, map[string]string, error) {
+	metadata := make(map[string]Metadata, len(adamIDs))
+	resolvedRegions := make(map[string]string, len(adamIDs))
+
+	// Group known-region adamIDs by region so we can batch one call per region.
+	byRegion := make(map[string][]string)
+	var unknowns []string
+	for _, id := range adamIDs {
+		if region, ok := knownRegions[id]; ok && region != "" {
+			byRegion[region] = append(byRegion[region], id)
+		} else {
+			unknowns = append(unknowns, id)
+		}
+	}
+
+	logRegionFallback(ctx, logger, "starting VPP metadata fetch",
+		"adam_ids", adamIDs,
+		"known_region_count", len(byRegion),
+		"unknown_count", len(unknowns),
+	)
+
+	for region, ids := range byRegion {
+		logRegionFallback(ctx, logger, "fetching known-region VPP metadata",
+			"region", region,
+			"adam_ids", ids,
+		)
+		found, err := GetMetadata(ids, region, vppToken, config)
+		if err != nil {
+			return nil, nil, err
+		}
+		var missed []string
+		for _, id := range ids {
+			if m, ok := found[id]; ok {
+				metadata[id] = m
+				resolvedRegions[id] = region
+			} else {
+				missed = append(missed, id)
+			}
+		}
+		logRegionFallback(ctx, logger, "known-region VPP metadata result",
+			"region", region,
+			"found", len(found),
+			"missing_adam_ids", missed,
+		)
+	}
+
+	// Walk the fallback chain for adamIDs without a known region.
+	remaining := unknowns
+	for _, region := range MetadataFallbackRegions {
+		if len(remaining) == 0 {
+			break
+		}
+		logRegionFallback(ctx, logger, "trying storefront region",
+			"region", region,
+			"adam_ids", remaining,
+		)
+		found, err := GetMetadata(remaining, region, vppToken, config)
+		if err != nil {
+			return nil, nil, err
+		}
+		next := remaining[:0]
+		var resolvedThisHop []string
+		for _, id := range remaining {
+			if m, ok := found[id]; ok {
+				metadata[id] = m
+				resolvedRegions[id] = region
+				resolvedThisHop = append(resolvedThisHop, id)
+			} else {
+				next = append(next, id)
+			}
+		}
+		logRegionFallback(ctx, logger, "storefront region result",
+			"region", region,
+			"resolved_adam_ids", resolvedThisHop,
+			"still_missing_adam_ids", next,
+		)
+		remaining = next
+	}
+
+	if len(remaining) > 0 {
+		logRegionFallback(ctx, logger, "VPP metadata unresolved after full fallback chain",
+			"unresolved_adam_ids", remaining,
+		)
+	}
+	logRegionFallback(ctx, logger, "VPP metadata fetch complete",
+		"resolved_regions", resolvedRegions,
+	)
+
+	return metadata, resolvedRegions, nil
+}
+
+// logRegionFallback is a nil-safe wrapper so tests and legacy callers can pass a nil
+// logger. Remove this helper and inline slog calls once the feature is validated.
+func logRegionFallback(ctx context.Context, logger *slog.Logger, msg string, args ...any) {
+	if logger == nil {
+		return
+	}
+	logger.InfoContext(ctx, msg, args...)
 }
 
 func buildMetadataRequest(baseURL string, adamIDs []string, vppToken string) (*http.Request, error) {
@@ -253,9 +386,12 @@ func ToVPPApps(app Metadata) map[fleet.InstallableDevicePlatform]fleet.VPPApp {
 	return platforms
 }
 
-func getBaseURL(bearerTokenSupplied bool) string {
-	region := "us"
+func getBaseURL(bearerTokenSupplied bool, region string) string {
+	if region == "" {
+		region = DefaultMetadataRegion
+	}
 	if dev_mode.Env("FLEET_DEV_VPP_REGION") != "" {
+		// dev override forces a specific region regardless of caller input
 		region = dev_mode.Env("FLEET_DEV_VPP_REGION")
 	}
 
@@ -283,14 +419,14 @@ type DataStore interface {
 func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
 	if token != "" {
 		return Config{
-			authenticator: func(forceRenew bool) (string, error) { return token, nil },
-			baseURL:       getBaseURL(true),
+			authenticator:    func(forceRenew bool) (string, error) { return token, nil },
+			baseURLForRegion: func(region string) string { return getBaseURL(true, region) },
 		}
 	}
 
 	return Config{
-		authenticator: getAuthenticator(ctx, ds, licenseKey),
-		baseURL:       getBaseURL(false),
+		authenticator:    getAuthenticator(ctx, ds, licenseKey),
+		baseURLForRegion: func(region string) string { return getBaseURL(false, region) },
 	}
 }
 
