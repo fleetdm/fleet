@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import {
   createMockSoftwarePackage,
@@ -61,7 +61,7 @@ describe("EditIconModal", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(MOCK_PROPS.onExit).toHaveBeenCalled();
+    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalled());
   });
 
   // Note: Rely on QA Wolf for E2e testing of file upload, preview, save, and remove icon

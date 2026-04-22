@@ -68,7 +68,7 @@ describe("EditConfigurationModal", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(MOCK_PROPS.onExit).toHaveBeenCalled();
+    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalled());
   });
 
   it("disables Save button when configuration JSON is invalid and shows the error", async () => {
