@@ -328,6 +328,10 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
     hostPlatform,
     hostMdmEnrollmentStatus,
     isManagedLocalAccountEnabled,
@@ -336,7 +340,10 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (hostPlatform !== "darwin") return false;
   if (!isConnectedToFleetMdm) return false;
   if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
-  return isManagedLocalAccountEnabled;
+  if (!isManagedLocalAccountEnabled) return false;
+  return (
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
+  );
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {

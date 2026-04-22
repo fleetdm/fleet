@@ -4,15 +4,15 @@ import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
-const RotatedManagedLocalAccountPasswordActivityItem = ({
+const ViewedManagedLocalAccountActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
   return (
     <ActivityItem activity={activity} hideCancel hideShowDetails>
-      <b>Fleet </b>
-      rotated the managed local account password for this host.
+      <b>{activity.actor_full_name} </b>
+      viewed the managed local account on this host.
     </ActivityItem>
   );
 };
 
-export default RotatedManagedLocalAccountPasswordActivityItem;
+export default ViewedManagedLocalAccountActivityItem;

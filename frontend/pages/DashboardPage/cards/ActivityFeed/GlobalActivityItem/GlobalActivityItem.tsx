@@ -542,7 +542,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  readManagedLocalAccount: (activity: IActivity) => {
+  viewedManagedLocalAccount: (activity: IActivity) => {
     return (
       <>
         {" "}
@@ -556,15 +556,6 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         created a managed local account for{" "}
-        <b>{activity.details?.host_display_name}</b>.
-      </>
-    );
-  },
-  rotatedManagedLocalAccountPassword: (activity: IActivity) => {
-    return (
-      <>
-        {" "}
-        rotated the managed local account password for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -1979,14 +1970,11 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledManagedLocalAccount: {
       return TAGGED_TEMPLATES.disabledManagedLocalAccount(activity);
     }
-    case ActivityType.ReadManagedLocalAccount: {
-      return TAGGED_TEMPLATES.readManagedLocalAccount(activity);
+    case ActivityType.ViewedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
     }
     case ActivityType.CreatedManagedLocalAccount: {
       return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
-    }
-    case ActivityType.RotatedManagedLocalAccountPassword: {
-      return TAGGED_TEMPLATES.rotatedManagedLocalAccountPassword(activity);
     }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);

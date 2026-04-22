@@ -3,34 +3,32 @@ import { render, screen } from "@testing-library/react";
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType } from "interfaces/activity";
 
-import RotatedManagedLocalAccountPasswordActivityItem from "./RotatedManagedLocalAccountPasswordActivityItem";
+import ViewedManagedLocalAccountActivityItem from "./ViewedManagedLocalAccountActivityItem";
 
-describe("RotatedManagedLocalAccountPasswordActivityItem", () => {
+describe("ViewedManagedLocalAccountActivityItem", () => {
   it("renders the activity content", () => {
     render(
-      <RotatedManagedLocalAccountPasswordActivityItem
+      <ViewedManagedLocalAccountActivityItem
         activity={createMockHostPastActivity({
-          actor_full_name: "Fleet",
-          type: ActivityType.RotatedManagedLocalAccountPassword,
+          actor_full_name: "Test User",
+          type: ActivityType.ViewedManagedLocalAccount,
         })}
         tab="past"
       />
     );
 
-    expect(screen.getByText("Fleet")).toBeVisible();
+    expect(screen.getByText("Test User")).toBeVisible();
     expect(
-      screen.getByText(
-        /rotated the managed local account password for this host/i
-      )
+      screen.getByText(/viewed the managed local account on this host/i)
     ).toBeVisible();
   });
 
   it("does not render the cancel icon", () => {
     render(
-      <RotatedManagedLocalAccountPasswordActivityItem
+      <ViewedManagedLocalAccountActivityItem
         activity={createMockHostPastActivity({
-          actor_full_name: "Fleet",
-          type: ActivityType.RotatedManagedLocalAccountPassword,
+          actor_full_name: "Test User",
+          type: ActivityType.ViewedManagedLocalAccount,
         })}
         tab="past"
       />
@@ -41,10 +39,10 @@ describe("RotatedManagedLocalAccountPasswordActivityItem", () => {
 
   it("does not render the show details icon", () => {
     render(
-      <RotatedManagedLocalAccountPasswordActivityItem
+      <ViewedManagedLocalAccountActivityItem
         activity={createMockHostPastActivity({
-          actor_full_name: "Fleet",
-          type: ActivityType.RotatedManagedLocalAccountPassword,
+          actor_full_name: "Test User",
+          type: ActivityType.ViewedManagedLocalAccount,
         })}
         tab="past"
       />

@@ -26,9 +26,9 @@ import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninst
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
-import ReadManagedLocalAccountActivityItem from "./ActivityItems/ReadManagedLocalAccountActivityItem/ReadManagedLocalAccountActivityItem";
+import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
-import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPasswordActivityItem/RotatedManagedLocalAccountPasswordActivityItem";
+
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -75,9 +75,8 @@ export const pastActivityComponentMap: Record<
   [ActivityType.InstalledCertificate]: InstalledCertificateActivityItem,
   [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
-  [ActivityType.ReadManagedLocalAccount]: ReadManagedLocalAccountActivityItem,
+  [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
   [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
-  [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
