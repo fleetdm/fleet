@@ -89,6 +89,16 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
+	// HostCacheEnabled turns on the Redis-backed cache for host-by-node_key
+	// lookups that authenticate osquery check-ins. When false (default), every
+	// authenticated request resolves the host from MySQL; when true, successful
+	// lookups are cached in Redis and invalidated on write paths. See
+	// server/datastore/mysqlredis/host_cache.go.
+	HostCacheEnabled bool `yaml:"host_cache_enabled"`
+	// HostCacheTTL is the base TTL for host-by-node_key cache entries. Actual
+	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
+	// Only meaningful when HostCacheEnabled is true.
+	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
 }
 
 const (
@@ -1197,6 +1207,10 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
+	man.addConfigBool("redis.host_cache_enabled", false,
+		"Enable Redis-backed cache for host-by-node_key lookups on the osquery auth path")
+	man.addConfigDuration("redis.host_cache_ttl", 30*time.Second,
+		"TTL for Redis-backed host-by-node_key cache entries; actual per-entry TTL is jittered by ±10%")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1695,6 +1709,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
 			StsExternalID:             man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
