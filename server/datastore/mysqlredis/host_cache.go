@@ -1,0 +1,322 @@
+package mysqlredis
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	mathrand "math/rand/v2"
+	"strconv"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	redigo "github.com/gomodule/redigo/redis"
+)
+
+// All host-cache keys live under this single versioned prefix so operators can
+// purge with `redis-cli --scan --pattern 'fleet:hostcache:v1:*' | xargs redis-cli DEL`.
+// Bumping the version on a cached-payload schema change orphans old keys; they
+// TTL out within hostCacheTTL.
+const hostCacheKeyPrefix = "fleet:hostcache:v1"
+
+const (
+	// hostCacheNegativeTTL caps how long a "not found" result is cached. Short
+	// because an enrollment can legitimately create a host with a node_key that
+	// was just queried and missed.
+	hostCacheNegativeTTL = 5 * time.Second
+
+	// hostCacheTTLJitterFraction spreads entry expiry across a ±(fraction/2)
+	// window around the configured base TTL, so a Redis restart or TTL-driven
+	// wave doesn't trigger a synchronized stampede back to the reader.
+	hostCacheTTLJitterFraction = 0.2
+)
+
+// hostCacheLookup is the tri-state result of a cache read.
+type hostCacheLookup int
+
+const (
+	// hostCacheLookupMiss means "no usable cache state" — caller must fall
+	// through to the database. This is also returned on Redis/JSON errors:
+	// the cache never fails a request.
+	hostCacheLookupMiss hostCacheLookup = iota
+
+	// hostCacheLookupHit means the returned *fleet.Host is valid and can be
+	// served to the caller as-is.
+	hostCacheLookupHit
+
+	// hostCacheLookupNegative means the cache holds a prior "not found"
+	// result for this node_key; caller should return NotFound without hitting
+	// the database.
+	hostCacheLookupNegative
+)
+
+func hostCacheKeyByNodeKey(nodeKey string) string {
+	return hostCacheKeyPrefix + ":nk:" + nodeKey
+}
+
+func hostCacheKeyMiss(nodeKey string) string {
+	return hostCacheKeyPrefix + ":nk_miss:" + nodeKey
+}
+
+func hostCacheIndexByID(hostID uint) string {
+	return hostCacheKeyPrefix + ":id2nk:" + strconv.FormatUint(uint64(hostID), 10)
+}
+
+// jitteredHostCacheTTL returns the configured base TTL perturbed by
+// ±(hostCacheTTLJitterFraction / 2). With the default 0.2 and a 30s base, the
+// result falls in [27s, 33s].
+func (d *Datastore) jitteredHostCacheTTL() time.Duration {
+	if d.hostCacheTTL <= 0 {
+		return 0
+	}
+	half := float64(d.hostCacheTTL) * hostCacheTTLJitterFraction / 2
+	delta := (mathrand.Float64()*2 - 1) * half
+	return d.hostCacheTTL + time.Duration(delta)
+}
+
+// hostCacheGet looks up a host by node_key. It checks the positive cache first
+// (the common case) and falls through to the negative cache only on positive
+// miss. Never propagates Redis or JSON errors; any error is recorded and the
+// caller sees a hostCacheLookupMiss.
+func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Host, hostCacheLookup) {
+	if !d.hostCacheEnabled || nodeKey == "" {
+		return nil, hostCacheLookupMiss
+	}
+
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByNodeKey(nodeKey)))
+	switch {
+	case err == nil:
+		entry := new(hostCacheEntry)
+		if jerr := json.Unmarshal(raw, entry); jerr != nil {
+			// Schema drift or a poisoned entry. Drop the bad key so the next
+			// lookup repopulates from the database, and treat this call as a
+			// miss.
+			d.recordHostCacheErr(ctx, "get", jerr)
+			if _, derr := conn.Do("DEL", hostCacheKeyByNodeKey(nodeKey)); derr != nil {
+				d.recordHostCacheErr(ctx, "del", derr)
+			}
+			d.recordHostCacheLookup(ctx, "miss")
+			return nil, hostCacheLookupMiss
+		}
+		d.recordHostCacheLookup(ctx, "hit")
+		return entry.toHost(), hostCacheLookupHit
+
+	case errors.Is(err, redigo.ErrNil):
+		// positive miss; fall through to negative-cache probe
+
+	default:
+		d.recordHostCacheErr(ctx, "get", err)
+		d.recordHostCacheLookup(ctx, "miss")
+		return nil, hostCacheLookupMiss
+	}
+
+	_, err = redigo.Bytes(conn.Do("GET", hostCacheKeyMiss(nodeKey)))
+	switch {
+	case err == nil:
+		d.recordHostCacheLookup(ctx, "negative_hit")
+		return nil, hostCacheLookupNegative
+	case errors.Is(err, redigo.ErrNil):
+		d.recordHostCacheLookup(ctx, "miss")
+		return nil, hostCacheLookupMiss
+	default:
+		d.recordHostCacheErr(ctx, "get", err)
+		d.recordHostCacheLookup(ctx, "miss")
+		return nil, hostCacheLookupMiss
+	}
+}
+
+// hostCachePut stores host under the positive-cache key and updates the reverse
+// index so invalidation-by-ID can find the node_key later. Fire-and-forget:
+// errors are recorded, not returned.
+func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
+	if !d.hostCacheEnabled || host == nil || host.NodeKey == nil || *host.NodeKey == "" {
+		return
+	}
+
+	raw, err := json.Marshal(hostCacheEntryFromHost(host))
+	if err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return
+	}
+
+	ttl := d.jitteredHostCacheTTL()
+	ttlSec := int(ttl.Seconds())
+	if ttlSec <= 0 {
+		ttlSec = 1
+	}
+
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", hostCacheKeyByNodeKey(*host.NodeKey), raw, "EX", ttlSec); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+	}
+	if host.ID != 0 {
+		if _, err := conn.Do("SET", hostCacheIndexByID(host.ID), *host.NodeKey, "EX", ttlSec); err != nil {
+			d.recordHostCacheErr(ctx, "set", err)
+		}
+	}
+}
+
+// hostCachePutNotFound stores a short-lived negative-cache entry. Used when the
+// database returns NotFound for a node_key.
+func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
+	if !d.hostCacheEnabled || nodeKey == "" {
+		return
+	}
+
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", hostCacheKeyMiss(nodeKey), "1", "EX", int(hostCacheNegativeTTL.Seconds())); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+	}
+}
+
+// hostCacheDeleteByNodeKey invalidates the primary, negative, and index keys
+// when the caller already has the (nodeKey, hostID) pair. Pass hostID=0 if the
+// caller does not know the ID; the index is skipped in that case.
+// `reason` is a low-cardinality label recorded on the invalidations counter.
+func (d *Datastore) hostCacheDeleteByNodeKey(ctx context.Context, nodeKey string, hostID uint, reason string) {
+	if !d.hostCacheEnabled || nodeKey == "" {
+		return
+	}
+
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	for _, k := range []string{
+		hostCacheKeyByNodeKey(nodeKey),
+		hostCacheKeyMiss(nodeKey),
+	} {
+		if _, err := conn.Do("DEL", k); err != nil {
+			d.recordHostCacheErr(ctx, "del", err)
+		}
+	}
+	if hostID > 0 {
+		if _, err := conn.Do("DEL", hostCacheIndexByID(hostID)); err != nil {
+			d.recordHostCacheErr(ctx, "del", err)
+		}
+	}
+	d.recordHostCacheInvalidation(ctx, reason)
+}
+
+// hostCacheDeleteByID invalidates the cache when only the host ID is known. It
+// reads the reverse index to discover the node_key, then deletes the primary,
+// negative, and index keys. If the index is missing (TTL already expired or
+// never populated), the positive entry has already expired too, so there's
+// nothing more to delete: the invalidation is still counted so the metrics
+// line up with write-path activity.
+func (d *Datastore) hostCacheDeleteByID(ctx context.Context, hostID uint, reason string) {
+	if !d.hostCacheEnabled || hostID == 0 {
+		return
+	}
+
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	nodeKey, err := redigo.String(conn.Do("GET", hostCacheIndexByID(hostID)))
+	switch {
+	case errors.Is(err, redigo.ErrNil):
+		d.recordHostCacheInvalidation(ctx, reason)
+		return
+	case err != nil:
+		d.recordHostCacheErr(ctx, "del", err)
+		d.recordHostCacheInvalidation(ctx, reason)
+		return
+	}
+
+	for _, k := range []string{
+		hostCacheKeyByNodeKey(nodeKey),
+		hostCacheKeyMiss(nodeKey),
+		hostCacheIndexByID(hostID),
+	} {
+		if _, err := conn.Do("DEL", k); err != nil {
+			d.recordHostCacheErr(ctx, "del", err)
+		}
+	}
+	d.recordHostCacheInvalidation(ctx, reason)
+}
+
+// recordHostCacheErr attaches the error to context-based logging (surfaced on
+// the surrounding HTTP response log line via middleware) and increments the
+// errors counter. Cache errors are always best-effort; the DB path still
+// serves the request.
+func (d *Datastore) recordHostCacheErr(ctx context.Context, op string, err error) {
+	logging.WithErr(ctx, err)
+	//nolint:nilaway // initialized in package init(); panic on registration failure guarantees non-nil
+	hostCacheErrors.Add(ctx, 1, hostCacheErrorAttrs(op))
+}
+
+func (d *Datastore) recordHostCacheLookup(ctx context.Context, result string) {
+	//nolint:nilaway // initialized in package init(); panic on registration failure guarantees non-nil
+	hostCacheLookups.Add(ctx, 1, hostCacheLookupAttrs(result))
+}
+
+func (d *Datastore) recordHostCacheInvalidation(ctx context.Context, reason string) {
+	//nolint:nilaway // initialized in package init(); panic on registration failure guarantees non-nil
+	hostCacheInvalidations.Add(ctx, 1, hostCacheInvalidationAttrs(reason))
+}
+
+// LoadHostByNodeKey overrides the inner Datastore's LoadHostByNodeKey to serve
+// from the Redis cache when populated. On miss it falls through to the inner
+// Datastore under a singleflight guard so a thundering herd of N concurrent
+// misses for the same node_key collapses into a single DB call.
+//
+// Semantics:
+//   - Cache disabled, or ctxdb.IsHostCacheBypassed(ctx): always delegate; never
+//     read or write the cache. Use BypassHostCache after a write if you need
+//     read-your-writes freshness within the TTL window.
+//   - Positive cache hit: return cached host.
+//   - Negative cache hit: return a NotFoundError without hitting the DB.
+//   - Miss: singleflight-guarded DB fetch; on success populate positive cache,
+//     on NotFound populate negative cache; propagate other errors without
+//     populating either cache (transient failures must not poison the cache).
+//
+// Callers receive a host that is safe to mutate: cache-hit path returns a
+// fresh struct from JSON unmarshal, singleflight path returns a shallow copy
+// so concurrent callers that joined the same flight don't race on each
+// other's mutations (e.g., AuthenticateHost overwrites host.SeenTime).
+func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	if !d.hostCacheEnabled || ctxdb.IsHostCacheBypassed(ctx) {
+		return d.Datastore.LoadHostByNodeKey(ctx, nodeKey)
+	}
+
+	if host, result := d.hostCacheGet(ctx, nodeKey); result == hostCacheLookupHit {
+		return host, nil
+	} else if result == hostCacheLookupNegative {
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
+	}
+
+	v, err, _ := d.hostCacheSF.Do(nodeKey, func() (any, error) {
+		h, derr := d.Datastore.LoadHostByNodeKey(ctx, nodeKey)
+		switch {
+		case derr == nil && h != nil:
+			d.hostCachePut(ctx, h)
+		case fleet.IsNotFound(derr):
+			d.hostCachePutNotFound(ctx, nodeKey)
+			// Other (transient) errors are intentionally not cached — retry on next call.
+		}
+		return h, derr
+	})
+	if err != nil {
+		return nil, err
+	}
+	h, _ := v.(*fleet.Host)
+	if h == nil {
+		// Inner returned (nil, nil); shouldn't happen but don't hand out a nil
+		// pointer that downstream code will dereference.
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
+	}
+	// Shallow-copy so concurrent callers that joined the same singleflight
+	// don't race on mutations like host.SeenTime = now().
+	clone := *h
+	return &clone, nil
+}
