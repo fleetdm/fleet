@@ -2877,9 +2877,13 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	testHostUUID := "test-host-uuid"
 	testHostID := uint(42)
 	testDeviceID := "test-device-id"
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID: testDeviceID,
+		HostUUID:    testHostUUID,
+	}
 
 	// MDMWindowsSaveResponse returns a WipeFailed result.
-	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 		return &fleet.MDMWindowsSaveResponseResult{
 			WipeFailed: &fleet.MDMWindowsWipeResult{
 				HostUUID: testHostUUID,
@@ -2938,7 +2942,7 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	require.NoError(t, xml.Unmarshal([]byte(rawSyncML), reqMsg))
 	reqMsg.Raw = []byte(rawSyncML)
 
-	_, err := svcImpl.processIncomingMDMCmds(ctx, testDeviceID, reqMsg, RequestAuthStateTrusted)
+	_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
 	require.NoError(t, err)
 
 	// Verify the activity was created.
@@ -2950,18 +2954,18 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
 	t.Run("no activity when WipeFailed is nil", func(t *testing.T) {
-		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 			return nil, nil
 		}
 		opts.ActivityMock.NewActivityFuncInvoked = false
 
-		_, err := svcImpl.processIncomingMDMCmds(ctx, testDeviceID, reqMsg, RequestAuthStateTrusted)
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
 		require.NoError(t, err)
 		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("activity skipped when host lookup fails", func(t *testing.T) {
-		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 			return &fleet.MDMWindowsSaveResponseResult{
 				WipeFailed: &fleet.MDMWindowsWipeResult{
 					HostUUID: testHostUUID,
@@ -2973,7 +2977,7 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 		}
 		opts.ActivityMock.NewActivityFuncInvoked = false
 
-		_, err := svcImpl.processIncomingMDMCmds(ctx, testDeviceID, reqMsg, RequestAuthStateTrusted)
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
 		require.NoError(t, err)
 		// Activity should NOT be created since host lookup failed.
 		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
