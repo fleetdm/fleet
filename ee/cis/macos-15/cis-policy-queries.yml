@@ -297,7 +297,7 @@ spec:
     Rationale:
     Ensure that iCloud Passwords and Keychain usage aligns with organizational requirements, taking into account whether personal or managed Apple Accounts are being utilized.
     Impact:
-    When iCloud Passwords & Keychain is turned off, password, passkey, and credit card information are no longer synchronized across devices signed in with the same Apple Account. Passwords, passkeys, and credit card information can still be stored locally and accessed through the Passwords and Keychain apps, even when iCloud Passwords & Keychain is turned off.
+    When iCloud Passwords & Keychain is enabled, password, passkey, and credit card information are synchronized across devices signed in with the same Apple Account. This may result in those items being stored in Apple's cloud and accessible across the user's Apple devices and applications that use iCloud Keychain.
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
