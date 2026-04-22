@@ -25,7 +25,7 @@ func TestDatabaseCloseReleasesFileHandle(t *testing.T) {
 	}
 	defer os.Remove(path)
 
-	// Seed the goval schema so Verfiy's query succeeds.
+	// Seed the goval schema so Verify's query succeeds.
 	seed, err := sql.Open("sqlite3", path)
 	if err != nil {
 		t.Fatalf("seed open: %v", err)
