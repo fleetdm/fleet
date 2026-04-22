@@ -1,13 +1,13 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Modal from "./Modal";
 
 const clickBackground = async (background: Element | null) => {
   if (!background) throw new Error("Background element not found");
-  const user = userEvent.setup();
+  const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
   await user.pointer([
     { keys: "[MouseLeft>]", target: background },
     { keys: "[/MouseLeft]", target: background },
@@ -15,6 +15,9 @@ const clickBackground = async (background: Element | null) => {
 };
 
 describe("Modal", () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
   it("renders title", () => {
     render(
       <Modal title="Foobar" onExit={noop}>
@@ -35,6 +38,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
@@ -71,6 +75,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -89,6 +94,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -107,6 +113,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -127,6 +134,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
 
@@ -142,6 +150,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
@@ -155,6 +164,7 @@ describe("Modal", () => {
 
     const background = container.querySelector(".modal__background");
     await clickBackground(background);
+    act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
   });
 });
