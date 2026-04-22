@@ -525,12 +525,13 @@
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
-- industryName: Device health
-  friendlyName: Automate device health
-  description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+- industryName: Conditional access
+  friendlyName: Device health
+  description: Block end users from accessing corporate resources when their device fails Fleet policies, using Okta or Microsoft Entra ID conditional access.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
   screenshotSrc:
-  tier: Free
+  tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
   productCategories: [Device management,Endpoint operations]
@@ -545,6 +546,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
+    - description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
   demos:
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
@@ -1269,17 +1271,6 @@
     - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Torq,Custom IdP]
-- industryName: Entra conditional access (Windows)
-  description: Block end users from accessing corporate resources when their Windows device fails Fleet policies, using Microsoft Entra ID conditional access (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
-  tier: Premium
-  jamfProHasFeature: no
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management,Endpoint operations]
-  pricingTableCategories: [Integrations]
-  buzzwords: [Entra,Microsoft Entra,conditional access,Windows compliance]
 #
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝
