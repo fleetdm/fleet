@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
@@ -40,6 +40,19 @@ const UsersForm = ({
     defaultEnableManagedLocalAccount
   );
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Re-sync local state when the parent refetches config (e.g. team switch).
+  // useState initializers only run on first mount, so without this the form
+  // would show and save the previous team's settings.
+  useEffect(() => {
+    setEndUserAuthEnabled(defaultIsEndUserAuthEnabled);
+    setLockEndUserInfo(defaultLockEndUserInfo);
+    setEnableManagedLocalAccount(defaultEnableManagedLocalAccount);
+  }, [
+    defaultIsEndUserAuthEnabled,
+    defaultLockEndUserInfo,
+    defaultEnableManagedLocalAccount,
+  ]);
 
   const onToggleEndUserAuth = (newCheckVal: boolean) => {
     setEndUserAuthEnabled(newCheckVal);

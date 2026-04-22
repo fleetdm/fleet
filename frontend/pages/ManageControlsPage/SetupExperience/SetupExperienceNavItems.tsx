@@ -19,8 +19,8 @@ export interface ISetupExperienceCardProps {
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
     title: "1. Users",
-    urlSection: "end-user-auth",
-    path: PATHS.CONTROLS_END_USER_AUTHENTICATION,
+    urlSection: "users",
+    path: PATHS.CONTROLS_USERS,
     Card: Users,
   },
   {
