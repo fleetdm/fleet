@@ -101,7 +101,7 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 		}
 
 		args := redigo.Args{enrolledHostsSetKey}
-		args = args.AddFlat(hostIDs)
+		args = args.AddFlat(hostIDs[:maxSize])
 		if _, err := conn.Do("SREM", args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "enrolled limits: remove hosts")
 		}

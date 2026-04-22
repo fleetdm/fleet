@@ -105,13 +105,21 @@ func TestWritePathInvalidation(t *testing.T) {
 			// mock.Store has a hand-written EnrollOrbit that returns (nil, nil)
 			// regardless of EnrollOrbitFunc, so for this subtest we wrap the
 			// auto-generated mock.DataStore directly.
+			//
+			// The mock returns a Host with ONLY ID populated — mirroring the
+			// production mysql.EnrollOrbit, which doesn't set NodeKey or
+			// OrbitNodeKey on its returned struct. This exercises the ID-based
+			// reverse-index invalidation path that production actually takes.
 			ds := new(mock.DataStore)
-			nk := "nk-orbit"
 			ds.EnrollOrbitFunc = func(_ context.Context, _ ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-				return &fleet.Host{ID: 6, NodeKey: &nk}, nil
+				return &fleet.Host{ID: 6}, nil
 			}
 			d := New(ds, pool, WithHostCache(30*time.Second))
 
+			// Prime the cache under a node_key and verify EnrollOrbit clears
+			// it via the reverse index (id2nk → nk), even though the returned
+			// Host struct doesn't carry the NodeKey field.
+			nk := "nk-orbit"
 			primeCachedHost(t, d, 6, nk)
 			h, err := d.EnrollOrbit(ctx)
 			require.NoError(t, err)
