@@ -5811,7 +5811,14 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Safety net: always clean up orphaned remove/pending rows, even when
+		// there are no changed declarations. This handles stuck rows from
+		// previous runs that can't self-heal via device status reports.
+		return cleanUpOrphanedPendingRemoves(ctx, tx)
 	})
 
 	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
@@ -5967,6 +5974,42 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	return updatedDB, ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
 }
 
+// cleanUpOrphanedPendingRemoves deletes remove/pending rows from
+// host_mdm_apple_declarations where a matching install row already exists with
+// the same host, token, and identifier in a verified or verifying state. This
+// means the declaration content is already on the device — the remove is stale.
+func cleanUpOrphanedPendingRemoves(ctx context.Context, tx sqlx.ExtContext) error {
+	var found bool
+	err := sqlx.GetContext(ctx, tx, &found, `
+		SELECT EXISTS (
+			SELECT 1 FROM host_mdm_apple_declarations r
+			INNER JOIN host_mdm_apple_declarations i
+				ON r.host_uuid = i.host_uuid
+				AND r.token = i.token
+				AND r.declaration_identifier = i.declaration_identifier
+			WHERE r.operation_type = 'remove' AND r.status = 'pending'
+				AND i.operation_type = 'install'
+				AND i.status IN ('verified', 'verifying')
+			LIMIT 1)`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for orphaned remove/pending rows")
+	}
+	if !found {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		DELETE r FROM host_mdm_apple_declarations r
+		INNER JOIN host_mdm_apple_declarations i
+			ON r.host_uuid = i.host_uuid
+			AND r.token = i.token
+			AND r.declaration_identifier = i.declaration_identifier
+		WHERE r.operation_type = 'remove' AND r.status = 'pending'
+			AND i.operation_type = 'install'
+			AND i.status IN ('verified', 'verifying')`)
+	return ctxerr.Wrap(ctx, err, "deleting orphaned remove/pending rows")
+}
+
 func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, profilesToInsert map[string]*fleet.MDMAppleHostDeclaration) error {
 	// If we are inserting a declaration that has a matching pending "remove" declaration (same hash),
 	// we will mark the insert as verified. Why? Because there is nothing for the host to do if the same
@@ -6055,20 +6098,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("declaration")
 	stmt := fmt.Sprintf(`
         (
-            SELECT
-                ds.host_uuid,
-                'install' as operation_type,
-                ds.token,
-                ds.secrets_updated_at,
-                ds.declaration_uuid,
-                ds.declaration_identifier,
-                ds.declaration_name
-            FROM
-                %s
-        )
-        UNION ALL
-        (
-            SELECT
+			SELECT
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.token,
@@ -6079,13 +6109,29 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
             FROM
                 %s
         )
+        UNION ALL
+        (
+			SELECT
+                ds.host_uuid,
+                'install' as operation_type,
+                ds.token,
+                ds.secrets_updated_at,
+                ds.declaration_uuid,
+                ds.declaration_identifier,
+                ds.declaration_name
+            FROM
+                %s
+        )
     `,
-		entitiesToInstallQuery,
+		// We specifically want Removals first, since we later batch process
+		// and rely on removals being updated so the matching install entry
+		// can find it and clean it up avoiding leaving stale pending removals in the database.
 		entitiesToRemoveQuery,
+		entitiesToInstallQuery,
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	args := slices.Concat(entitiesToInstallArgs, entitiesToRemoveArgs)
+	args := slices.Concat(entitiesToRemoveArgs, entitiesToInstallArgs)
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
@@ -6183,7 +6229,7 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)
