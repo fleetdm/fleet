@@ -265,6 +265,7 @@ export interface IHostRecoveryLockPasswordResponse {
 export interface IHostManagedAccountPasswordResponse {
   host_id: number;
   managed_account_password: {
+    username: string;
     password: string;
     updated_at: string;
   };

@@ -83,6 +83,8 @@ export interface IMdmConfig {
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
     lock_end_user_info: boolean | null;
+  };
+  macos_setup: {
     enable_managed_local_account?: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
