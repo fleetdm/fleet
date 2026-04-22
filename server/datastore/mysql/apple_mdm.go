@@ -7939,8 +7939,8 @@ func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext,
 // explicit MDM lifecycle hooks. Catches hosts where MDM was disabled without Fleet receiving
 // either a CheckOut (paths handled by MDMTurnOff) or an Authenticate (handled by
 // MDMResetEnrollment) — typically when the device user manually removes the MDM profile
-// and only osquery refetch eventually reports host_mdm.enrolled=0. Runs inside the recovery
-// lock cron every few minutes; bounded by the recovery lock table size, not host count.
+// and only osquery refetch eventually reports host_mdm.enrolled=0. Runs each recovery-lock
+// cron tick; bounded by the recovery lock table size, not host count.
 func (ds *Datastore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 		UPDATE host_recovery_key_passwords rkp
