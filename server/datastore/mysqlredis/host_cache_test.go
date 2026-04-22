@@ -646,7 +646,7 @@ func TestLoadHostByNodeKey_RedisErrorFallsThrough(t *testing.T) {
 func cleanupHostCacheKeys(t *testing.T, pool fleet.RedisPool) {
 	t.Helper()
 
-	for _, sub := range []string{":nk:*", ":nk_miss:*", ":id2nk:*"} {
+	for _, sub := range []string{":nk:*", ":nk_miss:*", ":id2nk:*", ":onk:*", ":onk_miss:*", ":id2onk:*"} {
 		pattern := hostCacheKeyPrefix + sub
 		keys, err := redis.ScanKeys(pool, pattern, 100)
 		require.NoError(t, err, "scan %q", pattern)

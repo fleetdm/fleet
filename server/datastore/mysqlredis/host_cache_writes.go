@@ -119,18 +119,27 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 }
 
 // invalidateAfterHostWrite is the common tail for write paths that hand us a
-// *fleet.Host. We prefer node_key-based invalidation when the caller provided
-// it (one fewer Redis round-trip than an ID-based lookup); fall back to the
-// ID path when node_key is unset.
+// *fleet.Host. When the caller has one or both keys, we invalidate by each
+// key directly (skipping the ID→key reverse-index lookup); if neither key is
+// present we fall back to the ID path, which resolves both reverse indices.
+// Hosts running both Orbit and osquery have both keys set and get both caches
+// cleared.
 func (d *Datastore) invalidateAfterHostWrite(ctx context.Context, host *fleet.Host, reason string) {
 	if host == nil {
 		return
 	}
-	if host.NodeKey != nil && *host.NodeKey != "" {
+	hasNK := host.NodeKey != nil && *host.NodeKey != ""
+	hasONK := host.OrbitNodeKey != nil && *host.OrbitNodeKey != ""
+
+	if hasNK {
 		d.hostCacheDeleteByNodeKey(ctx, *host.NodeKey, host.ID, reason)
-		return
 	}
-	if host.ID != 0 {
+	if hasONK {
+		d.hostCacheDeleteByOrbitNodeKey(ctx, *host.OrbitNodeKey, host.ID, reason)
+	}
+	if !hasNK && !hasONK && host.ID != 0 {
+		// Neither key on the struct — resolve via reverse indices. This
+		// handles both sides (osquery + orbit) in one call.
 		d.hostCacheDeleteByID(ctx, host.ID, reason)
 	}
 }
