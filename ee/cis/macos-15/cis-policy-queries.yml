@@ -406,7 +406,8 @@ spec:
       2. The key to include is allowAirDrop
       3. The key must be set to <false/>
     Note: AirDrop can only be enabled or disabled through configuration profiles. If your
-    organization wants to use AirDrop, it would need to be set through Terminal or the GUI.
+    organization allows AirDrop, that policy must be set through MDM; users may then use
+    the GUI to transfer files if AirDrop is permitted.
   query: |
     SELECT 1 WHERE
       EXISTS (
