@@ -90,7 +90,7 @@ const UsersForm = ({
 
   return (
     <div className={baseClass}>
-      <form>
+      <form onSubmit={onClickSave}>
         <Checkbox
           disabled={gitOpsModeEnabled}
           value={isEndUserAuthEnabled}
@@ -154,7 +154,7 @@ const UsersForm = ({
             <Button
               disabled={disableChildren}
               isLoading={isUpdating}
-              onClick={onClickSave}
+              type="submit"
             >
               Save
             </Button>
