@@ -4777,7 +4777,7 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	customInstallerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:              "pkg2",
 		Source:             "apps",
 		Platform:           "darwin",
@@ -4824,16 +4824,18 @@ func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
 	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA upsert")
 
 	var installerRows []struct {
+		ID       uint  `db:"id"`
 		FMAID    *uint `db:"fleet_maintained_app_id"`
 		IsActive bool  `db:"is_active"`
 	}
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, tx, &installerRows, `
-			SELECT fleet_maintained_app_id, is_active FROM software_installers
+			SELECT id, fleet_maintained_app_id, is_active FROM software_installers
 			WHERE global_or_team_id = ? AND title_id = ?
 		`, team2.ID, titles2[0].ID)
 	})
 	require.Len(t, installerRows, 1)
+	require.Equal(t, customInstallerID2, installerRows[0].ID, "row should be updated in place, not deleted+re-inserted")
 	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA via ON DUPLICATE KEY UPDATE")
 	require.Equal(t, fma2.ID, *installerRows[0].FMAID)
 	require.True(t, installerRows[0].IsActive)
