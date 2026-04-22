@@ -1418,6 +1418,18 @@ func (a *agent) runWindowsMDMLoop() {
 		}
 
 		for _, c := range cmds {
+			// Skip the server's own <Status> entries. MS-MDM's "Status on a
+			// Status" is only for auth-renegotiation edge cases (see
+			// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
+			// — "While this case is not usually encountered"); real Windows
+			// does not emit Status-on-Status during normal check-ins. Acking
+			// them here caused the server to WARN "unmatched Windows MDM
+			// commands" on every empty-queue check-in, because the CmdRefs
+			// point to the server's freshly-generated Status CmdIDs rather
+			// than rows in windows_mdm_commands.
+			if c.Verb == fleet.CmdStatus {
+				continue
+			}
 			a.stats.IncrementMDMCommandsReceived()
 
 			status := syncml.CmdStatusOK
