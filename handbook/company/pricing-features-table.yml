@@ -142,7 +142,7 @@
     quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
     moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
   waysToUse:
-    - description: New Fleet instances are pre-configured with GitOps templates so the first GitOps run matches the default UI setup.
+    - description: New Fleet instances are pre-configured with GitOps templates so the first GitOps run matches the default UI setup (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/41409
     - description: Add Fleet-maintained apps to policies via GitOps to automatically install software when a policy fails.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
