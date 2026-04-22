@@ -457,7 +457,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: Automatically rotate the Recovery Lock password on a schedule so passwords are never reused (4.84.0).
+    - description: Automatically rotate the Recovery Lock password 1 hour after they're viewed so passwords are never reused (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/41003
 #  
 #  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗╔═╗
