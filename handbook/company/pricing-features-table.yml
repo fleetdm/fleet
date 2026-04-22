@@ -271,6 +271,8 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    - description: Configuration profiles are delivered to Apple hosts almost immediately after DEP enrollment instead of waiting for the next reconciler cycle (4.84).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/34433
   demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
@@ -535,11 +537,13 @@
       moreInfoUrl: https://fleetdm.com/docs/configuration/agent-configuration
     - description: Automatically remove settings from Windows hosts when a configuration profile is deleted (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/33418
+    - description: Automatically retry failed configuration profile installations up to 3 times on Apple macOS, iOS, and iPadOS hosts (4.84).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42327
   productCategories: [Device management]
   pricingTableCategories: [Devices]
 #
-#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗  
-#   ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║   
+#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+#   ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║
 #  ═╩╝╚═╝╚═╝╩═╝╩ ╩╩╚═╩ ╩ ╩ ╩ ╚╝ ╚═╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩            
 - industryName: Declarative Device Management (DDM) support for configuration profiles
   description: Full support for Apple DDM configuration profiles.
@@ -1092,8 +1096,10 @@
       moreInfoUrl: https://www.cisa.gov/stakeholder-specific-vulnerability-categorization-ssvc
     - description: 'Balint Fazakas: I think what offers a better use of CVSS if you break it down to vectors. You may find that a DoS (High Availability Impact) not as relevant for you, or equally a vulnerability requiring user interaction has a very low likelihood of exploit in another scenario.  If you want to fine tune your SSVC, it worth using the vectors you care about instead of the score itself. But ultimately you would want to read the description of the vulnerabilities to determine the risk they are posing to your environment. SSVC can assist you to do that in a more efficient way.'
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
-    - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
+    - description: ‘Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.’
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+    - description: Vulnerability detection for Ubuntu uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.84).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39900
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
@@ -1234,7 +1240,7 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Deploy certificates
-  description: Help your end users connect to third-party tools (e.g. Wi-Fi or VPN) by deploying certificates from your certificate authority (CA).                
+  description: Help your end users connect to third-party tools (e.g. Wi-Fi or VPN) by deploying certificates from your certificate authority (CA).
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
@@ -1243,6 +1249,11 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  waysToUse:
+    - description: Throttle certificate profile requests to avoid overloading your CA server when deploying certificates to large numbers of Apple hosts (4.84).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/38002
+    - description: Automatically retry failed certificate installations up to 3 times on Android hosts (4.84).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37546
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
@@ -1307,6 +1318,9 @@
   productCategories: [Device management,Endpoint operations]
   pricingTableCategories: [Integrations]
   buzzwords: [Entra,Microsoft Entra,conditional access,Windows compliance]
+  waysToUse:
+    - description: Block end users from accessing corporate resources (e.g. Microsoft 365, SharePoint) when their Windows device fails Fleet policies (4.84).
+      moreInfoUrl: https://fleetdm.com/docs/using-fleet/conditional-access
 #
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝
