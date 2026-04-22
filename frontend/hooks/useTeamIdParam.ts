@@ -186,6 +186,17 @@ const getUserTeams = ({
     : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
 };
 
+// Prefer a fleet named "Workstations" (with or without emoji prefix),
+// otherwise fall back to the fleet with the lowest ID.
+export const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
+  const name = "workstations";
+  const workstations = fleets.find((t) => {
+    const lower = t.name.toLowerCase();
+    return lower === name || lower === `\u{1F4BB} ${name}`;
+  });
+  return workstations ?? sortBy(fleets, (t) => t.id)[0];
+};
+
 const getDefaultTeam = ({
   currentUser,
   includeAllTeams,
@@ -202,6 +213,8 @@ const getDefaultTeam = ({
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
+  const realFleets = userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+
   if (permissions.isOnGlobalTeam(currentUser)) {
     let defaultTeam: ITeamSummary | undefined;
     if (isPrimoMode) {
@@ -221,25 +234,22 @@ const getDefaultTeam = ({
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       }
       if (!defaultTeam && includeNoTeam) {
-        // prefer the real fleet with the lowest ID over "Unassigned"
-        const realFleets = userTeams.filter(
-          (t) => t.id > APP_CONTEXT_NO_TEAM_ID
-        );
+        // prefer a real fleet over "Unassigned"
         if (realFleets.length > 0) {
-          defaultTeam = sortBy(realFleets, (t) => t.id)[0];
+          defaultTeam = preferredOrLowestIdFleet(realFleets);
         } else {
           defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
         }
       }
     }
 
-    return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+    return defaultTeam || preferredOrLowestIdFleet(realFleets);
   }
 
   return (
     userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
     userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
-    userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    preferredOrLowestIdFleet(realFleets)
   );
 };
 
