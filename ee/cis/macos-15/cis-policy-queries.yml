@@ -627,7 +627,7 @@ spec:
     Terminal Method:
     Run the following command to disable Remote Login:
       /usr/bin/sudo /usr/sbin/systemsetup -setremotelogin off
-    Note: This command will disable the service as well as stop it running in time.
+    Note: This command disables Remote Login and stops the SSH service immediately.
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT * FROM plist WHERE
