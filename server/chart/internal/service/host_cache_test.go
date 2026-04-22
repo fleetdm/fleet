@@ -37,10 +37,10 @@ func TestHashHostFilterDeterministic(t *testing.T) {
 		//   [0]         — no-team hosts (team_id=0 query)
 		//   [5]         — specific team
 		keys := map[string]struct{}{
-			hashHostFilter(&types.HostFilter{TeamIDs: nil}):        {},
-			hashHostFilter(&types.HostFilter{TeamIDs: []uint{}}):   {},
-			hashHostFilter(&types.HostFilter{TeamIDs: []uint{0}}):  {},
-			hashHostFilter(&types.HostFilter{TeamIDs: []uint{5}}):  {},
+			hashHostFilter(&types.HostFilter{TeamIDs: nil}):          {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{}}):     {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{0}}):    {},
+			hashHostFilter(&types.HostFilter{TeamIDs: []uint{5}}):    {},
 			hashHostFilter(&types.HostFilter{TeamIDs: []uint{1, 2}}): {},
 		}
 		assert.Len(t, keys, 5, "all five team-scope variants must produce distinct keys")

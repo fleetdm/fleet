@@ -36,6 +36,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -74,16 +75,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect to mysql: %v", err)
 	}
-	defer db.Close()
 
 	if err := db.Ping(); err != nil {
+		db.Close()
 		log.Fatalf("ping mysql: %v", err)
 	}
+	defer db.Close()
 
 	api := &apiClient{
 		baseURL: *fleetURL,
 		token:   *fleetToken,
-		http:    &http.Client{Timeout: 30 * time.Second}, //nolint:vet
+		http:    fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second)),
 	}
 
 	if err := collectUptime(api, db); err != nil {
@@ -274,6 +276,7 @@ func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]by
 	if err != nil {
 		return fmt.Errorf("fetch open SCD rows: %w", err)
 	}
+	defer rows.Close()
 	type openRow struct {
 		bitmap    []byte
 		validFrom time.Time
@@ -284,12 +287,13 @@ func reconcileSnapshot(db *sql.DB, dataset string, entityBitmaps map[string][]by
 		var bitmap []byte
 		var validFrom time.Time
 		if err := rows.Scan(&entityID, &bitmap, &validFrom); err != nil {
-			rows.Close()
 			return fmt.Errorf("scan open SCD row: %w", err)
 		}
 		openByEntity[entityID] = openRow{bitmap: bitmap, validFrom: validFrom}
 	}
-	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate open SCD rows: %w", err)
+	}
 
 	var toClose []string
 	var toUpsert []struct {

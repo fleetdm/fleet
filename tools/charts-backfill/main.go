@@ -36,32 +36,34 @@ func main() {
 	dsn := flag.String("mysql-dsn", "fleet:fleet@tcp(localhost:3306)/fleet?parseTime=true", "MySQL connection string")
 	flag.Parse()
 
-	db, err := sql.Open("mysql", *dsn)
-	if err != nil {
-		log.Fatalf("failed to connect to mysql: %v", err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Fatalf("failed to ping mysql: %v", err)
-	}
-
 	var start time.Time
 	if *startDate != "" {
-		start, err = time.Parse("2006-01-02", *startDate)
+		s, err := time.Parse("2006-01-02", *startDate)
 		if err != nil {
 			log.Fatalf("invalid start-date %q: %v", *startDate, err)
 		}
+		start = s
 	} else {
 		start = time.Now().UTC().AddDate(0, 0, -(*days - 1))
 	}
 	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
 
+	db, err := sql.Open("mysql", *dsn)
+	if err != nil {
+		log.Fatalf("failed to connect to mysql: %v", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		db.Close()
+		log.Fatalf("failed to ping mysql: %v", err)
+	}
+	defer db.Close()
+
 	hostIDs := str.ParseUintList(*hostIDsStr)
 	if len(hostIDs) == 0 {
 		hostIDs, err = queryHostIDs(db)
 		if err != nil {
-			log.Fatalf("failed to query host IDs: %v", err)
+			log.Fatalf("failed to query host IDs: %v", err) //nolint:gocritic // dev tool, OS reclaims db handle on exit
 		}
 		if len(hostIDs) == 0 {
 			log.Fatal("no hosts found in database")
@@ -133,7 +135,7 @@ func backfillDaily(db *sql.DB, dataset string, days int, start time.Time, hostID
 		date := start.AddDate(0, 0, day)
 
 		for _, entityID := range entityIDs {
-			density := minDensity + rand.Float64()*(maxDensity-minDensity)
+			density := minDensity + rand.Float64()*(maxDensity-minDensity) //nolint:gosec // dev data generator, not crypto
 			count := int(float64(n) * density)
 			if count == 0 {
 				continue
@@ -173,7 +175,7 @@ func generateHourlyHosts(dataset string, hostIDs []uint) map[int][]uint {
 	result := make(map[int][]uint, 24)
 
 	for hour := range 24 {
-		density := minDensity + rand.Float64()*(maxDensity-minDensity)
+		density := minDensity + rand.Float64()*(maxDensity-minDensity) //nolint:gosec // dev data generator, not crypto
 		count := int(float64(n) * density)
 		if count == 0 {
 			continue
