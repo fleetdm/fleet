@@ -51,7 +51,13 @@ policies:
 reports:
 software:
   packages:
-    # Linux apps
+  
   fleet_maintained_apps:
+    - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
+      self_service: true
+      labels_include_any:
+        - "IdP group: SAML-aws-vpn"
+      categories:
+        - Utilities
     # macOS apps
     # Windows apps
