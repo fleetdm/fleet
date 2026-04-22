@@ -744,7 +744,7 @@
 #
 #      
 - industryName: Dashboard widgets
-  description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard (4.84.0).
+  description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/41519
   tier: Free
   jamfProHasFeature: yes
