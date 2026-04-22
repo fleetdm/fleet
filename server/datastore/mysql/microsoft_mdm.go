@@ -1355,26 +1355,30 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	locURIToProtectingProfiles := make(map[string][]string)
 	if len(profileUUIDs) > 0 {
 		// Query profile UUIDs and SyncML from profiles in the same team that
-		// are NOT being deleted.
+		// are NOT being deleted. Failures here must not be swallowed: an empty
+		// activeLocURIs would make every LocURI look safe to delete and could
+		// undo settings still enforced by remaining profiles.
 		const activeProfilesStmt = `
 			SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles
 			WHERE team_id = ? AND profile_uuid NOT IN (?)`
-		apStmt, apArgs, apErr := sqlx.In(activeProfilesStmt, profTeamID, profileUUIDs)
-		if apErr == nil {
-			var activeProfiles []struct {
-				ProfileUUID string `db:"profile_uuid"`
-				SyncML      []byte `db:"syncml"`
-			}
-			if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err == nil {
-				for _, ap := range activeProfiles {
-					// Substitute SCEP variable so LocURIs are compared on
-					// resolved paths, consistent with the deleted profile side.
-					resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(ap.SyncML, []byte(ap.ProfileUUID))
-					for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
-						activeLocURIs[uri] = struct{}{}
-						locURIToProtectingProfiles[uri] = append(locURIToProtectingProfiles[uri], ap.ProfileUUID)
-					}
-				}
+		apStmt, apArgs, err := sqlx.In(activeProfilesStmt, profTeamID, profileUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN for active profiles LocURI protection")
+		}
+		var activeProfiles []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting active profiles for LocURI protection")
+		}
+		for _, ap := range activeProfiles {
+			// Substitute SCEP variable so LocURIs are compared on
+			// resolved paths, consistent with the deleted profile side.
+			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(ap.SyncML, []byte(ap.ProfileUUID))
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
+				activeLocURIs[uri] = struct{}{}
+				locURIToProtectingProfiles[uri] = append(locURIToProtectingProfiles[uri], ap.ProfileUUID)
 			}
 		}
 	}
