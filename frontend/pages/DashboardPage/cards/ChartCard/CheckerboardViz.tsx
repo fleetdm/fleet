@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 
-import Moon from "components/icons/Moon";
-import Sun from "components/icons/Sun";
-import { IconSizes } from "styles/var/icon_sizes";
-
 import { IFormattedDataPoint } from "./types";
 
 const baseClass = "checkerboard-viz";
@@ -44,23 +40,11 @@ interface ICheckerboardVizProps {
 const CELL_W = 16.75;
 const CELL_H = 19;
 const CELL_GAP = 2;
-const Y_AXIS_WIDTH = 40; // space for y-axis icons/labels on the left
-// Toggle between sun/moon icons and 6am/6pm text labels on the y-axis.
-const USE_Y_AXIS_ICONS = false;
+const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
 // When cards stack to full-width (below $break-md), the container gets wider
 // than this threshold and we scale cells up by WIDE_MULTIPLIER.
 const WIDE_THRESHOLD = 700;
 const WIDE_MULTIPLIER = 1.5;
-
-// Determine which y-axis section a row belongs to based on the hour it represents
-type TimeOfDay = "night-top" | "day" | "night-bottom";
-
-const getTimeOfDay = (row: number, hoursPerSlot: number): TimeOfDay => {
-  const hourStart = row * hoursPerSlot;
-  if (hourStart < 6) return "night-top";
-  if (hourStart < 18) return "day";
-  return "night-bottom";
-};
 
 const CheckerboardViz = ({
   data,
@@ -169,35 +153,6 @@ const CheckerboardViz = ({
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
 
-  // Compute y-axis icon positions (only for multi-day views)
-  const yAxisSections = useMemo(() => {
-    if (is24h) return [];
-
-    const sections: {
-      type: TimeOfDay;
-      startRow: number;
-      endRow: number;
-    }[] = [];
-    let currentType = getTimeOfDay(0, hoursPerSlot);
-    let startRow = 0;
-
-    for (let row = 1; row < hourRows; row += 1) {
-      const tod = getTimeOfDay(row, hoursPerSlot);
-      if (tod !== currentType) {
-        sections.push({ type: currentType, startRow, endRow: row - 1 });
-        currentType = tod;
-        startRow = row;
-      }
-    }
-    sections.push({
-      type: currentType,
-      startRow,
-      endRow: hourRows - 1,
-    });
-
-    return sections;
-  }, [is24h, hoursPerSlot, hourRows]);
-
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
     if (dayLabels.length < 2) return { start: "", middle: "", end: "" };
@@ -227,51 +182,14 @@ const CheckerboardViz = ({
 
   const showYAxis = !is24h;
   const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
-  const pickIconSize = (px: number): IconSizes => {
-    if (px <= 13) return "small";
-    if (px <= 15) return "small-medium";
-    if (px <= 20) return "medium";
-    return "large";
-  };
-  const iconSize = pickIconSize(16 * scale);
 
   return (
     <div className={baseClass} ref={containerRef}>
       <div className={`${baseClass}__chart-row`}>
-        {/* Y-axis: either sun/moon icons or 6am/6pm labels. Kept outside the
-            scroll-wrapper so it stays pinned during horizontal scroll and
-            label text can overflow leftward without being clipped. */}
-        {showYAxis && USE_Y_AXIS_ICONS && (
-          <div
-            className={`${baseClass}__y-axis`}
-            style={{ width: leftMargin, height: gridHeight }}
-          >
-            {yAxisSections.map((section) => {
-              const topPx = section.startRow * (cellH + CELL_GAP);
-              const rowCount = section.endRow - section.startRow + 1;
-              const sectionHeight =
-                rowCount * cellH + (rowCount - 1) * CELL_GAP;
-              return (
-                <div
-                  key={`${section.type}-${section.startRow}`}
-                  className={`${baseClass}__y-axis-icon`}
-                  style={{
-                    top: topPx,
-                    width: leftMargin,
-                    height: sectionHeight,
-                  }}
-                >
-                  {section.type === "day" ? (
-                    <Sun size={iconSize} />
-                  ) : (
-                    <Moon size={iconSize} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {showYAxis && !USE_Y_AXIS_ICONS && (
+        {/* Y-axis 6am/6pm labels. Kept outside the scroll-wrapper so they stay
+            pinned during horizontal scroll and label text can overflow
+            leftward without being clipped. */}
+        {showYAxis && (
           <div
             className={`${baseClass}__y-axis`}
             style={{ width: leftMargin, height: gridHeight }}
