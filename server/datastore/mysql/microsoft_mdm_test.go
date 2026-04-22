@@ -53,7 +53,6 @@ func TestMDMWindows(t *testing.T) {
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
-		{"TestDeleteProfileAfterHostMovedTeams", testDeleteProfileAfterHostMovedTeams},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 	}
@@ -4384,139 +4383,72 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		assert.True(t, h2HasX, "h2: should delete X")
 		assert.True(t, h2HasY, "h2: should delete Y (profB doesn't apply, not in label scope)")
 	})
-}
 
-// testDeleteProfileAfterHostMovedTeams reproduces the scenario where a Windows
-// profile is deleted from the "No team" fleet after some of the hosts that
-// had it applied have been moved to a different team. The moved hosts still
-// carry host_mdm_windows_profiles rows for the original profile (now marked
-// for removal pending <Delete> dispatch). Previously the deletion path
-// derived the team from those stale rows via a JOIN against hosts and
-// rejected the operation with a 500 when it saw multiple teams.
-func testDeleteProfileAfterHostMovedTeams(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "destination-team"})
-	require.NoError(t, err)
-
-	hStay := test.NewHost(t, ds, "host-stay", "10.0.0.10", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
-	windowsEnroll(t, ds, hStay)
-	hMoved := test.NewHost(t, ds, "host-moved", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
-	windowsEnroll(t, ds, hMoved)
-
-	// Insert two profiles in "No team": one we will delete, one that stays.
-	profToDelete := &fleet.MDMWindowsConfigProfile{Name: "profDelete", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Delete/Me</LocURI></Target><Data>1</Data></Item></Replace>`)}
-	profToKeep := &fleet.MDMWindowsConfigProfile{Name: "profKeep", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Keep/Me</LocURI></Target><Data>1</Data></Item></Replace>`)}
-	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profToDelete, profToKeep}, nil)
-		return err
-	})
-	require.NoError(t, err)
-
-	var profToDeleteUUID, profToKeepUUID string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profToDeleteUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profDelete'`)
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profToKeepUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profKeep'`)
-	})
-
-	// Simulate both profiles already applied to both hosts while both were in "No team".
-	verified := fleet.MDMDeliveryVerified
-	var payloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload
-	for _, hUUID := range []string{hStay.UUID, hMoved.UUID} {
-		for _, pUUID := range []string{profToDeleteUUID, profToKeepUUID} {
-			payloads = append(payloads, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
-				ProfileUUID:   pUUID,
-				ProfileName:   "n",
-				HostUUID:      hUUID,
-				CommandUUID:   uuid.NewString(),
-				OperationType: fleet.MDMOperationTypeInstall,
-				Status:        &verified,
-				Checksum:      []byte{0},
-			})
-		}
-	}
-	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, payloads))
-
-	// Move hMoved into the destination team. The datastore method updates
-	// hosts.team_id but leaves host_mdm_windows_profiles alone. The service
-	// layer then marks the stale rows for removal. Replicate that here.
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hMoved.ID})))
-	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hMoved.ID}, nil, nil, nil)
-	require.NoError(t, err)
-
-	// Sanity check: hMoved's rows for the no-team profiles are now marked for removal.
-	var movedRemoveCount int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &movedRemoveCount,
-			`SELECT COUNT(*) FROM host_mdm_windows_profiles
-			 WHERE host_uuid = ? AND operation_type = 'remove' AND status IS NULL`, hMoved.UUID)
-	})
-	require.Equal(t, 2, movedRemoveCount, "expected hMoved to have pending-remove rows for the no-team profiles")
-
-	t.Run("DeleteMDMWindowsConfigProfile succeeds across stale cross-team rows", func(t *testing.T) {
-		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, profToDeleteUUID))
-
-		// A <Delete> command should have been enqueued for the host that stayed.
-		var stayCmd []byte
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &stayCmd,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
-				WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
-				hStay.UUID, profToDeleteUUID)
+	// Reproduces the regression where deleting a no-team profile failed with
+	// "expected profiles from 1 team, got 2" because some hosts that once had
+	// the profile had since been moved to a different team. Their stale
+	// host_mdm_windows_profiles rows (marked remove+NULL by the team move)
+	// made the pre-fix team lookup return two teams from its hosts JOIN.
+	t.Run("stale rows from moved host do not block delete", func(t *testing.T) {
+		t.Cleanup(func() {
+			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
 		})
-		require.NotEmpty(t, stayCmd)
-		assert.Contains(t, string(stayCmd), "./Device/Delete/Me")
 
-		// The moved host's row was already remove+NULL from the team move; the
-		// deletion path should have upgraded it to a queued <Delete> command.
-		var movedCmd []byte
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &movedCmd,
-				`SELECT wc.raw_command FROM windows_mdm_commands wc
-				JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
-				WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
-				hMoved.UUID, profToDeleteUUID)
-		})
-		require.NotEmpty(t, movedCmd, "moved host should have a queued <Delete> command even though it is now in a different team")
-		assert.Contains(t, string(movedCmd), "./Device/Delete/Me")
-	})
-
-	t.Run("batchSetMDMWindowsProfilesDB succeeds across stale cross-team rows", func(t *testing.T) {
-		// Re-apply profToDelete to both hosts so batchSet can delete it again.
-		// (The previous subtest queued removes; reset state.)
-		TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
-
+		prof := &fleet.MDMWindowsConfigProfile{Name: "no-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>1</Data></Item></Replace>`)}
 		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profToDelete, profToKeep}, nil)
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
 			return err
 		})
 		require.NoError(t, err)
+		var profUUID string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profToDeleteUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profDelete'`)
-		})
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profToKeepUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profKeep'`)
+			return sqlx.GetContext(ctx, q, &profUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'no-team-prof'`)
 		})
 
-		// Stay host: install+verified. Moved host: remove+NULL (pending <Delete>).
-		removeNull := (*fleet.MDMDeliveryStatus)(nil)
-		stayPayloads := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			{ProfileUUID: profToDeleteUUID, ProfileName: "n", HostUUID: hStay.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-			{ProfileUUID: profToKeepUUID, ProfileName: "n", HostUUID: hStay.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-			{ProfileUUID: profToDeleteUUID, ProfileName: "n", HostUUID: hMoved.UUID, CommandUUID: "", OperationType: fleet.MDMOperationTypeRemove, Status: removeNull, Checksum: []byte{0}},
-			{ProfileUUID: profToKeepUUID, ProfileName: "n", HostUUID: hMoved.UUID, CommandUUID: "", OperationType: fleet.MDMOperationTypeRemove, Status: removeNull, Checksum: []byte{0}},
-		}
-		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, stayPayloads))
+		// Both hosts start with the profile installed and verified.
+		verified := fleet.MDMDeliveryVerified
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h2.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+		}))
 
-		// Simulate GitOps: drop profToDelete from "No team".
+		// Move h2 out of no-team; replicate the post-move reconciliation the
+		// service layer does so h2's row flips to operation=remove, status=NULL.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "moved-host-destination"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
+		_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{h2.ID}, nil, nil, nil)
+		require.NoError(t, err)
+		// Restore h2 to no-team at the end so the next subtest starts clean.
+		t.Cleanup(func() {
+			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))
+		})
+
+		// GitOps path: submit an empty profile set for no-team, which deletes
+		// the remaining profile. Pre-fix this returned 500; the moved host's
+		// stale row made the team lookup see both no-team and the new team.
 		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profToKeep}, nil)
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
 			return err
 		})
-		require.NoError(t, err, "batchSet should succeed even when moved hosts have stale rows for the deleted profile")
+		require.NoError(t, err)
+
+		// Both hosts should now have a queued <Delete>: h1 as the direct
+		// consequence of the deletion, h2 because phase 2 upgrades the
+		// already remove+NULL row to a concrete command. This also proves
+		// offline moved hosts still receive the removal on next check-in.
+		for _, h := range []*fleet.Host{h1, h2} {
+			var rawCmd []byte
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &rawCmd,
+					`SELECT wc.raw_command FROM windows_mdm_commands wc
+					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
+					WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
+					h.UUID, profUUID)
+			})
+			require.NotEmpty(t, rawCmd, "host %s should have a queued <Delete>", h.Hostname)
+			assert.Contains(t, string(rawCmd), "./Device/Z")
+		}
 	})
 }
 
