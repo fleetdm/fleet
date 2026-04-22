@@ -1,4 +1,4 @@
-parasails.registerPage('query-detail', {
+parasails.registerPage('report-details', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -15,19 +15,19 @@ parasails.registerPage('query-detail', {
   },
   mounted: async function () {
 
-    let columnNamesForThisQuery = [];
-    let tableNamesForThisQuery = [];
+    let columnNamesForThisReport = [];
+    let tableNamesForThisReport = [];
     if(this.columnNamesForSyntaxHighlighting){
-      columnNamesForThisQuery = this.columnNamesForSyntaxHighlighting;
+      columnNamesForThisReport = this.columnNamesForSyntaxHighlighting;
     }
     if(this.tableNamesForSyntaxHighlighting){
-      tableNamesForThisQuery = this.tableNamesForSyntaxHighlighting;
+      tableNamesForThisReport = this.tableNamesForSyntaxHighlighting;
     }
     // Sorting the arrays of keywords by length to match larger keywords first.
-    columnNamesForThisQuery = columnNamesForThisQuery.sort((a,b)=>{
+    columnNamesForThisReport = columnNamesForThisReport.sort((a,b)=>{
       return a.length < b.length ? 1 : -1;
     });
-    tableNamesForThisQuery = tableNamesForThisQuery.sort((a,b)=>{
+    tableNamesForThisReport = tableNamesForThisReport.sort((a,b)=>{
       return a.length < b.length ? 1 : -1;
     });
     (()=>{
@@ -37,7 +37,7 @@ parasails.registerPage('query-detail', {
           return;
         }
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
-        for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+        for(let tableName of tableNamesForThisReport){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerHTML.match(tableName)||[]){
             tableNamesToHighlight.push(match);
           }
@@ -50,7 +50,7 @@ parasails.registerPage('query-detail', {
         }
         $(block).html(replacementHMTL);
         let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
-        for(let columnName of columnNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+        for(let columnName of columnNamesForThisReport){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
           for(let match of block.innerHTML.match(columnName)||[]){
             columnNamesToHighlight.push(match);
           }
