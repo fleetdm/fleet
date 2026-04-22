@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -532,7 +533,8 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 			config: config.FleetConfig{
 				Server: config.ServerConfig{PrivateKey: "something"},
 			},
-			authz: authorizer,
+			authz:  authorizer,
+			logger: slog.New(slog.DiscardHandler),
 		}
 		return svc, ds
 	}

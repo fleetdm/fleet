@@ -1111,7 +1111,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 		if prev, ok := seenNames[key]; ok {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
-				"fleet names in GitOps batch conflict: %q (filename %q) and %q (filename %q). %s",
+				"duplicate fleet names in request: %q (filename %q) and %q (filename %q). %s",
 				prev.name, prev.filename, trimmedName, filename, teamNameConflictErrMsg,
 			)})
 		}
@@ -1191,6 +1191,16 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				// that they want to manage (and possibly rename) this team.
 				if !filenameProvided {
 					spec.Name = team.Name
+				} else if team.Filename != nil && *team.Filename != "" && *team.Filename != *spec.Filename {
+					// The spec supplied a filename that matched no existing
+					// team, but the team matched by name is already managed
+					// by a different filename.
+					svc.logger.InfoContext(ctx, "GitOps filename changed for existing team",
+						"team_id", team.ID,
+						"team_name", team.Name,
+						"old_filename", *team.Filename,
+						"new_filename", *spec.Filename,
+					)
 				}
 			case fleet.IsNotFound(err):
 				create = true
