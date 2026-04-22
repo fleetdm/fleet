@@ -52,7 +52,7 @@ type softwareWorkerArgs struct {
 	// HostEnrollTeamID is the team ID associated with the host at the time
 	// of enrollment, which is the one used to run the setup experience.
 	// A value of 0 is used to represent "no team".
-	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty" renameto:"host_enroll_fleet_id"`
+	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"` //nolint:apiparamcheck // not user-facing
 
 	// PolicyID is the Android Management API Policy ID associated with the host, *not*
 	// a Fleet policy ID.
