@@ -81,6 +81,7 @@ const emptyChartHandler = http.get(baseUrl("/charts/:metric"), () => {
 
 describe("ChartCard", () => {
   const origGetBCR = Element.prototype.getBoundingClientRect;
+  const origResizeObserver = global.ResizeObserver;
 
   beforeAll(() => {
     global.ResizeObserver = (MockResizeObserver as unknown) as typeof ResizeObserver;
@@ -101,6 +102,7 @@ describe("ChartCard", () => {
 
   afterAll(() => {
     Element.prototype.getBoundingClientRect = origGetBCR;
+    global.ResizeObserver = origResizeObserver;
   });
 
   it("renders the checkerboard visualization for uptime (default)", async () => {

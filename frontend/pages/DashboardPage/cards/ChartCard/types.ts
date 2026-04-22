@@ -1,10 +1,12 @@
+import { ReactNode } from "react";
+
 export type ChartType = "line" | "checkerboard";
 
 export interface IDataSet {
   name: string;
   label: string;
   defaultChartType: ChartType;
-  description?: string | React.ReactNode;
+  description?: ReactNode;
 }
 
 export interface IFormattedDataPoint {

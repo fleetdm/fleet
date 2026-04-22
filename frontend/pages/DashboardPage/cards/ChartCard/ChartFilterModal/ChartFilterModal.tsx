@@ -42,6 +42,7 @@ export interface IChartFilterState {
 
 interface IChartFilterModalProps {
   filters: IChartFilterState;
+  currentTeamId?: number;
   onApply: (filters: IChartFilterState) => void;
   onCancel: () => void;
 }
@@ -51,6 +52,7 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const ChartFilterModal = ({
   filters,
+  currentTeamId,
   onApply,
   onCancel,
 }: IChartFilterModalProps): JSX.Element => {
@@ -94,15 +96,17 @@ const ChartFilterModal = ({
   // Note that we use infinite scrolling in the UI, rather than
   // traditional pagination controls, so we keep previously loaded
   // pages in the cache and just increase the page count as the user scrolls.
-  const { data: hostsData, isLoading: isLoadingHosts } = useQuery<
-    ILoadHostsResponse,
-    Error
-  >(
-    ["chartFilterHosts", searchQuery, pageCount],
+  const {
+    data: hostsData,
+    isLoading: isLoadingHosts,
+    error: hostsError,
+  } = useQuery<ILoadHostsResponse, Error>(
+    ["chartFilterHosts", currentTeamId, searchQuery, pageCount],
     () =>
       hostsAPI.loadHosts({
         page: 0,
         perPage: pageCount * PAGE_SIZE,
+        teamId: currentTeamId,
         globalFilter: searchQuery || undefined,
         sortBy: [{ key: "display_name", direction: "asc" }],
       }),
@@ -233,10 +237,15 @@ const ChartFilterModal = ({
             </Checkbox>
           </div>
         ))}
-        {isLoadingHosts && (
+        {hostsError && (
+          <div className={`${baseClass}__results-status`} role="alert">
+            Couldn&apos;t load hosts. Please try again.
+          </div>
+        )}
+        {!hostsError && isLoadingHosts && (
           <div className={`${baseClass}__results-status`}>Loading...</div>
         )}
-        {!isLoadingHosts && hosts.length === 0 && (
+        {!hostsError && !isLoadingHosts && hosts.length === 0 && (
           <div className={`${baseClass}__results-status`}>
             No matching hosts.
           </div>

@@ -60,6 +60,7 @@ class MockResizeObserver {
 
 describe("CheckerboardViz", () => {
   const origGetBCR = Element.prototype.getBoundingClientRect;
+  const origResizeObserver = global.ResizeObserver;
 
   beforeAll(() => {
     global.ResizeObserver = (MockResizeObserver as unknown) as typeof ResizeObserver;
@@ -81,6 +82,7 @@ describe("CheckerboardViz", () => {
 
   afterAll(() => {
     Element.prototype.getBoundingClientRect = origGetBCR;
+    global.ResizeObserver = origResizeObserver;
   });
 
   it("renders the correct number of cells for 3 days of data", async () => {

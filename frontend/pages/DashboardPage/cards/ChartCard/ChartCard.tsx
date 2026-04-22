@@ -208,6 +208,7 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
       {showFilterModal && (
         <ChartFilterModal
           filters={chartFilters}
+          currentTeamId={currentTeamId}
           onApply={(newFilters) => {
             setChartFilters(newFilters);
             setShowFilterModal(false);
