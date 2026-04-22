@@ -266,7 +266,7 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
-    - description: Managed Device Attestation for Apple devices via ACME (4.84.0).
+    - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
   demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
