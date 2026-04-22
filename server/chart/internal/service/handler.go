@@ -44,7 +44,6 @@ func getChartDataEndpoint(ctx context.Context, request any, svc api.Service) (pl
 		Platforms:       str.ParseStringList(req.Platforms),
 		IncludeHostIDs:  str.ParseUintList(req.IncludeHostIDs),
 		ExcludeHostIDs:  str.ParseUintList(req.ExcludeHostIDs),
-		DatasetFilters:  map[string]string{},
 	}
 
 	resp, err := svc.GetChartData(ctx, req.Metric, opts)

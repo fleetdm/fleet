@@ -99,12 +99,6 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid resolution value: %d (must be 0 or a positive divisor of 24)", opts.Resolution)}
 	}
 
-	// Resolve dataset-specific filters to entity IDs.
-	entityIDs, err := dataset.ResolveFilters(ctx, s.store, opts.DatasetFilters)
-	if err != nil {
-		return nil, err
-	}
-
 	hours := opts.Resolution
 	if hours <= 0 {
 		hours = dataset.DefaultResolutionHours()
@@ -135,7 +129,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, err
 	}
 
-	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
+	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, nil)
 	if err != nil {
 		return nil, err
 	}

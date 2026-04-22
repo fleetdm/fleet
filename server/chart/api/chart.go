@@ -53,25 +53,13 @@ type Dataset interface {
 	// Collect is called by the cron job to populate data in bulk.
 	Collect(ctx context.Context, store DatasetStore, now time.Time) error
 
-	// ResolveFilters translates dataset-specific query params into entity IDs.
-	// Returns nil if no entity filtering is needed.
-	ResolveFilters(ctx context.Context, store DatasetStore, params map[string]string) ([]string, error)
-
-	// SupportedFilters returns metadata about available filters for this dataset.
-	SupportedFilters() []FilterDef
-
 	// DefaultVisualization returns the default visualization type (e.g. "line", "heatmap").
 	DefaultVisualization() string
-
-	// HasEntityDimension returns true if the dataset partitions data by entity_id
-	// (e.g. per-CVE or per-policy). Used by query paths that need to aggregate across
-	// or filter by entities.
-	HasEntityDimension() bool
 }
 
-// DatasetStore is the narrow interface that datasets need for their Collect and
-// ResolveFilters methods. It is satisfied by the chart internal Datastore,
-// keeping dataset implementations decoupled from internals.
+// DatasetStore is the narrow interface that datasets need for their Collect
+// method. It is satisfied by the chart internal Datastore, keeping dataset
+// implementations decoupled from internals.
 type DatasetStore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported within the given
 	// lookback window. Used by datasets like uptime that derive their sample from
@@ -100,14 +88,6 @@ type Host struct {
 
 // AuthzType implements platform_authz.AuthzTyper.
 func (h *Host) AuthzType() string { return "host" }
-
-// FilterDef describes a filter that a dataset supports.
-type FilterDef struct {
-	Name        string `json:"name"`
-	Label       string `json:"label"`
-	Type        string `json:"type"` // "multi_select", "range", "boolean"
-	Description string `json:"description,omitempty"`
-}
 
 // DataPoint represents a single data point in the chart response.
 type DataPoint struct {
@@ -144,13 +124,9 @@ type RequestOpts struct {
 	Platforms      []string
 	IncludeHostIDs []uint
 	ExcludeHostIDs []uint
-	// DatasetFilters are dataset-specific filter params (e.g. policy_id, severity).
-	DatasetFilters map[string]string
 }
 
-// Filters captures the applied filters for a chart request. The JSON keys are
-// the public API surface; Go field names stay aligned with the codebase's
-// TeamID convention even though the wire name is fleet_id (teams→fleets).
+// Filters captures the applied filters for a chart request.
 type Filters struct {
 	TeamID         *uint    `json:"fleet_id,omitempty"`
 	LabelIDs       []uint   `json:"label_ids,omitempty"`

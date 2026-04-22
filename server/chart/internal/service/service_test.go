@@ -137,7 +137,7 @@ func TestGetChartDataInvalidResolution(t *testing.T) {
 	}
 }
 
-func TestGetChartDataHourlyPassesThrough(t *testing.T) {
+func TestGetChartDataUptimeDefault(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
@@ -169,10 +169,10 @@ func TestGetChartDataHourlyPassesThrough(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "uptime", resp.Metric)
 	assert.Equal(t, "checkerboard", resp.Visualization)
-	assert.Equal(t, "hourly", resp.Resolution)
+	assert.Equal(t, "3-hour", resp.Resolution)
 	assert.Equal(t, 200, resp.TotalHosts)
 	assert.Equal(t, 7, resp.Days)
-	assert.Equal(t, time.Hour, gotBucketSize)
+	assert.Equal(t, 3*time.Hour, gotBucketSize)
 	assert.Equal(t, api.SampleStrategyAccumulate, gotStrategy)
 	assert.Equal(t, 200, chart.BlobPopcount(gotMask), "filter mask should encode all 200 host IDs")
 	// Span must be exactly 7 days.
@@ -185,7 +185,7 @@ func TestGetChartDataUptimeResolution(t *testing.T) {
 		resolutionStr string
 		bucketSize    time.Duration
 	}{
-		{0, "hourly", time.Hour},
+		{0, "3-hour", 3 * time.Hour},
 		{1, "hourly", time.Hour},
 		{2, "2-hour", 2 * time.Hour},
 		{4, "4-hour", 4 * time.Hour},
@@ -473,15 +473,9 @@ func TestCollectDatasetsUptime(t *testing.T) {
 func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
-	assert.Equal(t, 1, d.DefaultResolutionHours())
+	assert.Equal(t, 3, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategyAccumulate, d.SampleStrategy())
 	assert.Equal(t, "checkerboard", d.DefaultVisualization())
-	assert.False(t, d.HasEntityDimension())
-	assert.Nil(t, d.SupportedFilters())
-
-	entityIDs, err := d.ResolveFilters(t.Context(), nil, nil)
-	require.NoError(t, err)
-	assert.Nil(t, entityIDs)
 }
 
 func TestCVEDatasetMetadata(t *testing.T) {
@@ -490,5 +484,4 @@ func TestCVEDatasetMetadata(t *testing.T) {
 	assert.Equal(t, 24, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategySnapshot, d.SampleStrategy())
 	assert.Equal(t, "line", d.DefaultVisualization())
-	assert.True(t, d.HasEntityDimension())
 }
