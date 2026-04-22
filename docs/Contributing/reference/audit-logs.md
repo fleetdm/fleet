@@ -2488,6 +2488,64 @@ This activity contains the following fields:
 }
 ```
 
+## created_pack
+
+Generated when creating labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the new label.
+- "label_name": the name of the new label.
+- "team_id": the ID of the team the label belongs to.
+
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"team_id": 1
+}
+```
+
+## edited_pack
+
+Generated when editing labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the edited label.
+- "label_name": the name of the edited label.
+- "team_id": the ID of the team the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"team_id": 1
+}
+```
+
+## deleted_label
+
+Generated when deleting labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the deleted label.
+- "label_name": the name of the deleted label.
+- "team_id": the ID of the team the label belonged to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"team_id": 1
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
