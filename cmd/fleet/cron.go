@@ -695,7 +695,7 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
-		// Skip RHEL platforms when OSV is enabled (OSV handles both kernel and non-kernel).
+		// Skip OSV-supported Linux platforms (for example, Ubuntu and RHEL) when OSV is enabled.
 		// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in goval-dictionary.
 		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) && !strings.Contains(version.Name, "Fedora") {
 			continue
