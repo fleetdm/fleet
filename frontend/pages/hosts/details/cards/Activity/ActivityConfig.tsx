@@ -29,7 +29,6 @@ import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivity
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
 
-
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
   activity: IHostPastActivity | IHostUpcomingActivity;

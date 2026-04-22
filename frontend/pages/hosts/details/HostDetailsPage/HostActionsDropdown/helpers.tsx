@@ -341,9 +341,7 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (!isConnectedToFleetMdm) return false;
   if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
   if (!isManagedLocalAccountEnabled) return false;
-  return (
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
-  );
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {
