@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     firstName: {type: 'string', required: true },
     lastName: {type: 'string', required: true },
-    emailAddress: {type: 'string', required: true },
+    emailAddress: {type: 'string', required: true, isEmail: true },
     whitepaperName: {type: 'string', required: true },
   },
 
