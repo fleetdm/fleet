@@ -69,7 +69,9 @@ Replace:
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, find the read-only **User scope profile**.
 3. Copy the profile to a new `.mobileconfig` file and save.
-4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+
+Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days.Automatically renewal for this certificate is [coming soon](https://github.com/fleetdm/fleet/issues/40639). When the certificate is renewed, the old certificate isn't removed. To clean up the old certificate, you can run [this script](TODO).
 
 ## Step 3: Create IdP in Okta
 
