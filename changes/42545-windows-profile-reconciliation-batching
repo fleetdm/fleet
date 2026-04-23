@@ -1,0 +1,1 @@
+* Improved the performance of Windows MDM profile reconciliation during team transfers and bulk profile changes by enlarging the batch size, matching the primary key order in the batched WHERE clause, and sorting host/profile pairs to reduce database deadlock retries on concurrent updates.
