@@ -8563,7 +8563,7 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 		hostUUIDs = append(hostUUIDs, uuid.NewString())
 	}
 
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, ds.writer(ctx), hostUUIDs, nil)
+	_, err := ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, hostUUIDs, nil)
 	require.NoError(t, err)
 }
 
