@@ -1976,6 +1976,16 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
 		}
 
+		// Apple wipes the device-side recovery lock when the MDM profile is removed.
+		// Soft-delete the stored password so the recovery-lock cron re-enqueues a fresh
+		// SetRecoveryLock if/when this host re-enrolls. Unlike disk encryption keys
+		// (intentionally kept across unenroll), a stored recovery lock has no
+		// post-unenroll utility. No-op for non-darwin hosts since the table only
+		// contains darwin/Apple-silicon rows.
+		if err := softDeleteHostRecoveryLockPassword(ctx, tx, uuid); err != nil {
+			return err
+		}
+
 		// we may need to create corresponding "past" activities for "canceled" VPP
 		// app installs, so we return those to the MDM lifecycle to handle.
 		usersVPP, activitiesVPP, err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID, host.Platform, softwareTypeVPP)
@@ -5037,6 +5047,15 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting hardware_attested")
 			}
+
+			// Soft-delete the recovery lock password: Apple wipes the device-side recovery lock
+			// whenever the MDM profile is removed, and any subsequent Authenticate means the
+			// device went through an unenroll/re-enroll (or wipe/restore). Also unsticks rows
+			// whose SetRecoveryLock command was abandoned by nanomdm's ClearQueue (same
+			// Authenticate fires both cleanups). Table is keyed by host_uuid.
+			if err := softDeleteHostRecoveryLockPassword(ctx, tx, hostUUID); err != nil {
+				return err
+			}
 		}
 
 		// reset the enrolled_from_migration value. We only get to this
@@ -5811,7 +5830,14 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		uuids, _, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
-		return err
+		if err != nil {
+			return err
+		}
+
+		// Safety net: always clean up orphaned remove/pending rows, even when
+		// there are no changed declarations. This handles stuck rows from
+		// previous runs that can't self-heal via device status reports.
+		return cleanUpOrphanedPendingRemoves(ctx, tx)
 	})
 
 	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
@@ -5967,6 +5993,42 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	return updatedDB, ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
 }
 
+// cleanUpOrphanedPendingRemoves deletes remove/pending rows from
+// host_mdm_apple_declarations where a matching install row already exists with
+// the same host, token, and identifier in a verified or verifying state. This
+// means the declaration content is already on the device — the remove is stale.
+func cleanUpOrphanedPendingRemoves(ctx context.Context, tx sqlx.ExtContext) error {
+	var found bool
+	err := sqlx.GetContext(ctx, tx, &found, `
+		SELECT EXISTS (
+			SELECT 1 FROM host_mdm_apple_declarations r
+			INNER JOIN host_mdm_apple_declarations i
+				ON r.host_uuid = i.host_uuid
+				AND r.token = i.token
+				AND r.declaration_identifier = i.declaration_identifier
+			WHERE r.operation_type = 'remove' AND r.status = 'pending'
+				AND i.operation_type = 'install'
+				AND i.status IN ('verified', 'verifying')
+			LIMIT 1)`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for orphaned remove/pending rows")
+	}
+	if !found {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		DELETE r FROM host_mdm_apple_declarations r
+		INNER JOIN host_mdm_apple_declarations i
+			ON r.host_uuid = i.host_uuid
+			AND r.token = i.token
+			AND r.declaration_identifier = i.declaration_identifier
+		WHERE r.operation_type = 'remove' AND r.status = 'pending'
+			AND i.operation_type = 'install'
+			AND i.status IN ('verified', 'verifying')`)
+	return ctxerr.Wrap(ctx, err, "deleting orphaned remove/pending rows")
+}
+
 func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, profilesToInsert map[string]*fleet.MDMAppleHostDeclaration) error {
 	// If we are inserting a declaration that has a matching pending "remove" declaration (same hash),
 	// we will mark the insert as verified. Why? Because there is nothing for the host to do if the same
@@ -6055,20 +6117,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("declaration")
 	stmt := fmt.Sprintf(`
         (
-            SELECT
-                ds.host_uuid,
-                'install' as operation_type,
-                ds.token,
-                ds.secrets_updated_at,
-                ds.declaration_uuid,
-                ds.declaration_identifier,
-                ds.declaration_name
-            FROM
-                %s
-        )
-        UNION ALL
-        (
-            SELECT
+			SELECT
                 hmae.host_uuid,
                 'remove' as operation_type,
                 hmae.token,
@@ -6079,13 +6128,29 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
             FROM
                 %s
         )
+        UNION ALL
+        (
+			SELECT
+                ds.host_uuid,
+                'install' as operation_type,
+                ds.token,
+                ds.secrets_updated_at,
+                ds.declaration_uuid,
+                ds.declaration_identifier,
+                ds.declaration_name
+            FROM
+                %s
+        )
     `,
-		entitiesToInstallQuery,
+		// We specifically want Removals first, since we later batch process
+		// and rely on removals being updated so the matching install entry
+		// can find it and clean it up avoiding leaving stale pending removals in the database.
 		entitiesToRemoveQuery,
+		entitiesToInstallQuery,
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	args := slices.Concat(entitiesToInstallArgs, entitiesToRemoveArgs)
+	args := slices.Concat(entitiesToRemoveArgs, entitiesToInstallArgs)
 	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
@@ -6183,7 +6248,7 @@ ON DUPLICATE KEY UPDATE
 	for _, c := range current {
 		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
 		// Pending removes are cleaned up after we update status of installs.
-		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
+		if u, ok := updatesByToken[fleet.EffectiveDDMToken(c.Token, c.VariablesUpdatedAt)]; ok && c.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)
@@ -7917,6 +7982,50 @@ func (ds *Datastore) DeleteHostRecoveryLockPassword(ctx context.Context, hostUUI
 	}
 
 	return nil
+}
+
+// softDeleteHostRecoveryLockPassword soft-deletes the host's recovery lock password row
+// and nulls rotation/view state that would otherwise leak into a future re-enrolled
+// password (SetHostsRecoveryLockPasswords' ON DUPLICATE KEY UPDATE does not reset those
+// columns on re-animate). Safe to call idempotently — the deleted=0 guard makes repeat
+// calls no-ops. Keeps encrypted_password/status/operation_type/error_message for support
+// diagnostics. Used by MDM lifecycle hooks (re-enroll, explicit unenroll) — Apple wipes
+// the device-side recovery lock whenever the MDM profile is removed, so any of these
+// signals invalidates Fleet's stored copy.
+func softDeleteHostRecoveryLockPassword(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords
+		SET deleted = 1,
+		    pending_encrypted_password = NULL,
+		    pending_error_message = NULL,
+		    auto_rotate_at = NULL
+		WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "soft-delete host recovery lock password")
+	}
+	return nil
+}
+
+// SoftDeleteRecoveryLockPasswordsForUnenrolledHosts is the cron-driven complement to the
+// explicit MDM lifecycle hooks. Catches hosts where MDM was disabled without Fleet receiving
+// either a CheckOut (paths handled by MDMTurnOff) or an Authenticate (handled by
+// MDMResetEnrollment) — typically when the device user manually removes the MDM profile
+// and only osquery refetch eventually reports host_mdm.enrolled=0. Runs each recovery-lock
+// cron tick; bounded by the recovery lock table size, not host count.
+func (ds *Datastore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_recovery_key_passwords rkp
+		JOIN hosts h     ON h.uuid = rkp.host_uuid AND h.platform = 'darwin'
+		JOIN host_mdm hm ON hm.host_id = h.id AND hm.enrolled = 0
+		SET rkp.deleted = 1,
+		    rkp.pending_encrypted_password = NULL,
+		    rkp.pending_error_message = NULL,
+		    rkp.auto_rotate_at = NULL
+		WHERE rkp.deleted = 0`)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts")
+	}
+	return res.RowsAffected()
 }
 
 func (ds *Datastore) GetRecoveryLockOperationType(ctx context.Context, hostUUID string) (fleet.MDMOperationType, error) {

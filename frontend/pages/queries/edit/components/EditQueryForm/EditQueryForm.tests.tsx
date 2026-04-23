@@ -734,7 +734,7 @@ describe("EditQueryForm - component", () => {
       });
 
       expect(
-        screen.getByText(/Creating a new report for/i)
+        await screen.findByText(/Creating a new report for/i)
       ).toBeInTheDocument();
       expect(screen.getByText("Engineering team")).toBeInTheDocument();
     });
@@ -779,7 +779,9 @@ describe("EditQueryForm - component", () => {
         expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
       });
 
-      expect(screen.getByText(/Running a new report for/i)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Running a new report for/i)
+      ).toBeInTheDocument();
       expect(screen.getByText("Engineering team")).toBeInTheDocument();
     });
   });

@@ -685,6 +685,20 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		commandResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
 	)
 
+	// Verify the device/self-service endpoint also returns VPP metadata (#43957)
+	var deviceCmdResultsResp getMDMCommandResultsResponse
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", "foobar", installCmdUUID), nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&deviceCmdResultsResp)
+	require.NoError(t, err)
+	require.Len(t, deviceCmdResultsResp.Results, 1)
+	require.Equal(t, false, deviceCmdResultsResp.Results[0].ResultsMetadata["software_installed"])
+	require.InEpsilon(
+		t,
+		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		deviceCmdResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
+		0.01,
+	)
+
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host
 	// ========================================================

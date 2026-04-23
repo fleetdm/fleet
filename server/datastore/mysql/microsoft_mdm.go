@@ -565,15 +565,18 @@ ORDER BY
 	return commands, nil
 }
 
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	if len(enrichedSyncML.Raw) == 0 {
-		return ctxerr.New(ctx, "empty raw response")
+		return nil, ctxerr.New(ctx, "empty raw response")
 	}
 	if enrolledDevice == nil {
-		return ctxerr.New(ctx, "enrolled device is nil")
+		return nil, ctxerr.New(ctx, "enrolled device is nil")
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var result *fleet.MDMWindowsSaveResponseResult
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result = nil
+
 		// store the full response
 		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
 		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
@@ -710,10 +713,20 @@ ON DUPLICATE KEY UPDATE
 
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
-			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
-				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
-			); err != nil {
+			wipeSucceeded := strings.HasPrefix(wipeCmdStatus, "2")
+			rowsAffected, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
+				"wipe_ref", wipeCmdUUID, wipeSucceeded, false,
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
+			}
+
+			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
+				result = &fleet.MDMWindowsSaveResponseResult{
+					WipeFailed: &fleet.MDMWindowsWipeResult{
+						HostUUID: enrolledDevice.HostUUID,
+					},
+				}
 			}
 		}
 
@@ -732,7 +745,10 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 // updateMDMWindowsHostProfileStatusFromResponseDB takes a slice of potential
@@ -1203,10 +1219,14 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	// SyncML bytes are needed to generate <Delete> commands.
-	var syncML []byte
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &syncML,
-		`SELECT syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
+	// SyncML bytes and team ID are needed to generate <Delete> commands and
+	// scope the LocURI protection set to the profile's team.
+	var profile struct {
+		TeamID uint   `db:"team_id"`
+		SyncML []byte `db:"syncml"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile,
+		`SELECT team_id, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profileUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
 		}
@@ -1218,8 +1238,8 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 			return err
 		}
 
-		profileContents := map[string][]byte{profileUUID: syncML}
-		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}, profileContents); err != nil {
+		profileContents := map[string][]byte{profileUUID: profile.SyncML}
+		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profile.TeamID, []string{profileUUID}, profileContents); err != nil {
 			return err
 		}
 
@@ -1246,16 +1266,18 @@ func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, prof
 //   - Phase 2: For rows that were sent (non-NULL status + install), generate SyncML
 //     <Delete> commands and enqueue them, then mark the rows for removal.
 //
-// IMPORTANT: All profileUUIDs must belong to the same team. The LocURI protection
-// set is built by querying all active profiles for the affected team(s). If profiles
-// from multiple teams were passed, a profile in team A could suppress deletes for
-// hosts in team B (over-protection), because the protection set would be the union
-// across teams rather than scoped per-team. All current callers (DeleteMDMWindowsConfigProfile,
-// DeleteMDMWindowsConfigProfileByTeamAndName, batchSetMDMWindowsProfilesDB) operate
-// on a single team.
+// profTeamID is the team the deleted profiles belong to (0 for "No team"/Unassigned).
+// It is passed by the caller rather than derived from the hosts table because
+// host_mdm_windows_profiles rows can reference profile UUIDs from a host's
+// previous team after the host has been moved (the rows stay marked for removal
+// until the reconciler dispatches <Delete> commands). Deriving the team from
+// those rows would return the host's current team, not the profile's team.
+// The team is used to scope the LocURI protection set built from OTHER active
+// profiles; without a fixed team scope, a profile in one team could spuriously
+// suppress deletes for hosts whose rows happen to join to a different team.
 func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	ctx context.Context, tx sqlx.ExtContext,
-	profileUUIDs []string, profileContents map[string][]byte,
+	profTeamID uint, profileUUIDs []string, profileContents map[string][]byte,
 ) error {
 	if len(profileUUIDs) == 0 {
 		return nil
@@ -1348,47 +1370,31 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// so pass 2 can check per-host applicability.
 	locURIToProtectingProfiles := make(map[string][]string)
 	if len(profileUUIDs) > 0 {
-		// Get team IDs for the profiles being deleted. Use the hosts table
-		// with a single query instead of one per host.
-		teamIDStmt, teamIDArgs, err := sqlx.In(
-			`SELECT DISTINCT COALESCE(h.team_id, 0) FROM hosts h
-			JOIN host_mdm_windows_profiles hwp ON hwp.host_uuid = h.uuid
-			WHERE hwp.profile_uuid IN (?)`, profileUUIDs)
+		// Query profile UUIDs and SyncML from profiles in the same team that
+		// are NOT being deleted. Failures here must not be swallowed: an empty
+		// activeLocURIs would make every LocURI look safe to delete and could
+		// undo settings still enforced by remaining profiles.
+		const activeProfilesStmt = `
+			SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles
+			WHERE team_id = ? AND profile_uuid NOT IN (?)`
+		apStmt, apArgs, err := sqlx.In(activeProfilesStmt, profTeamID, profileUUIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN for team ID lookup")
+			return ctxerr.Wrap(ctx, err, "building IN for active profiles LocURI protection")
 		}
-		var teamIDs []uint
-		if err := sqlx.SelectContext(ctx, tx, &teamIDs, teamIDStmt, teamIDArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "selecting team IDs for LocURI protection")
+		var activeProfiles []struct {
+			ProfileUUID string `db:"profile_uuid"`
+			SyncML      []byte `db:"syncml"`
 		}
-		if len(teamIDs) > 1 {
-			// All callers must operate on a single team. If multiple teams are
-			// found, the LocURI protection set would be the union across teams,
-			// letting a profile in team A suppress deletes for hosts in team B.
-			return ctxerr.Errorf(ctx, "cancelWindowsHostInstallsForDeletedMDMProfiles: expected profiles from 1 team, got %d", len(teamIDs))
+		if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting active profiles for LocURI protection")
 		}
-		if len(teamIDs) > 0 {
-			// Query profile UUIDs and SyncML from profiles NOT being deleted.
-			const activeProfilesStmt = `
-				SELECT profile_uuid, syncml FROM mdm_windows_configuration_profiles
-				WHERE team_id IN (?) AND profile_uuid NOT IN (?)`
-			apStmt, apArgs, apErr := sqlx.In(activeProfilesStmt, teamIDs, profileUUIDs)
-			if apErr == nil {
-				var activeProfiles []struct {
-					ProfileUUID string `db:"profile_uuid"`
-					SyncML      []byte `db:"syncml"`
-				}
-				if err := sqlx.SelectContext(ctx, tx, &activeProfiles, apStmt, apArgs...); err == nil {
-					for _, ap := range activeProfiles {
-						// Substitute SCEP variable so LocURIs are compared on
-						// resolved paths, consistent with the deleted profile side.
-						resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(ap.SyncML, []byte(ap.ProfileUUID))
-						for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
-							activeLocURIs[uri] = struct{}{}
-							locURIToProtectingProfiles[uri] = append(locURIToProtectingProfiles[uri], ap.ProfileUUID)
-						}
-					}
-				}
+		for _, ap := range activeProfiles {
+			// Substitute SCEP variable so LocURIs are compared on
+			// resolved paths, consistent with the deleted profile side.
+			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(ap.SyncML, []byte(ap.ProfileUUID))
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolved) {
+				activeLocURIs[uri] = struct{}{}
+				locURIToProtectingProfiles[uri] = append(locURIToProtectingProfiles[uri], ap.ProfileUUID)
 			}
 		}
 	}
@@ -1686,7 +1692,7 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 		}
 
 		profileContents := map[string][]byte{profile.ProfileUUID: profile.SyncML}
-		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profile.ProfileUUID}, profileContents)
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, globalOrTeamID, []string{profile.ProfileUUID}, profileContents)
 	})
 }
 
@@ -2923,7 +2929,7 @@ ON DUPLICATE KEY UPDATE
 
 	// Step 4: Cancel pending installs and enqueue <Delete> commands for delivered profiles.
 	if len(deletedProfileUUIDs) > 0 {
-		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs, deletedProfileContents); err != nil {
+		if err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profTeamID, deletedProfileUUIDs, deletedProfileContents); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
 		}
 	}
