@@ -496,3 +496,6 @@
 - method: "DELETE"
   path: "/api/v1/fleet/custom_variables/:id"
   display_name: "Delete custom variable"
+- method: "GET"
+  path: "/api/v1/fleet/configuration_profiles/:profile_uuid/status"
+  display_name: "Get OS setting (configuration profile) status"
