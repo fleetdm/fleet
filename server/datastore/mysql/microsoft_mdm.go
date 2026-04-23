@@ -1680,99 +1680,61 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 	})
 }
 
-func subqueryHostsMDMWindowsOSSettingsStatusFailed() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_windows_profiles hmwp
-            WHERE
-                h.uuid = hmwp.host_uuid
-                AND hmwp.status = ?
-                AND hmwp.profile_name NOT IN(?)`
-	args := []interface{}{
-		fleet.MDMDeliveryFailed,
-		mdm.ListFleetReservedWindowsProfileNames(),
+// windowsHostProfileStatusSubquery returns a correlated SQL scalar subquery
+// that resolves to one of `<statusPrefix>failed`, `<statusPrefix>pending`,
+// `<statusPrefix>verifying`, `<statusPrefix>verified`, or ” for the host
+// identified by h.uuid in the outer query.
+//
+// The subquery does a single aggregation pass over host_mdm_windows_profiles
+// via the PK(host_uuid, profile_uuid) prefix, replacing four correlated
+// EXISTS (three of which contain a nested NOT EXISTS). This takes per-host
+// evaluations down from up to seven PK range scans to one.
+//
+// The returned SQL does NOT include outer parentheses; callers wrap in
+// `(...)` as needed for the context (scalar subquery or CASE switch).
+//
+// Priority logic and its equivalence to the original EXISTS/NOT-EXISTS
+// version:
+//   - failed: any non-reserved profile has status='failed'.
+//   - pending: any non-reserved profile has status NULL or 'pending'.
+//   - verifying: at least one non-reserved install-type profile has
+//     status='verifying'. The original additionally required "no install-type
+//     non-reserved profile with status NULL or not in (verifying,verified)".
+//     At this CASE branch we already know failed=0 and pending=0, so no
+//     profile has status NULL/pending/failed; since profile status is always
+//     one of {NULL,pending,failed,verifying,verified}, that leaves only
+//     verifying and verified for install-type rows, so the extra clause is
+//     automatically satisfied.
+//   - verified: at least one non-reserved install-type profile has
+//     status='verified' and no install verifying exists (enforced by the
+//     earlier verifying branch).
+func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error) {
+	reserved := mdm.ListFleetReservedWindowsProfileNames()
+
+	sql := fmt.Sprintf(`
+        SELECT CASE
+            WHEN SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
+                THEN '%sfailed'
+            WHEN SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
+                THEN '%spending'
+            WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
+                THEN '%sverifying'
+            WHEN SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
+                THEN '%sverified'
+            ELSE ''
+        END
+        FROM host_mdm_windows_profiles hmwp
+        WHERE hmwp.host_uuid = h.uuid`,
+		statusPrefix, statusPrefix, statusPrefix, statusPrefix,
+	)
+
+	args := []any{
+		fleet.MDMDeliveryFailed, reserved,
+		fleet.MDMDeliveryPending, reserved,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, reserved,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, reserved,
 	}
 
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMWindowsOSSettingsStatusPending() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_windows_profiles hmwp
-            WHERE
-                h.uuid = hmwp.host_uuid
-                AND (hmwp.status IS NULL OR hmwp.status = ?)
-				AND hmwp.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_windows_profiles hmwp2
-                    WHERE (h.uuid = hmwp2.host_uuid
-                        AND hmwp2.status = ?
-                        AND hmwp2.profile_name NOT IN(?)))`
-	args := []interface{}{
-		fleet.MDMDeliveryPending,
-		mdm.ListFleetReservedWindowsProfileNames(),
-		fleet.MDMDeliveryFailed,
-		mdm.ListFleetReservedWindowsProfileNames(),
-	}
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMWindowsOSSettingsStatusVerifying() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_windows_profiles hmwp
-            WHERE
-                h.uuid = hmwp.host_uuid
-                AND hmwp.operation_type = ?
-                AND hmwp.status = ?
-                AND hmwp.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_windows_profiles hmwp2
-                    WHERE (h.uuid = hmwp2.host_uuid
-                        AND hmwp2.operation_type = ?
-                        AND hmwp2.profile_name NOT IN(?)
-                        AND(hmwp2.status IS NULL
-                            OR hmwp2.status NOT IN(?))))`
-
-	args := []interface{}{
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerifying,
-		mdm.ListFleetReservedWindowsProfileNames(),
-		fleet.MDMOperationTypeInstall,
-		mdm.ListFleetReservedWindowsProfileNames(),
-		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
-	}
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_windows_profiles hmwp
-            WHERE
-                h.uuid = hmwp.host_uuid
-                AND hmwp.operation_type = ?
-                AND hmwp.status = ?
-                AND hmwp.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_windows_profiles hmwp2
-                    WHERE (h.uuid = hmwp2.host_uuid
-                        AND hmwp2.operation_type = ?
-                        AND hmwp2.profile_name NOT IN(?)
-                        AND(hmwp2.status IS NULL
-                            OR hmwp2.status != ?)))`
-	args := []interface{}{
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerified,
-		mdm.ListFleetReservedWindowsProfileNames(),
-		fleet.MDMOperationTypeInstall,
-		mdm.ListFleetReservedWindowsProfileNames(),
-		fleet.MDMDeliveryVerified,
-	}
 	return sqlx.In(sql, args...)
 }
 
@@ -1822,27 +1784,13 @@ type statusCounts struct {
 }
 
 func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
-	var args []interface{}
-	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusFailed")
+	reserved := mdm.ListFleetReservedWindowsProfileNames()
+	args := []any{
+		fleet.MDMDeliveryFailed, reserved,
+		fleet.MDMDeliveryPending, reserved,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, reserved,
+		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, reserved,
 	}
-	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusPending")
-	}
-	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerifying")
-	}
-	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerified")
-	}
-	args = append(args, subqueryVerifiedArgs...)
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
@@ -1850,40 +1798,49 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 		args = append(args, *teamID)
 	}
 
+	// Rather than up to four correlated EXISTS (three with nested NOT EXISTS)
+	// evaluated per host, we do a single aggregation pass over
+	// host_mdm_windows_profiles per host via the PK(host_uuid, profile_uuid)
+	// prefix, then classify each host's status. See
+	// windowsHostProfileStatusSubquery for the priority equivalence argument.
 	stmt := fmt.Sprintf(`
 SELECT
     CASE
-        WHEN EXISTS (%s) THEN
-            'failed'
-        WHEN EXISTS (%s) THEN
-            'pending'
-        WHEN EXISTS (%s) THEN
-            'verifying'
-        WHEN EXISTS (%s) THEN
-            'verified'
-        ELSE
-            ''
+        WHEN failed_count    > 0 THEN 'failed'
+        WHEN pending_count   > 0 THEN 'pending'
+        WHEN verifying_count > 0 THEN 'verifying'
+        WHEN verified_count  > 0 THEN 'verified'
+        ELSE ''
     END AS final_status,
     SUM(1) AS count
-FROM
-    hosts h
+FROM (
+    SELECT
+        h.id,
+        SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS failed_count,
+        SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS pending_count,
+        SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS verifying_count,
+        SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS verified_count
+    FROM hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
     JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
-WHERE
-    mwe.device_state = '%s' AND
-    h.platform = 'windows' AND
-    hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
-    %s
-GROUP BY
-    final_status`,
-		subqueryFailed,
-		subqueryPending,
-		subqueryVerifying,
-		subqueryVerified,
+    LEFT JOIN host_mdm_windows_profiles hmwp ON h.uuid = hmwp.host_uuid
+    WHERE
+        mwe.device_state = '%s' AND
+        h.platform = 'windows' AND
+        hmdm.is_server = 0 AND
+        hmdm.enrolled = 1 AND
+        %s
+    GROUP BY h.id
+) per_host
+GROUP BY final_status`,
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
+
+	stmt, args, err := sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand IN clauses for windows mdm profile status counts")
+	}
 
 	var counts []statusCounts
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
@@ -1894,54 +1851,19 @@ GROUP BY
 }
 
 func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint, bitLockerPINRequired bool) ([]statusCounts, error) {
-	var args []interface{}
-	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	profilesStatus, profilesStatusArgs, err := windowsHostProfileStatusSubquery("profiles_")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusFailed")
+		return nil, ctxerr.Wrap(ctx, err, "windows host profile status subquery")
 	}
-	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusPending")
-	}
-	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerifying")
-	}
-	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMWindowsOSSettingsStatusVerified")
-	}
-	args = append(args, subqueryVerifiedArgs...)
 
-	profilesStatus := fmt.Sprintf(`
-        CASE WHEN EXISTS (%s) THEN
-            'profiles_failed'
-        WHEN EXISTS (%s) THEN
-            'profiles_pending'
-        WHEN EXISTS (%s) THEN
-            'profiles_verifying'
-        WHEN EXISTS (%s) THEN
-            'profiles_verified'
-        ELSE
-            ''
-        END`,
-		subqueryFailed,
-		subqueryPending,
-		subqueryVerifying,
-		subqueryVerified,
-	)
+	args := make([]any, 0, len(profilesStatusArgs)+1)
+	args = append(args, profilesStatusArgs...)
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
 		teamFilter = "h.team_id = ?"
 		args = append(args, *teamID)
 	}
-	bitlockerJoin := `
-    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
-    LEFT JOIN host_disks hd ON hd.host_id = h.id`
 
 	bitlockerStatus := fmt.Sprintf(`
             CASE WHEN (%s) THEN
@@ -1964,9 +1886,14 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, bitLockerPINRequired),
 	)
 
+	// profilesStatus is a scalar subquery that does one aggregation pass over
+	// host_mdm_windows_profiles per host (correlated on h.uuid). It replaces
+	// the original four correlated EXISTS (with nested NOT EXISTS) that each
+	// scanned the same rows independently. bitlockerStatus stays row-based
+	// (cheap predicates over hmdm/hdek/hd) and is evaluated per branch.
 	stmt := fmt.Sprintf(`
 SELECT
-    CASE (SELECT (%s) FROM hosts h2 WHERE h2.id = h.id)
+    CASE (%s)
     WHEN 'profiles_failed' THEN
         'failed'
     WHEN 'profiles_pending' THEN (
@@ -2008,7 +1935,8 @@ FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
     JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
-    %s
+    LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
+    LEFT JOIN host_disks hd ON hd.host_id = h.id
 WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
@@ -2022,7 +1950,6 @@ GROUP BY
 		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerStatus,
-		bitlockerJoin,
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)

@@ -1762,44 +1762,14 @@ AND (
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
 	paramsWindows := []any{}
-	subqueryFailed, paramsFailed, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
+	// profilesStatus does one aggregation pass over host_mdm_windows_profiles
+	// per host (correlated on h.uuid) instead of the previous four correlated
+	// EXISTS (with nested NOT EXISTS). See windowsHostProfileStatusSubquery.
+	profilesStatus, profilesStatusArgs, err := windowsHostProfileStatusSubquery("profiles_")
 	if err != nil {
 		return "", nil, err
 	}
-	paramsWindows = append(paramsWindows, paramsFailed...)
-	subqueryPending, paramsPending, err := subqueryHostsMDMWindowsOSSettingsStatusPending()
-	if err != nil {
-		return "", nil, err
-	}
-	paramsWindows = append(paramsWindows, paramsPending...)
-	subqueryVerifying, paramsVerifying, err := subqueryHostsMDMWindowsOSSettingsStatusVerifying()
-	if err != nil {
-		return "", nil, err
-	}
-	paramsWindows = append(paramsWindows, paramsVerifying...)
-	subqueryVerified, paramsVerified, err := subqueryHostsMDMWindowsOSSettingsStatusVerified()
-	if err != nil {
-		return "", nil, err
-	}
-	paramsWindows = append(paramsWindows, paramsVerified...)
-
-	profilesStatus := fmt.Sprintf(`
-        CASE WHEN EXISTS (%s) THEN
-            'profiles_failed'
-        WHEN EXISTS (%s) THEN
-            'profiles_pending'
-        WHEN EXISTS (%s) THEN
-            'profiles_verifying'
-        WHEN EXISTS (%s) THEN
-            'profiles_verified'
-        ELSE
-            ''
-        END`,
-		subqueryFailed,
-		subqueryPending,
-		subqueryVerifying,
-		subqueryVerified,
-	)
+	paramsWindows = append(paramsWindows, profilesStatusArgs...)
 
 	bitlockerStatus := `''`
 	if diskEncryptionConfig.Enabled {
