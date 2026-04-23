@@ -112,18 +112,17 @@ jobs:
             echo "Description: ${PR_BODY}" >> /tmp/pr_context.txt
           done
 
-      - name: Summarize with AI
+      - name: Build AI prompt
         if: steps.diffs.outputs.has_changes == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
         run: |
           COMMITS=$(cat /tmp/commits.txt)
           DIFF=$(cat /tmp/diff.txt)
           PR_CONTEXT=$(cat /tmp/pr_context.txt)
 
-          # Build the prompt
-          PROMPT="You are summarizing changes to a company handbook for a Slack post.
+          cat > /tmp/prompt.txt <<EOF
+          You are summarizing changes to a company handbook for a Slack post.
 
           Below are the commits, associated pull requests, and diffs made to the Product Design and Engineering sections of the Fleet handbook in the past week (since ${SINCE_DATE}).
 
@@ -140,56 +139,30 @@ jobs:
           Group changes by section (Engineering vs Product Design) if both have changes.
           Focus on WHAT changed and WHY it matters — use the PR descriptions for context on the intent behind changes. Skip trivial whitespace or formatting-only changes.
           For each significant change, include a link to the relevant PR using Slack link syntax: <URL|PR #123>.
-          Keep it under 3000 characters. Do not include a greeting or sign-off."
+          Keep it under 3000 characters. Do not include a greeting or sign-off.
+          EOF
 
-          echo "Prompt length: ${#PROMPT} chars"
+          echo "Prompt length: $(wc -c < /tmp/prompt.txt) chars"
 
-          # Build request body
-          jq -n --arg prompt "$PROMPT" \
-            '{
-              "model": "openai/gpt-4.1",
-              "max_tokens": 1024,
-              "messages": [{"role": "user", "content": $prompt}]
-            }' > /tmp/request.json
+      - name: Summarize with AI
+        id: inference
+        if: steps.diffs.outputs.has_changes == 'true'
+        uses: actions/ai-inference@af6ad2c4ac4edf01884054fc3a6caa6d2567c13a # v2.0.8
+        with:
+          model: openai/gpt-4.1
+          prompt-file: /tmp/prompt.txt
+          max-completion-tokens: '1024'
 
-          # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed).
-          # Capture body and HTTP status separately so we can log both on failure.
-          set +e
-          HTTP_CODE=$(curl -sS -L -X POST "https://models.github.ai/inference/chat/completions" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            --data-binary @/tmp/request.json \
-            -D /tmp/response_headers.txt \
-            -o /tmp/response.json \
-            -w '%{http_code}')
-          CURL_EXIT=$?
-          set -e
-
-          echo "curl exit: ${CURL_EXIT}"
-          echo "HTTP status: ${HTTP_CODE:-<none>}"
-          echo "Response size: $(wc -c < /tmp/response.json) bytes"
-          echo "--- response headers ---"
-          cat /tmp/response_headers.txt || true
-          echo "--- end headers ---"
-
-          if [ "$CURL_EXIT" -ne 0 ] || [ "${HTTP_CODE:-0}" -lt 200 ] || [ "${HTTP_CODE:-0}" -ge 300 ]; then
-            echo "::error::GitHub Models API call failed (curl=${CURL_EXIT}, http=${HTTP_CODE})"
-            jq . /tmp/response.json 2>/dev/null || cat /tmp/response.json
-            exit 1
-          fi
-
-          # Extract the text content (OpenAI-compatible response format)
-          SUMMARY=$(jq -r '.choices[0].message.content // empty' /tmp/response.json)
-
+      - name: Save summary
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          SUMMARY: ${{ steps.inference.outputs.response }}
+        run: |
           if [ -z "$SUMMARY" ]; then
-            echo "::error::GitHub Models API returned no content"
-            jq . /tmp/response.json 2>/dev/null || cat /tmp/response.json
+            echo "::error::ai-inference returned empty response"
             exit 1
           fi
-
-          echo "$SUMMARY" > /tmp/summary.txt
+          printf '%s' "$SUMMARY" > /tmp/summary.txt
 
       - name: Post summary to Slack
         if: steps.diffs.outputs.has_changes == 'true'
