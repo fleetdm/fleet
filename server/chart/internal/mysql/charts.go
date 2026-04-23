@@ -90,6 +90,50 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 	return ids, nil
 }
 
+// AffectedHostIDsByCVE returns host IDs grouped by CVE. It streams two joins
+// (software-level and OS-level vulnerabilities) and merges the results into a
+// single map. Duplicates across sources are harmless — the downstream
+// HostIDsToBlob setBit is idempotent.
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
+	result := make(map[string][]uint)
+
+	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+		SELECT sc.cve, hs.host_id
+		FROM software_cve sc
+		JOIN host_software hs ON hs.software_id = sc.software_id`, result); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
+	}
+
+	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+		SELECT osv.cve, hos.host_id
+		FROM operating_system_vulnerabilities osv
+		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`, result); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "stream OS CVE host pairs")
+	}
+
+	return result, nil
+}
+
+// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and appends
+// host IDs into out under each CVE key.
+func streamCVEHostPairs(ctx context.Context, q sqlx.QueryerContext, query string, out map[string][]uint) error {
+	rows, err := q.QueryxContext(ctx, query)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var cve string
+	var hostID uint
+	for rows.Next() {
+		if err := rows.Scan(&cve, &hostID); err != nil {
+			return err
+		}
+		out[cve] = append(out[cve], hostID)
+	}
+	return rows.Err()
+}
+
 // buildHostFilterClauses translates a HostFilter into SQL WHERE clauses for
 // the hosts table. Uses "h" as the table alias. Args may contain slices —
 // caller must use sqlx.In to expand them.

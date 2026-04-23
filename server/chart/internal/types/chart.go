@@ -34,6 +34,12 @@ type Datastore interface {
 	// recent host activity.
 	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
 
+	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
+	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// underlying joins: a host's software/OS row transitions when it upgrades
+	// past the vulnerable version, so the join naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error)
+
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of
 	// each strategy.

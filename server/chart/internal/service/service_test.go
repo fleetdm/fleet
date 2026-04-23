@@ -59,6 +59,7 @@ type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time) ([]uint, error)
+	affectedHostIDsByCVEFn    func(ctx context.Context) (map[string][]uint, error)
 	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
 	recordBucketDataInvoked   bool
 }
@@ -66,6 +67,13 @@ type mockDatastore struct {
 func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
 	if m.findRecentlySeenHostIDsFn != nil {
 		return m.findRecentlySeenHostIDsFn(ctx, since)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
+	if m.affectedHostIDsByCVEFn != nil {
+		return m.affectedHostIDsByCVEFn(ctx)
 	}
 	return nil, nil
 }
@@ -462,6 +470,36 @@ func TestCollectDatasetsUptime(t *testing.T) {
 		assert.Equal(t, api.SampleStrategyAccumulate, strategy)
 		require.Len(t, entityBitmaps, 1)
 		assert.NotEmpty(t, entityBitmaps[""])
+		return nil
+	}
+
+	err := svc.CollectDatasets(t.Context(), now)
+	require.NoError(t, err)
+	assert.True(t, ds.recordBucketDataInvoked)
+}
+
+func TestCollectDatasetsCVE(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
+	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
+
+	ds.affectedHostIDsByCVEFn = func(_ context.Context) (map[string][]uint, error) {
+		return map[string][]uint{
+			"CVE-2024-0001": {1, 2, 3},
+			"CVE-2024-0002": {2, 4},
+		}, nil
+	}
+	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
+		assert.Equal(t, "cve", dataset)
+		assert.Equal(t, wantBucketStart, bucketStart)
+		assert.Equal(t, time.Hour, bucketSize)
+		assert.Equal(t, api.SampleStrategySnapshot, strategy)
+		require.Len(t, entityBitmaps, 2)
+		assert.NotEmpty(t, entityBitmaps["CVE-2024-0001"])
+		assert.NotEmpty(t, entityBitmaps["CVE-2024-0002"])
 		return nil
 	}
 
