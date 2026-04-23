@@ -543,7 +543,7 @@ spec:
       volumes:
         - name: tmp
           emptyDir:
-      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
+      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
