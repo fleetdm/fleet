@@ -199,8 +199,14 @@ func resolveFromEnrollment(rootDir string) (resolvedTarget, error) {
 
 	var orbitNodeKey string
 	nodeKeyPath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
-	if keyBytes, err := os.ReadFile(nodeKeyPath); err == nil {
+	keyBytes, err := os.ReadFile(nodeKeyPath)
+	switch {
+	case err == nil:
 		orbitNodeKey = strings.TrimSpace(string(keyBytes))
+	case errors.Is(err, os.ErrNotExist):
+		// Pre-enrollment or key not yet written — fall back to unauthenticated probing.
+	default:
+		return resolvedTarget{}, fmt.Errorf("read orbit node key from %s: %w", nodeKeyPath, err)
 	}
 
 	return resolvedTarget{baseURL: fleetURL, rootCAs: pool, orbitNodeKey: orbitNodeKey}, nil

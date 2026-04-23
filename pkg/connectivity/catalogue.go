@@ -136,7 +136,7 @@ func rawCatalogue() []Check {
 		{Feature: FeatureMDMIOS, Method: "GET", Path: "/api/latest/fleet/enrollment_profiles/ota", Description: "iOS OTA enrollment profile", Fingerprint: FingerprintFleetJSONError},
 		{Feature: FeatureMDMIOS, Method: "GET", Path: "/api/latest/fleet/software/titles/0/in_house_app", Description: "iOS in-house app", Fingerprint: FingerprintFleetJSONError},
 
-		{Feature: FeatureMDMAndroid, Method: "GET", Path: "/enroll", Description: "enrollment page (iOS + Android)"},
+		{Feature: FeatureMDMAndroid, Method: "GET", Path: "/enroll", Description: "enrollment page (iOS + Android)", Fingerprint: FingerprintFleetHTMLTitle},
 		{Feature: FeatureMDMAndroid, Method: "GET", Path: "/api/latest/fleet/android_enterprise/enrollment_token", Description: "Android enrollment token", Fingerprint: FingerprintFleetJSONError},
 		// pubsub endpoint is pinned to v1 in server/mdm/android/service/handler.go, not _version_ templated.
 		{Feature: FeatureMDMAndroid, Method: "POST", Path: "/api/v1/fleet/android_enterprise/pubsub", Description: "Android PubSub webhook", Fingerprint: FingerprintFleetJSONError},

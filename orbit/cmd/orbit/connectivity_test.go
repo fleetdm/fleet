@@ -265,3 +265,19 @@ func TestResolveTargetOptionalOrbitKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, tgt.orbitNodeKey, "missing node-key file must not error")
 }
+
+func TestResolveTargetNodeKeyReadError(t *testing.T) {
+	rootDir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(rootDir, constant.FleetURLFileName),
+		[]byte("https://fleet.example.com\n"), 0o600,
+	))
+	// Place a directory where the node-key file is expected so os.ReadFile
+	// returns a non-ENOENT error (EISDIR). Confirms we surface such failures
+	// instead of silently downgrading to unauthenticated probing.
+	require.NoError(t, os.Mkdir(filepath.Join(rootDir, constant.OrbitNodeKeyFileName), 0o700))
+
+	_, err := resolveTarget(resolveInput{rootDir: rootDir})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "read orbit node key")
+}

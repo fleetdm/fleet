@@ -51,12 +51,10 @@ func TestProbeClassifiesStatuses(t *testing.T) {
 }
 
 func TestProbeBlockedOnNetworkError(t *testing.T) {
-	// Bind to an unused port by starting and immediately stopping a server.
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	addr := srv.URL
-	srv.Close()
-
-	results, err := Probe(t.Context(), Options{BaseURL: addr}, []Check{
+	// Port 1 is privileged; an unprivileged test process can't bind it, so
+	// the connect reliably fails with ECONNREFUSED. Avoids the ephemeral-port
+	// reuse race of closing an httptest.Server and reusing its URL.
+	results, err := Probe(t.Context(), Options{BaseURL: "http://127.0.0.1:1"}, []Check{
 		{Feature: FeatureOsquery, Method: "GET", Path: "/anywhere"},
 	})
 	require.NoError(t, err)
