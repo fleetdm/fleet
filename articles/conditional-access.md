@@ -23,5 +23,5 @@ For detailed setup instructions and to preview end user experience, see the guid
 <meta name="authorFullName" value="Rachael Shaw">
 <meta name="authorGitHubUsername" value="rachaelshaw">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2026-04-22">
+<meta name="publishedOn" value="2026-04-27">
 <meta name="description" value="Learn how Fleet's conditional access feature works to enforce access controls on hosts.">

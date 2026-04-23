@@ -281,5 +281,5 @@ For `lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-06-20">
+<meta name="publishedOn" value="2026-04-27">
 <meta name="description" value="Learn how to enforce conditional access with Fleet and Microsoft Entra.">
