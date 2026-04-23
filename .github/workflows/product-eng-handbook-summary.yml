@@ -148,7 +148,7 @@ jobs:
               "model": "openai/gpt-4.1",
               "max_tokens": 1024,
               "messages": [{"role": "user", "content": $prompt}]
-            }' | curl -sf -L -X POST "https://models.github.ai/inference/chat/completions" \
+            }' | curl -sS -L -X POST "https://models.github.ai/inference/chat/completions" \
             -H "Content-Type: application/json" \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
