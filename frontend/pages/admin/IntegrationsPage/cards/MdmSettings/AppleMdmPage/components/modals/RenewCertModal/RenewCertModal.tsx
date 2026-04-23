@@ -62,10 +62,10 @@ const RenewCertModal = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("email address is not valid")) {
+      if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else {
-        renderFlash("error", "Something's gone wrong. Please try again.");
+        renderFlash("error", "Something's gone wrong. Please try again2.");
       }
     },
     [renderFlash]
