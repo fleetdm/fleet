@@ -4560,6 +4560,7 @@ queries:
 	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_BOZO is not supported in DDM profiles")
 }
 
+// TODO(JK): this test is pretty slow
 func (s *enterpriseIntegrationGitopsTestSuite) TestManagedLocalAccount() {
 	t := s.T()
 	ctx := context.Background()
@@ -4652,17 +4653,17 @@ settings:
 
 	appConfig, err := s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount)
-	assert.True(t, *appConfig.MDM.MacOSSetup.EnableManagedLocalAccount)
-	require.NotNil(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType)
-	assert.Equal(t, "admin", *appConfig.MDM.MacOSSetup.EndUserLocalAccountType)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	require.NotNil(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-	assert.True(t, *team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-	require.NotNil(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType)
-	assert.Equal(t, "admin", *team.Config.MDM.MacOSSetup.EndUserLocalAccountType)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 
 	// Re-apply with the two fields set to null and verify the defaults
 	// (false, "admin") are applied.
@@ -4674,15 +4675,15 @@ settings:
 
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount)
-	assert.False(t, *appConfig.MDM.MacOSSetup.EnableManagedLocalAccount)
-	require.NotNil(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType)
-	assert.Equal(t, "admin", *appConfig.MDM.MacOSSetup.EndUserLocalAccountType)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.False(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 
 	team, err = s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	require.NotNil(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-	assert.False(t, *team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-	require.NotNil(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType)
-	assert.Equal(t, "admin", *team.Config.MDM.MacOSSetup.EndUserLocalAccountType)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }
