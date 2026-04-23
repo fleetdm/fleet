@@ -904,6 +904,36 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_data_collection
+
+Generated when a user turns on collection for a dashboard chart dataset via `features.data_collection.<dataset>`.
+
+This activity contains the following fields:
+- "dataset": The dataset that was enabled (`"uptime"` or `"cve"`).
+
+#### Example
+
+```json
+{
+  "dataset": "cve"
+}
+```
+
+## disabled_data_collection
+
+Generated when a user turns off collection for a dashboard chart dataset via `features.data_collection.<dataset>`.
+
+This activity contains the following fields:
+- "dataset": The dataset that was disabled (`"uptime"` or `"cve"`).
+
+#### Example
+
+```json
+{
+  "dataset": "uptime"
+}
+```
+
 ## enabled_gitops_mode
 
 Generated when a user enables GitOps mode.

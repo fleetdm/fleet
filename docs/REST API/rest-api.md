@@ -2627,6 +2627,11 @@ _Available in Fleet Premium._
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
+| data_collection                   | object  | Per-dataset toggles for dashboard chart collection. Global only. See sub-fields below. |
+| data_collection.uptime            | boolean | Whether to collect "Hosts active" chart data. (Default: `true`)                                                                          |
+| data_collection.cve               | boolean | Whether to collect "Vulnerabilities" chart data. (Default: `true`)                                                                       |
+
+A PATCH that includes only some `data_collection` sub-fields preserves the values of the omitted sub-fields.
 
 <br/>
 
@@ -2640,6 +2645,10 @@ _Available in Fleet Premium._
     "additional_queries": {
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
+    },
+    "data_collection": {
+      "uptime": true,
+      "cve": true
     }
   }
 }

@@ -923,6 +923,30 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Emit one activity per data_collection sub-field that actually flipped.
+	dataCollectionDiff := []struct {
+		dataset string
+		oldVal  bool
+		newVal  bool
+	}{
+		{"uptime", oldAppConfig.Features.DataCollection.Uptime, appConfig.Features.DataCollection.Uptime},
+		{"cve", oldAppConfig.Features.DataCollection.CVE, appConfig.Features.DataCollection.CVE},
+	}
+	for _, d := range dataCollectionDiff {
+		if d.oldVal == d.newVal {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if d.newVal {
+			act = fleet.ActivityTypeEnabledDataCollection{Dataset: d.dataset}
+		} else {
+			act = fleet.ActivityTypeDisabledDataCollection{Dataset: d.dataset}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
 		appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" {
 		// clear macos setup assistant for no team - note that we cannot call

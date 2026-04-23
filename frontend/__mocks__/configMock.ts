@@ -212,6 +212,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
     enable_conditional_access: true,
     enable_conditional_access_bypass: true,
+    data_collection: {
+      uptime: true,
+      cve: true,
+    },
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",

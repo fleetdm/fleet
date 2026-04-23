@@ -3972,6 +3972,7 @@ func TestGitOpsFeatures(t *testing.T) {
 				"detail_query_a": ptr.String("SELECT a"),
 				"detail_query_b": nil,
 			},
+			DataCollection: fleet.DataCollectionSettings{Uptime: true, CVE: true},
 		},
 	}
 
@@ -3991,6 +3992,9 @@ org_settings:
       query_a: "SELECT 1"
     detail_query_overrides:
       detail_query_a: "SELECT it_works"
+    data_collection:
+      uptime: false
+      cve: false
   server_settings:
     server_url: %s
   org_info:
@@ -4019,6 +4023,8 @@ software:
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.EnableHostUsers)
 	require.False(t, appConfig.Features.EnableSoftwareInventory)
+	require.False(t, appConfig.Features.DataCollection.Uptime)
+	require.False(t, appConfig.Features.DataCollection.CVE)
 
 	// Parse the additional queries into a map.
 	var additionalQueries map[string]string

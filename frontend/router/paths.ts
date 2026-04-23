@@ -80,6 +80,7 @@ export default {
   ADMIN_ORGANIZATION_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
   ADMIN_ORGANIZATION_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
   ADMIN_ORGANIZATION_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
+  ADMIN_ORGANIZATION_DATA_COLLECTION: `${URL_PREFIX}/settings/organization/data-collection`,
   ADMIN_ORGANIZATION_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
 

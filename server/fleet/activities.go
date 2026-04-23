@@ -122,6 +122,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
+	ActivityTypeEnabledDataCollection{},
+	ActivityTypeDisabledDataCollection{},
 
 	ActivityTypeSetHostRecoveryLockPassword{},
 	ActivityTypeEnabledRecoveryLockPasswords{},
@@ -765,6 +767,22 @@ type ActivityTypeDisabledMacosDiskEncryption struct {
 
 func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 	return "disabled_macos_disk_encryption"
+}
+
+type ActivityTypeEnabledDataCollection struct {
+	Dataset string `json:"dataset"`
+}
+
+func (a ActivityTypeEnabledDataCollection) ActivityName() string {
+	return "enabled_data_collection"
+}
+
+type ActivityTypeDisabledDataCollection struct {
+	Dataset string `json:"dataset"`
+}
+
+func (a ActivityTypeDisabledDataCollection) ActivityName() string {
+	return "disabled_data_collection"
 }
 
 type ActivityTypeSetHostRecoveryLockPassword struct {
