@@ -56,7 +56,7 @@ const ApplePushCertSetup = ({
         // replace link with actually clickable link
         renderFlash("error", ClickableUrls({ text: msg }));
       } else {
-        renderFlash("error", "Something's gone wrong. Please try again3.");
+        renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
     [renderFlash]

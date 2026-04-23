@@ -65,7 +65,7 @@ const RenewCertModal = ({
       if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else {
-        renderFlash("error", "Something's gone wrong. Please try again2.");
+        renderFlash("error", "Something's gone wrong. Please try again.");
       }
     },
     [renderFlash]
