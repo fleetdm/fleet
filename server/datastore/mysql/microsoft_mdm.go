@@ -3143,12 +3143,10 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 	}
 
 	// Sort by (HostUUID, ProfileUUID) to match the host_mdm_windows_profiles
-	// PRIMARY KEY (host_uuid, profile_uuid). Benefits:
-	//   - SQL text is deterministic across calls, which keeps MySQL plan-cache
-	//     entries and observability query digests stable.
-	//   - Concurrent callers acquire InnoDB row locks in a consistent order,
-	//     reducing deadlock risk on this path (see the retry comment at
-	//     apple_mdm.go around BulkSetPendingMDMHostProfiles).
+	// PRIMARY KEY (host_uuid, profile_uuid) so concurrent callers acquire
+	// InnoDB row locks in a consistent order, reducing deadlock risk on this
+	// path (see the retry comment at apple_mdm.go around
+	// BulkSetPendingMDMHostProfiles).
 	cmpByHostThenProfile := func(a, b *fleet.MDMWindowsProfilePayload) int {
 		if c := cmp.Compare(a.HostUUID, b.HostUUID); c != 0 {
 			return c
@@ -3232,27 +3230,28 @@ func executeWindowsProfileUpsertBatch(
 ) (bool, error) {
 	profilesToInsert := make(map[string]*fleet.MDMWindowsProfilePayload, len(batch))
 	var psb strings.Builder
-	pargs := make([]any, 0, len(batch)*5)
+	pargs := make([]any, 0, len(batch)*6)
 	for _, p := range batch {
 		// Build the desired post-upsert payload used for the skip-if-unchanged
 		// comparison below. The payload returned by listMDMWindowsProfilesToInstallDB
 		// only populates a subset of fields, so we construct a full payload
 		// here matching the values the ON DUPLICATE KEY UPDATE clause will set.
 		desired := &fleet.MDMWindowsProfilePayload{
-			ProfileUUID:   p.ProfileUUID,
-			ProfileName:   p.ProfileName,
-			HostUUID:      p.HostUUID,
-			Status:        nil,
-			OperationType: fleet.MDMOperationTypeInstall,
-			Detail:        p.Detail,
-			CommandUUID:   p.CommandUUID,
-			Retries:       p.Retries,
-			Checksum:      p.Checksum,
+			ProfileUUID:      p.ProfileUUID,
+			ProfileName:      p.ProfileName,
+			HostUUID:         p.HostUUID,
+			Status:           nil,
+			OperationType:    fleet.MDMOperationTypeInstall,
+			Detail:           p.Detail,
+			CommandUUID:      p.CommandUUID,
+			Retries:          p.Retries,
+			Checksum:         p.Checksum,
+			SecretsUpdatedAt: p.SecretsUpdatedAt,
 		}
 		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = desired
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
-			fleet.MDMOperationTypeInstall, p.Checksum)
-		psb.WriteString("(?, ?, ?, ?, NULL, '', ?),")
+			fleet.MDMOperationTypeInstall, p.Checksum, p.SecretsUpdatedAt)
+		psb.WriteString("(?, ?, ?, ?, NULL, '', ?, ?),")
 	}
 
 	// Tuple order `(host_uuid, profile_uuid)` matches the PK for direct point
@@ -3263,6 +3262,7 @@ func executeWindowsProfileUpsertBatch(
 			host_uuid,
 			status,
 			checksum,
+			secrets_updated_at,
 			COALESCE(operation_type, '') AS operation_type,
 			COALESCE(detail, '') AS detail,
 			COALESCE(command_uuid, '') AS command_uuid,
@@ -3301,15 +3301,18 @@ func executeWindowsProfileUpsertBatch(
 				operation_type,
 				status,
 				command_uuid,
-				checksum
+				checksum,
+				secrets_updated_at
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
+				profile_name = VALUES(profile_name),
 				operation_type = VALUES(operation_type),
 				status = NULL,
 				command_uuid = VALUES(command_uuid),
 				detail = '',
-				checksum = VALUES(checksum)
+				checksum = VALUES(checksum),
+				secrets_updated_at = VALUES(secrets_updated_at)
 		`, strings.TrimSuffix(psb.String(), ","))
 
 	if _, err := tx.ExecContext(ctx, baseStmt, pargs...); err != nil {
