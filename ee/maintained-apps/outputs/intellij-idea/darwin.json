@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1",
+      "version": "2026.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij' AND version_compare(bundle_short_version, '2026.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij' AND version_compare(bundle_short_version, '2026.1.1') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2026.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/idea/ideaIU-2026.1.1-aarch64.dmg",
       "install_script_ref": "7f131574",
       "uninstall_script_ref": "83910302",
-      "sha256": "90f2aeca3fd0173102b3d2734ad863602bb17146c317fe2d88b0618fd47ea600",
+      "sha256": "d2739c1e218e1d2f50a2772e270b43e9c978bf7e26a7d70ec76a0e074b4520e3",
       "default_categories": [
         "Developer tools"
       ]
