@@ -96,12 +96,6 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	// Resolve the cask JSON from one of three sources, in priority order:
-	//   1. cask_path      — read a local file in this repo. Used for casks
-	//                       that live in a custom tap whose JSON we've
-	//                       committed under inputs/homebrew/custom-casks/.
-	//   2. api_base_url   — HTTP fetch from a per-app override host.
-	//   3. default        — HTTP fetch from formulae.brew.sh.
 	cask, err := i.fetchCask(ctx, input)
 	if err != nil {
 		return nil, err
@@ -204,8 +198,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 }
 
 // fetchCask resolves the brew cask JSON for the given input app from
-// (in priority order): a local file (cask_path), an HTTP override
-// (api_base_url), or the default brew API.
+// either a local file (cask_path) or the default brew API.
 func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask, error) {
 	var cask brewCask
 
@@ -220,14 +213,7 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 		return cask, nil
 	}
 
-	baseURL := i.baseURL
-	if input.APIBaseURL != "" {
-		baseURL = input.APIBaseURL
-	}
-	if !strings.HasSuffix(baseURL, "/") {
-		baseURL += "/"
-	}
-	apiURL := fmt.Sprintf("%scask/%s.json", baseURL, input.Token)
+	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -281,17 +267,12 @@ type inputApp struct {
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
 	PatchPolicyPath      string   `json:"patch_policy_path"`
-	// APIBaseURL optionally overrides the brew API base URL for this app.
-	// It must point at a host that serves cask metadata at
-	// "<api_base_url>/cask/<token>.json" in the same schema as
-	// https://formulae.brew.sh/api/. Used to support third-party taps.
-	// When empty, the ingester falls back to formulae.brew.sh.
-	APIBaseURL string `json:"api_base_url"`
 	// CaskPath optionally points at a local file (relative to the repo
 	// root) containing the cask JSON in the same schema as
 	// https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask
 	// metadata for third-party taps directly into this repo (see
-	// inputs/homebrew/custom-casks/). Takes priority over APIBaseURL.
+	// inputs/homebrew/custom-tap/). When empty, the ingester fetches from
+	// formulae.brew.sh.
 	CaskPath string `json:"cask_path"`
 }
 

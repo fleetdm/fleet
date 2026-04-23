@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -159,97 +158,9 @@ func TestIngestValidations(t *testing.T) {
 	}
 }
 
-// TestIngestCustomAPIBaseURL verifies that when an input app sets
-// api_base_url, the ingester fetches cask metadata from that host instead of
-// the ingester's default base URL. This supports ingesting casks from
-// third-party taps that publish a brew-API-compatible JSON endpoint.
-func TestIngestCustomAPIBaseURL(t *testing.T) {
-	var defaultHits, overrideHits int
-
-	defaultSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defaultHits++
-		// Should never be called for an app with api_base_url set.
-		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
-		cask := brewCask{
-			Token:   appToken,
-			Name:    []string{appToken},
-			URL:     "https://example.com/default",
-			Version: "1.0",
-		}
-		// Use assert (not require) inside handlers: require's FailNow only
-		// exits the handler goroutine, not the test. testifylint go-require.
-		assert.NoError(t, json.NewEncoder(w).Encode(cask))
-	}))
-	t.Cleanup(defaultSrv.Close)
-
-	overrideSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		overrideHits++
-		// Ensure the path layout matches what the ingester constructs:
-		// "<baseURL>/cask/<token>.json"
-		assert.True(t, strings.HasPrefix(r.URL.Path, "/cask/"), "unexpected path: %s", r.URL.Path)
-		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
-		cask := brewCask{
-			Token:   appToken,
-			Name:    []string{appToken},
-			URL:     "https://example.com/override",
-			Version: "2.0",
-		}
-		assert.NoError(t, json.NewEncoder(w).Encode(cask))
-	}))
-	t.Cleanup(overrideSrv.Close)
-
-	ctx := context.Background()
-	i := &brewIngester{
-		logger:  slog.New(slog.DiscardHandler),
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-		baseURL: defaultSrv.URL + "/",
-	}
-
-	// App without api_base_url uses the default.
-	out, err := i.ingestOne(ctx, inputApp{
-		Token:            "vanilla",
-		UniqueIdentifier: "com.example.vanilla",
-		InstallerFormat:  "pkg",
-		Name:             "Vanilla",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "https://example.com/default", out.InstallerURL)
-	require.Equal(t, "1.0", out.Version)
-	require.Equal(t, 1, defaultHits)
-	require.Equal(t, 0, overrideHits)
-
-	// App with api_base_url routes to the override host. Intentionally omit the
-	// trailing slash to exercise normalization.
-	out, err = i.ingestOne(ctx, inputApp{
-		Token:            "tapped",
-		UniqueIdentifier: "com.example.tapped",
-		InstallerFormat:  "pkg",
-		Name:             "Tapped",
-		APIBaseURL:       overrideSrv.URL,
-	})
-	require.NoError(t, err)
-	require.Equal(t, "https://example.com/override", out.InstallerURL)
-	require.Equal(t, "2.0", out.Version)
-	require.Equal(t, 1, defaultHits, "default server should not have been hit again")
-	require.Equal(t, 1, overrideHits)
-
-	// Override with a trailing slash should also work.
-	out, err = i.ingestOne(ctx, inputApp{
-		Token:            "tapped-slash",
-		UniqueIdentifier: "com.example.tappedslash",
-		InstallerFormat:  "pkg",
-		Name:             "TappedSlash",
-		APIBaseURL:       overrideSrv.URL + "/",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "https://example.com/override", out.InstallerURL)
-	require.Equal(t, 1, defaultHits)
-	require.Equal(t, 2, overrideHits)
-}
-
 // TestIngestCaskPath verifies that when an input app sets cask_path, the
 // ingester reads cask JSON from that local file and makes no HTTP call.
-// This is the path used for casks committed into inputs/homebrew/custom-casks/.
+// This is the path used for casks committed into inputs/homebrew/custom-tap/.
 func TestIngestCaskPath(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -302,19 +213,5 @@ func TestIngestCaskPath(t *testing.T) {
 		CaskPath:         path.Join(tempDir, "does-not-exist.json"),
 	})
 	require.ErrorContains(t, err, "reading local cask JSON file")
-	require.Equal(t, 0, httpHits)
-
-	// cask_path takes priority over api_base_url (the override URL would
-	// be unreachable if it were attempted).
-	out, err = i.ingestOne(ctx, inputApp{
-		Token:            "local-cask",
-		UniqueIdentifier: "com.example.localcask",
-		InstallerFormat:  "pkg",
-		Name:             "Local Cask",
-		CaskPath:         caskPath,
-		APIBaseURL:       "http://127.0.0.1:1/unreachable/",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "https://example.com/local/installer.pkg", out.InstallerURL)
 	require.Equal(t, 0, httpHits)
 }
