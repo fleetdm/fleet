@@ -97,14 +97,13 @@ const UsersForm = ({
           tipContent={
             !isIdPConfigured ? (
               <span>
-                Connect Fleet to your{" "}
+                To enable, first connect Fleet to your{" "}
                 <CustomLink
                   url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
                   text="identity provider (IdP)"
                   variant="tooltip-link"
                 />
-                <br />
-                to get started.
+                .
               </span>
             ) : undefined
           }
@@ -160,7 +159,7 @@ const UsersForm = ({
           tipContent={
             !isMacMdmEnabledAndConfigured ? (
               <span>
-                To use this feature, first enable{" "}
+                To enable, first turn on{" "}
                 <CustomLink
                   url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
                   text="Apple MDM"
