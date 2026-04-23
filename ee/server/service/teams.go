@@ -1254,6 +1254,12 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {
 		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !macOSSetup.EnableManagedLocalAccount.Valid {
+		macOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !macOSSetup.EndUserLocalAccountType.Valid {
+		macOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 
 	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
 		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
@@ -1525,6 +1531,12 @@ func (svc *Service) editTeamFromSpec(
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
 	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall, didUpdateEnableManagedLocalAccount, didUpdateEndUserLocalAccountType bool
@@ -1544,12 +1556,12 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateManualAgentInstall = oldMacOSSetup.ManualAgentInstall.Value != spec.MDM.MacOSSetup.ManualAgentInstall.Value
 		team.Config.MDM.MacOSSetup.ManualAgentInstall = spec.MDM.MacOSSetup.ManualAgentInstall
 	}
-	if spec.MDM.MacOSSetup.EnableManagedLocalAccount != nil {
-		didUpdateEnableManagedLocalAccount = ptr.ValOrZero(oldMacOSSetup.EnableManagedLocalAccount) != *spec.MDM.MacOSSetup.EnableManagedLocalAccount
+	if spec.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		didUpdateEnableManagedLocalAccount = oldMacOSSetup.EnableManagedLocalAccount.Value != spec.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = spec.MDM.MacOSSetup.EnableManagedLocalAccount
 	}
-	if spec.MDM.MacOSSetup.EndUserLocalAccountType != nil {
-		didUpdateEndUserLocalAccountType = ptr.ValOrZero(oldMacOSSetup.EndUserLocalAccountType) != *spec.MDM.MacOSSetup.EndUserLocalAccountType
+	if spec.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		didUpdateEndUserLocalAccountType = oldMacOSSetup.EndUserLocalAccountType.Value != spec.MDM.MacOSSetup.EndUserLocalAccountType.Value
 		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = spec.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 	// TODO(mna): doesn't look like we create an activity for macos updates when
@@ -1560,8 +1572,8 @@ func (svc *Service) editTeamFromSpec(
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
 			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) ||
 			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value) ||
-			(didUpdateEnableManagedLocalAccount && team.Config.MDM.MacOSSetup.EnableManagedLocalAccount != nil) ||
-			(didUpdateEndUserLocalAccountType && team.Config.MDM.MacOSSetup.EndUserLocalAccountType != nil)) {
+			(didUpdateEnableManagedLocalAccount && team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value) ||
+			(didUpdateEndUserLocalAccountType && team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != "")) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience",
 			`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
@@ -2093,8 +2105,8 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 	}
 
 	if payload.EnableManagedLocalAccount != nil {
-		if tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount == nil || *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount != *payload.EnableManagedLocalAccount {
-			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.EnableManagedLocalAccount
+		if !tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
+			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
 			didUpdateManagedLocalAccount = true
 			didUpdate = true
 		}
@@ -2104,8 +2116,8 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		if *payload.EndUserLocalAccountType != "admin" {
 			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 		}
-		if tm.Config.MDM.MacOSSetup.EndUserLocalAccountType == nil || *tm.Config.MDM.MacOSSetup.EndUserLocalAccountType != *payload.EndUserLocalAccountType {
-			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.EndUserLocalAccountType
+		if !tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid || tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
+			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
 			didUpdate = true
 		}
 	}
@@ -2120,7 +2132,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount, &tm.ID, &tm.Name); err != nil {
+			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}

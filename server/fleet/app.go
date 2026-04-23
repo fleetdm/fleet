@@ -553,8 +553,8 @@ type MacOSSetup struct {
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   *bool                              `json:"enable_managed_local_account,omitempty" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string                            `json:"end_user_local_account_type,omitempty"`
+	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
 func (mos *MacOSSetup) Validate() error {
@@ -566,7 +566,7 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
-	if mos.EndUserLocalAccountType != nil && *mos.EndUserLocalAccountType != "admin" {
+	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
 		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 	}
 
@@ -598,11 +598,11 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
 	}
-	if mos.EnableManagedLocalAccount == nil {
-		mos.EnableManagedLocalAccount = new(false)
+	if !mos.EnableManagedLocalAccount.Valid {
+		mos.EnableManagedLocalAccount = optjson.SetBool(false)
 	}
-	if mos.EndUserLocalAccountType == nil {
-		mos.EndUserLocalAccountType = new("admin")
+	if !mos.EndUserLocalAccountType.Valid {
+		mos.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 }
 
@@ -1153,6 +1153,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	}
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
+	}
+	if !c.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		c.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
