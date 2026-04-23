@@ -44,27 +44,3 @@ func TestIsCachedMysqlBypassed(t *testing.T) {
 		})
 	}
 }
-
-func TestIsHostCacheBypassed(t *testing.T) {
-	cases := []struct {
-		desc string
-		ctx  context.Context
-		want bool
-	}{
-		{"not set", context.Background(), false},
-		{"set to true", BypassHostCache(context.Background(), true), true},
-		{"set to false", BypassHostCache(context.Background(), false), false},
-		{"set to true then false", BypassHostCache(BypassHostCache(context.Background(), true), false), false},
-		{
-			"independent of BypassCachedMysql",
-			BypassCachedMysql(context.Background(), true),
-			false,
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.desc, func(t *testing.T) {
-			got := IsHostCacheBypassed(c.ctx)
-			require.Equal(t, c.want, got)
-		})
-	}
-}

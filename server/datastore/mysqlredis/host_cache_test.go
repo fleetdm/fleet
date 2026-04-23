@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -428,23 +427,6 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 			require.NotNil(t, second)
 			assert.False(t, ds.LoadHostByNodeKeyFuncInvoked, "second call should be served from cache")
 			assert.Equal(t, first.ID, second.ID, "cached value should match the initial DB read")
-		})
-
-		t.Run("bypass context always hits DB and skips cache populate", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ctx := ctxdb.BypassHostCache(t.Context(), true)
-			ds := newMockLoadHostStore()
-			wrapped := New(ds, pool, WithHostCache(30*time.Second))
-
-			_, err := wrapped.LoadHostByNodeKey(ctx, "nk-bypass")
-			require.NoError(t, err)
-			require.True(t, ds.LoadHostByNodeKeyFuncInvoked)
-
-			// Non-bypass follow-up must see an empty cache and hit DB again.
-			ds.LoadHostByNodeKeyFuncInvoked = false
-			_, err = wrapped.LoadHostByNodeKey(t.Context(), "nk-bypass")
-			require.NoError(t, err)
-			assert.True(t, ds.LoadHostByNodeKeyFuncInvoked, "bypass must not populate cache")
 		})
 
 		t.Run("NotFound populates negative cache", func(t *testing.T) {

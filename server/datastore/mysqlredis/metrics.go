@@ -6,11 +6,11 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-// OpenTelemetry instruments for the host-by-node_key cache. These are unused
-// until the cache is wired up via WithHostCache and the LoadHostByNodeKey
-// override. When the global MeterProvider is not configured (tests, services
-// started without OTEL), otel.Meter returns a no-op meter and all operations
-// on these counters silently succeed.
+// OpenTelemetry instruments for the host lookup cache (covers both
+// LoadHostByNodeKey and LoadHostByOrbitNodeKey). These are unused until the
+// cache is wired up via WithHostCache. When the global MeterProvider is not
+// configured (tests, services started without OTEL), otel.Meter returns a
+// no-op meter and all operations on these counters silently succeed.
 
 var (
 	meter = otel.Meter("fleet")
@@ -33,7 +33,7 @@ func init() {
 	var err error
 	hostCacheLookups, err = meter.Int64Counter(
 		"fleet.host_cache.lookups",
-		metric.WithDescription("Host-by-node_key cache lookups, labeled by result"),
+		metric.WithDescription("Host lookup cache reads, labeled by result"),
 		metric.WithUnit("{event}"),
 	)
 	if err != nil {
@@ -42,7 +42,7 @@ func init() {
 
 	hostCacheErrors, err = meter.Int64Counter(
 		"fleet.host_cache.errors",
-		metric.WithDescription("Host-by-node_key cache Redis/serialization errors, labeled by operation"),
+		metric.WithDescription("Host lookup cache Redis/serialization errors, labeled by operation"),
 		metric.WithUnit("{event}"),
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func init() {
 
 	hostCacheInvalidations, err = meter.Int64Counter(
 		"fleet.host_cache.invalidations",
-		metric.WithDescription("Host-by-node_key cache invalidations, labeled by the write path reason"),
+		metric.WithDescription("Host lookup cache invalidations, labeled by the write path reason"),
 		metric.WithUnit("{event}"),
 	)
 	if err != nil {

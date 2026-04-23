@@ -21,9 +21,9 @@ type Datastore struct {
 	// options
 	enforceHostLimit int // <= 0 means do not enforce
 
-	// host-by-node_key cache, configured via WithHostCache.
-	// When hostCacheEnabled is false, all cache helpers short-circuit without
-	// touching Redis. See host_cache.go.
+	// host lookup cache for LoadHostByNodeKey and LoadHostByOrbitNodeKey,
+	// configured via WithHostCache. When hostCacheEnabled is false, all cache
+	// helpers short-circuit without touching Redis. See host_cache.go.
 	hostCacheEnabled bool
 	hostCacheTTL     time.Duration
 	hostCacheSF      singleflight.Group
@@ -40,10 +40,10 @@ func WithEnforcedHostLimit(limit int) Option {
 	}
 }
 
-// WithHostCache enables the Redis-backed cache for host-by-node_key lookups.
-// ttl is the base TTL; actual per-entry TTL is jittered by ±10% to avoid
-// synchronized expiry across a fleet. A ttl of zero or negative disables the
-// cache (same effect as not calling this option).
+// WithHostCache enables the Redis-backed cache for LoadHostByNodeKey and
+// LoadHostByOrbitNodeKey lookups. ttl is the base TTL; actual per-entry TTL is
+// jittered by ±10% to avoid synchronized expiry across a fleet. A ttl of zero
+// or negative disables the cache (same effect as not calling this option).
 func WithHostCache(ttl time.Duration) Option {
 	return func(o *Datastore) {
 		if ttl <= 0 {
