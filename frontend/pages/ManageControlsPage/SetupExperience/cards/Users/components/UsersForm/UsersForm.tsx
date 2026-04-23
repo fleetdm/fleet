@@ -97,7 +97,9 @@ const UsersForm = ({
           tipContent={
             !isIdPConfigured ? (
               <span>
-                To enable, first connect Fleet to your{" "}
+                To enable, first connect Fleet to
+                <br />
+                your{" "}
                 <CustomLink
                   url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
                   text="identity provider (IdP)"
