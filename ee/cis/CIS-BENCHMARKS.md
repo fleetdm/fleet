@@ -72,14 +72,21 @@ spec:
 
 ### Query patterns
 
-There are four common query patterns:
+Every query must return 1+ rows when compliant and 0 rows when not.
+The patterns below compose: most real policies use more than one.
 
-**1. Direct table check** — query an osquery table directly:
+**1. Direct table check** — query an osquery table directly for live state:
 ```sql
 SELECT 1 FROM alf WHERE global_state >= 1;
 ```
 
-**2. Managed policy check** — verify an MDM profile is installed (requires MDM enrollment):
+**2. Managed policy check** — verify an MDM profile is installed.
+
+Always pair an `EXISTS (good value)` with a `NOT EXISTS (conflicting
+value)`. A single `EXISTS` passes if *any* managed_policies row has
+the good value, even when a user-scope row on the same host is
+overriding it with a bad value. The `NOT EXISTS` guard catches that.
+
 ```sql
 SELECT 1 WHERE
   EXISTS (
@@ -97,8 +104,27 @@ SELECT 1 WHERE
   );
 ```
 
-The EXISTS/NOT EXISTS pattern ensures the setting is actively managed
-AND that no conflicting value exists at another scope level.
+**`username = ''` vs. user-scoped keys.** System-scoped MDM keys
+(most `com.apple.*` domains) deliver with `username = ''` on the
+`managed_policies` row. A handful of domains — notably
+`com.apple.Safari`, `com.apple.Terminal`, and a few
+`com.apple.applicationaccess` user-preference keys — deliver at
+user scope, so the row's `username` is the logged-in user. For
+those, *omit* the `username = ''` clause on the `EXISTS`; the
+`NOT EXISTS` guard is enough on its own. When in doubt, push a
+test profile and run `SELECT * FROM managed_policies WHERE
+domain = 'com.apple.<x>'` to see which scope delivered.
+
+**Multi-key managed_policies check.** When one profile sets
+multiple keys that must all be correct (firewall + stealth,
+askForPassword + askForPasswordDelay), AND together an
+`EXISTS`/`NOT EXISTS` pair per key:
+
+```sql
+SELECT 1 WHERE
+  EXISTS ( /* key1 = good */ ) AND NOT EXISTS ( /* key1 = bad */ )
+  AND EXISTS ( /* key2 = good */ ) AND NOT EXISTS ( /* key2 = bad */ );
+```
 
 **3. Negation check** — verify something is absent or disabled:
 ```sql
@@ -128,6 +154,28 @@ present — it only requires that any present value is within the
 acceptable range. Use when the benchmark explicitly states that
 absence of the setting also satisfies the audit.
 
+**5. Either-local-or-managed compound** — CIS sometimes accepts
+either a local plist value or a managed profile as compliant (e.g.
+Guest Account disabled, Automatic Login disabled). Query both paths
+with `OR`:
+
+```sql
+SELECT 1 WHERE
+  EXISTS (
+    SELECT 1 FROM plist WHERE
+      path = '/Library/Preferences/com.apple.loginwindow.plist' AND
+      key = 'GuestEnabled' AND value = 0
+  )
+  OR EXISTS (
+    SELECT 1 FROM managed_policies WHERE
+      domain = 'com.apple.MCX' AND name = 'DisableGuestAccount' AND
+      (value = 1 OR value = 'true') AND username = ''
+  );
+```
+
+When the either-branch uses pattern 2, still include its
+`NOT EXISTS` guard inside that branch.
+
 ### Naming qualifiers
 
 Append these to the policy name when applicable:
@@ -135,6 +183,38 @@ Append these to the policy name when applicable:
 - **(MDM Required)** — query checks `managed_policies`; needs an MDM profile installed
 - **(Fleetd Required)** — query uses a fleetd-specific table (e.g. `software_update`)
 - **(FDA Required)** — query reads paths that require full disk access
+
+### Fleetd tables used by CIS queries
+
+Fleetd ships custom osquery tables for settings that can't be read
+from stock osquery. When writing a query against one, check the
+source at `orbit/pkg/table/<name>/` to confirm the column names
+and any required `WHERE` constraints. The table below is the set
+currently in use by macOS CIS policies.
+
+| Table | Key columns | Required constraints | Notes |
+|-------|-------------|----------------------|-------|
+| `authdb` | `right_name`, `json_result` | `right_name` must be equality-constrained | `json_result` is a JSON blob — use `json_extract(json_result, '$.rule')` to inspect rules. |
+| `csrutil_info` | `ssv_enabled` | — | Integer 0/1. |
+| `dscl` | `command`, `path`, `key`, `value` | all four required; currently only `command = 'read'` supported | Reads Directory Service records. |
+| `find_cmd` | `directory`, `type`, `perm`, `path` | all constrain — `find_cmd` shells out to `/usr/bin/find` with these args | Prefer over walking the `file` table for large scopes like `/System/Volumes/Data/System`. |
+| `nvram_info` | `amfi_enabled` | — | Integer 0/1. |
+| `pmset` | `getting`, `json_result` | `getting` (e.g. `'custom'`) | `json_result` contains per-power-source nested dicts; use `JSON_EXTRACT(json_result, '$.AC Power:')` etc. |
+| `pwd_policy` | `max_failed_attempts`, `expires_every_n_days`, `days_to_expiration`, `history_depth`, `min_mixed_case_characters` | — | See console-user caveat below. |
+| `password_policy` | `policy_identifier`, `policy_content` | — | macOS-native osquery table, *not* fleetd — listed here for completeness. |
+| `software_update` | `software_update_required` | — | — |
+| `sudo_info` | `json_result` | — | Parsed output of `sudo -V`; use `JSON_EXTRACT(json_result, '$.Authentication timestamp timeout')`, `'$.Type of authentication timestamp record'`, `'$.Log when a command is allowed by sudoers'`. |
+| `user_login_settings` | `password_hint_enabled` | — | See console-user caveat below. |
+
+**Console-user-scope caveat.** `pwd_policy` and
+`user_login_settings` (and the native `location_services` table)
+execute their underlying commands as the current console user.
+If no console user is logged in at query time — or on a headless
+test VM where the console user is `root` — the tables return
+empty results and the query silently fails (0 rows). Ensure a
+non-root console user is logged in before evaluating any policy
+that depends on these tables. Current affected policies:
+`5.2.1`, `5.2.2`, `5.2.7`, `5.2.8`, `2.12.1`, `2.6.1.1`.
 
 ## Test artifacts
 
@@ -208,11 +288,69 @@ or can't be easily scripted:
 
 ### Script conventions
 
-- Always use `#!/bin/bash`
-- Use full paths for system commands (`/usr/bin/sudo`, `/usr/sbin/systemsetup`)
-- Include a comment with the CIS ID and policy name
-- Use `sudo` for privileged operations (the test runner provides the password)
-- Prefix unreliable scripts with `not_always_working_` — the test runner skips these
+- Always use `#!/bin/bash`.
+- Use full paths for system commands (`/usr/bin/sudo`, `/usr/sbin/systemsetup`).
+- Include a comment with the CIS ID and policy name.
+- Use `sudo` for privileged operations (the test runner provides the password).
+- Prefix unreliable scripts with `not_always_working_` — the test runner skips these.
+- Fail scripts that *create* artifacts (stub apps, stub directories,
+  extra plist keys) should pair with a pass script that removes
+  them, or note in the README that runner teardown must clean up.
+  Leaving a stub world-writable `.app` in `/Applications` after the
+  test will break subsequent runs.
+
+### Common script patterns
+
+These idioms come up repeatedly and are worth reusing verbatim.
+
+**Console user** — needed when setting or reading a per-user
+preference from within a system-level script:
+```bash
+user=$(/usr/bin/stat -f "%Su" /dev/console)
+if [ -n "$user" ] && [ "$user" != "root" ]; then
+  /usr/bin/sudo -u "$user" /usr/bin/defaults write <domain> <key> ...
+fi
+```
+On a headless test VM without a logged-in console user, the value
+is `root` — the script should no-op rather than fail.
+
+**Iterate `/Users/*`** — for per-user settings that must be applied
+to every local account. Skip `Shared`, `Guest`, and dot-prefixed
+directories (`/Users/.localized` etc.):
+```bash
+for userhome in /Users/*; do
+  user=$(basename "$userhome")
+  case "$user" in Shared|Guest|.*) continue ;; esac
+  [ -d "$userhome/Library/Preferences" ] || continue
+  /usr/bin/sudo -u "$user" /usr/bin/defaults write com.apple.dock ...
+done
+```
+
+**Idempotent delete** — use `|| true` so a missing key doesn't
+trip the `-e` exit behavior:
+```bash
+/usr/bin/sudo /usr/bin/defaults delete <domain> <key> 2>/dev/null || true
+```
+
+**sudoers.d filename rule** — macOS ignores files in
+`/etc/sudoers.d/` whose names contain a dot. Use underscores and
+no extension:
+```bash
+echo 'Defaults timestamp_timeout=0' | \
+  /usr/bin/sudo /usr/bin/tee /etc/sudoers.d/CIS_5_4_sudoconfiguration > /dev/null
+/usr/bin/sudo /bin/chmod 0440 /etc/sudoers.d/CIS_5_4_sudoconfiguration
+```
+
+**Atomic config-file edits** — when rewriting a system config
+file (audit_control, asl/com.apple.install), write to a temp file
+via `awk`/`sed` and rename. Never edit in place:
+```bash
+TMP="$(/usr/bin/mktemp /tmp/audit_control.XXXXXX)"
+/usr/bin/sudo /usr/bin/awk '...' /etc/security/audit_control > "$TMP"
+/usr/bin/sudo /bin/mv "$TMP" /etc/security/audit_control
+/usr/bin/sudo /usr/sbin/chown root:wheel /etc/security/audit_control
+/usr/bin/sudo /bin/chmod 0440 /etc/security/audit_control
+```
 
 ### Choosing between scripts and profiles
 
@@ -323,14 +461,79 @@ Note that `PayloadVersion` appears at **both** the top-level and
 inner-payload level. Both are required for profiles to install
 reliably.
 
+### Multi-key profiles
+
+Benchmarks sometimes require multiple settings keys to be present
+together for a check to pass (firewall + stealth mode, askForPassword
++ askForPasswordDelay, BlockStoragePolicy + WebKit storage blocking,
+etc.). Three ways this can show up; pick the right one:
+
+| Situation | Pattern |
+|-----------|---------|
+| One benchmark recommendation, multiple keys on the same `PayloadType` | One profile, multiple keys in the inner `PayloadContent` dict. |
+| Two separate benchmark IDs that CIS *explicitly* wants enforced via the same profile (e.g. 2.2.1 Firewall + 2.2.2 Stealth Mode — CIS says putting them in separate profiles makes them fail) | One profile named `{id1}-and-{id2}.mobileconfig`. The query for each ID checks its own key. |
+| One benchmark that genuinely requires multiple *profiles* to be installed together (rare — different `PayloadType`s that can't coexist in one payload) | Two files named `{cis_id}-part1.mobileconfig` and `{cis_id}-part2.mobileconfig`. |
+
+**Worked example.** CIS 2.2.1 (Firewall) + 2.2.2 (Stealth Mode)
+share the `com.apple.security.firewall` payload. CIS explicitly
+requires them in the same profile:
+
+```xml
+<key>PayloadContent</key>
+<array>
+  <dict>
+    <key>PayloadType</key>
+    <string>com.apple.security.firewall</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.cis-2.2.1-and-2.2.2.check</string>
+    <key>PayloadUUID</key>
+    <string>{inner UUID}</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>EnableFirewall</key>
+    <true/>
+    <key>EnableStealthMode</key>
+    <true/>
+  </dict>
+</array>
+```
+
+File name: `2.2.1-and-2.2.2.mobileconfig`. Each CIS ID gets its
+own policy YAML entry, each with its own query checking its own
+key.
+
 ## README.md per OS version
 
 Each OS directory has a `README.md` that must document:
 
-1. Which benchmark version the policies target
-2. **Limitations** — benchmarks that cannot be checked as a Fleet policy (manual audits, GUI-only settings)
-3. **Org-decision policies** — where CIS leaves the choice to the organization; Fleet provides both enable/disable variants
-4. **Optional policies** — benchmarks CIS includes but does not require (e.g. password complexity)
+1. Which benchmark version the policies target.
+2. **Status** — which sections are complete and which are still WIP.
+3. **Sections covered** — a table listing §1..§N with status per
+   section (complete, in progress, not started, skipped).
+4. **Limitations** — benchmarks that cannot be checked as a Fleet
+   policy (manual audits, GUI-only settings). Include every
+   Manual-assessment recommendation from the PDF with its CIS ID,
+   level, title, and a one-line reason it can't be automated.
+5. **Org-decision policies** — where CIS leaves the choice to the
+   organization; Fleet provides both enable/disable variants.
+6. **Optional policies** — benchmarks CIS includes but does not
+   require (e.g. password complexity).
+7. **Per-section notes** — for each section that shipped, a short
+   block (`### Section N notes`) explaining any query patterns,
+   table-schema quirks, test artifact tradeoffs, or caveats the
+   next maintainer will want to see. Anything you flagged in the
+   state file's "Open questions" is a candidate.
+
+**Sections with no automated checks.** If a whole section (e.g.
+`§2.4 Menu Bar`) contains only Manual recommendations in the
+current benchmark version, say so explicitly rather than leaving
+it blank — readers otherwise assume it's a gap:
+
+> §2.4 (Menu Bar), §2.8 (Displays), §2.14–2.17 (Game Center,
+> Notifications, Wallet, Internet Accounts) contain only
+> Manual-assessment recommendations in this version and are
+> therefore not represented in `cis-policy-queries.yml`. See
+> Limitations for the individual items.
 
 ## Test runner
 
@@ -357,20 +560,106 @@ a tart VM, enrolls it, runs each test, and prints a summary. See
 
 ---
 
+## Adding a new macOS version
+
+Creating the `ee/cis/macos-NN/` directory is only half the job —
+the Python test runner also needs to know the new version exists.
+Missing any of these registrations will make the runner either
+reject `--macos-version NN` outright or fail unpredictably mid-run.
+
+**1. Scaffold the OS directory.**
+
+```
+ee/cis/macos-NN/
+  cis-policy-queries.yml   # starts empty; append as you go
+  README.md                # use the structure from "README.md per OS version"
+  test/
+    scripts/               # empty
+    profiles/              # empty
+```
+
+**2. Register the version in `tools/cis/cis-test-runner.py`.**
+Four dicts near the top of the file key off the OS version
+string (`"13"`, `"14"`, `"15"`, `"NN"`). Add an entry to each:
+
+- `VERSION_MAP`: the Tart base image URL for the OS and the
+  matching `ee/cis/` directory name.
+  ```python
+  "26": {
+      "image": "ghcr.io/cirruslabs/macos-tahoe-base:latest",
+      "dir": "macos-26",
+  },
+  ```
+
+- `SSH_BREAKING_CIS_IDS`: CIS IDs whose pass scripts disable
+  sshd (usually Remote Login and Remote Management). The runner
+  flips these to MANUAL so it doesn't lose its SSH session:
+  ```python
+  "26": {"2.3.3.4", "2.3.3.5"},
+  ```
+
+- `PASSWORD_POLICY_CIS_IDS`: CIS IDs whose MDM profiles enforce
+  a password policy strong enough to reject the VM's test user
+  password. The runner installs these individually with a
+  restore step:
+  ```python
+  "26": {"5.2.1", "5.2.2", "5.2.7", "5.2.8"},
+  ```
+
+- `NON_AUTOMATABLE_CIS_IDS`: CIS IDs that cannot be reliably
+  tested on a VM at all, with a reason each. Seed with the
+  usual suspects; add more as the runner surfaces unreliable
+  tests:
+  ```python
+  "26": {
+      "1.1": "Requires real hardware to install Apple updates",
+      "2.6.1.1": "VM cannot satisfy user-privacy gate for Location Services",
+  },
+  ```
+
+CIS section numbers are *not* stable across releases — verify
+each mapping against the new version's PDF before copying it
+from an older OS entry.
+
+**3. Confirm the Tart base image exists.** Cirrus Labs usually
+publishes `ghcr.io/cirruslabs/macos-<codename>-base:latest` soon
+after a macOS release. If it isn't published yet, the runner
+won't be able to spin up a test VM — mark the `VERSION_MAP`
+entry TODO in the state file and plan to revisit.
+
+**4. Only then** start writing policies. Trying to run the
+runner before these registrations will fail with "choices must
+be one of {13,14,15}" or similar.
+
 ## Updating benchmarks when a new CIS version is released
 
 ### Manual process
 
-1. Download the new PDF from the CIS website
-2. Read the **Appendix: Change History** at the end of the document
+1. Download the new PDF from the CIS website.
+2. Read the **Appendix: Change History** at the end of the document.
 3. For each change:
-   - **Added**: write a new policy entry with all fields
-   - **Modified**: update the changed fields (description, resolution, audit) from the new document
-   - **Removed**: delete the policy entry
-4. For each added or modified policy, create test scripts (`_pass.sh`/`_fail.sh`)
-5. For MDM-dependent policies, create the `.mobileconfig` profile
-6. Update `README.md` with any new limitations or org-decision policies
-7. Run the test runner against the updated policies
+   - **Added**: write a new policy entry with all fields.
+   - **Modified**: update the changed fields (description, resolution, audit) from the new document.
+   - **Removed**: delete the policy entry, its test scripts, and any associated profiles.
+4. **Audit every previous-version policy for an
+   Automated → Manual downgrade.** CIS frequently moves
+   recommendations from Automated to Manual between releases
+   (e.g. Tahoe moved Hey Siri and the password-complexity
+   items to Manual). The Change History usually flags these,
+   but not always — diff the new PDF's per-section
+   "Assessment Status: Automated | Manual" lines against the
+   previous version's. **Any policy that went Manual must be
+   deleted from the YAML, scripts removed, and the
+   recommendation moved to the README's Limitations section.**
+   Shipping a query for a Manual recommendation is worse than
+   shipping nothing, because the query will produce
+   non-authoritative results.
+5. For each added or modified policy, create test scripts
+   (`_pass.sh`/`_fail.sh`).
+6. For MDM-dependent policies, create the `.mobileconfig` profile.
+7. Update `README.md` with any new limitations or org-decision
+   policies.
+8. Run the test runner against the updated policies.
 
 ### What changes between versions
 
@@ -397,14 +686,73 @@ conventions defined above — update both if conventions change.
 
 When generating a full benchmark from a large PDF in multiple
 sessions, it helps to maintain a state file at
-`tmp/<os>-<version>-state.md` that records:
-
-- Locked decisions for the run (levels covered, branch, org-decision
-  default, handling of uncertain profile keys)
-- Per-section progress
-- Open questions or ambiguities per section
-- A **Next action** pointer so a future session can resume from cold
-  context
+`tmp/<os>-<version>-state.md` that records locked decisions,
+per-section progress, open questions, and a **Next action**
+pointer so a future session can resume from cold context.
 
 Not a hard convention — just a useful checkpoint mechanism when a
-single session can't finish the job.
+single session can't finish the job. The template below is the
+minimum that has proven useful; extend as needed.
+
+````markdown
+# <OS> <version> CIS benchmark — state file
+
+**Purpose:** durable checkpoint for generating Fleet's CIS
+benchmark for <OS> <version>, resumable across sessions.
+
+## How to resume
+
+In a new session, say: *"Resume <OS> <version> CIS work from
+`tmp/<os>-<version>-state.md`."* Then re-read this file and
+continue from the **Next action** line.
+
+## Task (frozen)
+
+Create `ee/cis/<os>-<version>/` — policies, test scripts, MDM
+profiles, README — from `pdf/<filename>.pdf` alone, following
+`ee/cis/CIS-BENCHMARKS.md` and `ee/cis/prompt.md`.
+
+## Decisions (locked for this session)
+
+- Approach (thin slice end-to-end vs. by-file)
+- Levels covered (Level 1, Level 2, or both)
+- Branch
+- Org-decision default (ship both enable/disable, or pick one)
+- Handling of uncertain profile keys (skip + TODO, guess, or ask)
+- Whether §7 Supplemental is skipped
+
+## Progress tracker
+
+| Section | Status | Policies | Scripts | Profiles | README | Notes |
+|---------|--------|----------|---------|----------|--------|-------|
+| 1 …     | ⬜     |          |         |          |        |       |
+| 2.2 …   | ⬜     |          |         |          |        |       |
+
+Status legend: ⬜ not started · 🟨 in progress · ✅ done ·
+⏭ skipped.
+
+### Validation
+- [ ] Runner registered (VERSION_MAP + 3 constant dicts)
+- [ ] YAML parses, cis_ids unique
+- [ ] All profiles `plutil -lint` OK
+- [ ] Fleetd table schemas verified
+- [ ] Test runner dry run against generated policies
+- [ ] Summary reviewed, failures fixed
+
+## Open questions / TODOs
+
+### §<section>
+- <uncertainty, audit ambiguity, or runtime risk>
+
+## Files touched
+
+- `tmp/<os>-<version>-state.md` (this file)
+- `ee/cis/<os>-<version>/cis-policy-queries.yml`
+- `ee/cis/<os>-<version>/README.md`
+- `ee/cis/<os>-<version>/test/scripts/` — N files …
+- `ee/cis/<os>-<version>/test/profiles/` — N files …
+
+## Next action
+
+<One sentence describing exactly where to pick up.>
+````

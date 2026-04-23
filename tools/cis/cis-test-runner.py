@@ -73,7 +73,9 @@ SSH_BREAKING_CIS_IDS: dict[str, set[str]] = {
     #   2.3.3.5 - Ensure Remote Management Is Disabled (also disables sshd)
     "13": set(),
     "14": {"2.3.3.4", "2.3.3.5"},
-    "15": set(),
+    # macOS 15 Sequoia v2.0.0:
+    #   2.3.3.4 - Ensure Remote Login Is Disabled (disables sshd)
+    "15": {"2.3.3.4"},
 }
 
 # CIS IDs whose MDM profiles break VM password authentication (the
