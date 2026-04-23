@@ -1034,7 +1034,8 @@ const HostDetailsPage = ({
           false
         }
         isManagedLocalAccountEnabled={
-          mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+          mdmConfig?.setup_experience?.enable_create_local_admin_account ??
+          false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
