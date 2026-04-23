@@ -2294,16 +2294,16 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Set device name',
-                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                tooltip: `Sets the device's name. Supports the substitution variables %RAND:<# of digits>% (generates a random numeric string of the given length) and %SERIAL% (the device's serial number). The new name takes effect after the device is rebooted.`,
                 uniqueSlug: 'windows-set-device-name',
                 category: 'Personalization',
-                supportedAccessTypes: ['add', 'replace'],
+                supportedAccessTypes: ['replace'],
                 formInput: {
                   type: 'text',
                 },
                 formOutput: {
                   settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/DeviceName',
+                  settingTarget: './Device/Vendor/MSFT/DevDetail/Ext/Microsoft/DNSComputerName',
                 },
               },
             ],
