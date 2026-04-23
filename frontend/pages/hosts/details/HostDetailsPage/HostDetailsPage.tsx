@@ -166,6 +166,7 @@ interface IHostDetailsProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       fleet_id?: string;
+      show_mdm_status?: string;
     };
     search?: string;
   };
@@ -239,7 +240,15 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
-  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(
+    location.query.show_mdm_status === "true"
+  );
+  // Sync MDM status modal state when the query param changes while mounted
+  // (e.g., browser back/forward navigation).
+  useEffect(() => {
+    setShowMDMStatusModal(location.query.show_mdm_status === "true");
+  }, [location.query.show_mdm_status]);
+
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
 
   // General-use updating state
@@ -683,8 +692,18 @@ const HostDetailsPage = ({
   }, [showLocationModal, setShowLocationModal]);
 
   const toggleMDMStatusModal = useCallback(() => {
-    setShowMDMStatusModal(!showMDMStatusModal);
-  }, [showMDMStatusModal, setShowMDMStatusModal]);
+    setShowMDMStatusModal((prev) => {
+      const closing = prev;
+      // When closing, strip ?show_mdm_status=true so that refreshing or
+      // sharing the URL won't reopen the modal. Opening never adds the param
+      // — it's only set by external deep-links.
+      if (closing && location.query.show_mdm_status === "true") {
+        const { show_mdm_status: _, ...rest } = location.query;
+        router.replace({ pathname: location.pathname, query: rest });
+      }
+      return !prev;
+    });
+  }, [location, router]);
 
   const toggleClearPasscodeModal = useCallback(() => {
     setShowClearPasscodeModal(!showClearPasscodeModal);
