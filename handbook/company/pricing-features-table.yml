@@ -130,7 +130,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage
-  description: Run `fleetctl new` and use the included GitHub Actions or GitLab CI/CD pipelines to quickly manage your computers as code (configuration as code).
+  description: Run `fleetctl new` and use the included best practice directory structure, starter files, and GitHub Actions or GitLab CI/CD pipelines to quickly manage your computers as code (configuration as code).
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
