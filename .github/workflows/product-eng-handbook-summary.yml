@@ -161,6 +161,7 @@ jobs:
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             --data-binary @/tmp/request.json \
+            -D /tmp/response_headers.txt \
             -o /tmp/response.json \
             -w '%{http_code}')
           CURL_EXIT=$?
@@ -169,6 +170,9 @@ jobs:
           echo "curl exit: ${CURL_EXIT}"
           echo "HTTP status: ${HTTP_CODE:-<none>}"
           echo "Response size: $(wc -c < /tmp/response.json) bytes"
+          echo "--- response headers ---"
+          cat /tmp/response_headers.txt || true
+          echo "--- end headers ---"
 
           if [ "$CURL_EXIT" -ne 0 ] || [ "${HTTP_CODE:-0}" -lt 200 ] || [ "${HTTP_CODE:-0}" -ge 300 ]; then
             echo "::error::GitHub Models API call failed (curl=${CURL_EXIT}, http=${HTTP_CODE})"
