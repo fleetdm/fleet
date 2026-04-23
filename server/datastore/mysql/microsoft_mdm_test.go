@@ -54,6 +54,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
+		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 	}
 
@@ -1968,6 +1969,58 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d1)
 	require.NoError(t, err)
 	return d1.MDMDeviceID
+}
+
+// windowsProfileUUIDByName returns the profile_uuid of a Windows config profile
+// identified by its (unique) name.
+func windowsProfileUUIDByName(t *testing.T, ds *Datastore, name string) string {
+	t.Helper()
+	var u string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &u,
+			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, name)
+	})
+	return u
+}
+
+// installWindowsProfilesAsVerified simulates a successful prior install of each
+// profile on each host by inserting operation_type=install, status=verified rows
+// via BulkUpsertMDMWindowsHostProfiles.
+func installWindowsProfilesAsVerified(t *testing.T, ds *Datastore, hostUUIDs, profileUUIDs []string) {
+	t.Helper()
+	verified := fleet.MDMDeliveryVerified
+	var payloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	for _, hUUID := range hostUUIDs {
+		for _, pUUID := range profileUUIDs {
+			payloads = append(payloads, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:   pUUID,
+				ProfileName:   "test",
+				HostUUID:      hUUID,
+				CommandUUID:   uuid.NewString(),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &verified,
+				Checksum:      []byte{0},
+			})
+		}
+	}
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(t.Context(), payloads))
+}
+
+// rawWindowsDeleteCommandForHostProfile returns the raw SyncML of the queued
+// <Delete> command for a (host, profile) pair by joining host_mdm_windows_profiles
+// (operation_type=remove) to windows_mdm_commands via command_uuid. Returns empty
+// bytes if no such command is queued.
+func rawWindowsDeleteCommandForHostProfile(t *testing.T, ds *Datastore, hostUUID, profileUUID string) []byte {
+	t.Helper()
+	var raw []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &raw,
+			`SELECT wc.raw_command FROM windows_mdm_commands wc
+			 JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
+			 WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = ?`,
+			hostUUID, profileUUID, fleet.MDMOperationTypeRemove)
+	})
+	return raw
 }
 
 func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
@@ -4344,37 +4397,16 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 	profB := &fleet.MDMWindowsConfigProfile{Name: "profB", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Y</LocURI></Target><Data>2</Data></Item></Replace>`)}
 
 	// Insert both profiles.
-	var profAUUID, profBUUID string
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profB}, nil)
 		return err
 	})
 	require.NoError(t, err)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profAUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profA'`)
-	})
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &profBUUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'profB'`)
-	})
+	profAUUID := windowsProfileUUIDByName(t, ds, "profA")
+	profBUUID := windowsProfileUUIDByName(t, ds, "profB")
 
 	// Simulate both profiles installed on both hosts.
-	verified := fleet.MDMDeliveryVerified
-	var hostProfilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload
-	for _, hUUID := range []string{h1.UUID, h2.UUID} {
-		for _, pUUID := range []string{profAUUID, profBUUID} {
-			hostProfilePayloads = append(hostProfilePayloads, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
-				ProfileUUID:   pUUID,
-				ProfileName:   "test",
-				HostUUID:      hUUID,
-				CommandUUID:   uuid.NewString(),
-				OperationType: fleet.MDMOperationTypeInstall,
-				Status:        &verified,
-				Checksum:      []byte{0},
-			})
-		}
-	}
-	err = ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilePayloads)
-	require.NoError(t, err)
+	installWindowsProfilesAsVerified(t, ds, []string{h1.UUID, h2.UUID}, []string{profAUUID, profBUUID})
 
 	t.Run("shared LocURI not deleted when other profile uses it", func(t *testing.T) {
 		t.Cleanup(func() {
@@ -4390,13 +4422,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 
 		// Verify the delete command on BOTH hosts.
 		for _, h := range []*fleet.Host{h1, h2} {
-			var rawCmd []byte
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &rawCmd,
-					`SELECT wc.raw_command FROM windows_mdm_commands wc
-					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
-					WHERE hwp.host_uuid = ? AND hwp.operation_type = 'remove'`, h.UUID)
-			})
+			rawCmd := rawWindowsDeleteCommandForHostProfile(t, ds, h.UUID, profAUUID)
 			require.NotEmpty(t, rawCmd, "host %s should have a delete command", h.Hostname)
 			rawStr := string(rawCmd)
 			assert.Contains(t, rawStr, "./Device/X", "host %s: should delete LocURI X", h.Hostname)
@@ -4423,13 +4449,8 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		var profA2UUID, profB2UUID string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profA2UUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'ls-profA'`)
-		})
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profB2UUID, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = 'ls-profB'`)
-		})
+		profA2UUID := windowsProfileUUIDByName(t, ds, "ls-profA")
+		profB2UUID := windowsProfileUUIDByName(t, ds, "ls-profB")
 
 		// Create a label and make profB label-scoped to it.
 		scopeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "locuri-scope-label", Query: ""})
@@ -4524,18 +4545,10 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 			return err
 		})
 		require.NoError(t, err)
-		var profUUID string
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &profUUID,
-				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = 'no-team-prof'`)
-		})
+		profUUID := windowsProfileUUIDByName(t, ds, "no-team-prof")
 
 		// Both hosts start with the profile installed and verified.
-		verified := fleet.MDMDeliveryVerified
-		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
-			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h2.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
-		}))
+		installWindowsProfilesAsVerified(t, ds, []string{h1.UUID, h2.UUID}, []string{profUUID})
 
 		// Move h2 out of no-team; replicate the post-move reconciliation the
 		// service layer does so h2's row flips to operation=remove, status=NULL.
@@ -4574,14 +4587,7 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		// and that the destination-team profile with the same LocURI did
 		// not spuriously protect ./Device/Z from the no-team deletion.
 		for _, h := range []*fleet.Host{h1, h2} {
-			var rawCmd []byte
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &rawCmd,
-					`SELECT wc.raw_command FROM windows_mdm_commands wc
-					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
-					WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
-					h.UUID, profUUID)
-			})
+			rawCmd := rawWindowsDeleteCommandForHostProfile(t, ds, h.UUID, profUUID)
 			require.NotEmpty(t, rawCmd, "host %s should have a queued <Delete>", h.Hostname)
 			assert.Contains(t, string(rawCmd), "./Device/Z")
 		}
@@ -4707,6 +4713,94 @@ func testEditProfileDeletesRemovedLocURIs(t *testing.T, ds *Datastore) {
 			}
 		}
 	})
+}
+
+// testBatchDeleteMultipleWindowsProfiles exercises the multi-profile delete path in
+// cancelWindowsHostInstallsForDeletedMDMProfiles via a single batchSetMDMWindowsProfilesDB
+// call that removes several profiles at once. This hits the CASE-mapped multi-profile
+// UPDATE on host_mdm_windows_profiles (one statement, many profiles, one command_uuid
+// per profile) and verifies that each profile's rows receive the correct, distinct
+// command_uuid.
+func testBatchDeleteMultipleWindowsProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	h1 := test.NewHost(t, ds, "host-multi-del-1", "10.0.0.10", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h1)
+	h2 := test.NewHost(t, ds, "host-multi-del-2", "10.0.0.11", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	windowsEnroll(t, ds, h2)
+
+	profA := &fleet.MDMWindowsConfigProfile{Name: "multi-del-A", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/A</LocURI></Target><Data>1</Data></Item></Replace>`)}
+	profB := &fleet.MDMWindowsConfigProfile{Name: "multi-del-B", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/B</LocURI></Target><Data>1</Data></Item></Replace>`)}
+	profC := &fleet.MDMWindowsConfigProfile{Name: "multi-del-C", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/C</LocURI></Target><Data>1</Data></Item></Replace>`)}
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{profA, profB, profC}, nil)
+		return err
+	})
+	require.NoError(t, err)
+
+	profAUUID := windowsProfileUUIDByName(t, ds, "multi-del-A")
+	profBUUID := windowsProfileUUIDByName(t, ds, "multi-del-B")
+	profCUUID := windowsProfileUUIDByName(t, ds, "multi-del-C")
+
+	// Mark all three profiles as verified-installed on both hosts, so phase-2
+	// cleanup has to generate <Delete> commands and flip the rows to remove+pending.
+	installWindowsProfilesAsVerified(t, ds,
+		[]string{h1.UUID, h2.UUID},
+		[]string{profAUUID, profBUUID, profCUUID})
+
+	// Delete ALL THREE profiles in a single batch-set call by passing an empty new set.
+	// This drives cancelWindowsHostInstallsForDeletedMDMProfiles with >1 profile, which
+	// is precisely the code path the new multi-profile batched UPDATE targets.
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
+		return err
+	})
+	require.NoError(t, err)
+
+	// 2 hosts × 3 profiles = 6 rows, each flipped to remove+pending with a
+	// non-empty command_uuid and empty detail.
+	type row struct {
+		OperationType string `db:"operation_type"`
+		Status        string `db:"status"`
+		Detail        string `db:"detail"`
+		CommandUUID   string `db:"command_uuid"`
+	}
+	var rows []row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT operation_type, status, detail, command_uuid
+			 FROM host_mdm_windows_profiles
+			 WHERE host_uuid IN (?, ?)
+			 ORDER BY host_uuid, profile_uuid`, h1.UUID, h2.UUID)
+	})
+	require.Len(t, rows, 6)
+	for _, r := range rows {
+		assert.Equal(t, string(fleet.MDMOperationTypeRemove), r.OperationType)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), r.Status)
+		assert.Empty(t, r.Detail)
+		assert.NotEmpty(t, r.CommandUUID)
+	}
+
+	// For every (host, profile), follow the command_uuid on the flipped row
+	// through to windows_mdm_commands and assert the raw SyncML targets THAT
+	// profile's specific LocURI. This catches CASE mis-assignment (profA's
+	// command_uuid cross-wired to profB's Delete command) and an unintended
+	// ELSE-clause fire (command_uuid unchanged, not in windows_mdm_commands).
+	profLocURIs := map[string]string{
+		profAUUID: "./Device/A",
+		profBUUID: "./Device/B",
+		profCUUID: "./Device/C",
+	}
+	for _, hUUID := range []string{h1.UUID, h2.UUID} {
+		for profUUID, wantLocURI := range profLocURIs {
+			raw := rawWindowsDeleteCommandForHostProfile(t, ds, hUUID, profUUID)
+			require.NotEmpty(t, raw, "host %s profile %s: no Delete command queued", hUUID, profUUID)
+			assert.Contains(t, string(raw), wantLocURI,
+				"host %s profile %s: command should target %s, not another profile's LocURI",
+				hUUID, profUUID, wantLocURI)
+		}
+	}
 }
 
 // testMDMWindowsUnenrollCleansUpProfiles verifies that pending profile rows are cleaned up when a
