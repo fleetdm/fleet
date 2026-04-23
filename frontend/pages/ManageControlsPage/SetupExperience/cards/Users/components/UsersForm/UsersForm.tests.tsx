@@ -104,14 +104,14 @@ describe("UsersForm", () => {
       render(<UsersForm {...defaultProps} isIdPConfigured={false} />);
       expect(
         screen.getByRole("checkbox", { name: "End user authentication" })
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-disabled", "true");
     });
 
     it("enables end user authentication checkbox when IdP is configured", () => {
       render(<UsersForm {...defaultProps} isIdPConfigured />);
       expect(
         screen.getByRole("checkbox", { name: "End user authentication" })
-      ).toBeEnabled();
+      ).toHaveAttribute("aria-disabled", "false");
     });
 
     it("disables lock end user info when IdP is not configured", () => {
@@ -124,7 +124,7 @@ describe("UsersForm", () => {
       );
       expect(
         screen.getByRole("checkbox", { name: "Lock end user info" })
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-disabled", "true");
     });
 
     it("does not allow toggling end user auth when IdP is not configured", async () => {
@@ -144,14 +144,14 @@ describe("UsersForm", () => {
       renderWithMdmDisabled(<UsersForm {...defaultProps} />);
       expect(
         screen.getByRole("checkbox", { name: "Managed local account" })
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-disabled", "true");
     });
 
     it("enables managed local account checkbox when Apple MDM is configured", () => {
       renderWithMdmEnabled(<UsersForm {...defaultProps} />);
       expect(
         screen.getByRole("checkbox", { name: "Managed local account" })
-      ).toBeEnabled();
+      ).toHaveAttribute("aria-disabled", "false");
     });
 
     it("does not allow toggling managed local account when Apple MDM is not configured", async () => {
