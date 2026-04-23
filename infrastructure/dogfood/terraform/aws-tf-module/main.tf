@@ -264,6 +264,7 @@ module "main" {
       bucket_prefix                      = "${local.customer}-software-installers-"
       create_kms_key                     = true
       kms_alias                          = "${local.customer}-software-installers"
+      cloudfront_distribution_arn        = "arn:aws:cloudfront::160035666661:distribution/E3T927IDMQ7AE4"
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
