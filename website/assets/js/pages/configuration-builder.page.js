@@ -2146,7 +2146,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Allow users to bypass Windows Defender SmartScreen prompts for sites',
-                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                tooltip: `This policy setting lets you decide whether employees can override the Windows Defender SmartScreen warnings about downloading unverified files.`,
                 uniqueSlug: 'windows-enable-smartscreen-bypass-in-edge',
                 category: 'SmartScreen',
                 supportedAccessTypes: ['add', 'replace'],
@@ -3428,7 +3428,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Specify feature branch readiness level',
                 uniqueSlug: 'windows-updates-feature-branch',
-                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                tooltip: 'Enable this policy to specify when to receive Feature Updates.',
                 category: 'Updates',
                 payloadGroup: 'Windows update service',
                 supportedAccessTypes: ['add', 'replace'],
@@ -4342,7 +4342,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enable firewall on Domain profile',
                 uniqueSlug: 'windows-firewall-enabled-domain',
-                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                tooltip: `Enables windows defender firewall on the device's Domain profile`,
                 category: 'Firewall',
                 payloadGroup: 'Domain profile',
                 supportedAccessTypes: ['replace'],
@@ -4372,7 +4372,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enable firewall on private profile',
                 uniqueSlug: 'windows-firewall-enabled-private',
-                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                tooltip: `Enables windows defender firewall on the device's private profile`,
                 category: 'Firewall',
                 payloadGroup: 'Private profile',
                 supportedAccessTypes: ['replace'],
@@ -5235,7 +5235,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Allow installation of untrusted applications',
                 uniqueSlug: 'android-untrusted-apps',
-                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                tooltip: `Controls whether the user can install apps from sources other than the Google Play Store (i.e., from unknown sources).`,
                 category: 'Applications',
                 formInput: {
                   type: 'radio',
@@ -5266,7 +5266,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enforce Google Play protect verification',
                 uniqueSlug: 'android-google-play-protect',
-                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                tooltip: `Controls whether Google Play Protect verifies apps for harmful behavior before and periodically after they are installed.`,
                 category: 'Applications',
                 formInput: {
                   type: 'radio',
