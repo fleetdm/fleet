@@ -72,7 +72,7 @@ For Proton, this was never just about finding a better MDM. It was about finding
 
 
 <meta name="category" value="case study">
-<meta name="companyLogoFilename" value="logos/logo-proton-95x32@2x.png">
+<meta name="companyLogoFilename" value="logo-proton-99x32@2x.png">
 <meta name="articleTitle" value="How Proton manages devices with the same privacy and security standards it promises its users">
 <meta name="description" value="Proton replaced three separate device management tools with Fleet, gaining unified visibility and security across Linux, Mac, and Windows.">
 
