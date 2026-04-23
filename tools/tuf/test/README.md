@@ -154,6 +154,15 @@ make osqueryd-app-tar-gz pr=8815 out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
 ```
 
+E.g. to add a custom `osqueryd` version built locally:
+```sh
+# Generate osqueryd app bundle from a locally built osqueryd executable.
+make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
+
+# Push the osqueryd target as a new version.
+./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
+```
+
 E.g. to add a new version of `desktop` for macOS:
 ```sh
 source ./tools/tuf/test/load_orbit_version_vars.sh
