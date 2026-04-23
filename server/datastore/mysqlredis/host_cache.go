@@ -17,10 +17,11 @@ import (
 )
 
 // All host-cache keys live under this single versioned prefix so operators can
-// purge with `redis-cli --scan --pattern 'fleet:hostcache:v1:*' | xargs redis-cli DEL`.
+// purge with `redis-cli --scan --pattern 'fleet:hostcache:v2:*' | xargs redis-cli DEL`.
 // Bumping the version on a cached-payload schema change orphans old keys; they
-// TTL out within hostCacheTTL.
-const hostCacheKeyPrefix = "fleet:hostcache:v1"
+// TTL out within hostCacheTTL. v2 changed the wire format from a hand-mirrored
+// struct to an envelope that embeds fleet.Host.
+const hostCacheKeyPrefix = "fleet:hostcache:v2"
 
 const (
 	// hostCacheNegativeTTL caps how long a "not found" result is cached. Short
@@ -108,8 +109,8 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByNodeKey(nodeKey)))
 	switch {
 	case err == nil:
-		entry := new(hostCacheEntry)
-		if jerr := json.Unmarshal(raw, entry); jerr != nil {
+		env := new(hostCacheEnvelope)
+		if jerr := json.Unmarshal(raw, env); jerr != nil {
 			// Schema drift or a poisoned entry. Drop the bad key so the next
 			// lookup repopulates from the database, and treat this call as a
 			// miss.
@@ -121,7 +122,7 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 			return nil, hostCacheLookupMiss
 		}
 		d.recordHostCacheLookup(ctx, "hit")
-		return entry.toHost(), hostCacheLookupHit
+		return env.toHost(), hostCacheLookupHit
 
 	case errors.Is(err, redigo.ErrNil):
 		// positive miss; fall through to negative-cache probe
@@ -155,7 +156,7 @@ func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
 		return
 	}
 
-	raw, err := json.Marshal(hostCacheEntryFromHost(host))
+	raw, err := json.Marshal(envelopeFromHost(host))
 	if err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 		return
@@ -264,8 +265,8 @@ func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey
 	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByOrbitNodeKey(orbitNodeKey)))
 	switch {
 	case err == nil:
-		entry := new(orbitHostCacheEntry)
-		if jerr := json.Unmarshal(raw, entry); jerr != nil {
+		env := new(hostCacheEnvelope)
+		if jerr := json.Unmarshal(raw, env); jerr != nil {
 			d.recordHostCacheErr(ctx, "get", jerr)
 			if _, derr := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(orbitNodeKey)); derr != nil {
 				d.recordHostCacheErr(ctx, "del", derr)
@@ -274,7 +275,7 @@ func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey
 			return nil, hostCacheLookupMiss
 		}
 		d.recordHostCacheLookup(ctx, "hit")
-		return entry.toHost(), hostCacheLookupHit
+		return env.toHost(), hostCacheLookupHit
 	case errors.Is(err, redigo.ErrNil):
 		// positive miss; fall through to negative cache
 	default:
@@ -305,7 +306,7 @@ func (d *Datastore) hostCachePutByOrbit(ctx context.Context, host *fleet.Host) {
 		return
 	}
 
-	raw, err := json.Marshal(orbitHostCacheEntryFromHost(host))
+	raw, err := json.Marshal(envelopeFromHost(host))
 	if err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 		return
@@ -682,11 +683,11 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 }
 
 // LoadHostByOrbitNodeKey is the orbit-side counterpart of LoadHostByNodeKey.
-// Identical semantics (cache-aside, singleflight, ctx detach, shallow clone)
-// but targets the orbit_node_key column and the orbitHostCacheEntry shape,
-// which carries the additional fields LoadHostByOrbitNodeKey's SELECT returns
-// (DEP assignment, disk encryption state, encryption key availability,
-// team name).
+// Identical semantics (cache-aside, singleflight, ctx detach, shallow clone),
+// backed by the same hostCacheEnvelope wire format. The additional fields
+// LoadHostByOrbitNodeKey's SELECT returns (DEP assignment, disk encryption
+// state, encryption key availability, team name) ride along automatically via
+// the embedded fleet.Host.
 func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
 	if !d.hostCacheEnabled {
 		return d.Datastore.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
