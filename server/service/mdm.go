@@ -269,7 +269,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
-			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
+			Message: fmt.Sprintf("Uploaded EULA exceeds maximum allowed size of %d MiB", fleet.MaxEULASize/1024/1024),
 		}
 	}
 
@@ -927,6 +927,25 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 
 	for _, res := range results {
 		res.Hostname = host.Hostname
+	}
+
+	// Enrich VPP command results with install status and verify timeout metadata,
+	// matching what the admin path does in GetMDMCommandResults.
+	if len(results) > 0 {
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
+				}
+			}
+		}
 	}
 
 	return results, nil

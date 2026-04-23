@@ -1377,6 +1377,9 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
 
+	d1ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d1.MDMHardwareID)
+	d2ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d2.MDMHardwareID)
+
 	cmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  uuid.NewString(),
 		RawCommand:   []byte("<Exec></Exec>"),
@@ -1386,20 +1389,20 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{}, cmd)
 	require.NoError(t, err)
 	// no commands are enqueued nor created
-	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd)
 	require.NoError(t, err)
 	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
@@ -1408,10 +1411,10 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
 	require.NoError(t, err)
 	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 
@@ -1434,6 +1437,7 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	time.Sleep(time.Second) // ensure it gets a latest created_at
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d3)
 	require.NoError(t, err)
+	d3ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d3.MDMHardwareID)
 
 	// commands can still be enqueued, will be enqueued for the latest enrolled device
 	// when a duplicate host uuid/device id exists (i.e. for d3 even if d2 is passed -
@@ -1441,16 +1445,18 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	cmd.CommandUUID = uuid.NewString()
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d1.MDMDeviceID, d2.MDMDeviceID}, cmd)
 	require.NoError(t, err)
-	// command enqueued and created
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+	// Commands are queried per-enrollment: the new command was enqueued against
+	// d3 (the latest enrollment sharing d1's MDMDeviceID) and d2, so d1's own
+	// enrollment still sees only its two prior commands.
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d1ID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 3)
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3ID)
 	require.NoError(t, err)
-	require.Len(t, cmds, 3) // d2 sees the new command as we retrieve by device_id and they share the same
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d3.MDMDeviceID)
-	require.NoError(t, err)
-	require.Len(t, cmds, 3)
+	require.Len(t, cmds, 1)
 }
 
 func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
@@ -1478,6 +1484,9 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 	require.NoError(t, err)
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, d2)
 	require.NoError(t, err)
+
+	d1ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d1.MDMHardwareID)
+	d2ID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d2.MDMHardwareID)
 
 	getAllHostProfiles := func() []*fleet.MDMWindowsProfilePayload {
 		var hostProfiles []*fleet.MDMWindowsProfilePayload
@@ -1534,10 +1543,10 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		require.NoError(t, err)
 
 		// Verify commands were enqueued
-		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
-		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 
@@ -1676,7 +1685,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		require.NoError(t, err)
 
 		// Verify both hosts got their commands despite batching
-		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1.MDMDeviceID)
+		cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1ID)
 		require.NoError(t, err)
 		found := false
 		for _, c := range cmds {
@@ -1687,7 +1696,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		}
 		require.True(t, found, "expected command for d1")
 
-		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2.MDMDeviceID)
+		cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d2ID)
 		require.NoError(t, err)
 		found = false
 		for _, c := range cmds {
@@ -1721,8 +1730,10 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
 	require.NoError(t, err)
 
+	dID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
+
 	// device without commands
-	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, dID)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -1735,12 +1746,12 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, cmd)
 	require.NoError(t, err)
 
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, d.MDMDeviceID)
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, dID)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
-	// non-existent device
-	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, "fail")
+	// non-existent enrollment
+	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 }
@@ -1820,6 +1831,19 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	results, err = ds.GetMDMWindowsCommandResults(ctx, "unknown-cmd-uuid", "")
 	require.NoError(t, err) // expect no error here, just no results
 	require.Empty(t, results)
+}
+
+// mdmWindowsEnrollmentIDByHardwareID resolves an enrollment row's auto-increment id
+// from its hardware id. MDMWindowsInsertEnrolledDevice does not populate the ID field
+// on the inserted struct, and hardware_id is the only identifier guaranteed unique in
+// tests that exercise the duplicate device_id / host_uuid case.
+func mdmWindowsEnrollmentIDByHardwareID(ctx context.Context, t *testing.T, ds *Datastore, hwID string) uint {
+	t.Helper()
+	var id uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &id, `SELECT id FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?`, hwID)
+	})
+	return id
 }
 
 func createMDMWindowsEnrollment(ctx context.Context, t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolledDevice {
@@ -3269,7 +3293,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 
 	// Do test
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
 	require.NoError(t, err)
 
 	// Verify results
@@ -3297,7 +3321,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, cmdEntries)
 
 	// Do test on the second device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2.MDMDeviceID, enrichedSyncML2, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2, enrichedSyncML2, []string{})
 	require.NoError(t, err)
 
 	// Verify results for the second device
@@ -3321,7 +3345,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	enrichedSyncML3 := createResponseAsEnrichedSyncML(t, enrolledDevice3, cmdEntries)
 
 	// Do test on the third device
-	err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3.MDMDeviceID, enrichedSyncML3, []string{atomicCommandUUID})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3, enrichedSyncML3, []string{atomicCommandUUID})
 	require.NoError(t, err)
 
 	// Verify results does not exist for the third device
@@ -3380,7 +3404,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 
 		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 		// Do test
-		err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
 		require.NoError(t, err)
 
 		// Verify results
@@ -3472,7 +3496,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-success', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
 			require.NoError(t, err)
 
 			// Verify results
@@ -3533,7 +3557,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-failure', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1.MDMDeviceID, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
 			require.NoError(t, err)
 
 			// Verify results
@@ -3565,6 +3589,132 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			})
 			assert.Equal(t, "verified", *atomicProfileStatus)
 			assert.Nil(t, replaceProfileStatus) // We want nil here, as the retry kicks in on failures
+		})
+	})
+
+	t.Run("wipe failure returns WipeFailed result", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create a real host and enroll it in Windows MDM.
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        "test-wipe-host",
+			OsqueryHostID:   ptr.String("osquery-wipe-" + uuid.NewString()),
+			NodeKey:         ptr.String("nodekey-wipe-" + uuid.NewString()),
+			UUID:            uuid.NewString(),
+			Platform:        "windows",
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		deviceID := windowsEnroll(t, ds, host)
+		enrolled, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+		require.NoError(t, err)
+
+		// buildWipeResponse constructs an EnrichedSyncML that contains a status
+		// entry for the given wipe command UUID. It sets Cmd to nil so that the
+		// profile-payload builder is not triggered (wipe commands are not profiles).
+		buildWipeResponse := func(t *testing.T, cmdUUID string, statusCode string) fleet.EnrichedSyncML {
+			t.Helper()
+
+			// Start from a minimal valid response (the helper gives us the SyncHdr ack).
+			resp := createResponseAsEnrichedSyncML(t, enrolled, []enrichResponseEntry{})
+			// Add the wipe command UUID with the desired status but without Cmd
+			// so BuildMDMWindowsProfilePayloadFromMDMResponse is not invoked.
+			resp.CmdRefUUIDs = append(resp.CmdRefUUIDs, cmdUUID)
+			if statusCode != "" {
+				resp.CmdRefUUIDToStatus[cmdUUID] = fleet.SyncMLCmd{
+					Data: &statusCode,
+					// Cmd intentionally nil — wipe is not a profile command.
+				}
+			}
+			return resp
+		}
+
+		t.Run("status 500 signals wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "500"), []string{})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.NotNil(t, result.WipeFailed)
+			assert.Equal(t, host.UUID, result.WipeFailed.HostUUID)
+		})
+
+		t.Run("duplicate response does not signal wipe failure again", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			// First response — failure, clears wipe_ref.
+			resp := buildWipeResponse(t, wipeCmdUUID, "500")
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, resp, []string{})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.NotNil(t, result.WipeFailed)
+
+			// Re-enqueue the command (only the queue entry was deleted, the
+			// command itself stays in windows_mdm_commands). Do NOT restore
+			// wipe_ref — it was cleared by the first failure.
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
+					enrolled.ID, wipeCmdUUID)
+				return err
+			})
+
+			// Second response — wipe_ref is already NULL, so 0 rows affected.
+			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
+			result, err = ds.MDMWindowsSaveResponse(ctx, enrolled, resp2, []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
+		})
+
+		t.Run("status 200 does not signal wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "200"), []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
+		})
+
+		t.Run("empty status does not signal wipe failure", func(t *testing.T) {
+			wipeCmdUUID := uuid.NewString()
+			err := ds.WipeHostViaWindowsMDM(ctx, host, &fleet.MDMWindowsCommand{
+				CommandUUID:  wipeCmdUUID,
+				RawCommand:   []byte(`<Exec></Exec>`),
+				TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			})
+			require.NoError(t, err)
+
+			// Pass empty status — the command UUID is in CmdRefUUIDs but has
+			// no entry in CmdRefUUIDToStatus, so statusCode stays "".
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, ""), []string{})
+			require.NoError(t, err)
+			if result != nil {
+				assert.Nil(t, result.WipeFailed)
+			}
 		})
 	})
 }
@@ -3639,6 +3789,7 @@ func createEnrolledDevice(t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolled
 	}
 	err := ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
+	enrolledDevice.ID = mdmWindowsEnrollmentIDByHardwareID(context.Background(), t, ds, enrolledDevice.MDMHardwareID)
 	return enrolledDevice
 }
 
@@ -4357,6 +4508,83 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		}
 		assert.True(t, h2HasX, "h2: should delete X")
 		assert.True(t, h2HasY, "h2: should delete Y (profB doesn't apply, not in label scope)")
+	})
+
+	// Reproduces the regression where deleting a no-team profile failed with
+	// "expected profiles from 1 team, got 2" because some hosts that once had
+	// the profile had since been moved to a different team.
+	t.Run("stale rows from moved host do not block delete", func(t *testing.T) {
+		t.Cleanup(func() {
+			TruncateTables(t, ds, "host_mdm_windows_profiles", "windows_mdm_command_queue", "windows_mdm_commands", "mdm_windows_configuration_profiles")
+		})
+
+		prof := &fleet.MDMWindowsConfigProfile{Name: "no-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>1</Data></Item></Replace>`)}
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{prof}, nil)
+			return err
+		})
+		require.NoError(t, err)
+		var profUUID string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &profUUID,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = 'no-team-prof'`)
+		})
+
+		// Both hosts start with the profile installed and verified.
+		verified := fleet.MDMDeliveryVerified
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h1.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+			{ProfileUUID: profUUID, ProfileName: "n", HostUUID: h2.UUID, CommandUUID: uuid.NewString(), OperationType: fleet.MDMOperationTypeInstall, Status: &verified, Checksum: []byte{0}},
+		}))
+
+		// Move h2 out of no-team; replicate the post-move reconciliation the
+		// service layer does so h2's row flips to operation=remove, status=NULL.
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "moved-host-destination"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
+		_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{h2.ID}, nil, nil, nil)
+		require.NoError(t, err)
+		// Restore h2 to no-team at the end so the next subtest starts clean.
+		t.Cleanup(func() {
+			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))
+		})
+
+		// Insert a destination-team profile with the same LocURI. If LocURI
+		// protection ever leaks across teams, this would be treated as a
+		// protector for the no-team delete and the <Delete> would be empty.
+		destTeamProf := &fleet.MDMWindowsConfigProfile{Name: "dest-team-prof", SyncML: []byte(`<Replace><Item><Target><LocURI>./Device/Z</LocURI></Target><Data>2</Data></Item></Replace>`)}
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, &team.ID, []*fleet.MDMWindowsConfigProfile{destTeamProf}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// GitOps path: submit an empty profile set for no-team, which deletes
+		// the remaining profile.
+		err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, nil, []*fleet.MDMWindowsConfigProfile{}, nil)
+			return err
+		})
+		require.NoError(t, err)
+
+		// Both hosts should now have a queued <Delete>: h1 as the direct
+		// consequence of the deletion, h2 because phase 2 upgrades the
+		// already remove+NULL row to a concrete command. This also proves
+		// offline moved hosts still receive the removal on next check-in,
+		// and that the destination-team profile with the same LocURI did
+		// not spuriously protect ./Device/Z from the no-team deletion.
+		for _, h := range []*fleet.Host{h1, h2} {
+			var rawCmd []byte
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &rawCmd,
+					`SELECT wc.raw_command FROM windows_mdm_commands wc
+					JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
+					WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = 'remove'`,
+					h.UUID, profUUID)
+			})
+			require.NotEmpty(t, rawCmd, "host %s should have a queued <Delete>", h.Hostname)
+			assert.Contains(t, string(rawCmd), "./Device/Z")
+		}
 	})
 }
 

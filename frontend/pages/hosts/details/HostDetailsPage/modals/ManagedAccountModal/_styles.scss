@@ -1,0 +1,19 @@
+.managed-account-modal {
+  &__username {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  &__label {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__value {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+}

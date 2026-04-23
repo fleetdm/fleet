@@ -1,0 +1,1 @@
+- Fixed an issue where sending a different cased display name for a DDM profile via the batch endpoint, would result in recreating the DDM profile triggering a resend.

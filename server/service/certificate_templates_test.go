@@ -412,6 +412,18 @@ func TestResendHostCertificateTemplate(t *testing.T) {
 		}, nil
 	}
 
+	ds.GetCertificateTemplateByIdForHostFunc = func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+		return &fleet.CertificateTemplateResponseForHost{
+			CertificateTemplateResponse: fleet.CertificateTemplateResponse{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:   id,
+					Name: templateName,
+				},
+			},
+			Status: fleet.CertificateTemplateDelivered,
+		}, nil
+	}
+
 	t.Run("succeeds and creates activity", func(t *testing.T) {
 		ds.ResendHostCertificateTemplateFunc = func(ctx context.Context, hID uint, tID uint) error {
 			require.Equal(t, hostID, hID)
@@ -453,6 +465,30 @@ func TestResendHostCertificateTemplate(t *testing.T) {
 		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db error")
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("returns 400 when template is pending for host", func(t *testing.T) {
+		ds.GetCertificateTemplateByIdForHostFunc = func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+			return &fleet.CertificateTemplateResponseForHost{
+				CertificateTemplateResponse: fleet.CertificateTemplateResponse{
+					CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+						ID:   id,
+						Name: templateName,
+					},
+				},
+				Status: fleet.CertificateTemplatePending,
+			}, nil
+		}
+		ds.ResendHostCertificateTemplateFuncInvoked = false
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.Error(t, err)
+
+		var umErr interface{ StatusCode() int }
+		require.ErrorAs(t, err, &umErr)
+		require.Equal(t, 400, umErr.StatusCode())
+		require.False(t, ds.ResendHostCertificateTemplateFuncInvoked)
 		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 }

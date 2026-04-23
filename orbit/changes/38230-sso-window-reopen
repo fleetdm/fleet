@@ -1,0 +1,1 @@
+* Fixed Windows Autopilot SSO prompt not recoverable if closed by periodically re-opening the SSO browser window every 5 minutes until authentication is completed.
