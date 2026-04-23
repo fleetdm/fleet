@@ -3122,7 +3122,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	slices.SortFunc(profilesToRemove, cmpByHostThenProfile)
 	slices.SortFunc(profilesToInstall, cmpByHostThenProfile)
 
-	const defaultBatchSize = 10000
+	const defaultBatchSize = 2000
 	batchSize := defaultBatchSize
 	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
