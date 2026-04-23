@@ -273,8 +273,8 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 	}
 
 	if payload.EnableManagedLocalAccount != nil {
-		if ac.MDM.MacOSSetup.EnableManagedLocalAccount == nil || *ac.MDM.MacOSSetup.EnableManagedLocalAccount != *payload.EnableManagedLocalAccount {
-			ac.MDM.MacOSSetup.EnableManagedLocalAccount = payload.EnableManagedLocalAccount
+		if !ac.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
+			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
 			didUpdateManagedLocalAccount = true
 			didUpdate = true
 		}
@@ -284,8 +284,8 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		if *payload.EndUserLocalAccountType != "admin" {
 			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 		}
-		if ac.MDM.MacOSSetup.EndUserLocalAccountType == nil || *ac.MDM.MacOSSetup.EndUserLocalAccountType != *payload.EndUserLocalAccountType {
-			ac.MDM.MacOSSetup.EndUserLocalAccountType = payload.EndUserLocalAccountType
+		if !ac.MDM.MacOSSetup.EndUserLocalAccountType.Valid || ac.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
+			ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
 			didUpdate = true
 		}
 	}
@@ -300,7 +300,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, *ac.MDM.MacOSSetup.EnableManagedLocalAccount, nil, nil); err != nil {
+			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
 				return err
 			}
 		}

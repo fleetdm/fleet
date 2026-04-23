@@ -119,7 +119,7 @@ Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is f
 | --- | --- | --- | --- |
 | <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
 | <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| <nobr>3 of 3</nobr> | [Coming soon]| Ashish Kuthiala | <nobr>March 2026</nobr> |
+| <nobr>3 of 3</nobr> | [Supercharging endpoint management with AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)| Ashish Kuthiala | <nobr>2026‑04‑22</nobr> |
 
 #### 📚 Protecting Linux Endpoints (6-part series)
 

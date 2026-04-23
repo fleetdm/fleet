@@ -13,11 +13,29 @@ import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
+import UsersForm from "./components/UsersForm/UsersForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
-const baseClass = "end-user-authentication";
+const baseClass = "setup-experience-users";
+
+const getEnabledManagedLocalAccount = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+) => {
+  if (globalConfig === undefined && teamConfig === undefined) {
+    return false;
+  }
+
+  if (currentTeamId === 0) {
+    return (
+      globalConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
+    );
+  }
+
+  return teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false;
+};
 
 const getEnabledEndUserAuth = (
   currentTeamId: number,
@@ -66,10 +84,7 @@ const isIdPConfigured = ({
   );
 };
 
-const EndUserAuthentication = ({
-  currentTeamId,
-  router,
-}: ISetupExperienceCardProps) => {
+const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
@@ -101,6 +116,12 @@ const EndUserAuthentication = ({
     teamConfig
   );
 
+  const defaultEnableManagedLocalAccount = getEnabledManagedLocalAccount(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
   const renderContent = () => {
     if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
@@ -117,10 +138,11 @@ const EndUserAuthentication = ({
             path={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
           />
         ) : (
-          <EndUserAuthForm
+          <UsersForm
             currentTeamId={currentTeamId}
             defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
             defaultLockEndUserInfo={defaultLockEndUserInfo}
+            defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
           />
         )}
       </SetupExperienceContentContainer>
@@ -130,7 +152,7 @@ const EndUserAuthentication = ({
   return (
     <section className={baseClass}>
       <SectionHeader
-        title="End user authentication"
+        title="Users"
         details={
           <CustomLink
             newTab
@@ -144,4 +166,4 @@ const EndUserAuthentication = ({
   );
 };
 
-export default EndUserAuthentication;
+export default Users;

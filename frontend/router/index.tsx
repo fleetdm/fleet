@@ -325,6 +325,10 @@ const routes = (
                 <Route path="os-settings/:section" component={OSSettings} />
 
                 <Route path="setup-experience" component={SetupExperience} />
+                <Redirect
+                  from="setup-experience/end-user-auth"
+                  to="setup-experience/users"
+                />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
