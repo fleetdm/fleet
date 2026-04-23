@@ -23721,8 +23721,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		var acResp appConfigResponse
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
-		require.True(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
 			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
@@ -23738,8 +23738,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		acResp = appConfigResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
-		require.False(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
 	})
@@ -23758,8 +23758,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		var tmResp teamResponse
 		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
-		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-		require.True(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
 			expectedDetail, 0)
 
@@ -23775,8 +23775,8 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		tmResp = teamResponse{}
 		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
-		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
-		require.False(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			expectedDetail, 0), lastActivityID)
 	})
