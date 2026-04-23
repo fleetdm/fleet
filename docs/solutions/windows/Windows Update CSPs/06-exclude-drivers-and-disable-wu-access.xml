@@ -1,0 +1,14 @@
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ExcludeWUDriversInQualityUpdate</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/SetDisableUXWUAccess</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

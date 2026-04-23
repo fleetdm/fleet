@@ -1758,13 +1758,15 @@ WHERE name = ?`
 	// Get current variables_updated_at for host1's declarations (may have changed since earlier captures)
 	latestVarsUpdatedUUID := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclUUID.DeclarationUUID)
 	latestVarsUpdatedSerial := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclSerial.DeclarationUUID)
-	latestVarsUpdatedIdp := getHostDeclVarsUpdatedAt(t, host1.UUID, dbDeclIdpUsername.DeclarationUUID)
 
+	// The IDP declaration is excluded from the manifest because its variable
+	// can't be resolved (no IdP user for this host), but it is still included
+	// in the DeclarationsToken computation so that the token matches the
+	// SQL-computed token from the tokens endpoint.
 	declsByToken = map[string]fleet.MDMAppleDeclaration{
 		fleet.EffectiveDDMToken(dbDeclUUID.Token, latestVarsUpdatedUUID):     {Identifier: "com.fleet.var.uuid"},
 		fleet.EffectiveDDMToken(dbDeclSerial.Token, latestVarsUpdatedSerial): {Identifier: "com.fleet.var.serial"},
 		dbDeclPlain.Token: {Identifier: "com.fleet.plain"},
-		fleet.EffectiveDDMToken(dbDeclIdpUsername.Token, latestVarsUpdatedIdp): {Identifier: "com.fleet.var.idpusername"},
 	}
 
 	r, err = mdmDevice1.DeclarativeManagement("declaration-items")
@@ -1772,13 +1774,9 @@ WHERE name = ?`
 	itemsResp = parseDeclarationItemsResp(t, r)
 	checkDeclarationItemsResp(t, itemsResp, lastSyncDeclToken, declsByToken)
 
-	// Host1 fetches the IdP username declaration — variable resolution fails
-	// because no IdP user exists for the host. The server returns an empty 200
-	// and marks the declaration as failed.
-	_, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
-	require.NoError(t, err)
-
-	// Verify the declaration is marked as failed with the expected detail message
+	// Verify the IDP declaration is marked as failed after the declaration-items
+	// fetch (handleDeclarationItems detected unresolvable variables and excluded
+	// the declaration from the manifest).
 	var hostDecl fleet.MDMAppleHostDeclaration
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &hostDecl,
@@ -1789,6 +1787,11 @@ WHERE name = ?`
 	assert.Equal(t, fleet.MDMDeliveryFailed, *hostDecl.Status)
 	assert.Contains(t, hostDecl.Detail, "There is no IdP username for this host")
 	assert.Contains(t, hostDecl.Detail, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+
+	// Host1 fetches the IdP username configuration — variable resolution
+	// fails again (fallback path). The server returns an empty 200.
+	_, err = mdmDevice1.DeclarativeManagement("declaration/configuration/com.fleet.var.idpusername")
+	require.NoError(t, err)
 
 	// === Updating variable declaration to non-variable clears variables_updated_at ===
 

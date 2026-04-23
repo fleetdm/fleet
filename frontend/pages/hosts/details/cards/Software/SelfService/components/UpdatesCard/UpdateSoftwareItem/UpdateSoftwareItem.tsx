@@ -118,7 +118,12 @@ const InstallerStatus = ({
       >
         <div className={`${baseClass}__status-with-tooltip`}>
           {displayConfig.iconName === "pending-outline" && (
-            <Spinner size="x-small" includeContainer={false} centered={false} />
+            <Spinner
+              size="x-small"
+              includeContainer={false}
+              centered={false}
+              delay={0}
+            />
           )}
           {last_install && displayConfig.displayText === "Failed" && (
             <span data-testid={`${baseClass}__status--test`}>
@@ -171,7 +176,12 @@ const InstallerStatusAction = ({
     if (ui_status === "updating") {
       return (
         <>
-          <Spinner size="x-small" includeContainer={false} centered={false} />{" "}
+          <Spinner
+            size="x-small"
+            includeContainer={false}
+            centered={false}
+            delay={0}
+          />{" "}
           Updating...{" "}
         </>
       );

@@ -2032,10 +2032,10 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------- |
 | server_url                        | string  | The Fleet server URL.                                                                       |
 | enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
-| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                           |
-| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                             |
+| live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
+| discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
-| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
+| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -2048,8 +2048,8 @@ Modifies the Fleet's configuration with the supplied information.
   "server_settings": {
     "server_url": "https://localhost:8080",
     "enable_analytics": true,
-    "live_query_disabled": false,
-    "query_reports_disabled": false,
+    "live_reporting_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false
   }
 }

@@ -636,7 +636,14 @@
       "slug": "druva-insync/darwin",
       "platform": "darwin",
       "unique_identifier": "com.druva.inSyncClient",
-      "description": "Druva inSync is a backup client."
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync",
+      "slug": "druva-insync/windows",
+      "platform": "windows",
+      "unique_identifier": "Druva inSync",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
       "name": "Eclipse IDE",
@@ -657,14 +664,14 @@
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
       "unique_identifier": "com.corsair.ControlCenter",
-      "description": "Elgate Control Center is an app to control your Elgato key lights."
+      "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
       "name": "Elgato Stream Deck",
       "slug": "elgato-stream-deck/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elgato.StreamDeck",
-      "description": "Elgateo Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+      "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
       "name": "Evernote",

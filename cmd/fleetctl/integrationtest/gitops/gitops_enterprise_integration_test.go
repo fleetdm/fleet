@@ -3928,6 +3928,108 @@ reports:
 		"secret should be stored as the raw value (not XML-escaped)")
 }
 
+// TestJSONConfigurationProfileEscaping covers issue #38013 — JSON profiles
+// (Apple DDM declarations) must have variable values JSON-escaped at expansion
+// time, while the underlying secret is still stored on the server unescaped.
+func (s *enterpriseIntegrationGitopsTestSuite) TestJSONConfigurationProfileEscaping() {
+	t := s.T()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		declIdentifier     = "com.fleetdm.json.escape.test"
+		secretPasswordName = "JSON_ESCAPE_PASSWORD"
+
+		// Values contain characters that break naive JSON string interpolation
+		// (double quote, backslash, and XML-significant chars for completeness).
+		secretPasswordValue = `custom"password\tag&<>` //nolint:gosec // G101: test fixture, not a credential
+		apiKeyValue         = `my"api&key\v`           //nolint:gosec // G101: test fixture, not a credential
+	)
+
+	t.Setenv("FLEET_SECRET_"+secretPasswordName, secretPasswordValue)
+	t.Setenv("API_KEY", apiKeyValue)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	declBody := fmt.Sprintf(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": %q,
+		"Payload": {
+			"Password": "$FLEET_SECRET_%s",
+			"ApiKey": "$API_KEY"
+		}
+	}`, declIdentifier, secretPasswordName)
+	require.NoError(t, os.WriteFile(declPath, []byte(declBody), 0o644)) //nolint:gosec
+
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: json_escape_test_secret
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+reports:
+`, s.Server.URL, declPath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte(gitopsConfig), 0o644)) //nolint:gosec
+
+	// Before the fix, this run would fail with
+	// "Declaration profiles should include valid JSON."
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Retrieve the stored declaration by listing profiles and matching on identifier.
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	var declUUID string
+	for _, p := range profs {
+		if p.Platform == "darwin" && p.Identifier == declIdentifier {
+			declUUID = p.ProfileUUID
+			break
+		}
+	}
+	require.NotEmpty(t, declUUID, "uploaded declaration should be listed")
+
+	decl, err := s.DS.GetMDMAppleDeclaration(ctx, declUUID)
+	require.NoError(t, err)
+	stored := string(decl.RawJSON)
+
+	// Stored bytes must be valid JSON — this is the regression guard for #38013.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(decl.RawJSON, &parsed),
+		"stored declaration must be valid JSON")
+
+	// $FLEET_SECRET_* placeholder must be stored literally; it is expanded
+	// server-side at delivery time so secrets are never double-encoded.
+	assert.Contains(t, stored, "$FLEET_SECRET_"+secretPasswordName,
+		"stored declaration should still contain the FLEET_SECRET_ placeholder")
+
+	// $API_KEY must be JSON-escaped: `"` → `\"`, `\` → `\\`.
+	payload, ok := parsed["Payload"].(map[string]any)
+	require.True(t, ok, "Payload should be an object")
+	assert.Equal(t, apiKeyValue, payload["ApiKey"],
+		"ApiKey should round-trip to the raw env var value after JSON parse")
+	assert.NotContains(t, stored, "$API_KEY",
+		"stored declaration should not contain the unexpanded $API_KEY reference")
+
+	// The custom secret must be stored raw so server-side expansion doesn't double-encode it.
+	dbSecrets, err := s.DS.GetSecretVariables(ctx, []string{secretPasswordName})
+	require.NoError(t, err)
+	require.Len(t, dbSecrets, 1)
+	assert.Equal(t, secretPasswordValue, dbSecrets[0].Value,
+		"secret should be stored as the raw value (not JSON-escaped)")
+}
+
 // TestGitOpsSoftwareWithEnvVarInstalledByPolicy tests that a software package
 // with an environment variable in the URL can be referenced by a policy to be
 // installed automatically.
