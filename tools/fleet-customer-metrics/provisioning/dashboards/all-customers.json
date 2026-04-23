@@ -1,0 +1,169 @@
+{
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "locale"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Organization"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View ${__data.fields.Organization}",
+                    "url": "/d/3aa67667-3307-4d39-a557-e412e68c77f2/instance-overview?var-organization=${__data.fields[\"Organization\"]}"
+                  }
+                ]
+              },
+              {
+                "id": "unit",
+                "value": "string"
+              },
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Fleet version"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "string"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Tier"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "string"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Last updated"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeFromNow"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 28,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Hosts enrolled"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH latest_per_env AS (\n  SELECT *,\n    ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) AS rn\n  FROM usage_data\n)\nSELECT\n  c.organization AS \"Organization\",\n  SUM(l.\"numHostsEnrolled\")::int AS \"Hosts enrolled\",\n  SUM(l.\"numUsers\")::int AS \"Users\",\n  MAX(l.\"licenseTier\") AS \"Tier\",\n  string_agg(DISTINCT l.\"fleetVersion\", ', ' ORDER BY l.\"fleetVersion\" DESC) AS \"Fleet version\",\n  SUM(l.\"numSoftwareTitles\")::int AS \"Software titles\",\n  SUM(l.\"numSoftwareCVEs\")::int AS \"CVEs\",\n  EXTRACT(EPOCH FROM MAX(l.\"updatedTime\")) * 1000 AS \"Last updated\"\nFROM latest_per_env l\nJOIN customers c ON l.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\nWHERE l.rn = 1\nGROUP BY c.organization\nORDER BY \"Hosts enrolled\" DESC;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "All customers",
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true
+  },
+  "timezone": "browser",
+  "title": "All Customers",
+  "uid": "all-customers"
+}

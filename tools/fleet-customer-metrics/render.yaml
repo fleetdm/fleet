@@ -59,11 +59,9 @@ projects:
           - type: cron
             rootDir: tools/fleet-customer-metrics
             name: importer
-            runtime: python
+            runtime: node
             plan: starter
             envVars:
-              - key: CSV_URL
-                sync: false
               - key: PGPASSWORD
                 fromDatabase:
                   name: metrics-db
@@ -84,9 +82,13 @@ projects:
                 fromDatabase:
                   name: metrics-db
                   property: host
+              - key: DATACLIP_URL
+                sync: false
+              - key: HEROKU_API_TOKEN
+                sync: false
             region: oregon
-            buildCommand: pip install -r requirements.txt
-            startCommand: python import_data.py
-            schedule: 04 * * * *
+            buildCommand: npm install
+            startCommand: npx tsx import_data.ts
+            schedule: 4 * * * *
             autoDeployTrigger: commit
 version: "1"

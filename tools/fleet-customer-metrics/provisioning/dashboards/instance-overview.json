@@ -1,0 +1,611 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Shows the latest customer usage data for a given customer.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": false,
+      "title": "All Customers",
+      "type": "link",
+      "url": "/d/all-customers/all-customers"
+    }
+  ],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "locale"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 24,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {
+          "titleSize": 14,
+          "valueSize": 36
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.2+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "efcyswtwi9wqob"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- 1. Get all data for the specified organization from the most recent day\nWITH latest_day_data AS (\n  SELECT\n    ud.\"anonymousIdentifier\",\n    ud.\"updatedTime\",\n    ud.\"numHostsEnrolled\",\n    ud.\"numHostsFleetDesktopEnabled\",\n    ud.\"numHostsABMPending\",\n    ud.\"numUsers\",\n    ud.\"numSoftwareCPEs\",\n    ud.\"numSoftwareCVEs\",\n    ud.\"numLabels\",\n    ud.\"numQueries\",\n    ud.\"numSoftwareVersions\",\n    ud.\"numHostSoftwares\",\n    ud.\"numSoftwareTitles\",\n    ud.\"numHostSoftwareInstalledPaths\"\n  FROM usage_data ud\n  JOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\n  WHERE c.organization = '${organization}'\n  AND ud.\"updatedTime\"::date = (\n    -- Subquery to find the absolute most recent date for this organization\n    SELECT MAX(ud_inner.\"updatedTime\")::date\n    FROM usage_data ud_inner\n    JOIN customers c_inner ON ud_inner.\"anonymousIdentifier\" = c_inner.\"anonymousIdentifier\"\n    WHERE c_inner.organization = '${organization}'\n  )\n),\n-- 2. From that day's data, find the single latest entry for each environment\nlatest_per_environment AS (\n  SELECT\n    *,\n    ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) as rn\n  FROM latest_day_data\n)\n-- 3. Sum the metrics from each environment's latest record\nSELECT\n  SUM(\"numHostsEnrolled\") AS \"Hosts enrolled\",\n  SUM(\"numHostsFleetDesktopEnabled\") AS \"Fleet desktop hosts\",\n  SUM(\"numHostsABMPending\") AS \"ABM pending hosts\",\n  SUM(\"numUsers\") AS \"Users\",\n  SUM(\"numSoftwareCPEs\") AS \"Unique CPEs\",\n  SUM(\"numSoftwareCVEs\") AS \"Unique CVEs\",\n  SUM(\"numLabels\") AS \"Labels\",\n  SUM(\"numQueries\") AS \"Queries\",\n  SUM(\"numSoftwareVersions\") AS \"Software versions\",\n  SUM(\"numHostSoftwares\") AS \"Software installed\",\n  SUM(\"numSoftwareTitles\") AS \"Software titles\",\n  SUM(\"numHostSoftwareInstalledPaths\") AS \"Install paths\"\nFROM latest_per_environment\nWHERE rn = 1;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          },
+          "table": "usage_data"
+        }
+      ],
+      "title": "Key metrics",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "orange",
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "values": []
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "/^total_hosts$/",
+          "values": true
+        },
+        "sort": "desc",
+        "tooltip": {
+          "hideZeros": true,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.2+security-01",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- 1. Get all data for the specified organization from the most recent day\nWITH latest_day_data AS (\n  SELECT\n    ud.\"anonymousIdentifier\",\n    ud.\"updatedTime\",\n    ud.\"hostsEnrolledByOperatingSystem\"\n  FROM usage_data ud\n  JOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\n  WHERE c.organization = '${organization}'\n  AND ud.\"updatedTime\"::date = (\n    -- Subquery to find the absolute most recent date for this organization\n    SELECT MAX(ud_inner.\"updatedTime\")::date\n    FROM usage_data ud_inner\n    JOIN customers c_inner ON ud_inner.\"anonymousIdentifier\" = c_inner.\"anonymousIdentifier\"\n    WHERE c_inner.organization = '${organization}'\n  )\n),\n-- 2. From that day's data, find the single latest entry for each environment\nlatest_per_environment AS (\n  SELECT\n    *,\n    ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) as rn\n  FROM latest_day_data\n)\n-- 3. Unnest the JSON from each environment's latest record and sum the totals\nSELECT\n  CASE os.os_family\n    WHEN 'darwin' THEN 'macOS'\n    WHEN 'rhel' THEN 'Red Hat'\n    WHEN 'amzn' THEN 'Amazon Linux'\n    WHEN 'sles' THEN 'SUSE'\n    WHEN 'ios' THEN 'iOS'\n    WHEN 'ipados' THEN 'iPadOS'\n    -- Add other mappings here\n    ELSE initcap(os.os_family)\n  END AS os_name,\n  SUM((host_counts ->> 'numEnrolled')::int) AS total_hosts\nFROM\n  latest_per_environment,\n  jsonb_each_text(latest_per_environment.\"hostsEnrolledByOperatingSystem\") AS os(os_family, os_versions),\n  json_array_elements(os_versions::json) AS host_counts\nWHERE\n  latest_per_environment.rn = 1\nGROUP BY\n  os_name\nORDER BY\n  os_name;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Hosts by operating systems",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Total"
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom.viz",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Environments"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "12.3.2+security-01",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- 1. Get all data for the specified organization from the most recent day\nWITH latest_day_data AS (\n  SELECT\n    ud.\"anonymousIdentifier\",\n    ud.\"updatedTime\",\n    ud.\"fleetVersion\"\n  FROM usage_data ud\n  JOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\n  WHERE c.organization = '${organization}'\n  AND ud.\"updatedTime\"::date = (\n    -- Subquery to find the absolute most recent date for this organization\n    SELECT MAX(ud_inner.\"updatedTime\")::date\n    FROM usage_data ud_inner\n    JOIN customers c_inner ON ud_inner.\"anonymousIdentifier\" = c_inner.\"anonymousIdentifier\"\n    WHERE c_inner.organization = '${organization}'\n  )\n),\n-- 2. From that day's data, find the single latest entry for each environment\nlatest_per_environment AS (\n  SELECT\n    \"fleetVersion\",\n    ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) as rn\n  FROM latest_day_data\n),\n-- 3. Group by version and count the number of environments on each\nversion_counts AS (\n  SELECT\n    \"fleetVersion\",\n    COUNT(*) AS \"Environments\"\n  FROM latest_per_environment\n  WHERE rn = 1\n  GROUP BY\n    \"fleetVersion\"\n)\n-- 4. Add the total count to each row for gauge calculations\nSELECT\n  \"fleetVersion\" AS \"Fleet version\",\n  \"Environments\",\n  SUM(\"Environments\") OVER () AS \"Total\"\nFROM version_counts\nORDER BY\n  -- Use natural version sorting to ensure versions like 4.50.0 appear after 4.9.0\n  NULLIF(split_part(trim(leading 'v' from \"fleetVersion\"), '.', 1), '')::int DESC NULLS LAST,\n  NULLIF(split_part(trim(leading 'v' from \"fleetVersion\"), '.', 2), '')::int DESC NULLS LAST,\n  NULLIF(split_part(trim(leading 'v' from \"fleetVersion\"), '.', 3), '')::int DESC NULLS LAST;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Fleet version",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "dateTimeFromNow"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 6,
+        "x": 18,
+        "y": 7
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.2+security-01",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  MAX(ud.\"updatedTime\")::date AS \"Last updated\"\nFROM usage_data ud\nJOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\nWHERE c.organization = '${organization}';",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Last update",
+      "transformations": [
+        {
+          "id": "formatTime",
+          "options": {
+            "outputFormat": "YYYY-MM-DD ",
+            "timeField": "Last updated",
+            "timezone": "utc",
+            "useTimezone": true
+          }
+        }
+      ],
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 7,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH latest_day_data AS (\n  SELECT ud.\"anonymousIdentifier\", ud.\"updatedTime\",\n    ud.\"fleetMaintainedAppsMacOS\", ud.\"fleetMaintainedAppsWindows\"\n  FROM usage_data ud\n  JOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\n  WHERE c.organization = '${organization}'\n  AND ud.\"updatedTime\"::date = (\n    SELECT MAX(ud_inner.\"updatedTime\")::date\n    FROM usage_data ud_inner\n    JOIN customers c_inner ON ud_inner.\"anonymousIdentifier\" = c_inner.\"anonymousIdentifier\"\n    WHERE c_inner.organization = '${organization}'\n  )\n),\nlatest_per_environment AS (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) as rn\n  FROM latest_day_data\n),\napps AS (\n  SELECT unnest(string_to_array(\"fleetMaintainedAppsMacOS\", ',')) AS app, 'macOS' AS platform\n  FROM latest_per_environment WHERE rn = 1 AND \"fleetMaintainedAppsMacOS\" != ''\n  UNION ALL\n  SELECT unnest(string_to_array(\"fleetMaintainedAppsWindows\", ',')) AS app, 'Windows' AS platform\n  FROM latest_per_environment WHERE rn = 1 AND \"fleetMaintainedAppsWindows\" != ''\n)\nSELECT\n  initcap(replace(split_part(app, '/', 1), '-', ' ')) AS \"App\",\n  platform AS \"Platform\"\nFROM apps\nORDER BY \"App\";",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Fleet maintained apps",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "efcyswtwi9wqob"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.3.2+security-01",
+      "targets": [
+        {
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "-- 1. Get all data for the specified organization from the most recent day\nWITH latest_day_data AS (\n  SELECT\n    ud.\"anonymousIdentifier\",\n    ud.\"updatedTime\",\n    ud.\"softwareInventoryEnabled\",\n    ud.\"vulnDetectionEnabled\",\n    ud.\"systemUsersEnabled\",\n    ud.\"mdmMacOsEnabled\",\n    ud.\"mdmWindowsEnabled\",\n    ud.\"aiFeaturesDisabled\",\n    ud.\"hostsStatusWebHookEnabled\",\n    ud.\"liveQueryDisabled\",\n    ud.\"hostExpiryEnabled\",\n    ud.\"maintenanceWindowsEnabled\",\n    ud.\"maintenanceWindowsConfigured\",\n    ud.\"oktaConditionalAccessConfigured\",\n    ud.\"conditionalAccessEnabled\",\n    ud.\"conditionalAccessBypassDisabled\",\n    ud.\"entraConditionalAccessConfigured\"\n  FROM usage_data ud\n  JOIN customers c ON ud.\"anonymousIdentifier\" = c.\"anonymousIdentifier\"\n  WHERE c.organization = '${organization}'\n  AND ud.\"updatedTime\"::date = (\n    -- Subquery to find the absolute most recent date for this organization\n    SELECT MAX(ud_inner.\"updatedTime\")::date\n    FROM usage_data ud_inner\n    JOIN customers c_inner ON ud_inner.\"anonymousIdentifier\" = c_inner.\"anonymousIdentifier\"\n    WHERE c_inner.organization = '${organization}'\n  )\n),\n-- 2. From that day's data, find the single latest entry for each environment\nlatest_per_environment AS (\n  SELECT\n    *,\n    ROW_NUMBER() OVER (PARTITION BY \"anonymousIdentifier\" ORDER BY \"updatedTime\" DESC) as rn\n  FROM latest_day_data\n)\n-- 3. Count the enabled features from each environment's latest record\nSELECT\n  COUNT(*) FILTER (WHERE \"softwareInventoryEnabled\") AS \"Software inventory\",\n  COUNT(*) FILTER (WHERE \"vulnDetectionEnabled\") AS \"Vulnerability detection\",\n  COUNT(*) FILTER (WHERE \"systemUsersEnabled\") AS \"System users\",\n  COUNT(*) FILTER (WHERE \"mdmMacOsEnabled\") AS \"macOS MDM\",\n  COUNT(*) FILTER (WHERE \"mdmWindowsEnabled\") AS \"Windows MDM\",\n  COUNT(*) FILTER (WHERE \"aiFeaturesDisabled\") AS \"AI features disabled\",\n  COUNT(*) FILTER (WHERE \"hostsStatusWebHookEnabled\") AS \"Host status webhook\",\n  COUNT(*) FILTER (WHERE \"liveQueryDisabled\") AS \"Live queries disabled\",\n  COUNT(*) FILTER (WHERE \"hostExpiryEnabled\") AS \"Host expiry\",\n  -- Break down maintenance windows into three distinct counts\n  COUNT(*) FILTER (WHERE \"maintenanceWindowsEnabled\" IS FALSE) AS \"Maintenance windows (Disabled)\",\n  COUNT(*) FILTER (WHERE \"maintenanceWindowsEnabled\" IS TRUE AND \"maintenanceWindowsConfigured\" IS TRUE) AS \"Maintenance windows (Configured)\",\n  COUNT(*) FILTER (WHERE \"maintenanceWindowsEnabled\" IS TRUE AND \"maintenanceWindowsConfigured\" IS FALSE) AS \"Maintenance windows (Not configured)\",\n  COUNT(*) FILTER (WHERE \"oktaConditionalAccessConfigured\") AS \"Okta conditional access\",\n  COUNT(*) FILTER (WHERE \"entraConditionalAccessConfigured\") AS \"Entra conditional access\",\n  COUNT(*) FILTER (WHERE \"conditionalAccessEnabled\") AS \"Conditional access\",\n  COUNT(*) FILTER (WHERE \"conditionalAccessBypassDisabled\") AS \"CA bypass disabled\"\nFROM latest_per_environment\nWHERE rn = 1;",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "Enabled features",
+      "type": "stat"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "selected": true,
+          "text": "Primo",
+          "value": "Primo"
+        },
+        "definition": "SELECT DISTINCT organization FROM customers ORDER BY organization;",
+        "label": "organization",
+        "name": "organization",
+        "options": [],
+        "query": "SELECT DISTINCT organization FROM customers ORDER BY organization;",
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query",
+        "includeAll": false,
+        "multi": false,
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "efcyswtwi9wqob"
+        }
+      }
+    ]
+  },
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": true,
+    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+  },
+  "timezone": "browser",
+  "title": "Instance Overview",
+  "uid": "3aa67667-3307-4d39-a557-e412e68c77f2",
+  "version": 5
+}

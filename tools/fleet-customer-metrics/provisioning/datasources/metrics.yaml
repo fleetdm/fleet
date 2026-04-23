@@ -1,0 +1,15 @@
+apiVersion: 1
+
+datasources:
+  - name: Metrics
+    type: postgres
+    uid: efcyswtwi9wqob
+    access: proxy
+    url: metrics-db:5432
+    database: metrics
+    user: metrics
+    jsonData:
+      database: metrics
+      sslmode: disable
+    secureJsonData:
+      password: metrics

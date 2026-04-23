@@ -1,0 +1,72 @@
+services:
+  metrics-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: metrics
+      POSTGRES_USER: metrics
+      POSTGRES_PASSWORD: metrics
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - metrics-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metrics"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  grafana-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: grafana
+      POSTGRES_USER: grafana
+      POSTGRES_PASSWORD: grafana
+    volumes:
+      - grafana-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grafana"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana-oss:12.4.3
+    depends_on:
+      grafana-db:
+        condition: service_healthy
+      metrics-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./provisioning/dashboards/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./provisioning/dashboards/instance-overview.json:/var/lib/grafana/dashboards/instance-overview.json
+      - ./provisioning/dashboards/all-customers.json:/var/lib/grafana/dashboards/all-customers.json
+    environment:
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: grafana-db:5432
+      GF_DATABASE_NAME: grafana
+      GF_DATABASE_USER: grafana
+      GF_DATABASE_PASSWORD: grafana
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PLUGINS_PREINSTALL: volkovlabs-table-panel
+
+  importer:
+    build: .
+    depends_on:
+      metrics-db:
+        condition: service_healthy
+    volumes:
+      - ~/Downloads:/data
+    environment:
+      PGHOST: metrics-db
+      PGPORT: 5432
+      PGDATABASE: metrics
+      PGUSER: metrics
+      PGPASSWORD: metrics
+
+volumes:
+  metrics-data:
+  grafana-data:

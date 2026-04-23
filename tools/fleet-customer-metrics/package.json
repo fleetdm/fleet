@@ -1,0 +1,13 @@
+{
+  "name": "fleet-customer-metrics",
+  "private": true,
+  "dependencies": {
+    "pg": "^8.13.0",
+    "pg-copy-streams": "^6.0.6",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/pg-copy-streams": "^1.2.5"
+  }
+}
