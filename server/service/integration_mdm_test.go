@@ -567,7 +567,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			w.Header().Set("x-exit", "invalidEmailDomain")
 		}
 		w.WriteHeader(statusCode)
-		resp := []byte(fmt.Sprintf("status: %d", statusCode))
+		resp := fmt.Appendf(nil, "status: %d", status)
 		if statusCode == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
 			rawBody, err := io.ReadAll(r.Body)
 			require.NoError(s.T(), err)
@@ -23569,7 +23569,6 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	}))
 
 	t.Run("Enrollment flow", func(t *testing.T) {
-
 		// DEP-enroll the first host and run the post-enrollment worker
 		s.runDEPSchedule()
 		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
