@@ -30,12 +30,12 @@ const getEnabledManagedLocalAccount = (
 
   if (currentTeamId === 0) {
     return (
-      globalConfig?.mdm?.setup_experience?.enable_managed_local_account ?? false
+      globalConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
     );
   }
 
   return (
-    teamConfig?.mdm?.setup_experience?.enable_managed_local_account ?? false
+    teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
   );
 };
 
