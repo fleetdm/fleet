@@ -508,7 +508,7 @@
       moreInfoUrl: https://fleetdm.com/docs/configuration/agent-configuration
     - description: Automatically remove settings from Windows hosts when a configuration profile is deleted (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/33418
-    - description: Automatically retry failed configuration profile installations up to 3 times on Apple macOS, iOS, and iPadOS hosts (4.84).
+    - description: Automatically retries failed configuration profile installations up to 3 times on Apple macOS, iOS, and iPadOS hosts, eliminating compliance gaps caused by network blips (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/42327
   productCategories: [Device management]
   pricingTableCategories: [Devices]
