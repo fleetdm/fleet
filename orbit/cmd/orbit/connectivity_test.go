@@ -141,6 +141,19 @@ func TestConnectivityCommand_BadFeaturesIsUsageError(t *testing.T) {
 	assert.Equal(t, 2, exitCodeOf(err))
 }
 
+func TestConnectivityCommand_NegativeTimeoutIsUsageError(t *testing.T) {
+	// Go's http.Client silently treats negative Timeout as no timeout. Reject
+	// before probing so users don't inadvertently disable timeout enforcement.
+	var out bytes.Buffer
+	app := newTestApp(&out)
+	err := app.Run([]string{
+		"orbit", "connectivity-check",
+		"--fleet-url", "http://127.0.0.1:1",
+		"--timeout", "-1s",
+	})
+	assert.Equal(t, 2, exitCodeOf(err))
+}
+
 func TestConnectivityCommand_MissingEnrollmentStateIsUsageError(t *testing.T) {
 	// No --fleet-url and no --root-dir set → resolveTarget errors as usage.
 	var out bytes.Buffer
@@ -264,6 +277,23 @@ func TestResolveTargetOptionalOrbitKey(t *testing.T) {
 	tgt, err := resolveTarget(resolveInput{rootDir: rootDir})
 	require.NoError(t, err)
 	assert.Empty(t, tgt.orbitNodeKey, "missing node-key file must not error")
+}
+
+func TestResolveTargetCertStatError(t *testing.T) {
+	rootDir := t.TempDir()
+	require.NoError(t, os.WriteFile(
+		filepath.Join(rootDir, constant.FleetURLFileName),
+		[]byte("https://fleet.example.com\n"), 0o600,
+	))
+	// Place a symlink at certs.pem that points to itself so os.Stat fails
+	// with something other than ENOENT (ELOOP on macOS/Linux). Confirms we
+	// surface stat failures instead of silently falling back to system roots.
+	certPath := filepath.Join(rootDir, "certs.pem")
+	require.NoError(t, os.Symlink(certPath, certPath))
+
+	_, err := resolveTarget(resolveInput{rootDir: rootDir})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stat fleet certificate")
 }
 
 func TestResolveTargetNodeKeyReadError(t *testing.T) {

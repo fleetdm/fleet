@@ -206,8 +206,10 @@ func looksLikeFleetJSONError(body []byte) bool {
 }
 
 // looksLikeFleetHTMLTitle reports whether body contains Fleet's HTML title
-// tag. The Fleet web bundle renders <title>Fleet</title> on every page; we
-// do a loose substring match to tolerate whitespace and attribute variants.
+// tag. Fleet's templates emit <title>Fleet</title> verbatim; we also accept
+// <title>Fleet ...</title> to cover any future page-suffixed variants. Match
+// is case-insensitive but not whitespace-tolerant — Fleet does not emit
+// whitespace or attributes inside the title tag.
 func looksLikeFleetHTMLTitle(body []byte) bool {
 	lower := bytes.ToLower(body)
 	return bytes.Contains(lower, []byte("<title>fleet</title>")) ||

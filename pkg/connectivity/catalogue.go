@@ -146,8 +146,10 @@ func rawCatalogue() []Check {
 	}
 }
 
-// dedupeByPath removes later checks that share a path with an earlier check.
-// Earlier entries win so the enrollment page is attributed to iOS in rendering.
+// dedupeByPath removes later checks that share a method+path with an earlier
+// check. HEAD and GET on the same path are intentionally kept as separate
+// probes (different expected responses). Earlier entries win so shared paths
+// like /enroll are attributed to iOS in rendering.
 func dedupeByPath(checks []Check) []Check {
 	seen := make(map[string]struct{}, len(checks))
 	out := make([]Check, 0, len(checks))

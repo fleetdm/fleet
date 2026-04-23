@@ -87,6 +87,11 @@ X-Fleet-Capabilities header or Fleet's JSON error body shape.`,
 			return cli.Exit(err.Error(), 2)
 		}
 
+		timeout := c.Duration("timeout")
+		if timeout < 0 {
+			return cli.Exit("--timeout must be non-negative", 2)
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -94,7 +99,7 @@ X-Fleet-Capabilities header or Fleet's JSON error body shape.`,
 			BaseURL:      target.baseURL,
 			RootCAs:      target.rootCAs,
 			Insecure:     target.insecure,
-			Timeout:      c.Duration("timeout"),
+			Timeout:      timeout,
 			OrbitNodeKey: target.orbitNodeKey,
 		}, checks)
 		if err != nil {
@@ -189,12 +194,17 @@ func resolveFromEnrollment(rootDir string) (resolvedTarget, error) {
 
 	var pool *x509.CertPool
 	certPath := filepath.Join(rootDir, "certs.pem")
-	if _, err := os.Stat(certPath); err == nil {
+	switch _, err := os.Stat(certPath); {
+	case err == nil:
 		p, err := certificate.LoadPEM(certPath)
 		if err != nil {
 			return resolvedTarget{}, fmt.Errorf("load fleet certificate: %w", err)
 		}
 		pool = p
+	case errors.Is(err, os.ErrNotExist):
+		// No custom Fleet cert on disk — fall back to system roots.
+	default:
+		return resolvedTarget{}, fmt.Errorf("stat fleet certificate %s: %w", certPath, err)
 	}
 
 	var orbitNodeKey string
