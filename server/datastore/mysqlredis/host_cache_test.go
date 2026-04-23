@@ -16,6 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	redigo "github.com/gomodule/redigo/redis"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +25,7 @@ import (
 // hostCacheTestCleanupPrefix is the key-prefix passed to redistest.SetupRedis so
 // every run cleans up only keys owned by these tests (redistest requires a
 // prefix to prevent concurrent tests from clobbering each other's keys).
-const hostCacheTestCleanupPrefix = "fleet:hostcache:v1"
+const hostCacheTestCleanupPrefix = "fleet:hostcache:v2"
 
 func TestHostCacheDisabled(t *testing.T) {
 	// Sanity: without WithHostCache, every helper is a no-op. We route through
@@ -211,14 +213,18 @@ func TestHostCacheHelpers(t *testing.T) {
 	})
 }
 
-// TestHostCacheEntryRoundTrip is a drift-catcher: it populates every field this
-// cache covers with a non-zero value and asserts round-trip equivalence through
-// JSON. If LoadHostByNodeKey's SELECT list gains a column and the field lands
-// on fleet.Host but isn't added to hostCacheEntry + the conversion funcs,
-// callers would silently lose that field in the cache path. This test is
-// intentionally explicit (not reflect-based) so a failing diff points at the
-// missing field.
-func TestHostCacheEntryRoundTrip(t *testing.T) {
+// TestHostCacheEnvelopeRoundTrip is a drift-catcher: it builds a *fleet.Host
+// populated with every field either LoadHostByNodeKey or LoadHostByOrbitNodeKey
+// touches, marshals it through the hostCacheEnvelope, unmarshals into a fresh
+// envelope, and asserts the resulting *fleet.Host is structurally identical to
+// the input. Any field that stops round-tripping through JSON — because
+// fleet.Host added a new `json:"-"` tag, or an upstream change broke a tag,
+// or the envelope forgot to shadow a hidden field — surfaces as a cmp.Diff.
+//
+// This replaces the per-entry round-trip tests that asserted every field
+// by hand. The cmp.Diff approach asserts ALL fields (not just the ones we
+// remembered to list), so it's strictly more complete.
+func TestHostCacheEnvelopeRoundTrip(t *testing.T) {
 	nk := "node-rt"
 	onk := "orbit-rt"
 	oqhid := "osq-rt"
@@ -226,6 +232,9 @@ func TestHostCacheEntryRoundTrip(t *testing.T) {
 	teamID := uint(3)
 	primaryIPID := uint(99)
 	certTrue := true
+	depTrue := true
+	encEnabledTrue := true
+	teamName := "team-rt"
 	until := time.Date(2026, time.April, 22, 12, 0, 0, 0, time.UTC)
 	now := time.Date(2026, time.April, 21, 12, 0, 0, 0, time.UTC)
 
@@ -274,53 +283,34 @@ func TestHostCacheEntryRoundTrip(t *testing.T) {
 		GigsTotalDiskSpace:          500.0,
 		PercentDiskSpaceAvailable:   20.1,
 		HasHostIdentityCert:         &certTrue,
+		// Orbit-specific fields (populated only by LoadHostByOrbitNodeKey,
+		// but included here so the single round-trip test covers both paths).
+		DEPAssignedToFleet:    &depTrue,
+		DiskEncryptionEnabled: &encEnabledTrue,
+		TeamName:              &teamName,
+		MDM:                   fleet.MDMHostData{EncryptionKeyAvailable: true},
 	}
 	orig.CreatedAt = now
 	orig.UpdatedAt = now
 
-	got := hostCacheEntryFromHost(orig).toHost()
+	raw, err := json.Marshal(envelopeFromHost(orig))
+	require.NoError(t, err)
 
-	// Scalar fields
-	assert.Equal(t, orig.ID, got.ID)
-	assert.Equal(t, orig.Hostname, got.Hostname)
-	assert.Equal(t, orig.UUID, got.UUID)
-	assert.Equal(t, orig.Platform, got.Platform)
-	assert.Equal(t, orig.OsqueryVersion, got.OsqueryVersion)
-	assert.Equal(t, orig.OSVersion, got.OSVersion)
-	assert.Equal(t, orig.Build, got.Build)
-	assert.Equal(t, orig.PlatformLike, got.PlatformLike)
-	assert.Equal(t, orig.CodeName, got.CodeName)
-	assert.Equal(t, orig.Uptime, got.Uptime)
-	assert.Equal(t, orig.Memory, got.Memory)
-	assert.Equal(t, orig.CPUType, got.CPUType)
-	assert.Equal(t, orig.CPUSubtype, got.CPUSubtype)
-	assert.Equal(t, orig.CPUBrand, got.CPUBrand)
-	assert.Equal(t, orig.CPUPhysicalCores, got.CPUPhysicalCores)
-	assert.Equal(t, orig.CPULogicalCores, got.CPULogicalCores)
-	assert.Equal(t, orig.HardwareVendor, got.HardwareVendor)
-	assert.Equal(t, orig.HardwareModel, got.HardwareModel)
-	assert.Equal(t, orig.HardwareVersion, got.HardwareVersion)
-	assert.Equal(t, orig.HardwareSerial, got.HardwareSerial)
-	assert.Equal(t, orig.ComputerName, got.ComputerName)
-	assert.Equal(t, orig.DistributedInterval, got.DistributedInterval)
-	assert.Equal(t, orig.LoggerTLSPeriod, got.LoggerTLSPeriod)
-	assert.Equal(t, orig.ConfigTLSRefresh, got.ConfigTLSRefresh)
-	assert.Equal(t, orig.PrimaryIP, got.PrimaryIP)
-	assert.Equal(t, orig.PrimaryMac, got.PrimaryMac)
-	assert.Equal(t, orig.PublicIP, got.PublicIP)
-	assert.Equal(t, orig.RefetchRequested, got.RefetchRequested)
-	assert.InDelta(t, orig.GigsDiskSpaceAvailable, got.GigsDiskSpaceAvailable, 0)
-	assert.InDelta(t, orig.GigsTotalDiskSpace, got.GigsTotalDiskSpace, 0)
-	assert.InDelta(t, orig.PercentDiskSpaceAvailable, got.PercentDiskSpaceAvailable, 0)
-	assert.Equal(t, orig.CreatedAt, got.CreatedAt)
-	assert.Equal(t, orig.UpdatedAt, got.UpdatedAt)
-	assert.Equal(t, orig.DetailUpdatedAt, got.DetailUpdatedAt)
-	assert.Equal(t, orig.LabelUpdatedAt, got.LabelUpdatedAt)
-	assert.Equal(t, orig.LastEnrolledAt, got.LastEnrolledAt)
-	assert.Equal(t, orig.PolicyUpdatedAt, got.PolicyUpdatedAt)
-	assert.Equal(t, orig.LastRestartedAt, got.LastRestartedAt)
+	env := new(hostCacheEnvelope)
+	require.NoError(t, json.Unmarshal(raw, env))
+	got := env.toHost()
 
-	// Pointer fields — the security-critical ones
+	// Ignore unexported fields — they don't round-trip through JSON by
+	// construction (encoding/json only marshals exported fields), so the
+	// cache can't possibly drop them.
+	ignoreUnexported := cmpopts.IgnoreUnexported(fleet.Host{}, fleet.MDMHostData{})
+	if diff := cmp.Diff(orig, got, ignoreUnexported); diff != "" {
+		t.Fatalf("round-trip mismatch (-want +got):\n%s", diff)
+	}
+
+	// Extra explicit check on the four security-critical shadow fields — a
+	// cmp.Diff failure elsewhere could mask them, and they're the whole
+	// reason the envelope exists.
 	require.NotNil(t, got.NodeKey)
 	assert.Equal(t, *orig.NodeKey, *got.NodeKey)
 	require.NotNil(t, got.OrbitNodeKey)
@@ -329,21 +319,6 @@ func TestHostCacheEntryRoundTrip(t *testing.T) {
 	assert.Equal(t, *orig.OsqueryHostID, *got.OsqueryHostID)
 	require.NotNil(t, got.HasHostIdentityCert)
 	assert.Equal(t, *orig.HasHostIdentityCert, *got.HasHostIdentityCert)
-	require.NotNil(t, got.TeamID)
-	assert.Equal(t, *orig.TeamID, *got.TeamID)
-	require.NotNil(t, got.RefetchCriticalQueriesUntil)
-	assert.Equal(t, *orig.RefetchCriticalQueriesUntil, *got.RefetchCriticalQueriesUntil)
-	require.NotNil(t, got.TimeZone)
-	assert.Equal(t, *orig.TimeZone, *got.TimeZone)
-	require.NotNil(t, got.PrimaryNetworkInterfaceID)
-	assert.Equal(t, *orig.PrimaryNetworkInterfaceID, *got.PrimaryNetworkInterfaceID)
-
-	// Also verify JSON layer specifically, since that's what Redis actually sees.
-	viaJSON := new(hostCacheEntry)
-	raw, err := json.Marshal(hostCacheEntryFromHost(orig))
-	require.NoError(t, err)
-	require.NoError(t, json.Unmarshal(raw, viaJSON))
-	assert.Equal(t, hostCacheEntryFromHost(orig), viaJSON)
 }
 
 func TestJitteredHostCacheTTL(t *testing.T) {
