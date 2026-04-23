@@ -7,7 +7,6 @@ import Info from "./cards/Info";
 import WebAddress from "./cards/WebAddress";
 import Smtp from "./cards/Smtp";
 import Statistics from "./cards/Statistics";
-import DataCollection from "./cards/DataCollection";
 import FleetDesktop from "./cards/FleetDesktop";
 import Advanced from "./cards/Advanced";
 import Agents from "./cards/Agents";
@@ -42,12 +41,6 @@ const ORG_SETTINGS_NAV_ITEMS: ISideNavItem<IAppConfigFormProps>[] = [
     urlSection: "statistics",
     path: PATHS.ADMIN_ORGANIZATION_STATISTICS,
     Card: Statistics,
-  },
-  {
-    title: "Data collection",
-    urlSection: "data-collection",
-    path: PATHS.ADMIN_ORGANIZATION_DATA_COLLECTION,
-    Card: DataCollection,
   },
   {
     title: "Fleet Desktop",

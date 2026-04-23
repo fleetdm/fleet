@@ -5,6 +5,7 @@ import { IInputFieldParseTarget } from "interfaces/form_field";
 import validUrl from "components/forms/validators/valid_url";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
@@ -30,6 +31,8 @@ interface IAdvancedConfigFormData {
   hostExpiryWindow: string;
   deleteActivities: boolean;
   activityExpiryWindow: number;
+  disableHostsActiveDataCollection: boolean;
+  disableVulnerabilitiesDataCollection: boolean;
   disableLiveQuery: boolean;
   disableScripts: boolean;
   disableAIFeatures: boolean;
@@ -101,6 +104,12 @@ const Advanced = ({
       appConfig.activity_expiry_settings?.activity_expiry_enabled || false,
     activityExpiryWindow:
       appConfig.activity_expiry_settings?.activity_expiry_window || 30,
+    disableHostsActiveDataCollection: !(
+      appConfig.features?.data_collection?.uptime ?? true
+    ),
+    disableVulnerabilitiesDataCollection: !(
+      appConfig.features?.data_collection?.cve ?? true
+    ),
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableScripts: appConfig.server_settings.scripts_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
@@ -120,6 +129,8 @@ const Advanced = ({
     hostExpiryWindow,
     deleteActivities,
     activityExpiryWindow,
+    disableHostsActiveDataCollection,
+    disableVulnerabilitiesDataCollection,
     disableLiveQuery,
     disableScripts,
     disableAIFeatures,
@@ -192,6 +203,12 @@ const Advanced = ({
         activity_expiry_enabled: deleteActivities,
         activity_expiry_window: activityExpiryWindow || undefined,
       },
+      features: {
+        data_collection: {
+          uptime: !disableHostsActiveDataCollection,
+          cve: !disableVulnerabilitiesDataCollection,
+        },
+      },
       mdm: {
         apple_server_url: mdmAppleServerURL,
         apple_require_hardware_attestation: requireHardwareAttestation,
@@ -203,6 +220,14 @@ const Advanced = ({
 
     handleSubmit(formDataToSubmit);
   };
+
+  const DISABLE_DATA_COLLECTION_TOOLTIP = (
+    <>
+      Turn on/off data collection for the chart that appears on the dashboard.
+      This can be turned on/off at the fleet-level in{" "}
+      <strong>Settings &gt; Fleets</strong>.
+    </>
+  );
 
   return (
     <SettingsSection title="Advanced options" className={baseClass}>
@@ -360,6 +385,7 @@ const Advanced = ({
             )}
           />
         )}
+        <SectionHeader title="Activity & data retention" />
         <GitOpsModeTooltipWrapper
           position="left"
           renderChildren={(disableChildren) => (
@@ -405,6 +431,40 @@ const Advanced = ({
             )}
           />
         )}
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableHostsActiveDataCollection"
+              value={disableHostsActiveDataCollection}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && DISABLE_DATA_COLLECTION_TOOLTIP
+              }
+            >
+              Disable hosts active
+            </Checkbox>
+          )}
+        />
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableVulnerabilitiesDataCollection"
+              value={disableVulnerabilitiesDataCollection}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && DISABLE_DATA_COLLECTION_TOOLTIP
+              }
+            >
+              Disable vulnerabilities
+            </Checkbox>
+          )}
+        />
         <GitOpsModeTooltipWrapper
           position="left"
           renderChildren={(disableChildren) => (

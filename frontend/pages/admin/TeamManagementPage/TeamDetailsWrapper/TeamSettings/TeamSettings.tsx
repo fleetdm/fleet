@@ -48,15 +48,25 @@ type ITeamSettingsFormData = {
   teamHostStatusWebhookDestinationUrl: string;
   teamHostStatusWebhookHostPercentage: number;
   teamHostStatusWebhookWindow: number;
-  teamDataCollectionUptime: boolean;
-  teamDataCollectionCve: boolean;
+  teamDisableHostsActiveDataCollection: boolean;
+  teamDisableVulnerabilitiesDataCollection: boolean;
 };
 
-const GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP =
-  "Data collection for this chart is disabled globally. Update the global data collection settings to enable per-fleet configuration for the chart.";
+const GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP = (
+  <>
+    Data collection for this chart is disabled globally. Update the global data
+    collection in <strong>Settings &gt; Advanced</strong> to enable per-fleet
+    configuration for the chart.
+  </>
+);
 
-const DATA_COLLECTION_SECTION_TOOLTIP =
-  "Turn on/off data collection for charts that appear on the dashboard.";
+const DISABLE_DATA_COLLECTION_TOOLTIP = (
+  <>
+    Turn on/off data collection for the chart
+    <br />
+    that appears on the dashboard.
+  </>
+);
 
 type FormNames = keyof ITeamSettingsFormData;
 
@@ -105,8 +115,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostStatusWebhookDestinationUrl: "",
     teamHostStatusWebhookHostPercentage: 1,
     teamHostStatusWebhookWindow: 1,
-    teamDataCollectionUptime: true,
-    teamDataCollectionCve: true,
+    teamDisableHostsActiveDataCollection: false,
+    teamDisableVulnerabilitiesDataCollection: false,
   });
   // stateful approach required since initial options come from team config api response
   const [isInitialTeamConfig, setIsInitialTeamConfig] = useState(true);
@@ -197,10 +207,13 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             tC?.webhook_settings?.host_status_webhook?.host_percentage ?? 1,
           teamHostStatusWebhookWindow:
             tC?.webhook_settings?.host_status_webhook?.days_count ?? 1,
-          // data collection
-          teamDataCollectionUptime:
-            tC?.features?.data_collection?.uptime ?? true,
-          teamDataCollectionCve: tC?.features?.data_collection?.cve ?? true,
+          // data collection — stored value is "collect this?"; UI polarity is "disable this?"
+          teamDisableHostsActiveDataCollection: !(
+            tC?.features?.data_collection?.uptime ?? true
+          ),
+          teamDisableVulnerabilitiesDataCollection: !(
+            tC?.features?.data_collection?.cve ?? true
+          ),
         });
       },
     }
@@ -275,8 +288,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             },
             features: {
               data_collection: {
-                uptime: formData.teamDataCollectionUptime,
-                cve: formData.teamDataCollectionCve,
+                uptime: !formData.teamDisableHostsActiveDataCollection,
+                cve: !formData.teamDisableVulnerabilitiesDataCollection,
               },
             },
           },
@@ -315,37 +328,34 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamSettings}>
-        <SectionHeader
-          title="Data collection"
-          titleTooltipContent={DATA_COLLECTION_SECTION_TOOLTIP}
-        />
+        <SectionHeader title="Activity & data retention" />
         <Checkbox
-          name="teamDataCollectionUptime"
+          name="teamDisableHostsActiveDataCollection"
           onChange={onInputChange}
           parseTarget
-          value={formData.teamDataCollectionUptime}
+          value={formData.teamDisableHostsActiveDataCollection}
           disabled={gitopsModeEnabled || !globalDataCollectionUptime}
           labelTooltipContent={
             !globalDataCollectionUptime
               ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
-              : undefined
+              : DISABLE_DATA_COLLECTION_TOOLTIP
           }
         >
-          Hosts active
+          Disable hosts active
         </Checkbox>
         <Checkbox
-          name="teamDataCollectionCve"
+          name="teamDisableVulnerabilitiesDataCollection"
           onChange={onInputChange}
           parseTarget
-          value={formData.teamDataCollectionCve}
+          value={formData.teamDisableVulnerabilitiesDataCollection}
           disabled={gitopsModeEnabled || !globalDataCollectionCve}
           labelTooltipContent={
             !globalDataCollectionCve
               ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
-              : undefined
+              : DISABLE_DATA_COLLECTION_TOOLTIP
           }
         >
-          Vulnerabilities
+          Disable vulnerabilities
         </Checkbox>
         <SectionHeader title="Webhook settings" />
         <Checkbox
