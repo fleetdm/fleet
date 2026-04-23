@@ -958,10 +958,13 @@ const TAGGED_TEMPLATES = {
   },
   enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
   disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
-  editedGitOpsException: (activity: IActivity) => {
-    const verb = activity.details?.enabled ? "enabled" : "disabled";
+  enabledGitOpsException: (activity: IActivity) => {
     const exception = activity.details?.exception ?? "";
-    return `${verb} the ${exception} exception for GitOps.`;
+    return `enabled the ${exception} exception for GitOps.`;
+  },
+  disabledGitOpsException: (activity: IActivity) => {
+    const exception = activity.details?.exception ?? "";
+    return `disabled the ${exception} exception for GitOps.`;
   },
   enabledWindowsMdmMigration: () => {
     return (
@@ -2102,8 +2105,11 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledGitOpsMode: {
       return TAGGED_TEMPLATES.disabledGitOpsMode();
     }
-    case ActivityType.EditedGitOpsException: {
-      return TAGGED_TEMPLATES.editedGitOpsException(activity);
+    case ActivityType.EnabledGitOpsException: {
+      return TAGGED_TEMPLATES.enabledGitOpsException(activity);
+    }
+    case ActivityType.DisabledGitOpsException: {
+      return TAGGED_TEMPLATES.disabledGitOpsException(activity);
     }
     case ActivityType.EnabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.enabledWindowsMdmMigration();

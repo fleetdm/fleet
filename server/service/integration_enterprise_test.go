@@ -3383,11 +3383,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
 	}`), http.StatusOK)
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
-		`{"exception": "labels", "enabled": true}`, 0)
+		fleet.ActivityTypeEnabledGitOpsException{}.ActivityName(),
+		`{"exception": "labels"}`, 0)
 	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
-		`{"exception": "software", "enabled": true}`, 0)
+		fleet.ActivityTypeEnabledGitOpsException{}.ActivityName(),
+		`{"exception": "software"}`, 0)
 
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3405,8 +3405,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 		"gitops": { "exceptions": { "software": false } }
 	}`), http.StatusOK)
 	lastID := s.lastActivityMatches(
-		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
-		`{"exception": "software", "enabled": false}`, 0)
+		fleet.ActivityTypeDisabledGitOpsException{}.ActivityName(),
+		`{"exception": "software"}`, 0)
 	assert.Greater(t, lastID, lastIDBefore, "a new activity should have been recorded")
 
 	// Save app config with no exception changes — no new exception activity should be recorded.

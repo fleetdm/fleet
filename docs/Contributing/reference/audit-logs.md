@@ -916,20 +916,33 @@ Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
-## edited_gitops_exception
+## enabled_gitops_exception
 
-Generated when a user enables or disables a GitOps exception.
+Generated when a user enables a GitOps exception.
 
 This activity contains the following fields:
-- "exception": Name of the exception that changed. One of `"labels"`, `"software"`, `"secrets"`.
-- "enabled": New value of the exception flag, `true` if the exception is now enabled, `false` if now disabled.
+- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`.
 
 #### Example
 
 ```json
 {
-  "exception": "labels",
-  "enabled": true
+  "exception": "labels"
+}
+```
+
+## disabled_gitops_exception
+
+Generated when a user disables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "software"
 }
 ```
 

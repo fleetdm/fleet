@@ -2020,8 +2020,8 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
 	type exceptionActivity struct {
+		name      string // activity name: "enabled_gitops_exception" or "disabled_gitops_exception"
 		exception string
-		enabled   bool
 	}
 
 	testCases := []struct {
@@ -2041,7 +2041,7 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 			initial: fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: true},
 			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
 			expectFired: []exceptionActivity{
-				{exception: "labels", enabled: true},
+				{name: "enabled_gitops_exception", exception: "labels"},
 			},
 		},
 		{
@@ -2049,9 +2049,9 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 			initial: fleet.GitOpsExceptions{Labels: false, Software: true, Secrets: false},
 			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
 			expectFired: []exceptionActivity{
-				{exception: "labels", enabled: true},
-				{exception: "software", enabled: false},
-				{exception: "secrets", enabled: true},
+				{name: "enabled_gitops_exception", exception: "labels"},
+				{name: "disabled_gitops_exception", exception: "software"},
+				{name: "enabled_gitops_exception", exception: "secrets"},
 			},
 		},
 	}
@@ -2090,11 +2090,12 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 
 			var fired []exceptionActivity
 			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
-				ex, ok := act.(fleet.ActivityTypeEditedGitOpsException)
-				if !ok {
-					return nil
+				switch ex := act.(type) {
+				case fleet.ActivityTypeEnabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+				case fleet.ActivityTypeDisabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
 				}
-				fired = append(fired, exceptionActivity{exception: ex.Exception, enabled: ex.Enabled})
 				return nil
 			}
 

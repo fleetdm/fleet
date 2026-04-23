@@ -1818,10 +1818,10 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
 
-  it("renders an edited_gitops_exception activity when an exception is enabled", () => {
+  it("renders an enabled_gitops_exception activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.EditedGitOpsException,
-      details: { exception: "labels", enabled: true },
+      type: ActivityType.EnabledGitOpsException,
+      details: { exception: "labels" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(
@@ -1829,10 +1829,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders an edited_gitops_exception activity when an exception is disabled", () => {
+  it("renders a disabled_gitops_exception activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.EditedGitOpsException,
-      details: { exception: "software", enabled: false },
+      type: ActivityType.DisabledGitOpsException,
+      details: { exception: "software" },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(

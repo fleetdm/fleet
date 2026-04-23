@@ -101,7 +101,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
-  EditedGitOpsException = "edited_gitops_exception",
+  EnabledGitOpsException = "enabled_gitops_exception",
+  DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
@@ -304,7 +305,6 @@ export interface IActivityDetails {
   certificate_template_id?: number;
   detail?: string;
   exception?: string;
-  enabled?: boolean;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -365,6 +365,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_android_mdm: "Turned off Android MDM",
   disabled_conditional_access_automations:
     "Disabled conditional access automations",
+  disabled_gitops_exception: "Disabled GitOps exception",
   disabled_gitops_mode: "Disabled GitOps mode",
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
@@ -380,7 +381,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
   edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
-  edited_gitops_exception: "Edited GitOps exception",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
@@ -397,6 +397,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_android_mdm: "Turned on Android MDM",
   enabled_conditional_access_automations:
     "Enabled conditional access automations",
+  enabled_gitops_exception: "Enabled GitOps exception",
   enabled_gitops_mode: "Enabled GitOps mode",
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:

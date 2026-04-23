@@ -129,7 +129,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
-	ActivityTypeEditedGitOpsException{},
+	ActivityTypeEnabledGitOpsException{},
+	ActivityTypeDisabledGitOpsException{},
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
@@ -863,13 +864,20 @@ func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
 }
 
-type ActivityTypeEditedGitOpsException struct {
+type ActivityTypeEnabledGitOpsException struct {
 	Exception string `json:"exception"`
-	Enabled   bool   `json:"enabled"`
 }
 
-func (a ActivityTypeEditedGitOpsException) ActivityName() string {
-	return "edited_gitops_exception"
+func (a ActivityTypeEnabledGitOpsException) ActivityName() string {
+	return "enabled_gitops_exception"
+}
+
+type ActivityTypeDisabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeDisabledGitOpsException) ActivityName() string {
+	return "disabled_gitops_exception"
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
