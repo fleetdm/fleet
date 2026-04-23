@@ -48,7 +48,25 @@ type ITeamSettingsFormData = {
   teamHostStatusWebhookDestinationUrl: string;
   teamHostStatusWebhookHostPercentage: number;
   teamHostStatusWebhookWindow: number;
+  teamDisableHostsActiveDataCollection: boolean;
+  teamDisableVulnerabilitiesDataCollection: boolean;
 };
+
+const GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP = (
+  <>
+    Data collection for this chart is disabled globally. Update the global data
+    collection in <strong>Settings &gt; Advanced</strong> to enable per-fleet
+    configuration for the chart.
+  </>
+);
+
+const DISABLE_DATA_COLLECTION_TOOLTIP = (
+  <>
+    Turn on/off data collection for the chart
+    <br />
+    that appears on the dashboard.
+  </>
+);
 
 type FormNames = keyof ITeamSettingsFormData;
 
@@ -97,6 +115,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostStatusWebhookDestinationUrl: "",
     teamHostStatusWebhookHostPercentage: 1,
     teamHostStatusWebhookWindow: 1,
+    teamDisableHostsActiveDataCollection: false,
+    teamDisableVulnerabilitiesDataCollection: false,
   });
   // stateful approach required since initial options come from team config api response
   const [isInitialTeamConfig, setIsInitialTeamConfig] = useState(true);
@@ -151,7 +171,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       host_expiry_window: globalHostExpiryWindow,
     },
     gitops: { gitops_mode_enabled: gitopsModeEnabled },
+    features: globalFeatures,
   } = appConfig ?? { host_expiry_settings: {}, gitops: {} };
+
+  const globalDataCollectionUptime =
+    globalFeatures?.data_collection?.uptime ?? true;
+  const globalDataCollectionCve = globalFeatures?.data_collection?.cve ?? true;
 
   const {
     data: teamConfig,
@@ -182,6 +207,13 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             tC?.webhook_settings?.host_status_webhook?.host_percentage ?? 1,
           teamHostStatusWebhookWindow:
             tC?.webhook_settings?.host_status_webhook?.days_count ?? 1,
+          // data collection — stored value is "collect this?"; UI polarity is "disable this?"
+          teamDisableHostsActiveDataCollection: !(
+            tC?.features?.data_collection?.uptime ?? true
+          ),
+          teamDisableVulnerabilitiesDataCollection: !(
+            tC?.features?.data_collection?.cve ?? true
+          ),
         });
       },
     }
@@ -254,6 +286,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
                 days_count: formData.teamHostStatusWebhookWindow,
               },
             },
+            features: {
+              data_collection: {
+                uptime: !formData.teamDisableHostsActiveDataCollection,
+                cve: !formData.teamDisableVulnerabilitiesDataCollection,
+              },
+            },
           },
           teamIdForApi
         )
@@ -290,6 +328,35 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamSettings}>
+        <SectionHeader title="Activity & data retention" />
+        <Checkbox
+          name="teamDisableHostsActiveDataCollection"
+          onChange={onInputChange}
+          parseTarget
+          value={formData.teamDisableHostsActiveDataCollection}
+          disabled={gitopsModeEnabled || !globalDataCollectionUptime}
+          labelTooltipContent={
+            !globalDataCollectionUptime
+              ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
+              : DISABLE_DATA_COLLECTION_TOOLTIP
+          }
+        >
+          Disable hosts active
+        </Checkbox>
+        <Checkbox
+          name="teamDisableVulnerabilitiesDataCollection"
+          onChange={onInputChange}
+          parseTarget
+          value={formData.teamDisableVulnerabilitiesDataCollection}
+          disabled={gitopsModeEnabled || !globalDataCollectionCve}
+          labelTooltipContent={
+            !globalDataCollectionCve
+              ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
+              : DISABLE_DATA_COLLECTION_TOOLTIP
+          }
+        >
+          Disable vulnerabilities
+        </Checkbox>
         <SectionHeader title="Webhook settings" />
         <Checkbox
           name="teamHostStatusWebhookEnabled"

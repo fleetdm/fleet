@@ -116,11 +116,17 @@ export interface IFleetDesktopSettings {
   alternative_browser_host: string;
 }
 
+export interface IDataCollectionSettings {
+  uptime: boolean;
+  cve: boolean;
+}
+
 export interface IConfigFeatures {
   enable_host_users: boolean;
   enable_software_inventory: boolean;
   enable_conditional_access: boolean;
   enable_conditional_access_bypass: boolean;
+  data_collection: IDataCollectionSettings;
 }
 
 export interface IConfigServerSettings {

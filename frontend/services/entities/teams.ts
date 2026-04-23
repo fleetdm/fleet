@@ -41,6 +41,12 @@ export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
   integrations: ITeamIntegrations;
+  features: {
+    data_collection?: {
+      uptime?: boolean;
+      cve?: boolean;
+    };
+  };
   mdm: {
     macos_updates?: {
       minimum_version: string;
@@ -112,6 +118,7 @@ export default {
       name,
       webhook_settings,
       integrations,
+      features,
       mdm,
       host_expiry_settings,
     }: Partial<IUpdateTeamFormData>,
@@ -149,6 +156,9 @@ export default {
         google_calendar,
         conditional_access_enabled,
       };
+    }
+    if (features) {
+      requestBody.features = features;
     }
     if (mdm) {
       requestBody.mdm = mdm;
