@@ -4606,28 +4606,25 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		isNonReservedInstall := func(p profileShape) bool {
 			return !p.reserved && p.operationType != nil && *p.operationType == fleet.MDMOperationTypeInstall
 		}
-		anyMatch := func(xs []profileShape, pred func(profileShape) bool) bool {
-			return slices.ContainsFunc(xs, pred)
-		}
 
 		// EXISTS(non-reserved row with status='failed')
-		if anyMatch(profiles, func(p profileShape) bool {
+		if slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReserved(p) && p.status != nil && *p.status == fleet.MDMDeliveryFailed
 		}) {
 			return "failed"
 		}
 		// EXISTS(non-reserved row with status IS NULL OR status='pending')
-		if anyMatch(profiles, func(p profileShape) bool {
+		if slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReserved(p) && (p.status == nil || *p.status == fleet.MDMDeliveryPending)
 		}) {
 			return "pending"
 		}
 		// EXISTS(non-reserved install row with status='verifying')
 		// AND NOT EXISTS(non-reserved install row with status NULL or status NOT IN (verifying, verified))
-		hasVerifying := anyMatch(profiles, func(p profileShape) bool {
+		hasVerifying := slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReservedInstall(p) && p.status != nil && *p.status == fleet.MDMDeliveryVerifying
 		})
-		verifyingBlocker := anyMatch(profiles, func(p profileShape) bool {
+		verifyingBlocker := slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReservedInstall(p) && (p.status == nil ||
 				(*p.status != fleet.MDMDeliveryVerifying && *p.status != fleet.MDMDeliveryVerified))
 		})
@@ -4636,10 +4633,10 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		}
 		// EXISTS(non-reserved install row with status='verified')
 		// AND NOT EXISTS(non-reserved install row with status NULL or status != 'verified')
-		hasVerified := anyMatch(profiles, func(p profileShape) bool {
+		hasVerified := slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReservedInstall(p) && p.status != nil && *p.status == fleet.MDMDeliveryVerified
 		})
-		verifiedBlocker := anyMatch(profiles, func(p profileShape) bool {
+		verifiedBlocker := slices.ContainsFunc(profiles, func(p profileShape) bool {
 			return isNonReservedInstall(p) && (p.status == nil || *p.status != fleet.MDMDeliveryVerified)
 		})
 		if hasVerified && !verifiedBlocker {
@@ -4661,10 +4658,25 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	}
 	require.Len(t, cases, 1+len(shapes)+len(shapes)*len(shapes))
 
-	// Tally the expected bucket counts for the final assertion.
+	// Map "<bucket>" -> OSSettingsFilter for the per-host membership check.
+	bucketFilter := map[string]fleet.OSSettingsStatus{
+		"failed":    fleet.OSSettingsFailed,
+		"pending":   fleet.OSSettingsPending,
+		"verifying": fleet.OSSettingsVerifying,
+		"verified":  fleet.OSSettingsVerified,
+	}
+
+	// Tally expected bucket counts (for the summary assertion) and expected
+	// host membership per bucket (for the filter assertion). The membership
+	// check defends against regressions that swap two configurations between
+	// buckets while preserving aggregate counts.
 	var expected fleet.MDMProfilesSummary
-	for _, c := range cases {
-		switch expectedFinalStatus(c) {
+	expectedHostsByBucket := map[fleet.OSSettingsStatus][]uint{}
+	expectedBucketByCase := make([]string, len(cases))
+	for i, c := range cases {
+		bucket := expectedFinalStatus(c)
+		expectedBucketByCase[i] = bucket
+		switch bucket {
 		case "failed":
 			expected.Failed++
 		case "pending":
@@ -4678,7 +4690,8 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 
 	// Insert one Windows host per case (all on the global "no team" scope so
 	// the summary query's `h.team_id IS NULL` branch covers them), then insert
-	// its profile rows.
+	// its profile rows. Track each host's expected bucket by ID for the
+	// per-host membership assertion below.
 	const nonReservedName = "enum-test-profile"
 	reservedName := mdm.FleetWindowsOSUpdatesProfileName
 	now := time.Now()
@@ -4687,6 +4700,10 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		h := test.NewHost(t, ds, hostUUID, "1.1.1.1", hostUUID, hostUUID, now, test.WithPlatform("windows"))
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 		windowsEnroll(t, ds, h)
+
+		if filter, ok := bucketFilter[expectedBucketByCase[caseIdx]]; ok {
+			expectedHostsByBucket[filter] = append(expectedHostsByBucket[filter], h.ID)
+		}
 
 		for i, p := range c {
 			profUUID := fmt.Sprintf("%s-p%d", hostUUID, i)
@@ -4712,9 +4729,32 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	// 1) Aggregate bucket counts via GetMDMWindowsProfilesSummary.
 	got, err := ds.GetMDMWindowsProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Equalf(t, expected, *got,
 		"aggregate bucket counts diverged from reference implementation over %d enumerated configurations", len(cases))
+
+	// 2) Per-host membership via ListHosts with OSSettingsFilter. This
+	//    catches regressions that preserve aggregate counts but swap two
+	//    hosts between buckets, and also exercises filterHostsByOSSettingsStatus
+	//    (the host-list path uses the same windowsHostProfileStatusSubquery
+	//    helper but a different outer query).
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, filter := range []fleet.OSSettingsStatus{
+		fleet.OSSettingsFailed,
+		fleet.OSSettingsPending,
+		fleet.OSSettingsVerifying,
+		fleet.OSSettingsVerified,
+	} {
+		gotHosts, err := ds.ListHosts(ctx, teamFilter, fleet.HostListOptions{OSSettingsFilter: filter})
+		require.NoError(t, err)
+		gotIDs := make([]uint, 0, len(gotHosts))
+		for _, h := range gotHosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
+			"per-host membership mismatch for OSSettingsFilter=%s", filter)
+	}
 }
