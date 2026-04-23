@@ -9,7 +9,6 @@ type key int
 const (
 	requirePrimaryKey    key = 0
 	bypassCachedMysqlKey key = 1
-	bypassHostCacheKey   key = 2
 )
 
 // RequirePrimary returns a new context that indicates to the database layer if
@@ -38,21 +37,5 @@ func BypassCachedMysql(ctx context.Context, bypass bool) context.Context {
 // cache must be bypassed, false otherwise.
 func IsCachedMysqlBypassed(ctx context.Context) bool {
 	v, _ := ctx.Value(bypassCachedMysqlKey).(bool)
-	return v
-}
-
-// BypassHostCache returns a new context that indicates to the Redis-backed
-// host-by-node_key cache layer (server/datastore/mysqlredis) whether the cache
-// should be bypassed. Set this before a read that must observe a write the
-// caller just performed, or when correctness requires freshness beyond the
-// cache's TTL guarantees.
-func BypassHostCache(ctx context.Context, bypass bool) context.Context {
-	return context.WithValue(ctx, bypassHostCacheKey, bypass)
-}
-
-// IsHostCacheBypassed returns true if the context indicates that the Redis
-// host cache must be bypassed, false otherwise.
-func IsHostCacheBypassed(ctx context.Context) bool {
-	v, _ := ctx.Value(bypassHostCacheKey).(bool)
 	return v
 }
