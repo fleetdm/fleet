@@ -34,9 +34,7 @@ const getEnabledManagedLocalAccount = (
     );
   }
 
-  return (
-    teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
-  );
+  return teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false;
 };
 
 const getEnabledEndUserAuth = (
