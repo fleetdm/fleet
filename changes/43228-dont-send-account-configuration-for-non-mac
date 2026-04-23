@@ -1,1 +1,1 @@
-* Fixed an issue where we would send an AccountConfiguration command to iOS and iPadOS devices, if end user authentication was enabled, when it's a macOS only command.
+* Fixed an issue where we would send an AccountConfiguration command to iOS and iPadOS devices when end user authentication was enabled; AccountConfiguration is macOS-only.
