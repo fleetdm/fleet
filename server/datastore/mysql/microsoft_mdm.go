@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/xml"
@@ -3105,24 +3106,50 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		return false, nil
 	}
 
+	// Sort by (HostUUID, ProfileUUID) to match the host_mdm_windows_profiles
+	// PRIMARY KEY (host_uuid, profile_uuid). Benefits:
+	//   - SQL text is deterministic across calls, which keeps MySQL plan-cache
+	//     entries and observability query digests stable.
+	//   - Concurrent callers acquire InnoDB row locks in a consistent order,
+	//     reducing deadlock risk on this path (see the retry comment at
+	//     apple_mdm.go around BulkSetPendingMDMHostProfiles).
+	cmpByHostThenProfile := func(a, b *fleet.MDMWindowsProfilePayload) int {
+		if c := cmp.Compare(a.HostUUID, b.HostUUID); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.ProfileUUID, b.ProfileUUID)
+	}
+	slices.SortFunc(profilesToRemove, cmpByHostThenProfile)
+	slices.SortFunc(profilesToInstall, cmpByHostThenProfile)
+
+	const defaultBatchSize = 10000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
 	if len(profilesToRemove) > 0 {
 		// Mark profiles for removal instead of deleting them. The reconciler
-		// will pick these up (status=NULL, operation_type='remove') and generate <Delete> SyncML commands.
-		err := common_mysql.BatchProcessSimple(profilesToRemove, 1000, func(batch []*fleet.MDMWindowsProfilePayload) error {
+		// will pick these up (status=NULL, operation_type='remove') and
+		// generate <Delete> SyncML commands.
+		//
+		// Tuple order `(host_uuid, profile_uuid)` matches the PK so MySQL can
+		// perform direct PK point lookups for each pair.
+		err := common_mysql.BatchProcessSimple(profilesToRemove, batchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
 			var sb strings.Builder
 			sb.WriteString(`UPDATE host_mdm_windows_profiles
 				SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
-				WHERE (profile_uuid, host_uuid) IN (`)
+				WHERE (host_uuid, profile_uuid) IN (`)
 			args := make([]any, 0, 1+len(batch)*2)
 			args = append(args, fleet.MDMOperationTypeRemove)
 			for j, p := range batch {
 				if j > 0 {
-					sb.WriteString(",")
+					sb.WriteByte(',')
 				}
-				sb.WriteString("(?, ?)")
-				args = append(args, p.ProfileUUID, p.HostUUID)
+				sb.WriteString("(?,?)")
+				args = append(args, p.HostUUID, p.ProfileUUID)
 			}
-			sb.WriteString(")")
+			sb.WriteByte(')')
 			if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "marking profiles for removal")
 			}
@@ -3140,25 +3167,24 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	var (
 		pargs            []any
 		profilesToInsert = make(map[string]*fleet.MDMWindowsProfilePayload)
-		psb              strings.Builder
-		batchCount       int
+		// currentBatch preserves iteration order for the pre-read SELECT so
+		// generated SQL is stable (map iteration would not be).
+		currentBatch []*fleet.MDMWindowsProfilePayload
+		psb          strings.Builder
+		batchCount   int
 	)
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
 
 	resetBatch := func() {
 		batchCount = 0
 		pargs = pargs[:0]
 		clear(profilesToInsert)
+		currentBatch = currentBatch[:0]
 		psb.Reset()
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
-		// Check if the update needs to be done at all.
+		// Check if the update needs to be done at all. Tuple order
+		// `(host_uuid, profile_uuid)` matches the PK for direct point lookups.
 		selectStmt := fmt.Sprintf(`
 			SELECT
 				profile_uuid,
@@ -3169,11 +3195,11 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 				COALESCE(detail, '') AS detail,
 				COALESCE(command_uuid, '') AS command_uuid,
 				COALESCE(profile_name, '') AS profile_name
-			FROM host_mdm_windows_profiles WHERE (profile_uuid, host_uuid) IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
-		var selectArgs []any
-		for _, p := range profilesToInsert {
-			selectArgs = append(selectArgs, p.ProfileUUID, p.HostUUID)
+			FROM host_mdm_windows_profiles WHERE (host_uuid, profile_uuid) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?),", len(currentBatch)), ","))
+		selectArgs := make([]any, 0, 2*len(currentBatch))
+		for _, p := range currentBatch {
+			selectArgs = append(selectArgs, p.HostUUID, p.ProfileUUID)
 		}
 		var existingProfiles []fleet.MDMWindowsProfilePayload
 		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
@@ -3224,7 +3250,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 	}
 
 	for _, p := range profilesToInstall {
-		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = &fleet.MDMWindowsProfilePayload{
+		payload := &fleet.MDMWindowsProfilePayload{
 			ProfileUUID:   p.ProfileUUID,
 			ProfileName:   p.ProfileName,
 			HostUUID:      p.HostUUID,
@@ -3235,6 +3261,8 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 			Retries:       p.Retries,
 			Checksum:      p.Checksum,
 		}
+		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = payload
+		currentBatch = append(currentBatch, payload)
 		pargs = append(
 			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
 			fleet.MDMOperationTypeInstall, p.Checksum)
