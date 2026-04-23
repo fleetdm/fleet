@@ -5484,7 +5484,8 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 }
 
 // UpdateHost updates most columns of the `hosts` table.
-// It only updates `hosts` table, other additional host information is ignored.
+// It also updates host display-name information in `host_display_names`;
+// other additional host information is ignored.
 //
 // UpdateHost deliberately does NOT write `team_id`. Team membership is an administrative
 // assignment managed by AddHostsToTeam / AddHostsToTeamByFilter / GitOps / the
