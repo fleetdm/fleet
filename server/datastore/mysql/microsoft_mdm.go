@@ -1784,13 +1784,13 @@ type statusCounts struct {
 }
 
 func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
-	reserved := mdm.ListFleetReservedWindowsProfileNames()
-	args := []any{
-		fleet.MDMDeliveryFailed, reserved,
-		fleet.MDMDeliveryPending, reserved,
-		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, reserved,
-		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, reserved,
+	profilesStatus, profilesStatusArgs, err := windowsHostProfileStatusSubquery("")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "windows host profile status subquery")
 	}
+
+	args := make([]any, 0, len(profilesStatusArgs)+1)
+	args = append(args, profilesStatusArgs...)
 
 	teamFilter := "h.team_id IS NULL"
 	if teamID != nil && *teamID > 0 {
@@ -1798,49 +1798,34 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 		args = append(args, *teamID)
 	}
 
-	// Rather than up to four correlated EXISTS (three with nested NOT EXISTS)
-	// evaluated per host, we do a single aggregation pass over
-	// host_mdm_windows_profiles per host via the PK(host_uuid, profile_uuid)
-	// prefix, then classify each host's status. See
-	// windowsHostProfileStatusSubquery for the priority equivalence argument.
+	// profilesStatus is a correlated scalar subquery that does one aggregation
+	// pass over host_mdm_windows_profiles per host (via the PK(host_uuid,
+	// profile_uuid) prefix) and resolves directly to one of
+	// 'failed'|'pending'|'verifying'|'verified'|''. It replaces the previous
+	// four correlated EXISTS (three with a nested NOT EXISTS) with a single
+	// PK range scan per outer row. The outer SELECT/FROM/WHERE/GROUP BY shape
+	// is preserved verbatim so row-level counts (including duplicate enrolled
+	// rows in mdm_windows_enrollments, if any) match the prior implementation.
 	stmt := fmt.Sprintf(`
 SELECT
-    CASE
-        WHEN failed_count    > 0 THEN 'failed'
-        WHEN pending_count   > 0 THEN 'pending'
-        WHEN verifying_count > 0 THEN 'verifying'
-        WHEN verified_count  > 0 THEN 'verified'
-        ELSE ''
-    END AS final_status,
+    (%s) AS final_status,
     SUM(1) AS count
-FROM (
-    SELECT
-        h.id,
-        SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS failed_count,
-        SUM(CASE WHEN (hmwp.status IS NULL OR hmwp.status = ?) AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS pending_count,
-        SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS verifying_count,
-        SUM(CASE WHEN hmwp.operation_type = ? AND hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) AS verified_count
-    FROM hosts h
+FROM
+    hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
     JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
-    LEFT JOIN host_mdm_windows_profiles hmwp ON h.uuid = hmwp.host_uuid
-    WHERE
-        mwe.device_state = '%s' AND
-        h.platform = 'windows' AND
-        hmdm.is_server = 0 AND
-        hmdm.enrolled = 1 AND
-        %s
-    GROUP BY h.id
-) per_host
-GROUP BY final_status`,
+WHERE
+    mwe.device_state = '%s' AND
+    h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
+    %s
+GROUP BY
+    final_status`,
+		profilesStatus,
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
-
-	stmt, args, err := sqlx.In(stmt, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand IN clauses for windows mdm profile status counts")
-	}
 
 	var counts []statusCounts
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
