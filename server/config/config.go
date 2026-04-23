@@ -783,6 +783,10 @@ type MDMConfig struct {
 	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
 	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
 	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
+	// AppleVPPAppSupportedCountries is a comma-separated list of App Store country codes
+	// (e.g. "us,gb,de,fr") that Fleet walks in order when looking up VPP app metadata.
+	// Empty means use the built-in default chain (us, gb, de, fr, it, es).
+	AppleVPPAppSupportedCountries string `yaml:"apple_vpp_app_supported_countries"`
 
 	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
@@ -1594,6 +1598,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
+	man.addConfigString("mdm.apple_vpp_app_supported_countries", "", "Comma-separated list of App Store country codes forming the VPP app metadata fallback chain (default: us,gb,de,fr,it,es)")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
@@ -1921,6 +1926,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
+			AppleVPPAppSupportedCountries:     man.getConfigString("mdm.apple_vpp_app_supported_countries"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),

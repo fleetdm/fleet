@@ -82,6 +82,9 @@ type authenticator func(forceRenew bool) (string, error)
 type Config struct {
 	baseURLForRegion func(region string) string
 	authenticator    authenticator
+	// FallbackRegions overrides MetadataFallbackRegions for this Config's lookups.
+	// Empty means use the package-level default chain.
+	FallbackRegions []string
 }
 
 func StubbedConfig() Config {
@@ -179,8 +182,12 @@ func GetMetadataWithFallback(adamIDs []string, knownRegions map[string]string, v
 	}
 
 	// Walk the fallback chain for adamIDs without a known region.
+	fallbackRegions := config.FallbackRegions
+	if len(fallbackRegions) == 0 {
+		fallbackRegions = MetadataFallbackRegions
+	}
 	remaining := unknowns
-	for _, region := range MetadataFallbackRegions {
+	for _, region := range fallbackRegions {
 		if len(remaining) == 0 {
 			break
 		}
@@ -363,18 +370,36 @@ type DataStore interface {
 	fleet.AccessesMDMConfigAssets
 }
 
-func Configure(ctx context.Context, ds DataStore, licenseKey string, token string) Config {
+func Configure(ctx context.Context, ds DataStore, licenseKey string, token string, supportedCountries string) Config {
+	fallback := parseFallbackRegions(supportedCountries)
 	if token != "" {
 		return Config{
 			authenticator:    func(forceRenew bool) (string, error) { return token, nil },
 			baseURLForRegion: func(region string) string { return getBaseURL(true, region) },
+			FallbackRegions:  fallback,
 		}
 	}
 
 	return Config{
 		authenticator:    getAuthenticator(ctx, ds, licenseKey),
 		baseURLForRegion: func(region string) string { return getBaseURL(false, region) },
+		FallbackRegions:  fallback,
 	}
+}
+
+// parseFallbackRegions parses a comma-separated list of country codes into a slice.
+// Returns nil for empty input so callers fall back to MetadataFallbackRegions.
+func parseFallbackRegions(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func getAuthenticator(ctx context.Context, ds DataStore, licenseKey string) authenticator {

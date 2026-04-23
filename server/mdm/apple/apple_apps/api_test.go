@@ -329,6 +329,46 @@ func TestGetMetadataWithFallback(t *testing.T) {
 		require.Empty(t, resolved)
 		require.False(t, called)
 	})
+
+	t.Run("Config.FallbackRegions overrides the default chain", func(t *testing.T) {
+		callsByRegion := map[string]int{}
+		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
+			callsByRegion[region]++
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(metadataResp{})
+		})
+		// Restrict the chain to a custom order; default regions (gb, de, it, es) must not be hit.
+		config.FallbackRegions = []string{"us", "fr"}
+
+		_, _, err := GetMetadataWithFallback([]string{"nonexistent"}, nil, "tok", config)
+		require.NoError(t, err)
+		require.Equal(t, 1, callsByRegion["us"])
+		require.Equal(t, 1, callsByRegion["fr"])
+		require.Zero(t, callsByRegion["gb"])
+		require.Zero(t, callsByRegion["de"])
+		require.Zero(t, callsByRegion["it"])
+		require.Zero(t, callsByRegion["es"])
+	})
+}
+
+func TestParseFallbackRegions(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"empty returns nil", "", nil},
+		{"single", "fr", []string{"fr"}},
+		{"comma separated", "us,gb,fr", []string{"us", "gb", "fr"}},
+		{"trims whitespace", " us , gb ,  fr  ", []string{"us", "gb", "fr"}},
+		{"drops empty entries", "us,,fr,", []string{"us", "fr"}},
+		{"whitespace-only yields nil", "  ,  ,", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, parseFallbackRegions(tc.in))
+		})
+	}
 }
 
 // mockDataStore implements the DataStore interface for testing getAuthenticator
@@ -394,7 +434,7 @@ func TestConfig(t *testing.T) {
 	// Clear any dev env vars that might interfere
 	t.Run("uses bearer token when set, and forward to Apple", func(t *testing.T) {
 		ds := &mockDataStore{}
-		config := Configure(context.Background(), ds, "license-key", "dev-test-token")
+		config := Configure(context.Background(), ds, "license-key", "dev-test-token", "")
 
 		// Should return bearer token regardless of forceRenew
 		token, err := config.authenticator(false)
@@ -424,7 +464,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "license-key", "").authenticator
+		auth := Configure(context.Background(), ds, "license-key", "", "").authenticator
 		token, err := auth(false)
 		require.NoError(t, err)
 		require.Equal(t, "cached-token-from-db", token)
@@ -460,7 +500,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "test-license-key", "").authenticator
+		auth := Configure(context.Background(), ds, "test-license-key", "", "").authenticator
 		token, err := auth(true) // Force renewal
 		require.NoError(t, err)
 		require.Equal(t, "new-token-from-auth", token)
@@ -498,7 +538,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "my-license-key", "").authenticator
+		auth := Configure(context.Background(), ds, "my-license-key", "", "").authenticator
 		token, err := auth(false) // Not forced renewal, but no token in DB
 		require.NoError(t, err)
 		require.Equal(t, "fresh-token", token)
@@ -528,7 +568,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "bad-license-key", "").authenticator
+		auth := Configure(context.Background(), ds, "bad-license-key", "", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "authenticating to VPP metadata service")
@@ -552,7 +592,7 @@ func TestAuthentication(t *testing.T) {
 			},
 		}
 
-		auth := Configure(context.Background(), ds, "license-key", "").authenticator
+		auth := Configure(context.Background(), ds, "license-key", "", "").authenticator
 		_, err := auth(false)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "no access token received")
