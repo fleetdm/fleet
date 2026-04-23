@@ -42,12 +42,7 @@ const ManagedAccountModal = ({
   );
 
   return (
-    <Modal
-      title="Managed account"
-      onExit={onCancel}
-      onEnter={onCancel}
-      className={baseClass}
-    >
+    <Modal title="Managed account" onExit={onCancel} className={baseClass}>
       {isLoading && <Spinner />}
       {managedAccountError ? (
         <DataError />

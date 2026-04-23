@@ -516,13 +516,13 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        enabled managed local accounts for hosts assigned to the{" "}
+        enabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            <b>{activity.details.team_name}</b> fleet.
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "hosts with no fleet."
+          "unassigned hosts."
         )}
       </>
     );
@@ -531,13 +531,13 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        disabled managed local accounts for hosts assigned to the{" "}
+        disabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            <b>{activity.details.team_name}</b> fleet.
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "hosts with no fleet."
+          "unassigned hosts."
         )}
       </>
     );
