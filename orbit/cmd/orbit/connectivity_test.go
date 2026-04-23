@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -280,6 +281,11 @@ func TestResolveTargetOptionalOrbitKey(t *testing.T) {
 }
 
 func TestResolveTargetCertStatError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// os.Symlink on Windows requires SeCreateSymbolicLinkPrivilege
+		// (admin) or Developer Mode, which CI runners don't have.
+		t.Skip("os.Symlink requires elevated privileges on Windows")
+	}
 	rootDir := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(rootDir, constant.FleetURLFileName),

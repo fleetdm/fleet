@@ -230,6 +230,30 @@ func TestProbeAuthOrbitNodeKey(t *testing.T) {
 	assert.Empty(t, bodyReceived, "probe must not send body when OrbitNodeKey is unset")
 }
 
+func TestProbeAuthRejectedButFleetish(t *testing.T) {
+	// A real Fleet server rejecting a revoked/rotated orbit node key
+	// returns 401 with the standard {message,errors} envelope. The probe
+	// should flag this as reachable-with-auth-problem, not not-fleet, so
+	// users debug enrollment instead of intermediaries.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"message":"Authentication required","errors":[{"name":"base","reason":"invalid orbit node key"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	check := []Check{{
+		Feature: FeatureDesktop, Method: "POST", Path: "/api/fleet/orbit/config",
+		Fingerprint: FingerprintCapabilitiesHeader | FingerprintFleetJSONError,
+		Auth:        AuthOrbitNodeKey,
+	}}
+	got, err := Probe(t.Context(), Options{BaseURL: srv.URL, OrbitNodeKey: "stale-key"}, check)
+	require.NoError(t, err)
+	assert.Equal(t, StatusReachable, got[0].Status)
+	assert.Contains(t, got[0].Error, "stale orbit node key")
+	assert.Equal(t, http.StatusUnauthorized, got[0].HTTPStatus)
+}
+
 func TestLooksLikeFleetHTMLTitle(t *testing.T) {
 	cases := []struct {
 		name string

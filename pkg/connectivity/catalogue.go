@@ -101,8 +101,11 @@ func rawCatalogue() []Check {
 		{Feature: FeatureDesktop, Method: "GET", Path: "/api/latest/fleet/device/connectivity-probe/desktop", Description: "device My device page", Fingerprint: FingerprintCapabilitiesHeader | FingerprintFleetJSONError},
 		// POST /api/fleet/orbit/config returns the host's current config with
 		// just the orbit node key. Side-effect-free and confirms Fleet trusts
-		// this host's enrollment.
-		{Feature: FeatureDesktop, Method: "POST", Path: "/api/fleet/orbit/config", Description: "authenticated orbit config", Fingerprint: FingerprintCapabilitiesHeader, Auth: AuthOrbitNodeKey},
+		// this host's enrollment. JSON-error fingerprint covers the revoked-
+		// key case: the capabilities-header ServerAfter hook doesn't fire on
+		// auth-middleware rejection, but the standard {message,errors} 401
+		// envelope does.
+		{Feature: FeatureDesktop, Method: "POST", Path: "/api/fleet/orbit/config", Description: "authenticated orbit config", Fingerprint: FingerprintCapabilitiesHeader | FingerprintFleetJSONError, Auth: AuthOrbitNodeKey},
 
 		{Feature: FeatureFleetctl, Method: "GET", Path: "/api/latest/fleet/version", Description: "fleetctl API", Fingerprint: FingerprintFleetJSONError},
 

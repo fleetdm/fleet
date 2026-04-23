@@ -152,16 +152,24 @@ func classifyResponse(c Check, resp *http.Response, bodyPeek []byte, latency tim
 		return result
 	}
 
-	// An authenticated orbit probe that doesn't get 200 back is a soft
-	// failure — the server responded, but didn't accept our credentials.
-	// Flag as not-fleet since that's usually someone intercepting the path.
+	fleetish := c.Fingerprint == FingerprintNone || fingerprintMatches(c.Fingerprint, resp, bodyPeek)
+
+	// An authenticated orbit probe that doesn't get 200 back means the
+	// server responded but rejected our credentials. If the response still
+	// looks like Fleet, point the user at enrollment (stale/revoked node
+	// key) rather than at a captive portal.
 	if authUsed == AuthOrbitNodeKey && resp.StatusCode != http.StatusOK {
+		if fleetish {
+			result.Status = StatusReachable
+			result.Error = fmt.Sprintf("authenticated probe rejected with HTTP %d (stale orbit node key?)", resp.StatusCode)
+			return result
+		}
 		result.Status = StatusNotFleet
 		result.Error = fmt.Sprintf("authenticated probe rejected with HTTP %d", resp.StatusCode)
 		return result
 	}
 
-	if c.Fingerprint != FingerprintNone && !fingerprintMatches(c.Fingerprint, resp, bodyPeek) {
+	if !fleetish {
 		result.Status = StatusNotFleet
 		result.Error = "response did not match Fleet fingerprint"
 		return result
