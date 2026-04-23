@@ -5,10 +5,6 @@ settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids:
-        - 38244 # Linux - Sufficient disk space available
-        - 38230 # macOS - Sufficient disk space available
-        - 38239 # Windows - Sufficient disk space available
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -58,6 +54,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
@@ -84,6 +83,7 @@ controls:
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
+    lock_end_user_info: false
     macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
@@ -112,7 +112,6 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
-  - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/update-1password.yml
@@ -121,19 +120,17 @@ policies:
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-nudge.yml
-  - path: ../lib/macos/policies/update-claude.yml
-  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
+  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   # Windows policies
-  - path: ../lib/windows/policies/update-firefox.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/windows/policies/update-claude.yml
-  - path: ../lib/windows/policies/update-slack.yml
+  - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
   # Linux policies
@@ -148,11 +145,6 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for macOS (universal)
-      self_service: true
-      display_name: "Mozilla Firefox"
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
@@ -162,12 +154,6 @@ software:
       self_service: true
       categories:
         - Security
-    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Productivity
-        - Communication
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
@@ -186,6 +172,13 @@ software:
       self_service: true
       categories:
         - Utilities
+    - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
+      display_name: "Enable Touch ID for sudo"
+      self_service: true
+      categories:
+        - Security
+      # icon:
+      #   path: ../lib/all/icons/touch-id.png
     # Linux apps
     - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
       self_service: true
@@ -237,13 +230,6 @@ software:
     #    - Communication
     #  labels_include_any:
     #    - "ARM-based Windows hosts"
-    - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
-      self_service: true
-      setup_experience: true
-      categories:
-        - Communication
-      labels_include_any:
-        - "x86-based Windows hosts"
     # Commenting out until #25407 is implemented
     # - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     #   self_service: true
@@ -273,42 +259,52 @@ software:
         - Productivity
   fleet_maintained_apps:
     # macOS apps
+    - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
+      self_service: true
+      labels_include_any:
+        - "IdP group: SAML-aws-vpn"
+      categories:
+        - Utilities
     - slug: google-chrome/darwin # Google Chrome for macOS
       self_service: true
       setup_experience: true
       categories:
         - Browsers
+    - slug: firefox/darwin # Mozilla Firefox for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Firefox installed
+      categories:
+        - Browsers
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Brave Browser installed
       categories:
         - Browsers
     - slug: docker-desktop/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Docker Desktop installed
       categories:
         - Developer tools
-    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
-      self_service: true
-      categories:
-        - Browsers
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOS hosts
+        - Macs with Visual Studio Code installed
       categories:
         - Developer tools
-    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
-      self_service: true
-      categories:
-        - Communication
     - slug: slack/darwin # Slack for macOS
       self_service: true
       setup_experience: true
       categories:
         - Communication
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Communication
+        - Productivity
     - slug: okta-verify/darwin # Okta Verify for macOS
       self_service: true
       setup_experience: true
@@ -319,6 +315,114 @@ software:
       setup_experience: true
       categories:
         - Productivity
+    - slug: github/darwin # GitHub Desktop for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with GitHub Desktop installed
+      categories:
+        - Developer tools
+    - slug: utm/darwin # UTM for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with UTM installed
+      categories:
+        - Productivity
+    - slug: postman/darwin # Postman for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Postman installed
+      categories:
+        - Developer tools
+    - slug: grammarly-desktop/darwin # Grammarly Desktop for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Grammarly Desktop installed
+      categories:
+        - Productivity
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with iTerm2 installed
+      categories:
+        - Developer tools
+    - slug: sublime-text/darwin # Sublime Text for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Sublime Text installed
+      categories:
+        - Developer tools
+    - slug: parallels/darwin # Parallels Desktop for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Parallels Desktop installed
+      categories:
+        - Productivity
+    - slug: loom/darwin # Loom for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Loom installed
+      categories:
+        - Productivity
+    - slug: spotify/darwin # Spotify for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Spotify installed
+      categories:
+        - Productivity
+    - slug: rectangle/darwin # Rectangle for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Rectangle installed
+      categories:
+        - Productivity
+    - slug: logi-options+/darwin # Logi Options+ for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Logi Options+ installed
+      categories:
+        - Productivity
+    - slug: figma/darwin # Figma for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Figma installed
+      categories:
+        - Productivity
+    - slug: whatsapp/darwin # WhatsApp for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with WhatsApp installed
+      categories:
+        - Communication
+    - slug: android-studio/darwin # Android Studio for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Android Studio installed
+      categories:
+        - Developer tools
+    - slug: zed/darwin # Zed for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Zed installed
+      categories:
+        - Developer tools
+    - slug: obsidian/darwin # Obsidian for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Obsidian installed
+      categories:
+        - Productivity
+    - slug: google-drive/darwin # Google Drive for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Google Drive installed
+      categories:
+        - Productivity
+    - slug: cursor/darwin # Cursor for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Cursor installed
+      categories:
+        - Developer tools
     # Windows apps
     - slug: slack/windows # Slack for Windows
       self_service: true
@@ -336,11 +440,10 @@ software:
         - Productivity
     - slug: firefox/windows # Mozilla Firefox for Windows
       self_service: true
-      display_name: "Mozilla Firefox"
       categories:
         - Browsers
       labels_include_any:
-        - "x86-based Windows hosts"
+        - "x86 Windows hosts with Firefox installed"
     - slug: google-chrome/windows # Google Chrome for Windows
       self_service: true
       setup_experience: true
@@ -348,11 +451,16 @@ software:
         - Browsers
       labels_include_any:
         - "x86-based Windows hosts"
-    - slug: brave-browser/windows # Brave for Windows
+    - slug: zoom/windows # Zoom for Windows (x86)
       self_service: true
+      setup_experience: true
       categories:
-        - Browsers
+        - Communication
+      labels_include_any:
+        - "x86-based Windows hosts"
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      labels_include_any:
+        - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools

@@ -523,6 +523,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
 | activity_type | string | query | Indicates the activity `type` to filter by. See available activity types in the [Audit logs docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
 | start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
@@ -753,7 +754,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
 | fleet_id      | string  | body | _Available in Fleet Premium_. The ID of the fleet to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
-| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a ",". For example: "CN=john@example.com, O=Acme Inc.".    |
 
 #### Example
 
@@ -767,7 +768,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -780,7 +781,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "certificate_authority_id": 1,
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -932,6 +933,9 @@ List certificate added to Fleet. Currently, they can only be added via GitOps.
 | fleet      | string  | query | _Available in Fleet Premium_. The fleet ID to filter profiles. |
 | page      | integer | query | Page number of the results to fetch.                          |
 | per_page  | integer | query | Results per page.                                             |
+| order_key | string  | query | What to order results by. Allowed field is `id`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Request headers
 
@@ -981,7 +985,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "wifi-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "created_at": "2025-11-04T00:00:00Z",
     },
     {
@@ -989,7 +993,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "vpn-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
     }
   ],
@@ -1060,7 +1064,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
   "created_at": "2025-11-04T00:00:00Z",
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 }
 ```
 
@@ -2053,10 +2057,10 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------- |
 | server_url                        | string  | The Fleet server URL.                                                                       |
 | enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
-| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                           |
-| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                             |
+| live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
+| discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
-| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
+| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -2069,8 +2073,8 @@ Modifies the Fleet's configuration with the supplied information.
   "server_settings": {
     "server_url": "https://localhost:8080",
     "enable_analytics": true,
-    "live_query_disabled": false,
-    "query_reports_disabled": false,
+    "live_reporting_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false
   }
 }
@@ -2177,7 +2181,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.    |
+| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.    |
 | activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.                                                     |
 
 <br/>
@@ -4003,6 +4007,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
@@ -4016,6 +4022,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 
 #### Request headers
 
@@ -4805,6 +4812,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
@@ -5119,6 +5127,7 @@ Retrieves the certificates installed on a host.
 | per_page | integer | query | Results per page.|
 | order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name` |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -5327,6 +5336,9 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 | id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -5944,6 +5956,7 @@ Returns a list of labels.
 | include_host_counts | boolean | query | Whether or not to calculate host counts for each label. Default is `true`. See "additional notes" for more information. |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | fleet_id         | string | query | _Available in Fleet Premium._  Filters to labels belonging to the specified fleet, plus global labels. Specify `"global"` to show only globally-available labels. If omitted, Fleet returns all global labels, plus all labels for fleets to which the requestor has access. |
 
 When `include_host_counts` is `true` (or omitted), `host_count` will only be included for `labels` that are in use by one or more hosts, but `count` will always be included, even if it is `0`. When `include_host_counts` is `false`, `host_count` will always be omitted, and `count` will be returned as `0` for each label. Setting `include_host_counts=false` will improve API performance, especially on deployments with large numbers of hosts and labels.
@@ -6300,6 +6313,9 @@ results (i.e., only profiles that are associated with "Unassigned" are listed).
 | fleet_id                   | string | query | _Available in Fleet Premium_. The fleet id to filter profiles.              |
 | page                      | integer | query | Page number of the results to fetch.                                     |
 | per_page                  | integer | query | Results per page.                                                        |
+| order_key                 | string  | query | What to order results by. Can be ordered by `name`, `created_at`, or `uploaded_at`. |
+| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -7310,6 +7326,8 @@ List software that can be automatically installed during setup. If `install_duri
 | fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter software by. If not specified, it will filter only software that's available for "Unassigned" hosts. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
+| order_key | string | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending). |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 
 #### Example
@@ -7676,6 +7694,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
+| after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
@@ -7954,7 +7973,10 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.
+| per_page                | integer | query | Results per page. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -8026,6 +8048,9 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
 
 
@@ -8827,6 +8852,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
 | platform        | string  | query | Return reports that are scheduled to run on this platform. One of: `"macos"`, `"windows"`, `"linux"` (case-insensitive). (Since reports cannot be scheduled to run on `"chrome"` hosts, it's not a valid value here) |
 | page                    | integer | query | Page number of the results to fetch. |
 | per_page                | integer | query | Results per page. |
+| after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -9841,6 +9867,9 @@ Returns a list hosts targeted in a batch script run, along with their script exe
 | status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
 | page                | integer | query | Page number of the results to fetch. |
 | per_page            | integer | query | Results per page. |
+| order_key           | string  | query | What to order results by. Allowed fields are `display_name`, `hostname`, and `updated_at`. |
+| order_direction     | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after               | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -9987,6 +10016,9 @@ Deletes an existing script.
 | fleet_id         | integer | query | _Available in Fleet Premium_. The ID of the fleet to filter scripts by. If not specified, it will filter only scripts that are available for "Unassigned" hosts. |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
+| order_key       | string  | query | What to order results by. Can be ordered by `id`, `name`, `created_at`, or `updated_at`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -10033,6 +10065,9 @@ Deletes an existing script.
 | id   | integer | path | **Required**. The host's id. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Can be ordered by `name` or `executed_at`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -10239,6 +10274,7 @@ Get a list of all software.
 | hash_sha256 | string | query | Filters to only include custom software packages (uploaded installers) with the specified SHA-256 hash. `fleet_id` must be specified to filter by hash. This allows checking if a specific package already exists before uploading. |
 | package_name | string | query | Filters to only include custom software packages (uploaded installers) with the specified package filename. `fleet_id` must be specified to filter by package name. This allows checking if a specific package already exists before uploading. |
 | exclude_fleet_maintained_apps | boolean | query | If `true` or `1`, Fleet maintained apps will not be included in the list of `software_titles`. Default is `false` |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 #### Example
@@ -10436,6 +10472,7 @@ Get a list of all software versions.
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | without_vulnerability_details | boolean | query | _Available in Fleet Premium_. If `true` only vulnerability name is included in response. If `false` (or omitted), adds vulnerability description, CVSS score, and other details available in Fleet Premium. See notes below on performance. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 > For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
@@ -10528,6 +10565,7 @@ Returns a list of all operating systems.
 | per_page                | integer | query | Results per page. Default is `20`. |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 ##### Default response
@@ -11897,6 +11935,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 ##### Default response
@@ -12186,6 +12225,7 @@ _Available in Fleet Premium_
 | order_key       | string  | query | What to order results by. Can be any column in the `fleets` table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -12392,7 +12432,7 @@ _Available in Fleet Premium_
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The fleet's name. |
+| name | string | body | **Required.** The fleet's name. Fleet names must differ by more than letter case. |
 
 #### Example
 
@@ -12403,6 +12443,24 @@ _Available in Fleet Premium_
 ```json
 {
   "name": "workstations"
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from an existing fleet's name by letter case.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 
@@ -12461,7 +12519,7 @@ _Available in Fleet Premium_
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The fleet's name.                                                                                                                                                                                          |
+| name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -12478,6 +12536,24 @@ _Available in Fleet Premium_
 ```json
 {
   "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from another fleet's name by letter case. Renaming a fleet to a case variant of its own current name (e.g., `ABC` → `abc`) succeeds.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 
@@ -13201,6 +13277,7 @@ Returns a list of all enabled users
 | query           | string  | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | fleet_id         | integer | query | _Available in Fleet Premium_. Filters the users to only include users in the specified fleet.                                   |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -13850,6 +13927,9 @@ Returns a list of the active invitations in Fleet.
 | order_key       | string | query | What to order results by. Can be any column in the invites table.                                                             |
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query           | string | query | Search query keywords. Searchable fields include `name` and `email`.                                                          |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 #### Example
 
@@ -14140,6 +14220,9 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.  |
 | per_page        | integer | query | Results per page. |
+| order_key       | string  | query | What to order results by. Allowed fields are `name`, `id`, and `updated_at`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
 
 #### Example

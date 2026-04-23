@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
@@ -40,8 +40,9 @@ describe("OS setting status cell", () => {
     const statusText = screen.getByText("Verifying");
 
     await user.hover(statusText);
-
-    expect(screen.getByText(/verifying/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/verifying/)).toBeInTheDocument();
+    });
   });
 
   // Android cert statuses
@@ -58,13 +59,15 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
-    expect(
-      screen.getByText(/The host is running the command/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host is running the command/)
+      ).toBeInTheDocument();
+    });
   });
   it("Displays Pending UI for 'delivering' status with optype 'install'", async () => {
     const customRender = createCustomRenderer();
@@ -79,13 +82,15 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
-    expect(
-      screen.getByText(/The host is running the command/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host is running the command/)
+      ).toBeInTheDocument();
+    });
   });
   it("Displays Pending UI for 'delivered' status with optype 'install'", async () => {
     const customRender = createCustomRenderer();
@@ -100,13 +105,15 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
-    expect(
-      screen.getByText(/The host is running the command/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host is running the command/)
+      ).toBeInTheDocument();
+    });
   });
   it("Displays Pending UI for 'delivering' status with optype 'remove'", async () => {
     const customRender = createCustomRenderer();
@@ -121,13 +128,15 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
-    expect(
-      screen.getByText(/The host is running the command/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host is running the command/)
+      ).toBeInTheDocument();
+    });
   });
   it("Displays Pending UI for 'delivered' status with optype 'remove'", async () => {
     const customRender = createCustomRenderer();
@@ -142,12 +151,14 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
-    expect(
-      screen.getByText(/The host is running the command/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The host is running the command/)
+      ).toBeInTheDocument();
+    });
   });
 });

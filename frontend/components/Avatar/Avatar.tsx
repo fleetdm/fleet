@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import classnames from "classnames";
 
 import { COLORS } from "styles/var/colors";
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 
 interface IFleetAvatarProps {
   className?: string;
@@ -122,10 +121,6 @@ const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
     </svg>
   );
 };
-
-interface IDefaultAvatar {
-  className?: string;
-}
 
 const DefaultAvatar = ({ className }: IAPIOnlyAvatar) => {
   return (

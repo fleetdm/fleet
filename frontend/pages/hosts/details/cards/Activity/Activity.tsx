@@ -20,8 +20,6 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 import MDMCommandsToggle from "./MDMCommandsToggle";
-import PastCommandFeed from "./PastCommandFeed";
-import UpcomingCommandFeed from "./UpcomingCommandFeed";
 import CommandFeed from "./CommandFeed";
 import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
@@ -32,10 +30,8 @@ const UpcomingTooltip = () => {
     <TooltipWrapper
       tipContent={
         <>
-          Failure of one activity won&apos;t cancel other activities.
-          <br />
-          <br />
-          Currently, only software and scripts are guaranteed to run in order.
+          Software and scripts always run in order. Each waits until the
+          previous one runs successfully or fails all retries.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}

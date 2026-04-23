@@ -25,8 +25,6 @@ If you're planning a macOS migration with the Tahoe workflow:
 - Before the first batch, export a device list with each end user's name.
 - Group devices into batches in a spreadsheet so stakeholders can plan around travel or other conflicts.
 
-> If the MDM migration fails, don’t reassign the host to your old MDM in Apple Business (AB). Reassigning makes the host ineligible for migration. The host must stay actively enrolled in the MDM it’s migrating from. Once you change the ABM assignment, AB treats the host as no longer enrolled, and the migration can’t continue.
-
 ## Declarative device management (DDM) OS updates and profiles
 
 Apple continues to expand declarative device management (DDM) across macOS, iOS, and iPadOS. Fleet supports [OS updates](https://fleetdm.com/guides/enforce-os-updates) via DDM and [custom declaration (DDM) profiles](https://fleetdm.com/guides/custom-os-settings).

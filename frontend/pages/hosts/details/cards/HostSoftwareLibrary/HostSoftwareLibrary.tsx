@@ -19,7 +19,6 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 

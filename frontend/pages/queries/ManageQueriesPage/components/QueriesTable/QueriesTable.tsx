@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback, useMemo } from "react";
+import React, { useContext, useCallback, useMemo, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { SingleValue } from "react-select-5";
@@ -97,6 +97,7 @@ const QueriesTable = ({
   isPremiumTier,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser, config } = useContext(AppContext);
+  const isFirstNavigation = useRef(true);
 
   // Functions to avoid race conditions
   // TODO - confirm these are still necessary
@@ -159,7 +160,12 @@ const QueriesTable = ({
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.push(locationPath);
+      if (isFirstNavigation.current) {
+        isFirstNavigation.current = false;
+        router?.replace(locationPath);
+      } else {
+        router?.push(locationPath);
+      }
     },
     [
       curTargetedPlatformFilter,
@@ -247,7 +253,7 @@ const QueriesTable = ({
         variant="table-filter"
       />
     );
-  }, [curTargetedPlatformFilter, queryParams, router]);
+  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
 
   const columnConfigs = useMemo(
     () =>
@@ -282,7 +288,7 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",

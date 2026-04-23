@@ -129,6 +129,10 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 
@@ -258,6 +262,15 @@ export interface IHostRecoveryLockPasswordResponse {
   };
 }
 
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    username: string;
+    password: string;
+    updated_at: string;
+  };
+}
+
 export interface IHostIssues {
   total_issues_count: number;
   critical_vulnerabilities_count?: number; // Premium
@@ -351,6 +364,7 @@ export interface IHost {
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
   conditional_access_bypassed: boolean;
+  mdm_enrollment_hardware_attested?: boolean;
 }
 
 /*

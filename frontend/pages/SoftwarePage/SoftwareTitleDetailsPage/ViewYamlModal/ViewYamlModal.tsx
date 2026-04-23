@@ -8,7 +8,6 @@ import { ISoftwarePackage } from "interfaces/software";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Editor from "components/Editor";
 
@@ -19,14 +18,11 @@ const baseClass = "view-yaml-modal";
 
 interface IViewYamlModalProps {
   softwareTitleName: string;
-  softwareTitleId: number;
-  teamId: number;
   iconUrl?: string | null;
   displayName?: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
   isScriptPackage?: boolean;
-  isIosOrIpadosApp?: boolean;
 }
 
 const ViewYamlModal = ({

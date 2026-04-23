@@ -37,7 +37,7 @@ GOOS=windows \
 GOARCH=amd64 \
 go build \
 -trimpath \
--ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
+-ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
 -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$COMMIT \
 -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=$DATE" \
 -o ./orbit.exe ./orbit/cmd/orbit
@@ -50,7 +50,7 @@ GOOS=linux \
 GOARCH=amd64 \
 go build \
 -trimpath \
--ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
+-ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$VERSION \
 -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$COMMIT \
 -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=$DATE" \
 -o ./orbit-linux ./orbit/cmd/orbit

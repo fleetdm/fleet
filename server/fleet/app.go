@@ -200,7 +200,7 @@ type MDM struct {
 	// the server starts.
 	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
 
-	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
 	// PATCH /config API, it is only set automatically, internally, by detecting
@@ -237,6 +237,10 @@ type MDM struct {
 	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
+
+	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
+	// certain Apple MDM enrollments.
+	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -548,6 +552,9 @@ type MacOSSetup struct {
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
+	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
 func (mos *MacOSSetup) Validate() error {
@@ -557,6 +564,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 	}
 
 	return nil
@@ -586,6 +597,12 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+	if !mos.EnableManagedLocalAccount.Valid {
+		mos.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !mos.EndUserLocalAccountType.Valid {
+		mos.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 }
 
@@ -1137,6 +1154,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
+	if !c.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		c.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -1614,6 +1637,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities"`
 }
 
 type LoggingPlugin struct {

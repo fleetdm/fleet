@@ -158,9 +158,9 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 ### Step 1: Create an Autopilot profile
 
-1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the Intune admin user from step 1.
+1. Sign in to [Microsoft Intune](https://intune.microsoft.com/) using the Intune admin user from step 1.
 
-2. In the left-side bar, select **Devices > Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
+2. In the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Deployment Profiles** to navigate to the **Windows Autopilot deployment profiles** page.
 
 3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
 
@@ -168,7 +168,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Open your test workstation and follow these [Microsoft instructions](https://learn.microsoft.com/en-us/autopilot/add-devices#desktop-hash-export) to export your workstation's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
 
-2. In Intune, in the left-side bar, select **Devices > Enroll devices**. Under **Windows Autopilot Deployment Program** select **Devices** to navigate to the **Windows Autopilot devices** page.
+2. In Intune, in the left-side bar, select **Devices > Windows** (under **By platform**). Then select **Enrollment** under **Device onboarding**. Under **Windows Autopilot** select **Devices** to navigate to the **Windows Autopilot devices** page.
 
 3. Select **Import** and import your CSV.
 
@@ -178,7 +178,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
-2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding**.
+2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Custom branding** in the sidebar.
 
 3. On the **Company Branding** page, select **Configure** or **Edit** under **Default sign-in experience**.
 

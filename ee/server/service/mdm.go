@@ -203,7 +203,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -230,6 +230,11 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.RequireAllSoftware != nil && ac.MDM.MacOSSetup.RequireAllSoftware != *payload.RequireAllSoftware {
 		ac.MDM.MacOSSetup.RequireAllSoftware = *payload.RequireAllSoftware
+		didUpdate = true
+	}
+
+	if payload.RequireAllSoftwareWindows != nil && ac.MDM.MacOSSetup.RequireAllSoftwareWindows != *payload.RequireAllSoftwareWindows {
+		ac.MDM.MacOSSetup.RequireAllSoftwareWindows = *payload.RequireAllSoftwareWindows
 		didUpdate = true
 	}
 
@@ -267,12 +272,35 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableManagedLocalAccount != nil {
+		if !ac.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
+			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
+			didUpdateManagedLocalAccount = true
+			didUpdate = true
+		}
+	}
+
+	if payload.EndUserLocalAccountType != nil {
+		if *payload.EndUserLocalAccountType != "admin" {
+			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+		}
+		if !ac.MDM.MacOSSetup.EndUserLocalAccountType.Valid || ac.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
+			ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
 		if didUpdateMacOSEndUserAuth {
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
+				return err
+			}
+		}
+		if didUpdateManagedLocalAccount {
+			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
 				return err
 			}
 		}
@@ -297,6 +325,19 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
+func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	var act fleet.ActivityDetails
+	if enable {
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	} else {
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+	}
+	return nil
+}
+
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
@@ -307,8 +348,13 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	}
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
-	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
+		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
+	}
+
+	if payload.RequireAllSoftwareWindows != nil && *payload.RequireAllSoftwareWindows && !ac.MDM.WindowsEnabledAndConfigured {
+		return fleet.ErrWindowsMDMNotConfigured
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
@@ -1329,7 +1375,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
+	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
 	if err != nil {
 		return err
 	}
@@ -1633,9 +1679,91 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 	decryptedToken, err = assets.DecryptRawABMToken(encryptedToken, cert, pair[fleet.MDMAssetABMKey].Value)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "Invalid token. Please provide a valid token from Apple Business Manager.",
+			Message:     "Invalid token. Please provide a valid token from Apple Business.",
 			InternalErr: err,
 		}, "validating ABM token")
 	}
 	return encryptedToken, decryptedToken, nil
+}
+
+func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "host lite")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	if fleet.IsApplePlatform(host.Platform) {
+		return svc.clearPasscodeApple(ctx, host, appCfg)
+	}
+
+	return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		Message: "Clearing passcode is only supported on Apple mobile platforms",
+	})
+}
+
+func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Apple MDM must be turned on to use Clear passcode.",
+		})
+	}
+
+	if !fleet.IsAppleMobilePlatform(host.Platform) {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "ClearPasscode command is only available for iOS and iPadOS. Unable to issue ClearPasscode command.",
+		})
+	}
+
+	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
+	}
+
+	if mdmData.IsPersonalEnrollment {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	nanoDetails, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get nanomdm enrollment details")
+	}
+
+	if nanoDetails == nil || nanoDetails.UnlockToken == nil {
+		return nil, &fleet.BadRequestError{
+			Message: fleet.CantClearPasscodePersonalHostsMessage,
+		}
+	}
+
+	commandUUID := uuid.NewString()
+	if err := svc.mdmAppleCommander.ClearPasscode(ctx, []string{host.UUID}, commandUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "clearing passcode")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeClearedPasscode{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating activity for cleared passcode")
+	}
+
+	return &fleet.CommandEnqueueResult{
+		CommandUUID: commandUUID,
+		RequestType: fleet.AppleMDMCommandTypeClearPasscode,
+		Platform:    host.Platform,
+	}, nil
 }
