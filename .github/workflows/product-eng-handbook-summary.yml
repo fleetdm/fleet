@@ -142,25 +142,46 @@ jobs:
           For each significant change, include a link to the relevant PR using Slack link syntax: <URL|PR #123>.
           Keep it under 3000 characters. Do not include a greeting or sign-off."
 
-          # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed)
-          RESPONSE=$(jq -n --arg prompt "$PROMPT" \
+          echo "Prompt length: ${#PROMPT} chars"
+
+          # Build request body
+          jq -n --arg prompt "$PROMPT" \
             '{
               "model": "openai/gpt-4.1",
               "max_tokens": 1024,
               "messages": [{"role": "user", "content": $prompt}]
-            }' | curl -sS -L -X POST "https://models.github.ai/inference/chat/completions" \
+            }' > /tmp/request.json
+
+          # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed).
+          # Capture body and HTTP status separately so we can log both on failure.
+          set +e
+          HTTP_CODE=$(curl -sS -L -X POST "https://models.github.ai/inference/chat/completions" \
             -H "Content-Type: application/json" \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -d @-)
+            --data-binary @/tmp/request.json \
+            -o /tmp/response.json \
+            -w '%{http_code}')
+          CURL_EXIT=$?
+          set -e
+
+          echo "curl exit: ${CURL_EXIT}"
+          echo "HTTP status: ${HTTP_CODE:-<none>}"
+          echo "Response size: $(wc -c < /tmp/response.json) bytes"
+
+          if [ "$CURL_EXIT" -ne 0 ] || [ "${HTTP_CODE:-0}" -lt 200 ] || [ "${HTTP_CODE:-0}" -ge 300 ]; then
+            echo "::error::GitHub Models API call failed (curl=${CURL_EXIT}, http=${HTTP_CODE})"
+            jq . /tmp/response.json 2>/dev/null || cat /tmp/response.json
+            exit 1
+          fi
 
           # Extract the text content (OpenAI-compatible response format)
-          SUMMARY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+          SUMMARY=$(jq -r '.choices[0].message.content // empty' /tmp/response.json)
 
           if [ -z "$SUMMARY" ]; then
-            echo "::error::Failed to get summary from GitHub Models API"
-            echo "$RESPONSE" | jq . || echo "$RESPONSE"
+            echo "::error::GitHub Models API returned no content"
+            jq . /tmp/response.json 2>/dev/null || cat /tmp/response.json
             exit 1
           fi
 
