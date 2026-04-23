@@ -1222,7 +1222,7 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
   waysToUse:
-    - description: Throttle certificate profile requests to avoid overloading your CA server when deploying certificates to large numbers of Apple hosts (4.84).
+    - description: Throttle certificate profile requests to avoid overloading your CA server when deploying certificates to large numbers of Apple hosts (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/38002
     - description: Automatically retry failed certificate installations up to 3 times on Android hosts (4.84).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37546
