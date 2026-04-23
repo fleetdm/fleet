@@ -25,10 +25,16 @@ import (
 // when enqueuing <Delete> commands, resolving enrollment IDs, and updating
 // host profile rows during profile deletion.
 //
-// 10,000 stays well under MySQL's 65,535 placeholder limit on every caller
-// (the densest caller is the batched UPDATE with tuple IN + CASE per profile,
-// which tops out near ~20,000 placeholders at this batch size) and matches
-// the batch sizes used elsewhere in Fleet for host-table bulk ops.
+// 10,000 stays under MySQL's 65,535 placeholder limit on every caller. The
+// densest caller is the batched UPDATE with tuple IN + CASE per profile in
+// cancelWindowsHostInstallsForDeletedMDMProfiles, whose placeholder count is
+//
+//	2 (constants) + 2*distinctProfilesInBatch (CASE arms) + 2*rowsInBatch (IN)
+//
+// At batchSize=10,000 the realistic case (tens of profiles × many hosts each)
+// is ~20,000 placeholders, and the worst case (up to 10,000 distinct profiles
+// sharing a 10,000-row batch) is 40,002, still well under 65,535. The value
+// also matches the batch sizes used elsewhere in Fleet for host-table bulk ops.
 const windowsMDMProfileDeleteBatchSize = 10000
 
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
@@ -1487,13 +1493,24 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// the PK and lets the optimizer perform direct PK point lookups. This avoids
 	// the previous per-profile loop, which under-utilized batches when profiles
 	// affected fewer than batchSize hosts.
+	//
+	// Profile UUIDs are iterated in sorted order so that the generated SQL text
+	// (IN-tuple order within a batch and CASE-arm order) is deterministic across
+	// runs; that keeps MySQL plan-cache entries and observability query digests
+	// stable.
 	type pendingRemoveRow struct {
 		hostUUID    string
 		profileUUID string
 		cmdUUID     string
 	}
-	var rows []pendingRemoveRow
-	for profUUID, target := range enqueuedTargets {
+	sortedProfUUIDs := slices.Sorted(maps.Keys(enqueuedTargets))
+	totalRows := 0
+	for _, profUUID := range sortedProfUUIDs {
+		totalRows += len(enqueuedTargets[profUUID].hostUUIDs)
+	}
+	rows := make([]pendingRemoveRow, 0, totalRows)
+	for _, profUUID := range sortedProfUUIDs {
+		target := enqueuedTargets[profUUID]
 		for _, hostUUID := range target.hostUUIDs {
 			rows = append(rows, pendingRemoveRow{
 				hostUUID:    hostUUID,
@@ -1511,6 +1528,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		for _, r := range batch {
 			profileCmds[r.profileUUID] = r.cmdUUID
 		}
+		sortedBatchProfUUIDs := slices.Sorted(maps.Keys(profileCmds))
 
 		var sb strings.Builder
 		sb.WriteString(`UPDATE host_mdm_windows_profiles
@@ -1520,9 +1538,9 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 			    command_uuid = CASE profile_uuid`)
 		args := make([]any, 0, 2+2*len(profileCmds)+2*len(batch))
 		args = append(args, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
-		for profUUID, cmdUUID := range profileCmds {
+		for _, profUUID := range sortedBatchProfUUIDs {
 			sb.WriteString(" WHEN ? THEN ?")
-			args = append(args, profUUID, cmdUUID)
+			args = append(args, profUUID, profileCmds[profUUID])
 		}
 		// ELSE command_uuid is defensive: WHERE restricts the update to rows
 		// whose profile_uuid is present in profileCmds, so in practice every
