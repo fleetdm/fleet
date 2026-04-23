@@ -1294,7 +1294,7 @@
   pricingTableCategories: [Integrations]
   buzzwords: [Entra,Microsoft Entra,conditional access,Windows compliance]
   waysToUse:
-    - description: Block end users from accessing corporate resources (e.g. Microsoft 365, SharePoint) when their Windows device fails Fleet policies (4.84).
+    - description: Block end users from accessing corporate resources (e.g. Microsoft 365, SharePoint) when their Windows device fails Fleet policies (4.84.0).
       moreInfoUrl: https://fleetdm.com/docs/using-fleet/conditional-access
 =======
 >>>>>>> 07a5e70281e71dc9a67450bdd7fa91e4637aad37
