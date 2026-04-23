@@ -11,24 +11,27 @@ ee/cis/
   macos-13/
   macos-14/
   macos-15/
+  macos-26/
   win-10/
   win-11/
   win-11-intune/
+```
 
 Each OS directory follows the same structure:
 
-  cis-policy-queries.yml        # All policies for this OS version
-  README.md                     # Limitations, org-decision policies, notes
-  test/
-    scripts/                    # Shell scripts that remediate or break settings
-      CIS_1.1_pass.sh
-      CIS_1.1_fail.sh
-      CIS_3.1.sh               # Pass-only (no fail counterpart)
-    profiles/                   # MDM configuration profiles (.mobileconfig)
-      1.6.mobileconfig
-      2.5.1-enable.mobileconfig
-      2.5.1-disable.mobileconfig
-      README.md                 # How to create new profiles
+```
+cis-policy-queries.yml          # All policies for this OS version
+README.md                       # Limitations, org-decision policies, notes
+test/
+  scripts/                      # Shell scripts that remediate or break settings
+    CIS_1.1_pass.sh
+    CIS_1.1_fail.sh
+    CIS_3.1.sh                  # Pass-only (no fail counterpart)
+  profiles/                     # MDM configuration profiles (.mobileconfig)
+    1.6.mobileconfig
+    2.5.1-enable.mobileconfig
+    2.5.1-disable.mobileconfig
+    README.md                   # How to create new profiles
 ```
 
 ## Policy format
@@ -196,8 +199,8 @@ currently in use by macOS CIS policies.
 |-------|-------------|----------------------|-------|
 | `authdb` | `right_name`, `json_result` | `right_name` must be equality-constrained | `json_result` is a JSON blob — use `json_extract(json_result, '$.rule')` to inspect rules. |
 | `csrutil_info` | `ssv_enabled` | — | Integer 0/1. |
-| `dscl` | `command`, `path`, `key`, `value` | all four required; currently only `command = 'read'` supported | Reads Directory Service records. |
-| `find_cmd` | `directory`, `type`, `perm`, `path` | all constrain — `find_cmd` shells out to `/usr/bin/find` with these args | Prefer over walking the `file` table for large scopes like `/System/Volumes/Data/System`. |
+| `dscl` | `command`, `path`, `key`, `value` | `command`, `path`, `key` required; `value` is output only; currently only `command = 'read'` supported | Reads Directory Service records. |
+| `find_cmd` | `directory`, `type`, `perm`, `path` | `directory` required (must be absolute); `type` and `perm` optional; `path` is output only | `find_cmd` shells out to `/usr/bin/find`; prefer it over walking the `file` table for large scopes like `/System/Volumes/Data/System` (core `file` exceeds osquery CPU/memory limits on 10k+ rows). |
 | `nvram_info` | `amfi_enabled` | — | Integer 0/1. |
 | `pmset` | `getting`, `json_result` | `getting` (e.g. `'custom'`) | `json_result` contains per-power-source nested dicts; use `JSON_EXTRACT(json_result, '$.AC Power:')` etc. |
 | `pwd_policy` | `max_failed_attempts`, `expires_every_n_days`, `days_to_expiration`, `history_depth`, `min_mixed_case_characters` | — | See console-user caveat below. |
@@ -229,7 +232,7 @@ classifies each policy into a test type based on what artifacts exist.
 | 1 | PASS_FAIL | `_pass.sh` + `_fail.sh` | Run fail script → verify query fails → run pass script → verify query passes |
 | 2 | PASS_ONLY | `CIS_{id}.sh` | Run script → verify query passes |
 | 3 | PROFILE | `.mobileconfig` in profiles dir (no scripts) | Verify query fails without profile → push profile to team → verify query passes |
-| 4 | MANUAL | None of the above | Prompt user with resolution steps (or skip with `--skip-no-script`) |
+| 4 | MANUAL | None of the above | Prompt user with resolution steps (or skip with `--skip-manual`) |
 
 Scripts take priority over profiles. If a policy has both a script and
 a profile, the script-based test type is used and the profile is
@@ -516,8 +519,10 @@ Each OS directory has a `README.md` that must document:
    level, title, and a one-line reason it can't be automated.
 5. **Org-decision policies** — where CIS leaves the choice to the
    organization; Fleet provides both enable/disable variants.
-6. **Optional policies** — benchmarks CIS includes but does not
-   require (e.g. password complexity).
+6. **Optional policies** — benchmarks CIS ships at a level
+   higher than what Fleet enforces by default (e.g. Level 2
+   recommendations on a deployment that targets Level 1), or
+   org-chosen alternatives for items CIS leaves open.
 7. **Per-section notes** — for each section that shipped, a short
    block (`### Section N notes`) explaining any query patterns,
    table-schema quirks, test artifact tradeoffs, or caveats the
@@ -542,7 +547,7 @@ it blank — readers otherwise assume it's a gap:
 ```bash
 # Test everything, skip policies without scripts
 python3 tools/cis/cis-test-runner.py \
-    --macos-version 14 --all --skip-no-script \
+    --macos-version 14 --all --skip-manual \
     --fleet-url $FLEET_URL --fleet-token $FLEET_API_TOKEN
 
 # Test specific CIS IDs
@@ -551,7 +556,7 @@ python3 tools/cis/cis-test-runner.py \
 
 # Clean up everything after
 python3 tools/cis/cis-test-runner.py \
-    --macos-version 14 --all --skip-no-script --cleanup
+    --macos-version 14 --all --skip-manual --cleanup
 ```
 
 The runner creates a Fleet team, builds and installs a fleet agent in
@@ -628,8 +633,9 @@ won't be able to spin up a test VM — mark the `VERSION_MAP`
 entry TODO in the state file and plan to revisit.
 
 **4. Only then** start writing policies. Trying to run the
-runner before these registrations will fail with "choices must
-be one of {13,14,15}" or similar.
+runner before these registrations will fail at argument parsing
+with `argument --macos-version: invalid choice: 'NN' (choose
+from '13', '14', '15')`.
 
 ## Updating benchmarks when a new CIS version is released
 
@@ -732,10 +738,13 @@ Status legend: ⬜ not started · 🟨 in progress · ✅ done ·
 ⏭ skipped.
 
 ### Validation
-- [ ] Runner registered (VERSION_MAP + 3 constant dicts)
-- [ ] YAML parses, cis_ids unique
+- [ ] Runner registered — all four dicts in `cis-test-runner.py`
+      (`VERSION_MAP`, `SSH_BREAKING_CIS_IDS`,
+      `PASSWORD_POLICY_CIS_IDS`, `NON_AUTOMATABLE_CIS_IDS`)
+- [ ] YAML parses, `cis_id`s unique
 - [ ] All profiles `plutil -lint` OK
-- [ ] Fleetd table schemas verified
+- [ ] Profile UUIDs unique (top-level + inner, no duplicates)
+- [ ] Fleetd table schemas verified against `orbit/pkg/table/`
 - [ ] Test runner dry run against generated policies
 - [ ] Summary reviewed, failures fixed
 

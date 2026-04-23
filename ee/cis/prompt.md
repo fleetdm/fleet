@@ -41,9 +41,9 @@ and documentation.
 
 Skip this step when upgrading an existing OS version's benchmark.
 
-For a brand-new OS version (e.g. `macos-26` when only
-`macos-13/14/15` exist), follow CIS-BENCHMARKS.md §Adding a new
-macOS version **before** writing any policies:
+For a brand-new OS version (e.g. `macos-27` when the latest
+directory in `ee/cis/` is `macos-26`), follow CIS-BENCHMARKS.md
+§Adding a new macOS version **before** writing any policies:
 
 1. Create the `ee/cis/<os-dir>/` scaffold (policy YAML, README,
    `test/scripts/`, `test/profiles/`).
