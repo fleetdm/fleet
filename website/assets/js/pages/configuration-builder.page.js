@@ -2115,8 +2115,8 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'int',
                   settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/PasswordComplexity',
-                  trueValue: 0,
-                  falseValue: 1,
+                  trueValue: 1,
+                  falseValue: 0,
                 },
               },
             ],
