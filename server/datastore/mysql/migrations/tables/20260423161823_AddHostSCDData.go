@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260421182057, Down_20260421182057)
+	MigrationClient.AddMigration(Up_20260423161823, Down_20260423161823)
 }
 
-func Up_20260421182057(tx *sql.Tx) error {
+func Up_20260423161823(tx *sql.Tx) error {
 	// host_scd_data is the unified storage for all chart datasets. Rows are
 	// interval-based (valid_from, valid_to) bitmaps, written by one of two sample
 	// strategies:
@@ -42,6 +42,6 @@ func Up_20260421182057(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260421182057(tx *sql.Tx) error {
+func Down_20260423161823(tx *sql.Tx) error {
 	return nil
 }
