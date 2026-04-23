@@ -125,7 +125,7 @@ The modern stack - live device visibility, Fleet for orchestration, IaC for rigo
 
 You do not need to rebuild your team to get there. You need an open, API-first control plane that AI models can read and event systems can call. That is what Fleet was designed to be.
 
-If you are an IT or Security leader looking to close the confidence gap, consolidate your tool sprawl, and give your team the leverage of modern engineering practices, [get a demo](https://fleetdm.com/contact) or [join a GitOps workshop[(https://fleetdm.com/gitops-workshop)]. The tools are ready. The practices are proven. The only question is how quickly you move.
+If you are an IT or Security leader looking to close the confidence gap, consolidate your tool sprawl, and give your team the leverage of modern engineering practices, [get a demo](https://fleetdm.com/contact) or [join a GitOps workshop](https://fleetdm.com/gitops-workshop). The tools are ready. The practices are proven. The only question is how quickly you move.
 
 <meta name="articleTitle" value="Supercharging endpoint management with AI assistants and event-driven automation">
 <meta name="authorFullName" value="Ashish Kuthiala, CMO, Fleet Device Management">
