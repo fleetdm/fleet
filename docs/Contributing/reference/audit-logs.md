@@ -911,7 +911,7 @@ Generated when a user turns on collection for a dashboard chart dataset via `fea
 This activity contains the following fields:
 - "dataset": The dataset that was enabled. Can be one of:
   - `"uptime"`: used by the "Hosts active" chart.
-  - `"cve"`: used by the Vulnerability exposure chart.
+  - `"cve"`: used by the "Vulnerability exposure" chart.
 - "fleet_id": The ID of the fleet on which the change was made, or `null` for global changes.
 - "fleet_name": The name of the fleet on which the change was made, or `null` for global changes.
 
