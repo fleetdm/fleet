@@ -1,346 +1,62 @@
 package mysqlredis
 
 import (
-	"time"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// hostCacheEntry is the cached shape of a fleet.Host as returned by
-// LoadHostByNodeKey. It exists because fleet.Host tags several critical fields
-// with `json:"-"` — NodeKey, OrbitNodeKey, OsqueryHostID, HasHostIdentityCert
-// — to keep them out of HTTP API responses. Using fleet.Host directly with
-// encoding/json would silently drop those fields on cache round-trip and break
-// auth (HasHostIdentityCert → nil would skip the httpsig check).
+// hostCacheEnvelope is the JSON wire format for cached host lookups. It
+// embeds fleet.Host so every normally-serializable field rides along
+// automatically, then shadows the four fields fleet.Host tags `json:"-"` to
+// keep out of HTTP responses: OsqueryHostID, NodeKey, OrbitNodeKey, and
+// HasHostIdentityCert. These four MUST round-trip or auth breaks (a cached
+// host with HasHostIdentityCert=nil would cause AuthenticateHost to skip the
+// httpsig check for up to TTL).
 //
-// The field set mirrors LoadHostByNodeKey's SELECT list in
-// server/datastore/mysql/hosts.go. When that query gains a new column that
-// downstream code reads, this struct and the conversion functions below must
-// be updated in lockstep. TestHostCacheEntryRoundTrip (in host_cache_test.go)
-// is intended to catch drift.
-type hostCacheEntry struct {
-	ID                          uint          `json:"id"`
-	OsqueryHostID               *string       `json:"osquery_host_id,omitempty"`
-	CreatedAt                   time.Time     `json:"created_at"`
-	UpdatedAt                   time.Time     `json:"updated_at"`
-	DetailUpdatedAt             time.Time     `json:"detail_updated_at"`
-	NodeKey                     *string       `json:"node_key,omitempty"`
-	Hostname                    string        `json:"hostname"`
-	UUID                        string        `json:"uuid"`
-	Platform                    string        `json:"platform"`
-	OsqueryVersion              string        `json:"osquery_version"`
-	OSVersion                   string        `json:"os_version"`
-	Build                       string        `json:"build"`
-	PlatformLike                string        `json:"platform_like"`
-	CodeName                    string        `json:"code_name"`
-	Uptime                      time.Duration `json:"uptime"`
-	Memory                      int64         `json:"memory"`
-	CPUType                     string        `json:"cpu_type"`
-	CPUSubtype                  string        `json:"cpu_subtype"`
-	CPUBrand                    string        `json:"cpu_brand"`
-	CPUPhysicalCores            int           `json:"cpu_physical_cores"`
-	CPULogicalCores             int           `json:"cpu_logical_cores"`
-	HardwareVendor              string        `json:"hardware_vendor"`
-	HardwareModel               string        `json:"hardware_model"`
-	HardwareVersion             string        `json:"hardware_version"`
-	HardwareSerial              string        `json:"hardware_serial"`
-	ComputerName                string        `json:"computer_name"`
-	PrimaryNetworkInterfaceID   *uint         `json:"primary_ip_id,omitempty"`
-	DistributedInterval         uint          `json:"distributed_interval"`
-	LoggerTLSPeriod             uint          `json:"logger_tls_period"`
-	ConfigTLSRefresh            uint          `json:"config_tls_refresh"`
-	PrimaryIP                   string        `json:"primary_ip"`
-	PrimaryMac                  string        `json:"primary_mac"`
-	LabelUpdatedAt              time.Time     `json:"label_updated_at"`
-	LastEnrolledAt              time.Time     `json:"last_enrolled_at"`
-	RefetchRequested            bool          `json:"refetch_requested"`
-	RefetchCriticalQueriesUntil *time.Time    `json:"refetch_critical_queries_until,omitempty"`
-	TeamID                      *uint         `json:"team_id,omitempty"`
-	PolicyUpdatedAt             time.Time     `json:"policy_updated_at"`
-	PublicIP                    string        `json:"public_ip"`
-	OrbitNodeKey                *string       `json:"orbit_node_key,omitempty"`
-	LastRestartedAt             time.Time     `json:"last_restarted_at"`
-	TimeZone                    *string       `json:"timezone,omitempty"`
-	GigsDiskSpaceAvailable      float64       `json:"gigs_disk_space_available"`
-	GigsTotalDiskSpace          float64       `json:"gigs_total_disk_space"`
-	PercentDiskSpaceAvailable   float64       `json:"percent_disk_space_available"`
-	HasHostIdentityCert         *bool         `json:"has_host_identity_cert,omitempty"`
-}
-
-// hostCacheEntryFromHost copies the subset of fields that LoadHostByNodeKey
-// populates into the cache-entry shape. Callers are expected to null-check the
-// host before calling; this function does not guard against a nil argument.
-func hostCacheEntryFromHost(h *fleet.Host) *hostCacheEntry {
-	return &hostCacheEntry{
-		ID:                          h.ID,
-		OsqueryHostID:               h.OsqueryHostID,
-		CreatedAt:                   h.CreatedAt,
-		UpdatedAt:                   h.UpdatedAt,
-		DetailUpdatedAt:             h.DetailUpdatedAt,
-		NodeKey:                     h.NodeKey,
-		Hostname:                    h.Hostname,
-		UUID:                        h.UUID,
-		Platform:                    h.Platform,
-		OsqueryVersion:              h.OsqueryVersion,
-		OSVersion:                   h.OSVersion,
-		Build:                       h.Build,
-		PlatformLike:                h.PlatformLike,
-		CodeName:                    h.CodeName,
-		Uptime:                      h.Uptime,
-		Memory:                      h.Memory,
-		CPUType:                     h.CPUType,
-		CPUSubtype:                  h.CPUSubtype,
-		CPUBrand:                    h.CPUBrand,
-		CPUPhysicalCores:            h.CPUPhysicalCores,
-		CPULogicalCores:             h.CPULogicalCores,
-		HardwareVendor:              h.HardwareVendor,
-		HardwareModel:               h.HardwareModel,
-		HardwareVersion:             h.HardwareVersion,
-		HardwareSerial:              h.HardwareSerial,
-		ComputerName:                h.ComputerName,
-		PrimaryNetworkInterfaceID:   h.PrimaryNetworkInterfaceID,
-		DistributedInterval:         h.DistributedInterval,
-		LoggerTLSPeriod:             h.LoggerTLSPeriod,
-		ConfigTLSRefresh:            h.ConfigTLSRefresh,
-		PrimaryIP:                   h.PrimaryIP,
-		PrimaryMac:                  h.PrimaryMac,
-		LabelUpdatedAt:              h.LabelUpdatedAt,
-		LastEnrolledAt:              h.LastEnrolledAt,
-		RefetchRequested:            h.RefetchRequested,
-		RefetchCriticalQueriesUntil: h.RefetchCriticalQueriesUntil,
-		TeamID:                      h.TeamID,
-		PolicyUpdatedAt:             h.PolicyUpdatedAt,
-		PublicIP:                    h.PublicIP,
-		OrbitNodeKey:                h.OrbitNodeKey,
-		LastRestartedAt:             h.LastRestartedAt,
-		TimeZone:                    h.TimeZone,
-		GigsDiskSpaceAvailable:      h.GigsDiskSpaceAvailable,
-		GigsTotalDiskSpace:          h.GigsTotalDiskSpace,
-		PercentDiskSpaceAvailable:   h.PercentDiskSpaceAvailable,
-		HasHostIdentityCert:         h.HasHostIdentityCert,
-	}
-}
-
-// toHost returns a fresh *fleet.Host populated from the entry. Not safe to
-// call on a nil receiver; the internal callers always have a non-nil entry.
-func (e *hostCacheEntry) toHost() *fleet.Host {
-	h := &fleet.Host{
-		ID:                          e.ID,
-		OsqueryHostID:               e.OsqueryHostID,
-		DetailUpdatedAt:             e.DetailUpdatedAt,
-		NodeKey:                     e.NodeKey,
-		Hostname:                    e.Hostname,
-		UUID:                        e.UUID,
-		Platform:                    e.Platform,
-		OsqueryVersion:              e.OsqueryVersion,
-		OSVersion:                   e.OSVersion,
-		Build:                       e.Build,
-		PlatformLike:                e.PlatformLike,
-		CodeName:                    e.CodeName,
-		Uptime:                      e.Uptime,
-		Memory:                      e.Memory,
-		CPUType:                     e.CPUType,
-		CPUSubtype:                  e.CPUSubtype,
-		CPUBrand:                    e.CPUBrand,
-		CPUPhysicalCores:            e.CPUPhysicalCores,
-		CPULogicalCores:             e.CPULogicalCores,
-		HardwareVendor:              e.HardwareVendor,
-		HardwareModel:               e.HardwareModel,
-		HardwareVersion:             e.HardwareVersion,
-		HardwareSerial:              e.HardwareSerial,
-		ComputerName:                e.ComputerName,
-		PrimaryNetworkInterfaceID:   e.PrimaryNetworkInterfaceID,
-		DistributedInterval:         e.DistributedInterval,
-		LoggerTLSPeriod:             e.LoggerTLSPeriod,
-		ConfigTLSRefresh:            e.ConfigTLSRefresh,
-		PrimaryIP:                   e.PrimaryIP,
-		PrimaryMac:                  e.PrimaryMac,
-		LabelUpdatedAt:              e.LabelUpdatedAt,
-		LastEnrolledAt:              e.LastEnrolledAt,
-		RefetchRequested:            e.RefetchRequested,
-		RefetchCriticalQueriesUntil: e.RefetchCriticalQueriesUntil,
-		TeamID:                      e.TeamID,
-		PolicyUpdatedAt:             e.PolicyUpdatedAt,
-		PublicIP:                    e.PublicIP,
-		OrbitNodeKey:                e.OrbitNodeKey,
-		LastRestartedAt:             e.LastRestartedAt,
-		TimeZone:                    e.TimeZone,
-		GigsDiskSpaceAvailable:      e.GigsDiskSpaceAvailable,
-		GigsTotalDiskSpace:          e.GigsTotalDiskSpace,
-		PercentDiskSpaceAvailable:   e.PercentDiskSpaceAvailable,
-		HasHostIdentityCert:         e.HasHostIdentityCert,
-	}
-	h.CreatedAt = e.CreatedAt
-	h.UpdatedAt = e.UpdatedAt
-	return h
-}
-
-// orbitHostCacheEntry is the cached shape of a fleet.Host as returned by
-// LoadHostByOrbitNodeKey. Field set mirrors that query's SELECT list in
-// server/datastore/mysql/hosts.go — same base hosts.* columns as
-// hostCacheEntry but substituting the osquery-specific fields (last_restarted,
-// timezone, disk-space gauges) with the orbit-specific ones (DEP assignment,
-// disk encryption state, encryption key availability, team name).
+// Why embedding works without collision: the embedded fleet.Host has those
+// four fields tagged `json:"-"`, so encoding/json skips them entirely. Our
+// outer fields carry the real JSON names. On unmarshal, the tagged JSON keys
+// map to the outer fields; toHost() then copies them back onto the embedded
+// Host so downstream code can read them in their natural positions.
 //
-// Like hostCacheEntry, it exists because fleet.Host tags critical fields
-// `json:"-"` (OrbitNodeKey notably) that would silently drop on
-// encoding/json round-trip and break auth.
+// One envelope serves both LoadHostByNodeKey and LoadHostByOrbitNodeKey
+// because their SELECT lists differ only in which fleet.Host fields they
+// populate; unpopulated pointer/slice fields fall out via omitempty, and
+// the handful of non-pointer orbit-specific fields (MDM.EncryptionKeyAvailable)
+// are small enough that the constant overhead doesn't matter.
 //
-// TestOrbitHostCacheEntryRoundTrip (host_orbit_cache_test.go) catches drift
-// when LoadHostByOrbitNodeKey's SELECT adds or removes a column.
-type orbitHostCacheEntry struct {
-	ID                          uint          `json:"id"`
-	OsqueryHostID               *string       `json:"osquery_host_id,omitempty"`
-	CreatedAt                   time.Time     `json:"created_at"`
-	UpdatedAt                   time.Time     `json:"updated_at"`
-	DetailUpdatedAt             time.Time     `json:"detail_updated_at"`
-	NodeKey                     *string       `json:"node_key,omitempty"`
-	Hostname                    string        `json:"hostname"`
-	UUID                        string        `json:"uuid"`
-	Platform                    string        `json:"platform"`
-	OsqueryVersion              string        `json:"osquery_version"`
-	OSVersion                   string        `json:"os_version"`
-	Build                       string        `json:"build"`
-	PlatformLike                string        `json:"platform_like"`
-	CodeName                    string        `json:"code_name"`
-	Uptime                      time.Duration `json:"uptime"`
-	Memory                      int64         `json:"memory"`
-	CPUType                     string        `json:"cpu_type"`
-	CPUSubtype                  string        `json:"cpu_subtype"`
-	CPUBrand                    string        `json:"cpu_brand"`
-	CPUPhysicalCores            int           `json:"cpu_physical_cores"`
-	CPULogicalCores             int           `json:"cpu_logical_cores"`
-	HardwareVendor              string        `json:"hardware_vendor"`
-	HardwareModel               string        `json:"hardware_model"`
-	HardwareVersion             string        `json:"hardware_version"`
-	HardwareSerial              string        `json:"hardware_serial"`
-	ComputerName                string        `json:"computer_name"`
-	PrimaryNetworkInterfaceID   *uint         `json:"primary_ip_id,omitempty"`
-	DistributedInterval         uint          `json:"distributed_interval"`
-	LoggerTLSPeriod             uint          `json:"logger_tls_period"`
-	ConfigTLSRefresh            uint          `json:"config_tls_refresh"`
-	PrimaryIP                   string        `json:"primary_ip"`
-	PrimaryMac                  string        `json:"primary_mac"`
-	LabelUpdatedAt              time.Time     `json:"label_updated_at"`
-	LastEnrolledAt              time.Time     `json:"last_enrolled_at"`
-	RefetchRequested            bool          `json:"refetch_requested"`
-	RefetchCriticalQueriesUntil *time.Time    `json:"refetch_critical_queries_until,omitempty"`
-	TeamID                      *uint         `json:"team_id,omitempty"`
-	PolicyUpdatedAt             time.Time     `json:"policy_updated_at"`
-	PublicIP                    string        `json:"public_ip"`
-	OrbitNodeKey                *string       `json:"orbit_node_key,omitempty"`
+// When fleet.Host gains a new `json:"-"` field that downstream auth code
+// reads, add a shadow here in lockstep. TestHostCacheEnvelopeRoundTrip
+// catches drift by asserting full-struct equivalence after marshal/unmarshal.
+type hostCacheEnvelope struct {
+	fleet.Host
 
-	// Orbit-specific fields (not in hostCacheEntry):
-	DEPAssignedToFleet     *bool   `json:"dep_assigned_to_fleet,omitempty"`
-	DiskEncryptionEnabled  *bool   `json:"disk_encryption_enabled,omitempty"`
-	EncryptionKeyAvailable bool    `json:"encryption_key_available"`
-	TeamName               *string `json:"team_name,omitempty"`
-	HasHostIdentityCert    *bool   `json:"has_host_identity_cert,omitempty"`
+	OsqueryHostID       *string `json:"osquery_host_id,omitempty"`
+	NodeKey             *string `json:"node_key,omitempty"`
+	OrbitNodeKey        *string `json:"orbit_node_key,omitempty"`
+	HasHostIdentityCert *bool   `json:"has_host_identity_cert,omitempty"`
 }
 
-// orbitHostCacheEntryFromHost projects a *fleet.Host into the orbit cache
-// shape. Caller is expected to null-check h before calling.
-func orbitHostCacheEntryFromHost(h *fleet.Host) *orbitHostCacheEntry {
-	return &orbitHostCacheEntry{
-		ID:                          h.ID,
-		OsqueryHostID:               h.OsqueryHostID,
-		CreatedAt:                   h.CreatedAt,
-		UpdatedAt:                   h.UpdatedAt,
-		DetailUpdatedAt:             h.DetailUpdatedAt,
-		NodeKey:                     h.NodeKey,
-		Hostname:                    h.Hostname,
-		UUID:                        h.UUID,
-		Platform:                    h.Platform,
-		OsqueryVersion:              h.OsqueryVersion,
-		OSVersion:                   h.OSVersion,
-		Build:                       h.Build,
-		PlatformLike:                h.PlatformLike,
-		CodeName:                    h.CodeName,
-		Uptime:                      h.Uptime,
-		Memory:                      h.Memory,
-		CPUType:                     h.CPUType,
-		CPUSubtype:                  h.CPUSubtype,
-		CPUBrand:                    h.CPUBrand,
-		CPUPhysicalCores:            h.CPUPhysicalCores,
-		CPULogicalCores:             h.CPULogicalCores,
-		HardwareVendor:              h.HardwareVendor,
-		HardwareModel:               h.HardwareModel,
-		HardwareVersion:             h.HardwareVersion,
-		HardwareSerial:              h.HardwareSerial,
-		ComputerName:                h.ComputerName,
-		PrimaryNetworkInterfaceID:   h.PrimaryNetworkInterfaceID,
-		DistributedInterval:         h.DistributedInterval,
-		LoggerTLSPeriod:             h.LoggerTLSPeriod,
-		ConfigTLSRefresh:            h.ConfigTLSRefresh,
-		PrimaryIP:                   h.PrimaryIP,
-		PrimaryMac:                  h.PrimaryMac,
-		LabelUpdatedAt:              h.LabelUpdatedAt,
-		LastEnrolledAt:              h.LastEnrolledAt,
-		RefetchRequested:            h.RefetchRequested,
-		RefetchCriticalQueriesUntil: h.RefetchCriticalQueriesUntil,
-		TeamID:                      h.TeamID,
-		PolicyUpdatedAt:             h.PolicyUpdatedAt,
-		PublicIP:                    h.PublicIP,
-		OrbitNodeKey:                h.OrbitNodeKey,
-		DEPAssignedToFleet:          h.DEPAssignedToFleet,
-		DiskEncryptionEnabled:       h.DiskEncryptionEnabled,
-		EncryptionKeyAvailable:      h.MDM.EncryptionKeyAvailable,
-		TeamName:                    h.TeamName,
-		HasHostIdentityCert:         h.HasHostIdentityCert,
+// envelopeFromHost builds an envelope suitable for JSON marshaling by copying
+// the four json:"-" shadow fields out of the embedded Host. Caller must
+// ensure h is non-nil.
+func envelopeFromHost(h *fleet.Host) *hostCacheEnvelope {
+	return &hostCacheEnvelope{
+		Host:                *h,
+		OsqueryHostID:       h.OsqueryHostID,
+		NodeKey:             h.NodeKey,
+		OrbitNodeKey:        h.OrbitNodeKey,
+		HasHostIdentityCert: h.HasHostIdentityCert,
 	}
 }
 
-// toHost builds a fresh *fleet.Host from the orbit entry. The
-// EncryptionKeyAvailable bool is lifted into host.MDM to mirror the
-// post-processing LoadHostByOrbitNodeKey does in the direct SQL path.
-// Not safe to call on a nil receiver.
-func (e *orbitHostCacheEntry) toHost() *fleet.Host {
-	h := &fleet.Host{
-		ID:                          e.ID,
-		OsqueryHostID:               e.OsqueryHostID,
-		DetailUpdatedAt:             e.DetailUpdatedAt,
-		NodeKey:                     e.NodeKey,
-		Hostname:                    e.Hostname,
-		UUID:                        e.UUID,
-		Platform:                    e.Platform,
-		OsqueryVersion:              e.OsqueryVersion,
-		OSVersion:                   e.OSVersion,
-		Build:                       e.Build,
-		PlatformLike:                e.PlatformLike,
-		CodeName:                    e.CodeName,
-		Uptime:                      e.Uptime,
-		Memory:                      e.Memory,
-		CPUType:                     e.CPUType,
-		CPUSubtype:                  e.CPUSubtype,
-		CPUBrand:                    e.CPUBrand,
-		CPUPhysicalCores:            e.CPUPhysicalCores,
-		CPULogicalCores:             e.CPULogicalCores,
-		HardwareVendor:              e.HardwareVendor,
-		HardwareModel:               e.HardwareModel,
-		HardwareVersion:             e.HardwareVersion,
-		HardwareSerial:              e.HardwareSerial,
-		ComputerName:                e.ComputerName,
-		PrimaryNetworkInterfaceID:   e.PrimaryNetworkInterfaceID,
-		DistributedInterval:         e.DistributedInterval,
-		LoggerTLSPeriod:             e.LoggerTLSPeriod,
-		ConfigTLSRefresh:            e.ConfigTLSRefresh,
-		PrimaryIP:                   e.PrimaryIP,
-		PrimaryMac:                  e.PrimaryMac,
-		LabelUpdatedAt:              e.LabelUpdatedAt,
-		LastEnrolledAt:              e.LastEnrolledAt,
-		RefetchRequested:            e.RefetchRequested,
-		RefetchCriticalQueriesUntil: e.RefetchCriticalQueriesUntil,
-		TeamID:                      e.TeamID,
-		PolicyUpdatedAt:             e.PolicyUpdatedAt,
-		PublicIP:                    e.PublicIP,
-		OrbitNodeKey:                e.OrbitNodeKey,
-		DEPAssignedToFleet:          e.DEPAssignedToFleet,
-		DiskEncryptionEnabled:       e.DiskEncryptionEnabled,
-		TeamName:                    e.TeamName,
-		HasHostIdentityCert:         e.HasHostIdentityCert,
-		MDM:                         fleet.MDMHostData{EncryptionKeyAvailable: e.EncryptionKeyAvailable},
-	}
-	h.CreatedAt = e.CreatedAt
-	h.UpdatedAt = e.UpdatedAt
-	return h
+// toHost returns a fresh *fleet.Host populated from the envelope, with the
+// shadow fields copied back onto the embedded Host so downstream auth code
+// reads them in their natural positions.
+func (e *hostCacheEnvelope) toHost() *fleet.Host {
+	h := e.Host
+	h.OsqueryHostID = e.OsqueryHostID
+	h.NodeKey = e.NodeKey
+	h.OrbitNodeKey = e.OrbitNodeKey
+	h.HasHostIdentityCert = e.HasHostIdentityCert
+	return &h
 }

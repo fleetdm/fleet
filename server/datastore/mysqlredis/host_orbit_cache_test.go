@@ -2,7 +2,6 @@ package mysqlredis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -80,8 +79,9 @@ func TestLoadHostByOrbitNodeKey_Override(t *testing.T) {
 			require.NotNil(t, second)
 			assert.False(t, ds.LoadHostByOrbitNodeKeyFuncInvoked, "second call should be served from cache")
 
-			// Orbit-specific fields must round-trip (these are why we have a
-			// dedicated orbit entry type vs. sharing hostCacheEntry).
+			// Orbit-specific fields must round-trip through the shared
+			// hostCacheEnvelope — LoadHostByOrbitNodeKey populates them but
+			// LoadHostByNodeKey doesn't, so they only appear on this path.
 			require.NotNil(t, second.DEPAssignedToFleet)
 			assert.True(t, *second.DEPAssignedToFleet)
 			require.NotNil(t, second.DiskEncryptionEnabled)
@@ -253,110 +253,6 @@ func TestLoadHostByOrbitNodeKey_Override(t *testing.T) {
 		pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, true, true, false)
 		runTest(t, pool)
 	})
-}
-
-// TestOrbitHostCacheEntryRoundTrip is the orbit counterpart of
-// TestHostCacheEntryRoundTrip: every field LoadHostByOrbitNodeKey returns
-// is populated with a non-zero value, round-tripped through JSON, and
-// asserted equal on the way back.
-func TestOrbitHostCacheEntryRoundTrip(t *testing.T) {
-	nk := "node-rt-orbit"
-	onk := "orbit-rt"
-	oqhid := "osq-rt"
-	teamID := uint(3)
-	primaryIPID := uint(99)
-	certTrue := true
-	depTrue := true
-	encEnabledTrue := true
-	teamName := "team-rt"
-	until := time.Date(2026, time.April, 22, 12, 0, 0, 0, time.UTC)
-	now := time.Date(2026, time.April, 21, 12, 0, 0, 0, time.UTC)
-
-	orig := &fleet.Host{
-		ID:                          42,
-		OsqueryHostID:               &oqhid,
-		DetailUpdatedAt:             now,
-		NodeKey:                     &nk,
-		Hostname:                    "h",
-		UUID:                        "u",
-		Platform:                    "darwin",
-		OsqueryVersion:              "5.0",
-		OSVersion:                   "14.0",
-		Build:                       "23A344",
-		PlatformLike:                "darwin",
-		CodeName:                    "sonoma",
-		Uptime:                      time.Hour,
-		Memory:                      1 << 30,
-		CPUType:                     "arm64",
-		CPUSubtype:                  "m1",
-		CPUBrand:                    "Apple",
-		CPUPhysicalCores:            8,
-		CPULogicalCores:             8,
-		HardwareVendor:              "Apple",
-		HardwareModel:               "MacBookPro",
-		HardwareVersion:             "v1",
-		HardwareSerial:              "SN123",
-		ComputerName:                "Laptop",
-		PrimaryNetworkInterfaceID:   &primaryIPID,
-		DistributedInterval:         10,
-		LoggerTLSPeriod:             60,
-		ConfigTLSRefresh:            60,
-		PrimaryIP:                   "10.0.0.1",
-		PrimaryMac:                  "aa:bb:cc:dd:ee:ff",
-		LabelUpdatedAt:              now,
-		LastEnrolledAt:              now,
-		RefetchRequested:            true,
-		RefetchCriticalQueriesUntil: &until,
-		TeamID:                      &teamID,
-		PolicyUpdatedAt:             now,
-		PublicIP:                    "1.2.3.4",
-		OrbitNodeKey:                &onk,
-		DEPAssignedToFleet:          &depTrue,
-		DiskEncryptionEnabled:       &encEnabledTrue,
-		TeamName:                    &teamName,
-		HasHostIdentityCert:         &certTrue,
-		MDM:                         fleet.MDMHostData{EncryptionKeyAvailable: true},
-	}
-	orig.CreatedAt = now
-	orig.UpdatedAt = now
-
-	got := orbitHostCacheEntryFromHost(orig).toHost()
-
-	// Orbit-specific fields
-	require.NotNil(t, got.DEPAssignedToFleet)
-	assert.True(t, *got.DEPAssignedToFleet)
-	require.NotNil(t, got.DiskEncryptionEnabled)
-	assert.True(t, *got.DiskEncryptionEnabled)
-	require.NotNil(t, got.TeamName)
-	assert.Equal(t, teamName, *got.TeamName)
-	assert.True(t, got.MDM.EncryptionKeyAvailable)
-	require.NotNil(t, got.HasHostIdentityCert)
-	assert.True(t, *got.HasHostIdentityCert)
-
-	// Auth-critical json:"-" fields
-	require.NotNil(t, got.NodeKey)
-	assert.Equal(t, nk, *got.NodeKey)
-	require.NotNil(t, got.OrbitNodeKey)
-	assert.Equal(t, onk, *got.OrbitNodeKey)
-	require.NotNil(t, got.OsqueryHostID)
-	assert.Equal(t, oqhid, *got.OsqueryHostID)
-
-	// Spot-check a representative scalar to catch drift if the field set
-	// diverges silently.
-	assert.Equal(t, uint(42), got.ID)
-	assert.Equal(t, "h", got.Hostname)
-	assert.Equal(t, "darwin", got.Platform)
-	assert.Equal(t, now, got.DetailUpdatedAt)
-	assert.Equal(t, now, got.CreatedAt)
-	require.NotNil(t, got.TeamID)
-	assert.Equal(t, teamID, *got.TeamID)
-
-	// Also verify JSON layer specifically, since that's what Redis sees.
-	raw, err := json.Marshal(orbitHostCacheEntryFromHost(orig))
-	require.NoError(t, err)
-	viaJSON := new(orbitHostCacheEntry)
-	require.NoError(t, json.Unmarshal(raw, viaJSON))
-	assert.Equal(t, orbitHostCacheEntryFromHost(orig), viaJSON)
 }
 
 func TestLoadHostByOrbitNodeKey_RedisErrorFallsThrough(t *testing.T) {
