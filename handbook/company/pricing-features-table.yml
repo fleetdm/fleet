@@ -245,7 +245,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Devices]
   waysToUse:
-    - description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to a host, to troubleshoot MDM migration and DEP assignment issues (4.84.0).
+    - description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB), to troubleshoot MDM migration and DEP assignment issues (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
 #  
 #  ╔═╗╔═╗╦═╗╔═╗  ╔╦╗╔═╗╦ ╦╔═╗╦ ╦  ╔═╗╔═╗╔╦╗╦ ╦╔═╗
