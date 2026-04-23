@@ -480,7 +480,7 @@
   display_name: "Create fleet"
 - method: "PATCH"
   path: "/api/v1/fleet/fleets/:id"
-  display_name: "Update fleet"
+  display_name: "Update configuration for a fleet"
 - method: "POST"
   path: "/api/v1/fleet/fleets/:id/agent_options"
   display_name: "Update a fleet's agent options"
