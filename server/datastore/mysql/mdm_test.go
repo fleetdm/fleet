@@ -191,7 +191,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
+	_, err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
 		SyncML: &fleet.SyncML{
 			Raw: []byte("<xml></xml>"),
 		},

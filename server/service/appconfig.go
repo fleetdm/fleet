@@ -510,6 +510,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
+	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	} else {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	}
+
+	if !oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	} else {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	}
+
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
 			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
