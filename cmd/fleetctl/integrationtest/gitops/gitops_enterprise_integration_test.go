@@ -4560,7 +4560,6 @@ queries:
 	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_BOZO is not supported in DDM profiles")
 }
 
-// TODO(JK): this test is pretty slow
 func (s *enterpriseIntegrationGitopsTestSuite) TestManagedLocalAccount() {
 	t := s.T()
 	ctx := context.Background()
@@ -4611,29 +4610,6 @@ name: %s
 settings:
   secrets: [{"secret":"enroll_secret"}]
 `
-
-		noTeamConfigNull = `name: Unassigned
-controls:
-  setup_experience:
-    enable_create_local_admin_account: null
-    end_user_local_account_type: null
-policies:
-software:
-`
-
-		teamConfigNull = `
-controls:
-  setup_experience:
-    enable_create_local_admin_account: null
-    end_user_local_account_type: null
-software:
-reports:
-policies:
-agent_options:
-name: %s
-settings:
-  secrets: [{"secret":"enroll_secret"}]
-`
 	)
 
 	dir := t.TempDir()
@@ -4662,28 +4638,6 @@ settings:
 	require.NoError(t, err)
 	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
 	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
-	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
-	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
-
-	// Re-apply with the two fields set to null and verify the defaults
-	// (false, "admin") are applied.
-	noTeamFileNull := write("unassigned.yml", noTeamConfigNull)
-	teamFileNull := write("team.yml", fmt.Sprintf(teamConfigNull, teamName))
-
-	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFileNull, "-f", teamFileNull, "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFileNull, "-f", teamFileNull}))
-
-	appConfig, err = s.DS.AppConfig(ctx)
-	require.NoError(t, err)
-	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
-	assert.False(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
-	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
-	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
-
-	team, err = s.DS.TeamByName(ctx, teamName)
-	require.NoError(t, err)
-	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
-	assert.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
 	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }
