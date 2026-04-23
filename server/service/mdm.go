@@ -36,7 +36,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -268,23 +267,9 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	eula := r.MultipartForm.File["eula"][0]
 
-	// Determine the effective size limit: allow whichever value is greater
-	effectiveLimit := fleet.MaxEULASize
-	if platform_http.MaxRequestBodySize != -1 {
-		if platform_http.MaxRequestBodySize > effectiveLimit {
-			effectiveLimit = platform_http.MaxRequestBodySize
-		}
-	}
-
-	if effectiveLimit != -1 && eula.Size > effectiveLimit {
-		var message string
-		if effectiveLimit == fleet.MaxEULASize {
-			message = fmt.Sprintf("EULA file exceeds the maximum allowed size of %s", units.HumanSize(float64(fleet.MaxEULASize)))
-		} else {
-			message = fmt.Sprintf("Request exceeds the max size limit of %s. Configure the limit: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-default-max-request-body-size", units.HumanSize(float64(platform_http.MaxRequestBodySize)))
-		}
+	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
-			Message: message,
+			Message: fmt.Sprintf("Uploaded EULA exceeds maximum allowed size of %d MiB", fleet.MaxEULASize/1024/1024),
 		}
 	}
 
