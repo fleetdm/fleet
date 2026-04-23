@@ -81,7 +81,7 @@ For Proton, this was never just about finding a better MDM. It was about finding
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 
-<meta name="quoteContent" value="“We tell users no one can access their data, not even us. The same standard has to apply to how we manage our own devices, and Fleet is a platform we can actually verify. When your business depends on trust, that matters.“">
+<meta name="quoteContent" value="“We tell users no one can access their data, not even us. The same standard has to apply to how we manage our own devices, and Fleet is a platform we can actually verify. When your business depends on trust, that matters.”">
 <meta name="quoteAuthorImageFilename" value="andy-yen-120x120@2x.png">
 <meta name="quoteAuthorName" value="Andy Yen">
 <meta name="quoteAuthorJobTitle" value="CEO and Founder of Proton">
