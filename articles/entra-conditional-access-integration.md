@@ -18,9 +18,9 @@ To enforce conditional access, end users must be a member of a group called "Fle
 
 Login to [Intune](https://intune.microsoft.com), and follow [this Microsoft guide](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners#add-a-compliance-partner-to-intune) to add Fleet as compliance partner in Intune.
 
-For **Platform**, select **macOS**. 
+For **Platform**, select **macOS** and **Windows**. 
 
-If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
+> If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
 
 For **Assignments** add the "Fleet conditional access" group you created to **Included groups**. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
 
