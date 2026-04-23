@@ -51,7 +51,7 @@ spec:
   query: |
     <osquery SQL that returns 1+ rows when compliant, 0 rows when not>
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1
+  tags: compliance, CIS, CIS_Level<1 or 2>
   contributors: <github-username>
 ```
 
