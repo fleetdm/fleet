@@ -1749,7 +1749,7 @@ parasails.registerPage('configuration-builder', {
         payloads: [
           {
             name: 'Allow users to change date and time settings',
-            uniqueSlug: 'windows-device-lock-enable-device-lock',
+            uniqueSlug: 'windows-date-time-allow-users-to-cahnge-settings',
             tooltip: 'Allows the user to change date and time settings.',
             category: 'Date & time',
             supportedAccessTypes: ['add', 'replace'],
@@ -4298,7 +4298,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Configure update notifications',
-                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                uniqueSlug: 'windows-updates-configure-update-notifications',
                 tooltip: 'This policy allows you to define what Windows Update notifications users see.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
