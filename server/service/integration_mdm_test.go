@@ -562,7 +562,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
 		w.WriteHeader(status.(int))
-		resp := []byte(fmt.Sprintf("status: %d", status))
+		resp := fmt.Appendf(nil, "status: %d", status)
 		if status == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
 			rawBody, err := io.ReadAll(r.Body)
 			require.NoError(s.T(), err)
