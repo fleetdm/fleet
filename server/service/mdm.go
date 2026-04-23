@@ -269,7 +269,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
-			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
+			Message: fmt.Sprintf("Uploaded EULA exceeds maximum allowed size of %d MiB", fleet.MaxEULASize/1024/1024),
 		}
 	}
 
