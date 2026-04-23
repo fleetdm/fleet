@@ -155,9 +155,7 @@ describe("UsersForm", () => {
     });
 
     it("does not allow toggling managed local account when Apple MDM is not configured", async () => {
-      const { user } = renderWithMdmDisabled(
-        <UsersForm {...defaultProps} />
-      );
+      const { user } = renderWithMdmDisabled(<UsersForm {...defaultProps} />);
 
       const checkbox = screen.getByRole("checkbox", {
         name: "Managed local account",
