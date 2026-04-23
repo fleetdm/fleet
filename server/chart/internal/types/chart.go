@@ -29,10 +29,17 @@ type HostFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
+	// DataCollectionState reports whether a dataset's collection is globally
+	// enabled, and if so the list of fleet IDs whose per-fleet override is
+	// also enabled. The returned set does NOT include a sentinel for no-team
+	// hosts — callers filtering by fleet IDs are expected to include no-team
+	// hosts unconditionally whenever global is true.
+	DataCollectionState(ctx context.Context, dataset string) (globalEnabled bool, enabledFleetIDs []uint, err error)
+
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	// given cutoff and whose fleet is either no-team or in the provided set.
+	// Callers use it after DataCollectionState has confirmed global is on.
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, fleetIDs []uint) ([]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of

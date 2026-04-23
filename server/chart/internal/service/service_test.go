@@ -57,15 +57,26 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
-	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time) ([]uint, error)
-	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
-	recordBucketDataInvoked   bool
+	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
+	findRecentlySeenHostIDsFn  func(ctx context.Context, since time.Time, fleetIDs []uint) ([]uint, error)
+	recordBucketDataFn         func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
+	recordBucketDataInvoked    bool
+	dataCollectionStateFn      func(ctx context.Context, dataset string) (bool, []uint, error)
+	dataCollectionStateInvoked int
 }
 
-func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
+func (m *mockDatastore) DataCollectionState(ctx context.Context, dataset string) (bool, []uint, error) {
+	m.dataCollectionStateInvoked++
+	if m.dataCollectionStateFn != nil {
+		return m.dataCollectionStateFn(ctx, dataset)
+	}
+	// Default: all datasets enabled, no per-fleet overrides narrowing.
+	return true, nil, nil
+}
+
+func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, fleetIDs []uint) ([]uint, error) {
 	if m.findRecentlySeenHostIDsFn != nil {
-		return m.findRecentlySeenHostIDsFn(ctx, since)
+		return m.findRecentlySeenHostIDsFn(ctx, since, fleetIDs)
 	}
 	return nil, nil
 }
@@ -451,8 +462,9 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time) ([]uint, error) {
+	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time, fleetIDs []uint) ([]uint, error) {
 		assert.Equal(t, now.Add(-10*time.Minute), since)
+		assert.Nil(t, fleetIDs)
 		return []uint{1, 2, 3}, nil
 	}
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
@@ -468,6 +480,55 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	err := svc.CollectDatasets(t.Context(), now)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
+}
+
+func TestCollectDatasetsSkipsWhenGloballyDisabled(t *testing.T) {
+	ds := &mockDatastore{
+		dataCollectionStateFn: func(_ context.Context, _ string) (bool, []uint, error) {
+			return false, nil, nil
+		},
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	err := svc.CollectDatasets(t.Context(), time.Now())
+	require.NoError(t, err)
+	assert.False(t, ds.recordBucketDataInvoked, "collect should not write bucket data when global is off")
+}
+
+func TestCollectDatasetsPassesFleetSet(t *testing.T) {
+	wantFleets := []uint{2, 3}
+	var gotFleets []uint
+	ds := &mockDatastore{
+		dataCollectionStateFn: func(_ context.Context, _ string) (bool, []uint, error) {
+			return true, wantFleets, nil
+		},
+		findRecentlySeenHostIDsFn: func(_ context.Context, _ time.Time, fleetIDs []uint) ([]uint, error) {
+			gotFleets = fleetIDs
+			return []uint{10}, nil
+		},
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	err := svc.CollectDatasets(t.Context(), time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, wantFleets, gotFleets)
+}
+
+func TestCollectDatasetsContinuesOnStateError(t *testing.T) {
+	ds := &mockDatastore{
+		dataCollectionStateFn: func(_ context.Context, _ string) (bool, []uint, error) {
+			return false, nil, errors.New("boom")
+		},
+	}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	err := svc.CollectDatasets(t.Context(), time.Now())
+	require.NoError(t, err)
+	assert.False(t, ds.recordBucketDataInvoked)
+	assert.Equal(t, 1, ds.dataCollectionStateInvoked)
 }
 
 func TestUptimeDatasetMetadata(t *testing.T) {

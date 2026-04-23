@@ -906,31 +906,59 @@ This activity contains the following fields:
 
 ## enabled_data_collection
 
-Generated when a user turns on collection for a dashboard chart dataset via `features.data_collection.<dataset>`.
+Generated when a user turns on collection for a dashboard chart dataset via `features.data_collection.<dataset>` on either the global app config or a fleet's config.
 
 This activity contains the following fields:
 - "dataset": The dataset that was enabled (`"uptime"` or `"cve"`).
+- "fleet_id": The ID of the fleet on which the change was made, or `null` for global changes.
+- "fleet_name": The name of the fleet on which the change was made, or `null` for global changes.
 
-#### Example
+#### Example (global)
 
 ```json
 {
-  "dataset": "cve"
+  "dataset": "cve",
+  "fleet_id": null,
+  "fleet_name": null
+}
+```
+
+#### Example (fleet-scoped)
+
+```json
+{
+  "dataset": "cve",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
 }
 ```
 
 ## disabled_data_collection
 
-Generated when a user turns off collection for a dashboard chart dataset via `features.data_collection.<dataset>`.
+Generated when a user turns off collection for a dashboard chart dataset via `features.data_collection.<dataset>` on either the global app config or a fleet's config.
 
 This activity contains the following fields:
 - "dataset": The dataset that was disabled (`"uptime"` or `"cve"`).
+- "fleet_id": The ID of the fleet on which the change was made, or `null` for global changes.
+- "fleet_name": The name of the fleet on which the change was made, or `null` for global changes.
 
-#### Example
+#### Example (global)
 
 ```json
 {
-  "dataset": "uptime"
+  "dataset": "uptime",
+  "fleet_id": null,
+  "fleet_name": null
+}
+```
+
+#### Example (fleet-scoped)
+
+```json
+{
+  "dataset": "uptime",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
 }
 ```
 

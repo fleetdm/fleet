@@ -48,7 +48,15 @@ type ITeamSettingsFormData = {
   teamHostStatusWebhookDestinationUrl: string;
   teamHostStatusWebhookHostPercentage: number;
   teamHostStatusWebhookWindow: number;
+  teamDataCollectionUptime: boolean;
+  teamDataCollectionCve: boolean;
 };
+
+const GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP =
+  "Data collection for this chart is disabled globally. Update the global data collection settings to enable per-fleet configuration for the chart.";
+
+const DATA_COLLECTION_SECTION_TOOLTIP =
+  "Turn on/off data collection for charts that appear on the dashboard.";
 
 type FormNames = keyof ITeamSettingsFormData;
 
@@ -97,6 +105,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostStatusWebhookDestinationUrl: "",
     teamHostStatusWebhookHostPercentage: 1,
     teamHostStatusWebhookWindow: 1,
+    teamDataCollectionUptime: true,
+    teamDataCollectionCve: true,
   });
   // stateful approach required since initial options come from team config api response
   const [isInitialTeamConfig, setIsInitialTeamConfig] = useState(true);
@@ -151,7 +161,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       host_expiry_window: globalHostExpiryWindow,
     },
     gitops: { gitops_mode_enabled: gitopsModeEnabled },
+    features: globalFeatures,
   } = appConfig ?? { host_expiry_settings: {}, gitops: {} };
+
+  const globalDataCollectionUptime =
+    globalFeatures?.data_collection?.uptime ?? true;
+  const globalDataCollectionCve = globalFeatures?.data_collection?.cve ?? true;
 
   const {
     data: teamConfig,
@@ -182,6 +197,10 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             tC?.webhook_settings?.host_status_webhook?.host_percentage ?? 1,
           teamHostStatusWebhookWindow:
             tC?.webhook_settings?.host_status_webhook?.days_count ?? 1,
+          // data collection
+          teamDataCollectionUptime:
+            tC?.features?.data_collection?.uptime ?? true,
+          teamDataCollectionCve: tC?.features?.data_collection?.cve ?? true,
         });
       },
     }
@@ -254,6 +273,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
                 days_count: formData.teamHostStatusWebhookWindow,
               },
             },
+            features: {
+              data_collection: {
+                uptime: formData.teamDataCollectionUptime,
+                cve: formData.teamDataCollectionCve,
+              },
+            },
           },
           teamIdForApi
         )
@@ -290,6 +315,38 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamSettings}>
+        <SectionHeader
+          title="Data collection"
+          titleTooltipContent={DATA_COLLECTION_SECTION_TOOLTIP}
+        />
+        <Checkbox
+          name="teamDataCollectionUptime"
+          onChange={onInputChange}
+          parseTarget
+          value={formData.teamDataCollectionUptime}
+          disabled={gitopsModeEnabled || !globalDataCollectionUptime}
+          labelTooltipContent={
+            !globalDataCollectionUptime
+              ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
+              : undefined
+          }
+        >
+          Hosts active
+        </Checkbox>
+        <Checkbox
+          name="teamDataCollectionCve"
+          onChange={onInputChange}
+          parseTarget
+          value={formData.teamDataCollectionCve}
+          disabled={gitopsModeEnabled || !globalDataCollectionCve}
+          labelTooltipContent={
+            !globalDataCollectionCve
+              ? GLOBAL_DATA_COLLECTION_DISABLED_TOOLTIP
+              : undefined
+          }
+        >
+          Vulnerabilities
+        </Checkbox>
         <SectionHeader title="Webhook settings" />
         <Checkbox
           name="teamHostStatusWebhookEnabled"

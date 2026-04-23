@@ -770,7 +770,9 @@ func (a ActivityTypeDisabledMacosDiskEncryption) ActivityName() string {
 }
 
 type ActivityTypeEnabledDataCollection struct {
-	Dataset string `json:"dataset"`
+	Dataset   string  `json:"dataset"`
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeEnabledDataCollection) ActivityName() string {
@@ -778,7 +780,9 @@ func (a ActivityTypeEnabledDataCollection) ActivityName() string {
 }
 
 type ActivityTypeDisabledDataCollection struct {
-	Dataset string `json:"dataset"`
+	Dataset   string  `json:"dataset"`
+	FleetID   *uint   `json:"fleet_id"`
+	FleetName *string `json:"fleet_name"`
 }
 
 func (a ActivityTypeDisabledDataCollection) ActivityName() string {

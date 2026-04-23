@@ -31,3 +31,9 @@ export const WithSubTitle: Story = {
     ),
   },
 };
+
+export const WithTitleTooltip: Story = {
+  args: {
+    titleTooltipContent: "Hover to learn more about this section.",
+  },
+};

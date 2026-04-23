@@ -27,8 +27,10 @@ func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Dat
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 
-// Ensure Datastore implements types.Datastore at compile time.
-var _ types.Datastore = (*Datastore)(nil)
+// *Datastore satisfies most of types.Datastore; DataCollectionState is added
+// by the composite store in chart/bootstrap, which wraps this type with an
+// external provider. So we don't assert the full interface here.
+var _ = (*Datastore)(nil)
 
 func (ds *Datastore) reader(ctx context.Context) sqlx.QueryerContext {
 	if ctxdb.IsPrimaryRequired(ctx) {
@@ -64,11 +66,15 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
+// FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`
+// whose fleet is either no-team (team_id IS NULL) or in the provided set.
 // "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
 // or host details/creation timestamps.
-func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
-	const query = `
+//
+// Callers are expected to have already confirmed global collection for their
+// dataset is enabled; no-team hosts therefore always pass the fleet filter.
+func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, fleetIDs []uint) ([]uint, error) {
+	const baseQuery = `
 		SELECT h.id
 		FROM hosts h
 			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
@@ -83,8 +89,23 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 			h.created_at
 		) >= ?`
 
+	args := []any{since.UTC()}
+	query := baseQuery
+	if len(fleetIDs) == 0 {
+		query += ` AND h.team_id IS NULL`
+	} else {
+		query += ` AND (h.team_id IS NULL OR h.team_id IN (?))`
+		args = append(args, fleetIDs)
+	}
+
+	expanded, expandedArgs, err := sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand recently seen query args")
+	}
+	expanded = ds.rebind(expanded)
+
 	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, since.UTC()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, expanded, expandedArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
 	}
 	return ids, nil

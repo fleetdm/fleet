@@ -363,6 +363,17 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.HostExpirySettings = *payload.HostExpirySettings
 	}
 
+	oldDataCollection := team.Config.Features.DataCollection
+	if payload.Features != nil && payload.Features.DataCollection != nil {
+		dc := payload.Features.DataCollection
+		if dc.Uptime.Set {
+			team.Config.Features.DataCollection.Uptime = dc.Uptime.Value
+		}
+		if dc.CVE.Set {
+			team.Config.Features.DataCollection.CVE = dc.CVE.Value
+		}
+	}
+
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
@@ -534,6 +545,30 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 	}
+
+	dataCollectionDiff := []struct {
+		dataset string
+		oldVal  bool
+		newVal  bool
+	}{
+		{"uptime", oldDataCollection.Uptime, team.Config.Features.DataCollection.Uptime},
+		{"cve", oldDataCollection.CVE, team.Config.Features.DataCollection.CVE},
+	}
+	for _, d := range dataCollectionDiff {
+		if d.oldVal == d.newVal {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if d.newVal {
+			act = fleet.ActivityTypeEnabledDataCollection{Dataset: d.dataset, FleetID: &team.ID, FleetName: &team.Name}
+		} else {
+			act = fleet.ActivityTypeDisabledDataCollection{Dataset: d.dataset, FleetID: &team.ID, FleetName: &team.Name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	return team, err
 }
 

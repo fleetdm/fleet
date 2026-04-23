@@ -2627,7 +2627,7 @@ _Available in Fleet Premium._
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
-| data_collection                   | object  | Per-dataset toggles for dashboard chart collection. Global only. See sub-fields below. |
+| data_collection                   | object  | Per-dataset toggles for dashboard chart collection. Exists on both global and per-fleet configs. A dataset is collected for a host IFF both the global and the host's fleet value are `true`. See sub-fields below. |
 | data_collection.uptime            | boolean | Whether to collect "Hosts active" chart data. (Default: `true`)                                                                          |
 | data_collection.cve               | boolean | Whether to collect "Vulnerabilities" chart data. (Default: `true`)                                                                       |
 
@@ -12442,6 +12442,7 @@ _Available in Fleet Premium_
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
+| features                                                | object  | body | Per-fleet feature toggles. Currently supports `features.data_collection` (per-dataset dashboard chart collection). See [features](#features2) below. |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
 
@@ -12552,6 +12553,31 @@ _Available in Fleet Premium_
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
+    }
+  }
+}
+```
+
+<br/>
+
+#### features
+
+`features` scopes per-dataset dashboard chart collection to the fleet. A dataset is collected for a host IFF the global `features.data_collection.<dataset>` value AND the host's fleet value are both `true`. Omitted sub-fields preserve their prior stored values on a PATCH.
+
+| Name                           | Type    | Description                                                                                                |
+| ------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------- |
+| data_collection                | object  | Per-dataset toggles. See sub-fields below.                                                                 |
+| data_collection.uptime         | boolean | Whether to collect "Hosts active" chart data for this fleet's hosts. (Default: `true`)                     |
+| data_collection.cve            | boolean | Whether to collect "Vulnerabilities" chart data for this fleet's hosts. (Default: `true`)                  |
+
+##### Example request body
+
+```json
+{
+  "features": {
+    "data_collection": {
+      "uptime": true,
+      "cve": false
     }
   }
 }

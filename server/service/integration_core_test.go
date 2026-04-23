@@ -964,7 +964,7 @@ func (s *integrationTestSuite) TestAppConfigDataCollection() {
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledDataCollection{}.ActivityName(),
-		`{"dataset": "uptime"}`,
+		`{"dataset": "uptime", "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 
@@ -979,12 +979,12 @@ func (s *integrationTestSuite) TestAppConfigDataCollection() {
 		http.StatusOK)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEnabledDataCollection{}.ActivityName(),
-		`{"dataset": "uptime"}`,
+		`{"dataset": "uptime", "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledDataCollection{}.ActivityName(),
-		`{"dataset": "cve"}`,
+		`{"dataset": "cve", "fleet_id": null, "fleet_name": null}`,
 		0,
 	)
 

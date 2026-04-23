@@ -747,7 +747,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
-- `data_collection` turns on/off collection for dashboard chart datasets. Global only — team-level `settings.features.data_collection` is ignored.
+- `data_collection` turns on/off collection for dashboard chart datasets. Can be set at both `org_settings` (global) and per-fleet `settings`. A dataset is collected for a host IFF the global and the host's fleet values are both `true` — global off forces every fleet off; fleets can only narrow what global allows.
   - `data_collection.uptime` (default: `true`) controls collection for the "Hosts active" chart.
   - `data_collection.cve` (default: `true`) controls collection for the "Vulnerabilities" chart.
 
@@ -766,6 +766,17 @@ org_settings:
     data_collection:
       uptime: true
       cve: true
+```
+
+#### Fleet-scoped example
+
+```yaml
+name: EMEA
+settings:
+  features:
+    data_collection:
+      uptime: true
+      cve: false   # opt this fleet out of CVE collection even though global is on
 ```
 
 ### fleet_desktop

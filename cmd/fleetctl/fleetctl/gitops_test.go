@@ -3685,6 +3685,35 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
 
+func TestGitOpsTeamDataCollection(t *testing.T) {
+	teamName := "TestTeamDataCollection"
+
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{
+		Name: teamName,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				DataCollection: fleet.DataCollectionSettings{Uptime: true, CVE: true},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, savedTeams[teamName])
+	require.NotNil(t, *savedTeams[teamName])
+
+	// GitOps run: fleet YAML has uptime=false, cve=true.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_data_collection.yml"})
+	require.NoError(t, err)
+
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.False(t, team.Config.Features.DataCollection.Uptime)
+	require.True(t, team.Config.Features.DataCollection.CVE)
+}
+
 func TestGitOpsGlobalWebhooksAndTicketsEnabled(t *testing.T) {
 	ds, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 

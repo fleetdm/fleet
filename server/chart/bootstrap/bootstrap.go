@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/chart/api"
@@ -14,14 +15,33 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+// DataCollectionStateProvider resolves per-dataset on/off state from the main
+// Fleet datastore. It's split out from the MySQL chart store so the chart
+// bounded context stays free of direct fleet.* imports.
+type DataCollectionStateProvider interface {
+	DataCollectionState(ctx context.Context, dataset string) (bool, []uint, error)
+}
+
+// compositeStore satisfies types.Datastore by embedding the chart MySQL store
+// and delegating DataCollectionState to an external provider.
+type compositeStore struct {
+	*mysql.Datastore
+	dc DataCollectionStateProvider
+}
+
+func (c *compositeStore) DataCollectionState(ctx context.Context, dataset string) (bool, []uint, error) {
+	return c.dc.DataCollectionState(ctx, dataset)
+}
+
 // New creates a new chart service module and returns its service and route handler.
 func New(
 	dbConns *platform_mysql.DBConnections,
 	authorizer platform_authz.Authorizer,
 	viewerProvider api.ViewerProvider,
+	dcProvider DataCollectionStateProvider,
 	logger *slog.Logger,
 ) (api.Service, func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc) {
-	ds := mysql.NewDatastore(dbConns, logger)
+	ds := &compositeStore{Datastore: mysql.NewDatastore(dbConns, logger), dc: dcProvider}
 	svc := service.NewService(authorizer, ds, viewerProvider, logger)
 
 	routesFn := func(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {

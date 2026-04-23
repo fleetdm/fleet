@@ -10,9 +10,11 @@ package chartacl
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // FleetViewerAdapter resolves the current authenticated viewer into the
@@ -49,4 +51,80 @@ func (a *FleetViewerAdapter) ViewerScope(ctx context.Context) (bool, []uint, err
 		ids = append(ids, t.ID)
 	}
 	return false, ids, nil
+}
+
+// FleetDataCollectionReader is the narrow subset of fleet.Datastore that
+// FleetDataCollectionAdapter needs. Using an interface keeps the adapter
+// testable without constructing a full datastore in tests.
+type FleetDataCollectionReader interface {
+	AppConfig(ctx context.Context) (*fleet.AppConfig, error)
+	ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
+	TeamFeatures(ctx context.Context, teamID uint) (*fleet.Features, error)
+}
+
+// FleetDataCollectionAdapter translates the chart context's DataCollectionState
+// question into reads against the Fleet datastore's cached AppConfig and
+// TeamFeatures. Both upstream methods call ApplyDefaults before unmarshal, so
+// fleets that predate data_collection still read as on-by-default without any
+// backfill migration.
+type FleetDataCollectionAdapter struct {
+	ds FleetDataCollectionReader
+}
+
+// NewFleetDataCollectionAdapter returns an adapter suitable for passing to
+// chart/bootstrap.New.
+func NewFleetDataCollectionAdapter(ds FleetDataCollectionReader) *FleetDataCollectionAdapter {
+	return &FleetDataCollectionAdapter{ds: ds}
+}
+
+// DataCollectionState returns (globalEnabled, enabledFleetIDs, err). When
+// globalEnabled is false, enabledFleetIDs is nil — callers short-circuit
+// the entire dataset in that case.
+func (a *FleetDataCollectionAdapter) DataCollectionState(ctx context.Context, dataset string) (bool, []uint, error) {
+	cfg, err := a.ds.AppConfig(ctx)
+	if err != nil {
+		return false, nil, err
+	}
+	globalOn, err := datasetFlag(cfg.Features.DataCollection, dataset)
+	if err != nil || !globalOn {
+		return false, nil, err
+	}
+
+	// Cron runs as a system context with no viewer. TeamFilter requires a
+	// user; synthesize an admin-role one so whereFilterTeams returns all
+	// fleets.
+	teams, err := a.ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{})
+	if err != nil {
+		return false, nil, err
+	}
+
+	enabled := make([]uint, 0, len(teams))
+	for _, t := range teams {
+		feat, err := a.ds.TeamFeatures(ctx, t.ID)
+		if err != nil {
+			return false, nil, err
+		}
+		on, err := datasetFlag(feat.DataCollection, dataset)
+		if err != nil {
+			return false, nil, err
+		}
+		if on {
+			enabled = append(enabled, t.ID)
+		}
+	}
+	return true, enabled, nil
+}
+
+// datasetFlag maps a dataset name to the corresponding bool field on
+// DataCollectionSettings via a typed switch. Adding a dataset means adding a
+// case here plus a field on fleet.DataCollectionSettings.
+func datasetFlag(dc fleet.DataCollectionSettings, dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return dc.Uptime, nil
+	case "cve":
+		return dc.CVE, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
