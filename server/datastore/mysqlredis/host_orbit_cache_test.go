@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -90,22 +89,6 @@ func TestLoadHostByOrbitNodeKey_Override(t *testing.T) {
 			require.NotNil(t, second.TeamName)
 			assert.Equal(t, "team-loadtest", *second.TeamName)
 			assert.True(t, second.MDM.EncryptionKeyAvailable)
-		})
-
-		t.Run("bypass context always hits DB and skips cache populate", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ctx := ctxdb.BypassHostCache(t.Context(), true)
-			ds := newOrbitMockStore()
-			wrapped := New(ds, pool, WithHostCache(30*time.Second))
-
-			_, err := wrapped.LoadHostByOrbitNodeKey(ctx, "onk-bypass")
-			require.NoError(t, err)
-			require.True(t, ds.LoadHostByOrbitNodeKeyFuncInvoked)
-
-			ds.LoadHostByOrbitNodeKeyFuncInvoked = false
-			_, err = wrapped.LoadHostByOrbitNodeKey(t.Context(), "onk-bypass")
-			require.NoError(t, err)
-			assert.True(t, ds.LoadHostByOrbitNodeKeyFuncInvoked, "bypass must not populate cache")
 		})
 
 		t.Run("NotFound populates negative cache", func(t *testing.T) {

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -465,9 +464,7 @@ func (d *Datastore) recordHostCacheInvalidation(ctx context.Context, reason stri
 // misses for the same node_key collapses into a single DB call.
 //
 // Semantics:
-//   - Cache disabled, or ctxdb.IsHostCacheBypassed(ctx): always delegate; never
-//     read or write the cache. Use BypassHostCache after a write if you need
-//     read-your-writes freshness within the TTL window.
+//   - Cache disabled: always delegate; never read or write the cache.
 //   - Positive cache hit: return cached host.
 //   - Negative cache hit: return a NotFoundError without hitting the DB.
 //   - Miss: singleflight-guarded DB fetch; on success populate positive cache,
@@ -479,7 +476,7 @@ func (d *Datastore) recordHostCacheInvalidation(ctx context.Context, reason stri
 // so concurrent callers that joined the same flight don't race on each
 // other's mutations (e.g., AuthenticateHost overwrites host.SeenTime).
 func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-	if !d.hostCacheEnabled || ctxdb.IsHostCacheBypassed(ctx) {
+	if !d.hostCacheEnabled {
 		return d.Datastore.LoadHostByNodeKey(ctx, nodeKey)
 	}
 
@@ -536,7 +533,7 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 // (DEP assignment, disk encryption state, encryption key availability,
 // team name).
 func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
-	if !d.hostCacheEnabled || ctxdb.IsHostCacheBypassed(ctx) {
+	if !d.hostCacheEnabled {
 		return d.Datastore.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
 	}
 

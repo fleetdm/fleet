@@ -497,19 +497,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}
 	if config.Redis.HostCacheEnabled {
-		if config.Redis.HostCacheTTL > 0 {
-			dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
-			logger.InfoContext(cmd.Context(), "host-by-node_key redis cache enabled",
-				"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
-		} else {
-			// Fail loud: user explicitly asked for the cache but configured a
-			// non-positive TTL, which WithHostCache silently ignores. Log a
-			// warning so the misconfiguration is discoverable rather than
-			// showing up as an unexpectedly-uncached workload.
-			logger.WarnContext(cmd.Context(),
-				"host-by-node_key redis cache NOT enabled: redis.host_cache_ttl must be > 0",
-				"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
+		if config.Redis.HostCacheTTL <= 0 {
+			initFatal(
+				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
+				"validate host cache configuration",
+			)
 		}
+		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
+		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
+			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
 	}
 	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 	ds = redisWrapperDS
