@@ -4264,7 +4264,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Remove access to use all Windows Update features',
-                uniqueSlug: 'windows-updates-disable-pause-updates',
+                uniqueSlug: 'windows-updates-remove-acces-to-use-all-windows-update-features',
                 tooltip: 'Allows IT admins to remove end-user access to Windows Update scan.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
@@ -4281,7 +4281,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Set power policy for cart restarts',
-                uniqueSlug: 'windows-updates-disable-pause-updates',
+                uniqueSlug: 'windows-updates-set-power-policy-for-cart-restarts',
                 tooltip: 'Enabling this policy for EDU devices that remain on carts overnight will skip power checks to ensure update reboots will happen at the scheduled install time. This setting is designed for education devices that remain in carts overnight that are left in sleep mode. It isn\'t designed for 1:1 devices.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
