@@ -1743,36 +1743,31 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfileByTeamAndName(ctx context.Cont
 
 // windowsHostProfileStatusSubquery returns a correlated SQL scalar subquery
 // that resolves to one of `<statusPrefix>failed`, `<statusPrefix>pending`,
-// `<statusPrefix>verifying`, `<statusPrefix>verified`, or ” for the host
+// `<statusPrefix>verifying`, `<statusPrefix>verified`, or '<empty>' for the host
 // identified by h.uuid in the outer query.
 //
 // The subquery does a single aggregation pass over host_mdm_windows_profiles
-// via the PK(host_uuid, profile_uuid) prefix, replacing four correlated
-// EXISTS (three of which contain a nested NOT EXISTS). This takes per-host
-// evaluations down from up to seven PK range scans to one.
+// via the PK(host_uuid, profile_uuid) prefix.
 //
 // The returned SQL does NOT include outer parentheses; callers wrap in
 // `(...)` as needed for the context (scalar subquery or CASE switch).
 //
-// Priority logic and its equivalence to the original EXISTS/NOT-EXISTS
-// version:
+// Priority logic:
 //   - failed: any non-reserved profile has status='failed'.
 //   - pending: any non-reserved profile has status NULL or 'pending'.
 //   - verifying: at least one non-reserved install-type profile has
-//     status='verifying'. The original additionally required "no install-type
-//     non-reserved profile with status NULL or not in (verifying,verified)".
+//     status='verifying'.
 //     At this CASE branch we already know failed=0 and pending=0, so no
 //     profile has status NULL/pending/failed; since profile status is always
 //     one of {NULL,pending,failed,verifying,verified}, that leaves only
-//     verifying and verified for install-type rows, so the extra clause is
-//     automatically satisfied.
+//     verifying and verified for install-type rows.
 //   - verified: at least one non-reserved install-type profile has
 //     status='verified' and no install verifying exists (enforced by the
 //     earlier verifying branch).
 func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 
-	sql := fmt.Sprintf(`
+	stmt := fmt.Sprintf(`
         SELECT CASE
             WHEN SUM(CASE WHEN hmwp.status = ? AND hmwp.profile_name NOT IN (?) THEN 1 ELSE 0 END) > 0
                 THEN '%sfailed'
@@ -1796,7 +1791,7 @@ func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error
 		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, reserved,
 	}
 
-	return sqlx.In(sql, args...)
+	return sqlx.In(stmt, args...)
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -1933,10 +1928,7 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 	)
 
 	// profilesStatus is a scalar subquery that does one aggregation pass over
-	// host_mdm_windows_profiles per host (correlated on h.uuid). It replaces
-	// the original four correlated EXISTS (with nested NOT EXISTS) that each
-	// scanned the same rows independently. bitlockerStatus stays row-based
-	// (cheap predicates over hmdm/hdek/hd) and is evaluated per branch.
+	// host_mdm_windows_profiles per host (correlated on h.uuid).
 	stmt := fmt.Sprintf(`
 SELECT
     CASE (%s)
