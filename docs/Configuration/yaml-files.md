@@ -777,9 +777,9 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
-- `data_collection` turns on/off collection for dashboard chart datasets. Can be set at both `org_settings` (global) and per-fleet `settings`. A dataset is collected for a host IFF the global and the host's fleet values are both `true` — global off forces every fleet off; fleets can only narrow what global allows.
-  - `data_collection.uptime` (default: `true`) controls collection for the "Hosts active" chart.
-  - `data_collection.cve` (default: `true`) controls collection for the "Vulnerabilities" chart.
+- `data_collection` turns on/off collection of historical data for use in dashboard charts. Can be set at both `org_settings` (global) and per-fleet `settings`. A dataset is collected for a host only when the global and the host's fleet values are both `true` — global off forces every fleet off; fleets can only narrow what global allows.
+  - `data_collection.uptime` (default: `true`) allows collection of data about when hosts were online, for use in the "Hosts active" chart.
+  - `data_collection.cve` (default: `true`) allows collection of data about which hosts are exposed to which software vulnerabilities (CVEs), for use in the "Vulnerability exposure" chart.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`). Note: when applied via GitOps, any `features` sub-field omitted from the YAML resets to its default — same behavior as `enable_host_users` and `enable_software_inventory`.
 
