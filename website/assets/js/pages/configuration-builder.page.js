@@ -3444,7 +3444,7 @@ parasails.registerPage('configuration-builder', {
                       value: 4
                     },
                     {
-                      name: ` Release Windows Insider build`,
+                      name: `Release Windows Insider build`,
                       value: 8
                     },
                     {
