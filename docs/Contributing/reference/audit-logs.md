@@ -909,7 +909,9 @@ This activity contains the following fields:
 Generated when a user turns on collection for a dashboard chart dataset via `features.data_collection.<dataset>` on either the global app config or a fleet's config.
 
 This activity contains the following fields:
-- "dataset": The dataset that was enabled (`"uptime"` or `"cve"`).
+- "dataset": The dataset that was enabled. Can be one of:
+  - `"uptime"`: used by the "Hosts active" chart.
+  - `"cve"`: used by the Vulnerability exposure chart.
 - "fleet_id": The ID of the fleet on which the change was made, or `null` for global changes.
 - "fleet_name": The name of the fleet on which the change was made, or `null` for global changes.
 
