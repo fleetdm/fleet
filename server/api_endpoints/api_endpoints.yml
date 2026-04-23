@@ -54,7 +54,7 @@
   display_name: "Get fleet enroll secrets"
 - method: "PATCH"
   path: "/api/v1/fleet/fleets/:id/secrets"
-  display_name: "Update fleet enroll secrets"
+  display_name: "Update a fleet's enroll secrets"
 - method: "GET"
   path: "/api/v1/fleet/version"
   display_name: "Get version"
