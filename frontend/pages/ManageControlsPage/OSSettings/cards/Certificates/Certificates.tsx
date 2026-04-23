@@ -115,9 +115,7 @@ const Certificates = ({
           header="Additional configuration required"
           info="Android MDM must be turned on to add certificates."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-            >
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
             </Button>
           }

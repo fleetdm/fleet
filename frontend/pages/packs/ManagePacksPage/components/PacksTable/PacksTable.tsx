@@ -130,14 +130,14 @@ const PacksTable = ({
         }}
         renderCount={renderPackCount}
         secondarySelectActions={secondarySelectActions}
-        emptyComponent={() =>
+        emptyComponent={() => (
           <EmptyState
             graphicName={emptyState().graphicName}
             header={emptyState().header}
             info={emptyState().info}
             primaryButton={emptyState().primaryButton}
           />
-        }
+        )}
       />
     </div>
   );
