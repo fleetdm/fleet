@@ -3082,9 +3082,15 @@ ON DUPLICATE KEY UPDATE
 	return updatedDB || updatedLabels, nil
 }
 
-func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
+// bulkSetPendingMDMWindowsHostProfilesBatched reconciles Windows profile
+// state for the given hosts by marking obsolete profiles for removal and
+// upserting desired profiles. Each batch is committed in its own transaction
+// so InnoDB row locks on host_mdm_windows_profiles are held only for the
+// duration of one batch. Under large team transfers (thousands of hosts)
+// this keeps ambient MDM / osquery checkins from piling up behind the
+// reconciler.
+func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 	ctx context.Context,
-	tx sqlx.ExtContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (updatedDB bool, err error) {
@@ -3092,12 +3098,15 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		return false, nil
 	}
 
-	profilesToInstall, err := ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	// The pre-scan listings are read-only and are run outside any
+	// transaction; they use the writer (same node that handled the prior tx)
+	// so they observe their own committed writes without replica lag.
+	profilesToInstall, err := ds.listMDMWindowsProfilesToInstallDB(ctx, ds.writer(ctx), hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to install")
 	}
 
-	profilesToRemove, err := ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	profilesToRemove, err := ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.writer(ctx), hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to remove")
 	}
@@ -3136,121 +3145,73 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		// Tuple order `(host_uuid, profile_uuid)` matches the PK so MySQL can
 		// perform direct PK point lookups for each pair.
 		err := common_mysql.BatchProcessSimple(profilesToRemove, batchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
-			var sb strings.Builder
-			sb.WriteString(`UPDATE host_mdm_windows_profiles
-				SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
-				WHERE (host_uuid, profile_uuid) IN (`)
-			args := make([]any, 0, 1+len(batch)*2)
-			args = append(args, fleet.MDMOperationTypeRemove)
-			for j, p := range batch {
-				if j > 0 {
-					sb.WriteByte(',')
+			return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				var sb strings.Builder
+				sb.WriteString(`UPDATE host_mdm_windows_profiles
+					SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
+					WHERE (host_uuid, profile_uuid) IN (`)
+				args := make([]any, 0, 1+len(batch)*2)
+				args = append(args, fleet.MDMOperationTypeRemove)
+				for j, p := range batch {
+					if j > 0 {
+						sb.WriteByte(',')
+					}
+					sb.WriteString("(?,?)")
+					args = append(args, p.HostUUID, p.ProfileUUID)
 				}
-				sb.WriteString("(?,?)")
-				args = append(args, p.HostUUID, p.ProfileUUID)
-			}
-			sb.WriteByte(')')
-			if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "marking profiles for removal")
-			}
-			return nil
+				sb.WriteByte(')')
+				if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "marking profiles for removal")
+				}
+				return nil
+			})
 		})
 		if err != nil {
-			return false, err
+			return updatedDB, err
 		}
 		updatedDB = true
 	}
+
 	if len(profilesToInstall) == 0 {
 		return updatedDB, nil
 	}
 
-	var (
-		pargs            []any
-		profilesToInsert = make(map[string]*fleet.MDMWindowsProfilePayload)
-		// currentBatch preserves iteration order for the pre-read SELECT so
-		// generated SQL is stable (map iteration would not be).
-		currentBatch []*fleet.MDMWindowsProfilePayload
-		psb          strings.Builder
-		batchCount   int
-	)
-
-	resetBatch := func() {
-		batchCount = 0
-		pargs = pargs[:0]
-		clear(profilesToInsert)
-		currentBatch = currentBatch[:0]
-		psb.Reset()
-	}
-
-	executeUpsertBatch := func(valuePart string, args []any) error {
-		// Check if the update needs to be done at all. Tuple order
-		// `(host_uuid, profile_uuid)` matches the PK for direct point lookups.
-		selectStmt := fmt.Sprintf(`
-			SELECT
-				profile_uuid,
-				host_uuid,
-				status,
-				checksum,
-				COALESCE(operation_type, '') AS operation_type,
-				COALESCE(detail, '') AS detail,
-				COALESCE(command_uuid, '') AS command_uuid,
-				COALESCE(profile_name, '') AS profile_name
-			FROM host_mdm_windows_profiles WHERE (host_uuid, profile_uuid) IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("(?,?),", len(currentBatch)), ","))
-		selectArgs := make([]any, 0, 2*len(currentBatch))
-		for _, p := range currentBatch {
-			selectArgs = append(selectArgs, p.HostUUID, p.ProfileUUID)
-		}
-		var existingProfiles []fleet.MDMWindowsProfilePayload
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
-		}
-		var updateNeeded bool
-		if len(existingProfiles) == len(profilesToInsert) {
-			for _, exist := range existingProfiles {
-				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.ProfileUUID, exist.HostUUID)]
-				if !ok || !exist.Equal(*insert) {
-					updateNeeded = true
-					break
-				}
+	err = common_mysql.BatchProcessSimple(profilesToInstall, batchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			didUpdate, execErr := executeWindowsProfileUpsertBatch(ctx, tx, batch)
+			if execErr != nil {
+				return execErr
 			}
-		} else {
-			updateNeeded = true
-		}
-		if !updateNeeded {
-			// All profiles are already in the database, no need to update.
+			if didUpdate {
+				updatedDB = true
+			}
 			return nil
-		}
-
-		baseStmt := fmt.Sprintf(`
-				INSERT INTO host_mdm_windows_profiles (
-					profile_uuid,
-					host_uuid,
-					profile_name,
-					operation_type,
-					status,
-					command_uuid,
-					checksum
-				)
-				VALUES %s
-				ON DUPLICATE KEY UPDATE
-					operation_type = VALUES(operation_type),
-					status = NULL,
-					command_uuid = VALUES(command_uuid),
-					detail = '',
-					checksum = VALUES(checksum)
-			`, strings.TrimSuffix(valuePart, ","))
-
-		_, err := tx.ExecContext(ctx, baseStmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
-		}
-		updatedDB = true
-		return nil
+		})
+	})
+	if err != nil {
+		return updatedDB, err
 	}
 
-	for _, p := range profilesToInstall {
-		payload := &fleet.MDMWindowsProfilePayload{
+	return updatedDB, nil
+}
+
+// executeWindowsProfileUpsertBatch performs the pre-read skip-if-unchanged
+// check and the ON DUPLICATE KEY UPDATE upsert for a single batch of Windows
+// profile installs. Returns true if the batch resulted in a DB write.
+func executeWindowsProfileUpsertBatch(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	batch []*fleet.MDMWindowsProfilePayload,
+) (bool, error) {
+	profilesToInsert := make(map[string]*fleet.MDMWindowsProfilePayload, len(batch))
+	var psb strings.Builder
+	pargs := make([]any, 0, len(batch)*5)
+	for _, p := range batch {
+		// Build the desired post-upsert payload used for the skip-if-unchanged
+		// comparison below. The payload returned by listMDMWindowsProfilesToInstallDB
+		// only populates a subset of fields, so we construct a full payload
+		// here matching the values the ON DUPLICATE KEY UPDATE clause will set.
+		desired := &fleet.MDMWindowsProfilePayload{
 			ProfileUUID:   p.ProfileUUID,
 			ProfileName:   p.ProfileName,
 			HostUUID:      p.HostUUID,
@@ -3261,28 +3222,73 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 			Retries:       p.Retries,
 			Checksum:      p.Checksum,
 		}
-		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = payload
-		currentBatch = append(currentBatch, payload)
-		pargs = append(
-			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
+		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = desired
+		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
 			fleet.MDMOperationTypeInstall, p.Checksum)
 		psb.WriteString("(?, ?, ?, ?, NULL, '', ?),")
-		batchCount++
-		if batchCount >= batchSize {
-			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-				return false, err
+	}
+
+	// Tuple order `(host_uuid, profile_uuid)` matches the PK for direct point
+	// lookups.
+	selectStmt := fmt.Sprintf(`
+		SELECT
+			profile_uuid,
+			host_uuid,
+			status,
+			checksum,
+			COALESCE(operation_type, '') AS operation_type,
+			COALESCE(detail, '') AS detail,
+			COALESCE(command_uuid, '') AS command_uuid,
+			COALESCE(profile_name, '') AS profile_name
+		FROM host_mdm_windows_profiles WHERE (host_uuid, profile_uuid) IN (%s)`,
+		strings.TrimSuffix(strings.Repeat("(?,?),", len(batch)), ","))
+	selectArgs := make([]any, 0, 2*len(batch))
+	for _, p := range batch {
+		selectArgs = append(selectArgs, p.HostUUID, p.ProfileUUID)
+	}
+	var existingProfiles []fleet.MDMWindowsProfilePayload
+	if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
+	}
+	var updateNeeded bool
+	if len(existingProfiles) == len(profilesToInsert) {
+		for _, exist := range existingProfiles {
+			insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.ProfileUUID, exist.HostUUID)]
+			if !ok || !exist.Equal(*insert) {
+				updateNeeded = true
+				break
 			}
-			resetBatch()
 		}
+	} else {
+		updateNeeded = true
+	}
+	if !updateNeeded {
+		return false, nil
 	}
 
-	if batchCount > 0 {
-		if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-			return false, err
-		}
-	}
+	baseStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_windows_profiles (
+				profile_uuid,
+				host_uuid,
+				profile_name,
+				operation_type,
+				status,
+				command_uuid,
+				checksum
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				operation_type = VALUES(operation_type),
+				status = NULL,
+				command_uuid = VALUES(command_uuid),
+				detail = '',
+				checksum = VALUES(checksum)
+		`, strings.TrimSuffix(psb.String(), ","))
 
-	return updatedDB, nil
+	if _, err := tx.ExecContext(ctx, baseStmt, pargs...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
+	}
+	return true, nil
 }
 
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
