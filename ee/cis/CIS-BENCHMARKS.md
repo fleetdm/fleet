@@ -72,7 +72,7 @@ spec:
 
 ### Query patterns
 
-There are three common query patterns:
+There are four common query patterns:
 
 **1. Direct table check** — query an osquery table directly:
 ```sql
@@ -109,6 +109,24 @@ SELECT 1 WHERE NOT EXISTS (
     value = '0'
 );
 ```
+
+**4. Absence-passes / numeric threshold** — for checks where an
+unmanaged host is compliant and only a non-compliant *managed* value
+should fail (e.g. "deferment ≤ 30 days" passes when deferment is not
+managed at all):
+```sql
+SELECT 1 WHERE NOT EXISTS (
+  SELECT 1 FROM managed_policies WHERE
+    domain='com.apple.applicationaccess' AND
+    name='enforcedSoftwareUpdateDelay' AND
+    CAST(value AS INTEGER) > 30
+);
+```
+
+Unlike pattern 2, this pattern does not require the setting to be
+present — it only requires that any present value is within the
+acceptable range. Use when the benchmark explicitly states that
+absence of the setting also satisfies the audit.
 
 ### Naming qualifiers
 
@@ -198,22 +216,27 @@ or can't be easily scripted:
 
 ### Choosing between scripts and profiles
 
-When creating tests for a new policy, decide based on how the setting
+The decision is driven by **what the query reads**, not by what
+remediation methods the PDF provides. Decide based on how the setting
 is configured:
 
-- **System service or plist-based setting** (e.g. enable/disable SSH,
-  launchd service, defaults write): create shell scripts. These are
-  more reliable and don't require MDM.
-- **MDM-only setting** (e.g. managed_policies check, no terminal
-  remediation method in the benchmark): create a `.mobileconfig`
-  profile only. The test runner handles these automatically.
-- **Both available**: create shell scripts (they give better test
-  coverage since they test both directions explicitly). Also create
-  the profile — it gets pushed during setup and is available if
-  needed.
+- **Query reads local state** (osquery table that reflects
+  system/service state, local `plist` file, `launchd`, `file`, etc.):
+  create shell scripts. These are more reliable and don't require
+  MDM.
+- **Query reads `managed_policies`**: create a `.mobileconfig`
+  profile only, regardless of whether the PDF also lists a Terminal
+  Method. A local `defaults write` does not populate
+  `managed_policies` — only an MDM-installed profile will change what
+  the query sees. Scripts would pass on disk but leave the query's
+  result unchanged.
+- **Query reads both** (rare, e.g. a policy that checks either a
+  local setting or its managed override): create scripts for the
+  local path and a profile for the managed path. Scripts take
+  priority in the runner; the profile is installed alongside.
 - **Neither** (GUI-only, requires user interaction): document in
-  README.md as a limitation. The test runner will prompt the user or
-  skip.
+  `README.md` as a limitation. The test runner will prompt the user
+  or skip.
 
 ## MDM configuration profiles
 
@@ -232,13 +255,73 @@ Profiles live in `test/profiles/` as `.mobileconfig` XML plist files.
 
 ### Creating a new profile
 
-1. Copy an existing profile as a template
-2. Generate two UUIDs: `uuidgen` (one for payload, one for top-level)
-3. Set `PayloadType` to the MDM domain (e.g. `com.apple.SoftwareUpdate`)
-4. Set `PayloadIdentifier` to `com.fleetdm.cis-{cis_id}` (top-level) and `com.fleetdm.cis-{cis_id}.check` (payload)
-5. Add the configuration keys and values from the benchmark
+1. Generate two UUIDs with `uuidgen` — one for the top-level
+   `PayloadUUID` and one for the inner payload `PayloadUUID`.
+2. Set the inner `PayloadType` to the MDM domain (e.g.
+   `com.apple.SoftwareUpdate`).
+3. Set `PayloadIdentifier` to `com.fleetdm.cis-{cis_id}` (top-level)
+   and `com.fleetdm.cis-{cis_id}.check` (inner).
+4. Add the configuration keys and values from the benchmark to the
+   inner payload dict. **Multiple keys for the same `PayloadType`
+   belong in a single payload dict**, not separate profiles — some
+   benchmarks explicitly require this (e.g. a deferment profile
+   needing both `enforcedSoftwareUpdateDelay` and
+   `forceDelayedSoftwareUpdates` to be effective). Use
+   `{cis_id}-part1.mobileconfig` only when a benchmark genuinely
+   requires *multiple profiles* to be installed together.
+5. Validate the generated file with `/usr/bin/plutil -lint
+   path/to/file.mobileconfig` before committing.
 
-See `test/profiles/README.md` for the full XML template.
+### XML template
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS {cis_id}</string>
+      <key>PayloadType</key>
+      <string>{PayloadType from benchmark, e.g. com.apple.SoftwareUpdate}</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-{cis_id}.check</string>
+      <key>PayloadUUID</key>
+      <string>{inner UUID from uuidgen}</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <!-- One or more setting keys, all within this payload dict: -->
+      <key>{SettingKey1}</key>
+      <{true|false|string|integer|...}>{value}</...>
+      <key>{SettingKey2}</key>
+      <{...}>{value}</...>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS {cis_id} - {title}</string>
+  <key>PayloadDisplayName</key>
+  <string>{title}</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-{cis_id}</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>{top-level UUID from uuidgen}</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>
+```
+
+Note that `PayloadVersion` appears at **both** the top-level and
+inner-payload level. Both are required for profiles to install
+reliably.
 
 ## README.md per OS version
 
@@ -305,251 +388,23 @@ CIS benchmark updates typically involve:
 
 ## AI agent prompt for generating CIS benchmarks
 
-The following prompt is designed to be given to an AI agent along with
-the CIS PDF documents. It covers the full lifecycle: generating
-policies, writing tests, creating profiles, updating documentation,
-and running validation.
+An agent-ready prompt for generating or updating a full benchmark
+(policies, test scripts, profiles, README) from a CIS PDF lives in
+[`prompt.md`](./prompt.md) in this directory. It references the
+conventions defined above — update both if conventions change.
 
-### Prompt
+## Durable state for long generation runs (optional)
 
-````
-You are a security compliance engineer updating Fleet's CIS benchmark
-policies. You have access to the Fleet codebase and CIS benchmark PDF
-documents.
+When generating a full benchmark from a large PDF in multiple
+sessions, it helps to maintain a state file at
+`tmp/<os>-<version>-state.md` that records:
 
-## Your task
+- Locked decisions for the run (levels covered, branch, org-decision
+  default, handling of uncertain profile keys)
+- Per-section progress
+- Open questions or ambiguities per section
+- A **Next action** pointer so a future session can resume from cold
+  context
 
-Given a CIS benchmark PDF for a specific OS and version, generate or
-update the complete set of Fleet policies, test scripts, MDM profiles,
-and documentation.
-
-## Input files
-
-- CIS benchmark PDF (new version): `pdf/<filename>.pdf`
-- CIS benchmark PDF (previous version, if upgrading): `pdf/<filename>.pdf`
-- Existing policies (if upgrading): `ee/cis/<os-dir>/cis-policy-queries.yml`
-- Existing tests: `ee/cis/<os-dir>/test/scripts/` and `test/profiles/`
-
-## Step-by-step workflow
-
-### Step 1: Extract the changelog
-
-Read the "Appendix: Change History" from the end of the new PDF.
-Identify every entry for the target version. Classify each as ADDED,
-MODIFIED, or REMOVED.
-
-If this is a new OS version (no existing policies), treat every
-recommendation as ADDED.
-
-### Step 2: Read affected sections
-
-For each changed recommendation, read its full section in the new PDF.
-Extract:
-- Section number (becomes `cis_id`)
-- Title
-- Profile Applicability (Level 1 or Level 2)
-- Assessment Status (Automated or Manual)
-- Description
-- Audit method (terminal command)
-- Remediation method (terminal and/or profile method)
-- PayloadType, key name, and value (if profile-based)
-
-Skip Manual-assessment recommendations — they cannot be automated as
-Fleet policies. Note them for the README.md limitations section.
-
-### Step 3: Generate policy YAML
-
-For each Automated recommendation, write a policy document:
-
-```yaml
----
-apiVersion: v1
-kind: policy
-spec:
-  name: "CIS - <exact title from PDF> (<qualifier if needed>)"
-  cis_id: "<section number>"
-  platforms: <platform display name>
-  platform: <osquery platform>
-  description: |
-    <description from PDF>
-  resolution: |
-    <remediation from PDF, both graphical and terminal methods>
-  query: |
-    <osquery SQL — see query rules below>
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level<1 or 2>
-```
-
-#### Query rules
-
-- The query MUST return 1 or more rows when the system IS compliant.
-- The query MUST return 0 rows when the system IS NOT compliant.
-- For profile/MDM-based settings, use the managed_policies table with
-  the EXISTS/NOT EXISTS pattern:
-  ```sql
-  SELECT 1 WHERE
-    EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain='<PayloadType>' AND
-        name='<key>' AND
-        (value = <expected> OR value = '<expected>') AND
-        username = ''
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM managed_policies WHERE
-        domain='<PayloadType>' AND
-        name='<key>' AND
-        (value != <expected> AND value != '<expected>')
-    );
-  ```
-- For system settings checked via plist, use the plist table.
-- For running services, use the launchd table.
-- For file permissions, use the file table.
-- Consult the osquery schema at https://osquery.io/schema/ for
-  available tables.
-- Append "(MDM Required)" to the name if the query uses
-  managed_policies.
-- Append "(Fleetd Required)" if the query uses fleetd-only tables
-  like software_update.
-- Append "(FDA Required)" if the query reads files requiring full
-  disk access.
-
-### Step 4: Generate test artifacts
-
-For each new or modified Automated policy, decide which test artifact
-to create based on the remediation method in the PDF:
-
-**If the setting can be toggled via shell commands** (terminal
-remediation method exists), create scripts:
-- `test/scripts/CIS_<cis_id>_pass.sh` — applies remediation
-- `test/scripts/CIS_<cis_id>_fail.sh` — undoes remediation
-
-If only the pass direction can be scripted:
-- `test/scripts/CIS_<cis_id>.sh` — applies remediation only
-
-**If the setting can only be configured via MDM profile** (the PDF's
-remediation says "Profile Method" and the query uses
-managed_policies), create a profile instead of scripts:
-- `test/profiles/<cis_id>.mobileconfig` — the profile that makes the
-  policy pass
-
-The test runner handles profile-only policies automatically: it
-verifies the query fails without the profile, pushes the profile to
-the Fleet team, then verifies the query passes. No scripts are needed.
-
-**If both terminal and profile methods exist**, prefer creating
-scripts (they give explicit pass/fail coverage). Also create the
-profile — it's pushed during setup alongside all other profiles.
-
-Script template:
-```bash
-#!/bin/bash
-# CIS <cis_id> - <title>
-# <brief explanation of what this script does>
-<commands from the PDF's remediation section>
-```
-
-All scripts must:
-- Use #!/bin/bash
-- Use full paths (/usr/bin/sudo, /usr/sbin/systemsetup, etc.)
-- Use sudo for privileged operations
-- Be executable (chmod +x)
-
-### Step 5: Generate MDM profiles
-
-For each policy that checks managed_policies, create a .mobileconfig:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>PayloadContent</key>
-  <array>
-    <dict>
-      <key>PayloadDisplayName</key>
-      <string>CIS <cis_id></string>
-      <key>PayloadType</key>
-      <string><PayloadType from PDF></string>
-      <key>PayloadIdentifier</key>
-      <string>com.fleetdm.cis-<cis_id>.check</string>
-      <key>PayloadUUID</key>
-      <string><generate UUID></string>
-      <key><setting key></key>
-      <<type/>value</>
-    </dict>
-  </array>
-  <key>PayloadDescription</key>
-  <string>CIS <cis_id> - <title></string>
-  <key>PayloadDisplayName</key>
-  <string><title></string>
-  <key>PayloadIdentifier</key>
-  <string>com.fleetdm.cis-<cis_id></string>
-  <key>PayloadRemovalDisallowed</key>
-  <false/>
-  <key>PayloadScope</key>
-  <string>System</string>
-  <key>PayloadType</key>
-  <string>Configuration</string>
-  <key>PayloadUUID</key>
-  <string><generate UUID></string>
-  <key>PayloadVersion</key>
-  <integer>1</integer>
-</dict>
-</plist>
-```
-
-Name it `test/profiles/<cis_id>.mobileconfig`. For org-decision
-policies that have both enable/disable variants, create both
-`<cis_id>-enable.mobileconfig` and `<cis_id>-disable.mobileconfig`.
-
-### Step 6: Update README.md
-
-Update the OS version's README.md to list:
-- The benchmark version the policies now target
-- Limitations (Manual-only recommendations that can't be automated)
-- Org-decision policies with both variants provided
-- Optional policies provided but not required by CIS
-
-### Step 7: Handle removals
-
-For REMOVED recommendations:
-- Delete the policy entry from the YAML
-- Delete associated test scripts and profiles
-- Remove from README.md limitations/decisions if listed
-
-### Step 8: Validate
-
-After generating everything, run the test runner:
-```bash
-python3 tools/cis/cis-test-runner.py \
-    --macos-version <version> \
-    --all --skip-no-script \
-    --fleet-url $FLEET_URL --fleet-token $FLEET_API_TOKEN \
-    --cleanup --verbose
-```
-
-Review the summary. Fix any failures. If a query fails after its pass
-script runs, the query logic is wrong. If a query passes after its
-fail script runs, the fail script isn't effective.
-
-## Important rules
-
-- Never invent query logic — derive it from the PDF's audit section
-  and the osquery schema.
-- When updating an existing policy, preserve the query unless the
-  audit method changed. Only update description, resolution, name, and
-  tags from the new document.
-- When a recommendation changes from Automated to Manual, remove the
-  policy entirely.
-- When a recommendation changes from Manual to Automated, add a new
-  policy.
-- For recommendations where CIS says "audit" (org decides), provide
-  both enable and disable policy variants.
-- Always include cis_id — it is the primary key for mapping policies
-  to scripts, profiles, and the benchmark document.
-- Do not create policies for supplemental sections (section 7+).
-- Ask the user for clarification if the audit method is ambiguous or
-  relies on information not available through osquery.
-````
+Not a hard convention — just a useful checkpoint mechanism when a
+single session can't finish the job.

@@ -5,7 +5,7 @@ benchmark policies, test scripts, MDM profiles, and documentation from
 a CIS PDF. Feed it to the agent alongside the relevant PDFs.
 
 Conventions (directory layout, YAML format, query patterns, script and
-profile naming, test runner invocation) live in `CIS-BENCHMARK.md` in
+profile naming, test runner invocation) live in `CIS-BENCHMARKS.md` in
 this directory. This file is a task harness; the reference doc is the
 source of truth. If they disagree, update whichever is wrong.
 
@@ -17,7 +17,7 @@ documents.
 
 All conventions (directory layout, YAML format, required fields, query
 patterns, script/profile naming, README structure, test runner
-invocation) are documented in `ee/cis/CIS-BENCHMARK.md`. Read that
+invocation) are documented in `ee/cis/CIS-BENCHMARKS.md`. Read that
 file before you begin. Do not invent conventions — if something is not
 documented, ask the user.
 
@@ -33,7 +33,7 @@ and documentation.
 - CIS benchmark PDF (previous version, if upgrading): `pdf/<filename>.pdf`
 - Existing policies (if upgrading): `ee/cis/<os-dir>/cis-policy-queries.yml`
 - Existing tests: `ee/cis/<os-dir>/test/scripts/` and `test/profiles/`
-- Conventions: `ee/cis/CIS-BENCHMARK.md`
+- Conventions: `ee/cis/CIS-BENCHMARKS.md`
 
 ## Step-by-step workflow
 
@@ -65,7 +65,7 @@ Fleet policies. Note them for the README.md limitations section.
 ### Step 3: Generate policy YAML
 
 For each Automated recommendation, write a policy document following
-the format in CIS-BENCHMARK.md (§Policy format). Follow the query
+the format in CIS-BENCHMARKS.md (§Policy format). Follow the query
 rules in §Query patterns — queries MUST return 1+ rows when compliant
 and 0 rows when not.
 
