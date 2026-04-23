@@ -38,7 +38,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 ## Platform SSO
 
-Fleet supports configuring Platform SSO for macOS hosts. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. Platform SSO can be used with or without [end user authentication](#end-user-authentication) enabled.
+Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. PSSO can be used with or without [end user authentication](#end-user-authentication) enabled.
 
 ## End user license agreement (EULA)
 
