@@ -1,0 +1,1 @@
+- Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.

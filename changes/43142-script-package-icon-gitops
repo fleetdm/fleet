@@ -1,0 +1,1 @@
+- Fixed an issue where adding a custom icon for a script-only package was not allowed in GitOps.

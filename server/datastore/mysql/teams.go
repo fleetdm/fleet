@@ -239,7 +239,7 @@ func (ds *Datastore) enqueueWindowsDeleteCommandsForTeam(ctx context.Context, ti
 			profileContents[r.ProfileUUID] = r.SyncML
 		}
 
-		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs, profileContents)
+		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, tid, profileUUIDs, profileContents)
 	})
 }
 

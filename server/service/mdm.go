@@ -929,6 +929,25 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 		res.Hostname = host.Hostname
 	}
 
+	// Enrich VPP command results with install status and verify timeout metadata,
+	// matching what the admin path does in GetMDMCommandResults.
+	if len(results) > 0 {
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
+				}
+			}
+		}
+	}
+
 	return results, nil
 }
 
@@ -2293,22 +2312,29 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
-		profileVarsByProfIdentifier[p.Identifier] = profileVars
+		profileVarsByProfIdentifier[fleet.MDMAppleProfileUUIDPrefix+p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
 		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
-		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
 		if len(windowsVars) > 0 {
-			profileVarsByProfIdentifier[p.Name] = windowsVars
+			profileVarsByProfIdentifier[fleet.MDMWindowsProfileUUIDPrefix+p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
-		err = validateDeclarationFleetVariables(string(p.RawJSON))
+		declVars, err := validateDeclarationFleetVariables(string(p.RawJSON), lic)
 		if err != nil {
+			var badReqErr *fleet.BadRequestError
+			if errors.As(err, &badReqErr) {
+				badReqErr.Message = "Couldn't set profile. " + badReqErr.Message
+				err = badReqErr
+			}
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+		}
+		if len(declVars) > 0 {
+			profileVarsByProfIdentifier[fleet.MDMAppleDeclarationUUIDPrefix+p.Identifier] = declVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil
@@ -3386,6 +3412,11 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
+
+	// Clean up all pending Apple MDM profile rows since hosts can no longer receive MDM commands.
+	if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin"); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up Apple host MDM profiles")
 	}
 
 	// If an install doesn't have a verification_at or verification_failed_at, then

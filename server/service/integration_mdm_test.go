@@ -23252,8 +23252,499 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	// =========================================================================
+	// Test: MDM re-enrollment invalidates the stored recovery lock password
+	// =========================================================================
+	t.Run("re-enrollment soft-deletes stored password and cron re-SETs", func(t *testing.T) {
+		// Enable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+
+		// Run cron → pending, then ack → verified.
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		originalCmdUUID := cmd.CommandUUID
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Host detail API reports verified.
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// Capture the original password so we can assert it changes after re-SET.
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		originalPassword := getPasswordResp.RecoveryLockPassword.Password
+		require.NotEmpty(t, originalPassword)
+
+		// Simulate device re-enrollment (MDM profile was removed, device re-enrolls).
+		// macOS clears the recovery lock password on MDM profile renewal or wipe.
+		require.NoError(t, mdmClient.Reenroll())
+
+		// Host detail API should now report no recovery lock state — same as a fresh host.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after re-enrollment; row was soft-deleted")
+		assert.False(t, rlpStatus.PasswordAvailable, "stored password must not be viewable after re-enrollment")
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		// Run cron again: it must see the host as eligible and enqueue a fresh SetRecoveryLock.
+		runRecoveryLockCron(t)
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status, "cron must re-enqueue SetRecoveryLock after re-enrollment")
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *rlpStatus.Status)
+		assert.True(t, rlpStatus.PasswordAvailable)
+
+		// Ack the re-enrollment's fresh command.
+		cmd, err = mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "a fresh SetRecoveryLock command must be delivered after re-enrollment")
+		assert.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		assert.NotEqual(t, originalCmdUUID, cmd.CommandUUID, "re-enrollment must enqueue a new command, not replay the old one")
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Verified again, with a different password than before the re-enrollment.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword)
+		assert.NotEmpty(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.NotEqual(t, originalPassword, getPasswordResp.RecoveryLockPassword.Password,
+			"a new password must be generated after re-enrollment; the original is no longer on the device")
+
+		// Disable recovery lock password.
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: Admin-initiated MDM unenroll soft-deletes the stored recovery lock
+	// =========================================================================
+	t.Run("admin API unenroll soft-deletes stored recovery lock password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		// Verified before the unenroll.
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// PATCH /mdm/hosts/:id/unenroll → UnenrollMDM → MDMTurnOff.
+		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", host.ID), nil, http.StatusNoContent)
+
+		// Host detail API now reports no recovery lock; view-password endpoint 404s.
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after admin-initiated unenroll")
+		assert.False(t, rlpStatus.PasswordAvailable, "stored password must not be viewable after unenroll")
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		// Direct DB row is soft-deleted.
+		var deleted bool
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &deleted,
+				`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		})
+		assert.True(t, deleted, "row must be soft-deleted")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: Device-initiated CheckOut soft-deletes the stored recovery lock
+	// =========================================================================
+	t.Run("device CheckOut soft-deletes stored recovery lock password", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Device sends CheckOut (user removed the MDM profile and the device voluntarily
+		// signaled it). nanomdm dispatches to MDMAppleCheckinAndCommandService.CheckOut →
+		// mdmLifecycle.Do(HostActionTurnOff) → MDMTurnOff → soft-delete via the helper.
+		require.NoError(t, mdmClient.Checkout())
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "status must be absent after device CheckOut")
+		assert.False(t, rlpStatus.PasswordAvailable)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusNotFound)
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	// =========================================================================
+	// Test: manual profile removal (osquery reports enrolled=false) is caught
+	// by the recovery-lock cron sweep on its next tick.
+	// =========================================================================
+	t.Run("cron sweep soft-deletes stored recovery lock password when host reports enrolled=false", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": true},
+		}, http.StatusOK, &appConfigResponse{})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+
+		// Helper: read the deleted flag directly from host_recovery_key_passwords,
+		// bypassing the deleted=0 filter used by the datastore readers. This lets us
+		// distinguish "row soft-deleted" from "row hard-deleted" — the cron sweep must
+		// only soft-delete.
+		readDeleted := func() bool {
+			t.Helper()
+			var deleted bool
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &deleted,
+					`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+			})
+			return deleted
+		}
+
+		// Simulate the osquery ingest path that detects manual profile removal: the
+		// device user removed the MDM profile but no CheckOut fired. osquery reports
+		// enrolled=false via SetOrUpdateMDMData. The status is still stale until the
+		// recovery-lock cron runs its sweep.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), host.ID, false, false, "", false, "", "", false))
+
+		// Pre-cron precondition: the row is live (deleted=0). SetOrUpdateMDMData only
+		// flipped host_mdm.enrolled; the stale verified row still exists and the API
+		// still returns it. The UI guard (hostIsMdmEnrolled check) hides it on the
+		// client side until the next cron tick reconciles the backend.
+		assert.False(t, readDeleted(), "precondition: row must still be live before cron sweep")
+
+		// Cron tick runs SoftDeleteRecoveryLockPasswordsForUnenrolledHosts which sweeps
+		// any live row whose host_mdm.enrolled=0.
+		runRecoveryLockCron(t)
+
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status, "cron sweep must soft-delete rows for unenrolled hosts")
+		assert.False(t, rlpStatus.PasswordAvailable)
+		assert.True(t, readDeleted(), "cron sweep must soft-delete the row (deleted=1), not hard-delete it")
+
+		// A second cron tick is idempotent — the rkp.deleted=0 guard excludes the
+		// already-swept row.
+		runRecoveryLockCron(t)
+		rlpStatus = getHostRecoveryLockStatus(host.ID)
+		assert.Nil(t, rlpStatus.Status)
+		assert.True(t, readDeleted(), "row still soft-deleted after a second cron tick")
+
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"enable_recovery_lock_password": false},
+		}, http.StatusOK, &appConfigResponse{})
+	})
+
 	// Final cleanup: ensure recovery lock is disabled
 	s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 		"mdm": map[string]any{"enable_recovery_lock_password": false},
 	}, http.StatusOK, &appConfigResponse{})
+}
+
+func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+	abmOrgName := t.Name()
+	s.enableABM(abmOrgName)
+
+	// Create a team used by enrollment subtests
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+	team := createTeamResp.Team
+
+	// Enable managed local account on the team
+	s.Do("PATCH", "/api/latest/fleet/setup_experience",
+		fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+
+	// Assign ABM org to the team
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"apple_business_manager": [{
+				"organization_name": %q,
+				"macos_team": %q,
+				"ios_team": "",
+				"ipados_team": ""
+			}]
+		}
+	}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
+
+	// Mock DEP response with devices
+	serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2", "MANAGED_ACCT_3"}
+	syncCount := 0
+	s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		case "/profile":
+			_, _ = w.Write([]byte(`{"profile_uuid": "abc"}`))
+		case "/devices/sync":
+			var devices []godep.Device
+			for i := 0; i <= syncCount && i < len(serials); i++ {
+				devices = append(devices, godep.Device{SerialNumber: serials[i]})
+			}
+			syncCount++
+			_ = json.NewEncoder(w).Encode(godep.DeviceResponse{Devices: devices})
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	t.Run("Enrollment flow", func(t *testing.T) {
+
+		// DEP-enroll the first host and run the post-enrollment worker
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[0], "MacBookPro16,1")
+		require.NoError(t, mdmDevice.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Verify managed account row exists with status = NULL (pending)
+		var status *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+		})
+		require.Nil(t, status)
+
+		host, err := s.ds.HostByIdentifier(ctx, serials[0])
+		require.NoError(t, err)
+
+		// Get host API should show managed account as pending
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "pending", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
+		// Device acknowledges AccountConfiguration command → status becomes verified
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		var foundAccountConfig bool
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.AccountConfigurationCmdName {
+				foundAccountConfig = true
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.True(t, foundAccountConfig, "AccountConfiguration command should have been queued")
+
+		// Managed account row should be status = verified
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+		})
+		require.NotNil(t, status)
+		require.Equal(t, string(fleet.MDMDeliveryVerified), *status)
+
+		// Get host API should show managed account as verified with password available
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "verified", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
+		// Activity for creating a local account was created
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Read the managed account password
+		var pwdResp getHostManagedAccountPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		require.NotEmpty(t, pwdResp.ManagedLocalAccount.Password)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeViewedManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// Disable managed local account
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, team.ID, team.Name, team.ID, team.Name), 0)
+
+		// Existing host's password is still readable
+		pwdResp = getHostManagedAccountPasswordResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		require.NotEmpty(t, pwdResp.ManagedLocalAccount.Password)
+
+		// Second host enrolled after disable — should NOT get a managed account
+		s.runDEPSchedule()
+		mdmDevice2 := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[1], "MacBookPro16,1")
+		require.NoError(t, mdmDevice2.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		cmd, err = mdmDevice2.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice2.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		host2, err := s.ds.HostByIdentifier(ctx, serials[1])
+		require.NoError(t, err)
+		var pwdResp2 getHostManagedAccountPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host2.ID), nil, http.StatusBadRequest, &pwdResp2)
+	})
+
+	t.Run("Failed enrollment", func(t *testing.T) {
+		// Re-enable managed local account on the team
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		// DEP-enroll a third host
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice3 := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[2], "MacBookPro16,1")
+		require.NoError(t, mdmDevice3.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Device sends error response to AccountConfiguration command
+		cmd, err := mdmDevice3.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.AccountConfigurationCmdName {
+				cmd, err = mdmDevice3.Err(cmd.CommandUUID, []mdm.ErrorChain{
+					// TODO(JK): Not sure if this error is correct, need to test failure on a real device
+					{ErrorCode: 12064, ErrorDomain: "MCMDMErrorDomain", LocalizedDescription: "Failed to create the admin account.", USEnglishDescription: "Failed to create the admin account."},
+				})
+			} else {
+				cmd, err = mdmDevice3.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+
+		// Verify status is "failed"
+		var status *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice3.UUID)
+		})
+		require.NotNil(t, status)
+		require.Equal(t, string(fleet.MDMDeliveryFailed), *status)
+
+		// Get host API should show managed account as failed with no password available
+		host3, err := s.ds.HostByIdentifier(ctx, serials[2])
+		require.NoError(t, err)
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host3.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.Equal(t, "failed", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+	})
+
+	t.Run("Setup experience global config", func(t *testing.T) {
+		// Enable via PATCH /setup_experience
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		var acResp appConfigResponse
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
+
+		// Patching same value again should not create a new activity
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: new(uint), EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+
+		acResp = appConfigResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+		require.NotNil(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.False(t, *acResp.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+	})
+
+	t.Run("Setup experience team config", func(t *testing.T) {
+		// Create a team
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name() + "team"}, http.StatusOK, &createTeamResp)
+		tm := createTeamResp.Team
+		tmConfigPath := fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID)
+		expectedDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
+
+		// Enable via PATCH /setup_experience
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		var tmResp teamResponse
+		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.True(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0)
+
+		// Patching same value again should not create a new activity
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+			``, lastActivityID)
+
+		// Disable
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableManagedLocalAccount: new(false)}, http.StatusNoContent)
+
+		tmResp = teamResponse{}
+		s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
+		require.NotNil(t, tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.False(t, *tmResp.Team.Config.MDM.MacOSSetup.EnableManagedLocalAccount)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+			expectedDetail, 0), lastActivityID)
+	})
 }

@@ -197,6 +197,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
@@ -218,6 +220,7 @@ export default {
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
+  REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {
@@ -287,6 +290,7 @@ export default {
   },
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
+  USERS_API_ONLY: `/${API_VERSION}/fleet/users/api_only`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
   // Vulnerabilities endpoints

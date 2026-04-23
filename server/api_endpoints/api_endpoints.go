@@ -15,11 +15,19 @@ var apiEndpointsYAML []byte
 
 var apiEndpoints []fleet.APIEndpoint
 
+var apiEndpointsSet map[string]struct{}
+
 // GetAPIEndpoints returns a copy of the embedded API endpoints slice.
 func GetAPIEndpoints() []fleet.APIEndpoint {
 	result := make([]fleet.APIEndpoint, len(apiEndpoints))
 	copy(result, apiEndpoints)
 	return result
+}
+
+// IsInCatalog reports whether the given endpoint fingerprint is in the catalog.
+func IsInCatalog(fingerprint string) bool {
+	_, ok := apiEndpointsSet[fingerprint]
+	return ok
 }
 
 func Init(h http.Handler) error {
@@ -62,6 +70,12 @@ func Init(h http.Handler) error {
 	}
 
 	apiEndpoints = loadedApiEndpoints
+
+	set := make(map[string]struct{}, len(loadedApiEndpoints))
+	for _, e := range loadedApiEndpoints {
+		set[e.Fingerprint()] = struct{}{}
+	}
+	apiEndpointsSet = set
 
 	return nil
 }
