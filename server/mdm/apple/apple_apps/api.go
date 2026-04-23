@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -151,12 +150,9 @@ func GetMetadata(adamIDs []string, region string, vppToken string, config Config
 //	listed here are grouped by region and fetched in a single batched call
 //	per region.
 //
-// If logger is non-nil, the fallback walk is logged verbosely at InfoContext level — useful
-// while dogfooding multi-region support. Pass nil to disable logging (e.g., in tests).
-//
 // Returns the union of metadata found across all regions plus a map of adamID -> region that
 // resolved each one. AdamIDs that couldn't be resolved in any region are silently omitted.
-func GetMetadataWithFallback(ctx context.Context, logger *slog.Logger, adamIDs []string, knownRegions map[string]string, vppToken string, config Config) (map[string]Metadata, map[string]string, error) {
+func GetMetadataWithFallback(adamIDs []string, knownRegions map[string]string, vppToken string, config Config) (map[string]Metadata, map[string]string, error) {
 	metadata := make(map[string]Metadata, len(adamIDs))
 	resolvedRegions := make(map[string]string, len(adamIDs))
 
@@ -171,35 +167,15 @@ func GetMetadataWithFallback(ctx context.Context, logger *slog.Logger, adamIDs [
 		}
 	}
 
-	logRegionFallback(ctx, logger, "starting VPP metadata fetch",
-		"adam_ids", adamIDs,
-		"known_region_count", len(byRegion),
-		"unknown_count", len(unknowns),
-	)
-
 	for region, ids := range byRegion {
-		logRegionFallback(ctx, logger, "fetching known-region VPP metadata",
-			"region", region,
-			"adam_ids", ids,
-		)
 		found, err := GetMetadata(ids, region, vppToken, config)
 		if err != nil {
 			return nil, nil, err
 		}
-		var missed []string
-		for _, id := range ids {
-			if m, ok := found[id]; ok {
-				metadata[id] = m
-				resolvedRegions[id] = region
-			} else {
-				missed = append(missed, id)
-			}
+		for id, m := range found {
+			metadata[id] = m
+			resolvedRegions[id] = region
 		}
-		logRegionFallback(ctx, logger, "known-region VPP metadata result",
-			"region", region,
-			"found", len(found),
-			"missing_adam_ids", missed,
-		)
 	}
 
 	// Walk the fallback chain for adamIDs without a known region.
@@ -208,52 +184,23 @@ func GetMetadataWithFallback(ctx context.Context, logger *slog.Logger, adamIDs [
 		if len(remaining) == 0 {
 			break
 		}
-		logRegionFallback(ctx, logger, "trying storefront region",
-			"region", region,
-			"adam_ids", remaining,
-		)
 		found, err := GetMetadata(remaining, region, vppToken, config)
 		if err != nil {
 			return nil, nil, err
 		}
 		next := remaining[:0]
-		var resolvedThisHop []string
 		for _, id := range remaining {
 			if m, ok := found[id]; ok {
 				metadata[id] = m
 				resolvedRegions[id] = region
-				resolvedThisHop = append(resolvedThisHop, id)
 			} else {
 				next = append(next, id)
 			}
 		}
-		logRegionFallback(ctx, logger, "storefront region result",
-			"region", region,
-			"resolved_adam_ids", resolvedThisHop,
-			"still_missing_adam_ids", next,
-		)
 		remaining = next
 	}
 
-	if len(remaining) > 0 {
-		logRegionFallback(ctx, logger, "VPP metadata unresolved after full fallback chain",
-			"unresolved_adam_ids", remaining,
-		)
-	}
-	logRegionFallback(ctx, logger, "VPP metadata fetch complete",
-		"resolved_regions", resolvedRegions,
-	)
-
 	return metadata, resolvedRegions, nil
-}
-
-// logRegionFallback is a nil-safe wrapper so tests and legacy callers can pass a nil
-// logger. Remove this helper and inline slog calls once the feature is validated.
-func logRegionFallback(ctx context.Context, logger *slog.Logger, msg string, args ...any) {
-	if logger == nil {
-		return
-	}
-	logger.InfoContext(ctx, msg, args...)
 }
 
 func buildMetadataRequest(baseURL string, adamIDs []string, vppToken string) (*http.Request, error) {

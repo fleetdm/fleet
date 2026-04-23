@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"image/png"
 	"io"
-	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
@@ -279,7 +278,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var appStoreApps []*fleet.VPPApp
 
 	if len(incomingAppleApps) > 0 {
-		apps, err := getVPPAppsMetadata(ctx, svc.logger, incomingAppleApps, vppToken, svc.getVPPConfig(ctx))
+		apps, err := getVPPAppsMetadata(ctx, incomingAppleApps, vppToken, svc.getVPPConfig(ctx))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
@@ -518,7 +517,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		adamIDs = append(adamIDs, a.AdamID)
 	}
 
-	metadata, _, err := apple_apps.GetMetadataWithFallback(ctx, svc.logger, adamIDs, nil, vppToken, svc.getVPPConfig(ctx))
+	metadata, _, err := apple_apps.GetMetadataWithFallback(adamIDs, nil, vppToken, svc.getVPPConfig(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -701,7 +700,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		asset := assets[0]
 
-		assetMetadata, resolvedRegions, err := apple_apps.GetMetadataWithFallback(ctx, svc.logger, []string{asset.AdamID}, nil, vppToken, svc.getVPPConfig(ctx))
+		assetMetadata, resolvedRegions, err := apple_apps.GetMetadataWithFallback([]string{asset.AdamID}, nil, vppToken, svc.getVPPConfig(ctx))
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
@@ -827,7 +826,7 @@ func (svc *Service) getVPPConfig(ctx context.Context) apple_apps.Config {
 	return apple_apps.Configure(ctx, svc.ds, svc.config.License.Key, svc.config.MDM.AppleConnectJWT)
 }
 
-func getVPPAppsMetadata(ctx context.Context, logger *slog.Logger, ids []fleet.VPPAppTeam, vppToken string, vppConfig apple_apps.Config) ([]*fleet.VPPApp, error) {
+func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppConfig apple_apps.Config) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform, then to whether it's available as self-service
@@ -868,7 +867,7 @@ func getVPPAppsMetadata(ctx context.Context, logger *slog.Logger, ids []fleet.VP
 	for adamID := range adamIDMap {
 		adamIDs = append(adamIDs, adamID)
 	}
-	assetMetadata, resolvedRegions, err := apple_apps.GetMetadataWithFallback(ctx, logger, adamIDs, nil, vppToken, vppConfig)
+	assetMetadata, resolvedRegions, err := apple_apps.GetMetadataWithFallback(adamIDs, nil, vppToken, vppConfig)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}

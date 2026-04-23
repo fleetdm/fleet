@@ -213,7 +213,7 @@ func TestGetMetadataWithFallback(t *testing.T) {
 			}})
 		})
 
-		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "222"}, nil, "tok", config)
+		metadata, resolved, err := GetMetadataWithFallback([]string{"111", "222"}, nil, "tok", config)
 		require.NoError(t, err)
 		require.Len(t, metadata, 2)
 		require.Equal(t, "App One", metadata["111"].Attributes.Name)
@@ -246,7 +246,7 @@ func TestGetMetadataWithFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(metadataResp{Data: data})
 		})
 
-		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "222", "333"}, nil, "tok", config)
+		metadata, resolved, err := GetMetadataWithFallback([]string{"111", "222", "333"}, nil, "tok", config)
 		require.NoError(t, err)
 		require.Len(t, metadata, 3)
 		require.Equal(t, "us", resolved["111"])
@@ -276,7 +276,7 @@ func TestGetMetadataWithFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(metadataResp{})
 		})
 
-		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, []string{"111", "does-not-exist"}, nil, "tok", config)
+		metadata, resolved, err := GetMetadataWithFallback([]string{"111", "does-not-exist"}, nil, "tok", config)
 		require.NoError(t, err)
 		require.Len(t, metadata, 1)
 		require.Contains(t, metadata, "111")
@@ -300,8 +300,6 @@ func TestGetMetadataWithFallback(t *testing.T) {
 		})
 
 		metadata, resolved, err := GetMetadataWithFallback(
-			context.Background(),
-			nil,
 			[]string{"111", "222", "333"},
 			map[string]string{"111": "de", "222": "fr"},
 			"tok",
@@ -325,7 +323,7 @@ func TestGetMetadataWithFallback(t *testing.T) {
 		config := setupFakeRegionalServer(t, func(region string, w http.ResponseWriter, r *http.Request) {
 			called = true
 		})
-		metadata, resolved, err := GetMetadataWithFallback(context.Background(), nil, nil, nil, "tok", config)
+		metadata, resolved, err := GetMetadataWithFallback(nil, nil, "tok", config)
 		require.NoError(t, err)
 		require.Empty(t, metadata)
 		require.Empty(t, resolved)
