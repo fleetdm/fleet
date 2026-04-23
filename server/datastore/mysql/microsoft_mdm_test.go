@@ -2011,19 +2011,22 @@ func installWindowsProfilesAsVerified(t *testing.T, ds *Datastore, hostUUIDs, pr
 
 // rawWindowsDeleteCommandForHostProfile returns the raw SyncML of the queued
 // <Delete> command for a (host, profile) pair by joining host_mdm_windows_profiles
-// (operation_type=remove) to windows_mdm_commands via command_uuid. Returns empty
-// bytes if no such command is queued.
+// (operation_type=remove) to windows_mdm_commands via command_uuid. Returns nil
+// if no such command is queued, so callers can assert with a descriptive message.
 func rawWindowsDeleteCommandForHostProfile(t *testing.T, ds *Datastore, hostUUID, profileUUID string) []byte {
 	t.Helper()
-	var raw []byte
+	var raws [][]byte
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(t.Context(), q, &raw,
+		return sqlx.SelectContext(t.Context(), q, &raws,
 			`SELECT wc.raw_command FROM windows_mdm_commands wc
 			 JOIN host_mdm_windows_profiles hwp ON hwp.command_uuid = wc.command_uuid
 			 WHERE hwp.host_uuid = ? AND hwp.profile_uuid = ? AND hwp.operation_type = ?`,
 			hostUUID, profileUUID, fleet.MDMOperationTypeRemove)
 	})
-	return raw
+	if len(raws) == 0 {
+		return nil
+	}
+	return raws[0]
 }
 
 func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
