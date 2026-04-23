@@ -1242,15 +1242,23 @@ type ActivityExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	DataCollection          DataCollectionSettings `json:"data_collection"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// DataCollectionSettings toggles collection for dashboard chart datasets.
+// Global only; no team override. Both fields default true.
+type DataCollectionSettings struct {
+	Uptime bool `json:"uptime"`
+	CVE    bool `json:"cve"`
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1263,6 +1271,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.DataCollection.Uptime = true
+	f.DataCollection.CVE = true
 }
 
 // Clone implements cloner for Features.
@@ -1276,8 +1286,9 @@ func (f *Features) Copy() *Features {
 		return nil
 	}
 
-	// EnableHostUsers and EnableSoftwareInventory don't have fields that require
-	// cloning (all fields are basic value types, no pointers/slices/maps).
+	// EnableHostUsers, EnableSoftwareInventory, and DataCollection don't have
+	// fields that require cloning (all fields are basic value types, no
+	// pointers/slices/maps).
 
 	clone := *f
 

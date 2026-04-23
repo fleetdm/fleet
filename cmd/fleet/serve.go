@@ -1117,7 +1117,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	svc.SetACMEService(acmeSvc)
 
 	// Bootstrap chart bounded context
-	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
+	chartSvc, chartRoutes := createChartBoundedContext(dbConns, ds, svc, logger)
 
 	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
 		if err := cronSchedules.StartCronSchedule(
@@ -1941,14 +1941,15 @@ func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnect
 	return acmeSvc, acmeRoutes
 }
 
-func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Service, logger *slog.Logger) (chart_api.Service, endpointer.HandlerRoutesFunc) {
+func createChartBoundedContext(dbConns *common_mysql.DBConnections, ds fleet.Datastore, svc fleet.Service, logger *slog.Logger) (chart_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing chart authorizer")
 	}
 	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
 	chartViewer := chartacl.NewFleetViewerAdapter()
-	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
+	chartDataCollection := chartacl.NewFleetDataCollectionAdapter(ds)
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, chartDataCollection, logger)
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})

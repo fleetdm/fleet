@@ -46,7 +46,17 @@ func (s *Service) RegisterDataset(ds api.Dataset) {
 
 func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
 	for name, dataset := range s.datasets {
-		if err := dataset.Collect(ctx, s.store, now); err != nil {
+		globalOn, enabledFleetIDs, err := s.store.DataCollectionState(ctx, name)
+		if err != nil {
+			if s.logger != nil {
+				s.logger.ErrorContext(ctx, "load data collection state", "dataset", name, "err", ctxerr.Wrap(ctx, err, "load data collection state"))
+			}
+			continue
+		}
+		if !globalOn {
+			continue
+		}
+		if err := dataset.Collect(ctx, s.store, now, enabledFleetIDs); err != nil {
 			// Log and continue — don't let one dataset failure block others.
 			if s.logger != nil {
 				s.logger.ErrorContext(ctx, "collect chart dataset", "dataset", name, "err", ctxerr.Wrap(ctx, err, "collect chart dataset"))

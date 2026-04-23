@@ -51,7 +51,11 @@ type Dataset interface {
 	SampleStrategy() SampleStrategy
 
 	// Collect is called by the cron job to populate data in bulk.
-	Collect(ctx context.Context, store DatasetStore, now time.Time) error
+	// enabledFleetIDs is the set of fleets whose per-fleet override is on;
+	// the orchestrator only calls Collect after it has confirmed the global
+	// flag is also on. Datasets pass the set into store lookups to exclude
+	// hosts on opted-out fleets.
+	Collect(ctx context.Context, store DatasetStore, now time.Time, enabledFleetIDs []uint) error
 
 	// DefaultVisualization returns the default visualization type (e.g. "line", "heatmap").
 	DefaultVisualization() string
@@ -62,9 +66,8 @@ type Dataset interface {
 // implementations decoupled from internals.
 type DatasetStore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	// given cutoff and whose fleet is either unassigned or in the provided set.
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, fleetIDs []uint) ([]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.

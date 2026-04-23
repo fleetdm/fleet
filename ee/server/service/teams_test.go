@@ -269,6 +269,101 @@ func TestModifyTeamNameValidation(t *testing.T) {
 	}
 }
 
+func TestModifyTeamDataCollection(t *testing.T) {
+	existing := &fleet.Team{
+		ID:   7,
+		Name: "EMEA",
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				DataCollection: fleet.DataCollectionSettings{Uptime: true, CVE: true},
+			},
+		},
+	}
+	saved := &fleet.Team{}
+	var activities []fleet.ActivityDetails
+
+	ds := new(mock.Store)
+	ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+		// Return a deep-ish copy so mutations in the service don't leak between subtests.
+		cp := *existing
+		cp.Config.Features.DataCollection = existing.Config.Features.DataCollection
+		return &cp, nil
+	}
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+		saved = team
+		return team, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+		activities = append(activities, a)
+		return nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz: authorizer,
+	}
+	ctx := test.UserContext(context.Background(), &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)})
+
+	t.Run("PATCH uptime=false flips uptime only; cve stays true", func(t *testing.T) {
+		activities = nil
+		payload := fleet.TeamPayload{
+			Features: &fleet.TeamPayloadFeatures{
+				DataCollection: &fleet.TeamPayloadDataCollection{
+					Uptime: optjson.SetBool(false),
+				},
+			},
+		}
+		_, err := svc.ModifyTeam(ctx, existing.ID, payload)
+		require.NoError(t, err)
+		require.False(t, saved.Config.Features.DataCollection.Uptime)
+		require.True(t, saved.Config.Features.DataCollection.CVE)
+
+		require.Len(t, activities, 1)
+		act, ok := activities[0].(fleet.ActivityTypeDisabledDataCollection)
+		require.True(t, ok, "expected disabled_data_collection activity, got %T", activities[0])
+		require.Equal(t, "uptime", act.Dataset)
+		require.NotNil(t, act.FleetID)
+		require.Equal(t, existing.ID, *act.FleetID)
+		require.NotNil(t, act.FleetName)
+		require.Equal(t, existing.Name, *act.FleetName)
+	})
+
+	t.Run("PATCH same values emits no activity", func(t *testing.T) {
+		activities = nil
+		payload := fleet.TeamPayload{
+			Features: &fleet.TeamPayloadFeatures{
+				DataCollection: &fleet.TeamPayloadDataCollection{
+					Uptime: optjson.SetBool(true),
+					CVE:    optjson.SetBool(true),
+				},
+			},
+		}
+		_, err := svc.ModifyTeam(ctx, existing.ID, payload)
+		require.NoError(t, err)
+		require.Empty(t, activities)
+	})
+
+	t.Run("PATCH with no features block preserves prior values; no activity", func(t *testing.T) {
+		activities = nil
+		_, err := svc.ModifyTeam(ctx, existing.ID, fleet.TeamPayload{Name: ptr.String("EMEA")})
+		require.NoError(t, err)
+		require.True(t, saved.Config.Features.DataCollection.Uptime)
+		require.True(t, saved.Config.Features.DataCollection.CVE)
+		require.Empty(t, activities)
+	})
+}
+
 func TestApplyTeamSpecsNameValidation(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

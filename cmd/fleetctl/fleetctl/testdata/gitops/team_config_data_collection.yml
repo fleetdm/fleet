@@ -1,0 +1,12 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+    secrets:
+    - secret: "SampleSecret123-team"
+    features:
+        data_collection:
+            uptime: false
+            cve: true
+software:
+queries:
+policies:
+agent_options:

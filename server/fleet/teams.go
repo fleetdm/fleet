@@ -49,9 +49,24 @@ type TeamPayload struct {
 	Secrets            []*EnrollSecret      `json:"secrets"`
 	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
 	Integrations       *TeamIntegrations    `json:"integrations"`
+	Features           *TeamPayloadFeatures `json:"features"`
 	MDM                *TeamPayloadMDM      `json:"mdm"`
 	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	// Note AgentOptions must be set by a separate endpoint.
+}
+
+// TeamPayloadFeatures is the partial-update subset of Features that ModifyTeam
+// accepts. Only fields listed here can be modified via the PATCH endpoint;
+// other Features fields remain GitOps-only.
+type TeamPayloadFeatures struct {
+	DataCollection *TeamPayloadDataCollection `json:"data_collection"`
+}
+
+// TeamPayloadDataCollection supports partial PATCH of data_collection sub-fields.
+// Unset fields preserve their prior stored value.
+type TeamPayloadDataCollection struct {
+	Uptime optjson.Bool `json:"uptime"`
+	CVE    optjson.Bool `json:"cve"`
 }
 
 // TeamPayloadMDM is a distinct struct than TeamMDM because in ModifyTeam we

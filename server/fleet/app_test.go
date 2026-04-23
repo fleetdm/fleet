@@ -272,6 +272,24 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 	}
 }
 
+func TestFeaturesApplyDefaults(t *testing.T) {
+	var f Features
+	f.ApplyDefaults()
+	require.True(t, f.EnableHostUsers)
+	require.True(t, f.DataCollection.Uptime)
+	require.True(t, f.DataCollection.CVE)
+	// EnableSoftwareInventory is only set by ApplyDefaultsForNewInstalls.
+	require.False(t, f.EnableSoftwareInventory)
+
+	// ApplyDefaultsForNewInstalls is ApplyDefaults + software inventory on.
+	var fn Features
+	fn.ApplyDefaultsForNewInstalls()
+	require.True(t, fn.EnableHostUsers)
+	require.True(t, fn.EnableSoftwareInventory)
+	require.True(t, fn.DataCollection.Uptime)
+	require.True(t, fn.DataCollection.CVE)
+}
+
 func TestFeaturesCopy(t *testing.T) {
 	t.Run("nil receiver", func(t *testing.T) {
 		var f *Features
@@ -282,13 +300,19 @@ func TestFeaturesCopy(t *testing.T) {
 		f := &Features{
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: false,
+			DataCollection:          DataCollectionSettings{Uptime: false, CVE: true},
 		}
 		clone := f.Copy()
 		require.NotNil(t, clone)
 		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
 		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
+		require.Equal(t, f.DataCollection, clone.DataCollection)
 		require.Nil(t, clone.AdditionalQueries)
 		require.Nil(t, clone.DetailQueryOverrides)
+
+		// Mutate clone's DataCollection, original SHALL remain unchanged.
+		clone.DataCollection.Uptime = true
+		require.False(t, f.DataCollection.Uptime)
 	})
 
 	t.Run("copy AdditionalQueries", func(t *testing.T) {

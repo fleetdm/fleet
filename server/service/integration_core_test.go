@@ -898,6 +898,131 @@ func (s *integrationTestSuite) TestAppConfigDetailQueriesOverrides() {
 	require.Equal(t, "select * from blah;", *config.Features.DetailQueryOverrides["software_linux"])
 }
 
+func (s *integrationTestSuite) TestAppConfigDataCollection() {
+	t := s.T()
+
+	// Default: both sub-fields should be true.
+	config := s.getConfig()
+	require.True(t, config.Features.DataCollection.Uptime)
+	require.True(t, config.Features.DataCollection.CVE)
+
+	// PATCH only cve=false; uptime SHALL remain true (sub-field merge).
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{
+			"features": map[string]any{
+				"data_collection": map[string]any{"cve": false},
+			},
+		},
+		http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.DataCollection.Uptime)
+	require.False(t, config.Features.DataCollection.CVE)
+
+	// PATCH with no data_collection block: prior values SHALL be preserved.
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"enable_host_users": true}},
+		http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.DataCollection.Uptime)
+	require.False(t, config.Features.DataCollection.CVE)
+
+	// Overwrite mode with features={}: both sub-fields SHALL reset to defaults.
+	s.Do("PATCH", "/api/latest/fleet/config?overwrite=true",
+		map[string]any{"features": map[string]any{}},
+		http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.DataCollection.Uptime)
+	require.True(t, config.Features.DataCollection.CVE)
+
+	// Overwrite mode with only uptime=false set: cve SHALL reset to its default (true).
+	s.Do("PATCH", "/api/latest/fleet/config?overwrite=true",
+		map[string]any{
+			"features": map[string]any{
+				"data_collection": map[string]any{"uptime": false},
+			},
+		},
+		http.StatusOK)
+	config = s.getConfig()
+	require.False(t, config.Features.DataCollection.Uptime)
+	require.True(t, config.Features.DataCollection.CVE)
+
+	// Restore defaults for subsequent tests.
+	s.Do("PATCH", "/api/latest/fleet/config?overwrite=true",
+		map[string]any{"features": map[string]any{}},
+		http.StatusOK)
+
+	// --- Activity emission ---
+
+	// Starting state: both defaults true (from the restore above).
+	// PATCH uptime=false → one disabled_data_collection activity with dataset=uptime.
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{
+			"features": map[string]any{
+				"data_collection": map[string]any{"uptime": false},
+			},
+		},
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledDataCollection{}.ActivityName(),
+		`{"dataset": "uptime", "fleet_id": null, "fleet_name": null}`,
+		0,
+	)
+
+	// PATCH both in one request: uptime=true (flip back on), cve=false.
+	// Expect two activities: enabled(uptime) AND disabled(cve).
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{
+			"features": map[string]any{
+				"data_collection": map[string]any{"uptime": true, "cve": false},
+			},
+		},
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledDataCollection{}.ActivityName(),
+		`{"dataset": "uptime", "fleet_id": null, "fleet_name": null}`,
+		0,
+	)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledDataCollection{}.ActivityName(),
+		`{"dataset": "cve", "fleet_id": null, "fleet_name": null}`,
+		0,
+	)
+
+	// PATCH with the same values already stored: no data_collection activities.
+	var before listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&before, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
+	require.Len(t, before.Activities, 1)
+	beforeID := before.Activities[0].ID
+
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{
+			"features": map[string]any{
+				"data_collection": map[string]any{"uptime": true, "cve": false},
+			},
+		},
+		http.StatusOK)
+
+	var after listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&after, "order_key", "a.id", "order_direction", "desc", "per_page", "5")
+	require.NotEmpty(t, after.Activities)
+	for _, act := range after.Activities {
+		if act.ID <= beforeID {
+			break
+		}
+		require.NotEqual(t, fleet.ActivityTypeEnabledDataCollection{}.ActivityName(), act.Type,
+			"no enabled_data_collection activity should be emitted when values are unchanged")
+		require.NotEqual(t, fleet.ActivityTypeDisabledDataCollection{}.ActivityName(), act.Type,
+			"no disabled_data_collection activity should be emitted when values are unchanged")
+	}
+
+	// Final restore for subsequent tests.
+	s.Do("PATCH", "/api/latest/fleet/config?overwrite=true",
+		map[string]any{"features": map[string]any{}},
+		http.StatusOK)
+}
+
 func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	config := s.getConfig()
 	s.Run("Update interval", func() {
