@@ -20,6 +20,7 @@ import { stripQuotes } from "utilities/strings/stringUtils";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 
+import VulnHostCountHistogram from "./VulnHostCountHistogram";
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 import { isValidCVEFormat } from "./SoftwareVulnerabilitiesTable/helpers";
 
@@ -249,6 +250,10 @@ const SoftwareVulnerabilities = ({
 
   return (
     <div className={baseClass}>
+      <VulnHostCountHistogram
+        teamId={teamId}
+        isSoftwareEnabled={isSoftwareEnabled}
+      />
       <SoftwareVulnerabilitiesTable
         router={router}
         data={tableData}

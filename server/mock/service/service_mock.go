@@ -514,6 +514,8 @@ type MDMAppleProcessOTAEnrollmentFunc func(ctx context.Context, certificates []*
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
+type VulnerabilityHostCountHistogramFunc func(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error)
+
 type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *fleet.VulnerabilityWithMetadata, known bool, err error)
 
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
@@ -1655,6 +1657,9 @@ type Service struct {
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
+
+	VulnerabilityHostCountHistogramFunc        VulnerabilityHostCountHistogramFunc
+	VulnerabilityHostCountHistogramFuncInvoked bool
 
 	VulnerabilityFunc        VulnerabilityFunc
 	VulnerabilityFuncInvoked bool
@@ -3986,6 +3991,11 @@ func (s *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOpt
 	s.ListVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListVulnerabilitiesFunc(ctx, opt)
+}
+
+func (s *Service) VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]fleet.VulnHostCountHistogramEntry, error) {
+	s.VulnerabilityHostCountHistogramFuncInvoked = true
+	return s.VulnerabilityHostCountHistogramFunc(ctx, teamID)
 }
 
 func (s *Service) Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (vuln *fleet.VulnerabilityWithMetadata, known bool, err error) {

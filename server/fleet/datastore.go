@@ -1291,6 +1291,9 @@ type Datastore interface {
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.  maxRoutines signifies the number of
 	// goroutines to use for processing parallel database queries.
 	UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error
+	// VulnerabilityHostCountHistogram returns hosts grouped by vulnerability count buckets,
+	// broken down by max severity.
+	VulnerabilityHostCountHistogram(ctx context.Context, teamID *uint) ([]VulnHostCountHistogramEntry, error)
 	// IsCVEKnownToFleet checks if the provided CVE is known to Fleet.
 	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 

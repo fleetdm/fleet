@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IVulnerability } from "interfaces/vulnerability";
+import { IVulnerability, IVulnHostCountHistogramResponse } from "interfaces/vulnerability";
 import { buildQueryStringFromParams } from "utilities/url";
 import { IVulnerabilityOSVersion } from "interfaces/operating_system";
 import { IVulnerabilitySoftware } from "interfaces/software";
@@ -92,7 +92,18 @@ export type IVulnerabilitiesEmptyStateReason =
   | "no-matching-items"
   | "no-vulns-detected";
 
+export const getVulnerabilityHostCountHistogram = (
+  teamId?: number
+): Promise<IVulnHostCountHistogramResponse> => {
+  const { VULNERABILITIES_HOST_COUNT_HISTOGRAM } = endpoints;
+  let path = VULNERABILITIES_HOST_COUNT_HISTOGRAM;
+  const queryString = buildQueryStringFromParams({ fleet_id: teamId });
+  if (queryString) path += `?${queryString}`;
+  return sendRequest("GET", path);
+};
+
 export default {
   getVulnerabilities,
   getVulnerability,
+  getVulnerabilityHostCountHistogram,
 };

@@ -168,3 +168,14 @@ func (opt VulnListOptions) HasValidSortColumn() bool {
 	}
 	return false
 }
+
+// VulnHostCountHistogramEntry represents one bucket in the vulnerability host count histogram.
+type VulnHostCountHistogramEntry struct {
+	VulnCountRange string `json:"vuln_count_range" db:"vuln_count_range"`
+	HostsCount     uint   `json:"hosts_count" db:"hosts_count"`
+	Critical       uint   `json:"critical" db:"critical"`
+	High           uint   `json:"high" db:"high"`
+	Medium         uint   `json:"medium" db:"medium"`
+	Low            uint   `json:"low" db:"low"`
+	None           uint   `json:"none" db:"none"`
+}
