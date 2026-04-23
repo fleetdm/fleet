@@ -2075,7 +2075,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowSimpleDevicePassword',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/ClearTextPassword',
                   trueValue: 1,
                   falseValue: 0,
                 },
@@ -2091,7 +2091,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowSimpleDevicePassword',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/PreventEnablingLockScreenCamera',
                   trueValue: '<![CDATA[<enabled/>]]>',
                   falseValue: '<![CDATA[<disabled/>]]>',
                 },
@@ -3461,13 +3461,13 @@ parasails.registerPage('configuration-builder', {
                     },
                     {
                       name: `Canary channel.`,
-                      value: 1128
+                      value: 128
                     },
                   ]
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/BranchReadinessLevel',
                 },
               },
               {
@@ -3553,7 +3553,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ManagePreviewBuilds',
                 },
               },
               {
@@ -3603,7 +3603,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Pause quality updates',
                 uniqueSlug: 'windows-updates-pause-quality-updates',
-                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                tooltip: 'If enabled, Windows quality updates will be paused for 35 days from when this policy is set',
                 category: 'Updates',
                 payloadGroup: 'Windows update service',
                 supportedAccessTypes: ['replace', 'add'],
@@ -3622,7 +3622,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseQualityUpdates',
                 },
               },
               {
@@ -4039,7 +4039,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursMaxRange',
                 },
               },
               {
