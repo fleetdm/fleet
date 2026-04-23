@@ -70,7 +70,8 @@ const UsersForm = ({
     setEnableManagedLocalAccount(newCheckVal);
   };
 
-  const onClickSave = async () => {
+  const onClickSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsUpdating(true);
     const canLockEndUserInfo = isEndUserAuthEnabled && lockEndUserInfo;
 

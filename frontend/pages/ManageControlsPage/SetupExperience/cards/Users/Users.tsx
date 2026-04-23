@@ -30,11 +30,15 @@ const getEnabledManagedLocalAccount = (
 
   if (currentTeamId === 0) {
     return (
-      globalConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
+      globalConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+      false
     );
   }
 
-  return teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false;
+  return (
+    teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+    false
+  );
 };
 
 const getEnabledEndUserAuth = (
