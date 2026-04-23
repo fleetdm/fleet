@@ -916,6 +916,23 @@ Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
+## edited_gitops_exception
+
+Generated when a user enables or disables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that changed. One of `"labels"`, `"software"`, `"secrets"`.
+- "enabled": New value of the exception flag, `true` if the exception is now enabled, `false` if now disabled.
+
+#### Example
+
+```json
+{
+  "exception": "labels",
+  "enabled": true
+}
+```
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).

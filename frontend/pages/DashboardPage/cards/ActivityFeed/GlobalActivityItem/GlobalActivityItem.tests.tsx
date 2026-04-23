@@ -1817,4 +1817,26 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
+
+  it("renders an edited_gitops_exception activity when an exception is enabled", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedGitOpsException,
+      details: { exception: "labels", enabled: true },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("enabled the labels exception for GitOps.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders an edited_gitops_exception activity when an exception is disabled", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedGitOpsException,
+      details: { exception: "software", enabled: false },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("disabled the software exception for GitOps.")
+    ).toBeInTheDocument();
+  });
 });

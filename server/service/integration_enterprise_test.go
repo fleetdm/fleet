@@ -3377,10 +3377,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
 	}`), http.StatusOK)
 
-	// Set exceptions
+	// Set exceptions — labels and software flip from default (false), secrets matches default (false).
+	// Two activities expected (one for labels, one for software).
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
 	}`), http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
+		`{"exception": "labels", "enabled": true}`, 0)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
+		`{"exception": "software", "enabled": true}`, 0)
 
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3390,10 +3397,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
 
-	// Partial update — only change one exception, others should persist
+	// Partial update — only change one exception, others should persist.
+	// Capture the last activity id before the update so we can verify no
+	// activity is recorded for the fields that did not change.
+	lastIDBefore := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "software": false } }
 	}`), http.StatusOK)
+	lastID := s.lastActivityMatches(
+		fleet.ActivityTypeEditedGitOpsException{}.ActivityName(),
+		`{"exception": "software", "enabled": false}`, 0)
+	assert.Greater(t, lastID, lastIDBefore, "a new activity should have been recorded")
+
+	// Save app config with no exception changes — no new exception activity should be recorded.
+	lastIDBefore = s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": false, "secrets": false } }
+	}`), http.StatusOK)
+	lastIDAfter := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastIDBefore, lastIDAfter, "no activity should have been recorded when exceptions are unchanged")
 
 	config, err = s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
