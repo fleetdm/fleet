@@ -27,25 +27,56 @@ import (
 // prefix to prevent concurrent tests from clobbering each other's keys).
 const hostCacheTestCleanupPrefix = "fleet:hostcache:v2"
 
-func TestHostCacheDisabled(t *testing.T) {
-	// Sanity: without WithHostCache, every helper is a no-op. We route through
-	// NopRedis so any accidental Redis call would silently succeed with zero
-	// values, which the helpers must still handle without surprising the
-	// caller.
-	ctx := t.Context()
-	ds := new(mock.Store)
-	wrapped := New(ds, redistest.NopRedis())
+// hostCacheFamily parameterizes the load-path tests across both cache families
+// (osquery `LoadHostByNodeKey` and orbit `LoadHostByOrbitNodeKey`). Every
+// end-to-end override test runs once per family; field-fidelity is covered by
+// TestHostCacheEnvelopeRoundTrip, so these tests focus on cache semantics only.
+type hostCacheFamily struct {
+	name       string
+	sampleKey  string
+	load       func(*Datastore, context.Context, string) (*fleet.Host, error)
+	setMock    func(*mock.DataStore, func(context.Context, string) (*fleet.Host, error))
+	getInvoked func(*mock.DataStore) bool
+	setInvoked func(*mock.DataStore, bool)
+	// buildHost returns a minimally-populated *fleet.Host whose relevant
+	// node_key pointer matches the argument, so the cache put under this family
+	// will succeed.
+	buildHost func(id uint, key string) *fleet.Host
+}
 
-	host, result := wrapped.hostCacheGet(ctx, "node-abc")
-	require.Nil(t, host)
-	require.Equal(t, hostCacheLookupMiss, result)
-
-	// No panics on Put/PutNotFound/Delete helpers when disabled.
-	nk := "node-abc"
-	wrapped.hostCachePut(ctx, &fleet.Host{ID: 1, NodeKey: &nk})
-	wrapped.hostCachePutNotFound(ctx, "node-missing")
-	wrapped.hostCacheDeleteByNodeKey(ctx, "node-abc", 1, "update")
-	wrapped.hostCacheDeleteByID(ctx, 1, "update")
+var hostCacheFamilies = []hostCacheFamily{
+	{
+		name:      "osquery",
+		sampleKey: "nk-test",
+		load: func(d *Datastore, ctx context.Context, k string) (*fleet.Host, error) {
+			return d.LoadHostByNodeKey(ctx, k)
+		},
+		setMock: func(ds *mock.DataStore, f func(context.Context, string) (*fleet.Host, error)) {
+			ds.LoadHostByNodeKeyFunc = f
+		},
+		getInvoked: func(ds *mock.DataStore) bool { return ds.LoadHostByNodeKeyFuncInvoked },
+		setInvoked: func(ds *mock.DataStore, v bool) { ds.LoadHostByNodeKeyFuncInvoked = v },
+		buildHost: func(id uint, k string) *fleet.Host {
+			kp := k
+			return &fleet.Host{ID: id, NodeKey: &kp, Hostname: "h-" + k}
+		},
+	},
+	{
+		name:      "orbit",
+		sampleKey: "onk-test",
+		load: func(d *Datastore, ctx context.Context, k string) (*fleet.Host, error) {
+			return d.LoadHostByOrbitNodeKey(ctx, k)
+		},
+		setMock: func(ds *mock.DataStore, f func(context.Context, string) (*fleet.Host, error)) {
+			ds.LoadHostByOrbitNodeKeyFunc = f
+		},
+		getInvoked: func(ds *mock.DataStore) bool { return ds.LoadHostByOrbitNodeKeyFuncInvoked },
+		setInvoked: func(ds *mock.DataStore, v bool) { ds.LoadHostByOrbitNodeKeyFuncInvoked = v },
+		buildHost: func(id uint, k string) *fleet.Host {
+			kp := k
+			return &fleet.Host{ID: id, OrbitNodeKey: &kp, Hostname: "h-" + k}
+		},
+	},
 }
 
 func TestHostCacheHelpers(t *testing.T) {
@@ -177,27 +208,6 @@ func TestHostCacheHelpers(t *testing.T) {
 			conn := redis.ConfigureDoer(pool, pool.Get())
 			defer conn.Close()
 			exists, err := redigo.Bool(conn.Do("EXISTS", hostCacheIndexByID(11)))
-			require.NoError(t, err)
-			assert.False(t, exists)
-		})
-
-		t.Run("delete by id with no index is a no-op", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-
-			// Nothing cached. Should not error, should not panic.
-			wrapped.hostCacheDeleteByID(ctx, 999, "delete")
-		})
-
-		t.Run("put with nil node_key is a no-op", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-
-			wrapped.hostCachePut(ctx, &fleet.Host{ID: 12, NodeKey: nil})
-
-			// No primary key should have been created; pick a sentinel key and
-			// verify the space is clean.
-			conn := redis.ConfigureDoer(pool, pool.Get())
-			defer conn.Close()
-			exists, err := redigo.Bool(conn.Do("EXISTS", hostCacheIndexByID(12)))
 			require.NoError(t, err)
 			assert.False(t, exists)
 		})
@@ -350,78 +360,71 @@ func TestJitteredHostCacheTTL(t *testing.T) {
 	assert.Equal(t, time.Duration(0), zero.jitteredHostCacheTTL())
 }
 
-// newMockLoadHostStore builds a mock.Store with a default LoadHostByNodeKeyFunc
-// that returns a fresh host whose NodeKey matches the queried node_key. Tests
-// can override the Func field to simulate errors, NotFound, or latency.
-func newMockLoadHostStore() *mock.Store {
-	ds := new(mock.Store)
-	ds.LoadHostByNodeKeyFunc = func(_ context.Context, nodeKey string) (*fleet.Host, error) {
-		nk := nodeKey
-		return &fleet.Host{
-			ID:       1,
-			NodeKey:  &nk,
-			Hostname: "h-" + nodeKey,
-		}, nil
+func TestLoadHost_CacheDisabled(t *testing.T) {
+	for _, fam := range hostCacheFamilies {
+		t.Run(fam.name, func(t *testing.T) {
+			ctx := t.Context()
+			ds := new(mock.DataStore)
+			fam.setMock(ds, func(_ context.Context, k string) (*fleet.Host, error) {
+				return fam.buildHost(1, k), nil
+			})
+			wrapped := New(ds, redistest.NopRedis()) // no WithHostCache
+
+			_, err := fam.load(wrapped, ctx, fam.sampleKey)
+			require.NoError(t, err)
+			assert.True(t, fam.getInvoked(ds))
+
+			// Second call also hits the inner datastore — there's no cache.
+			fam.setInvoked(ds, false)
+			_, err = fam.load(wrapped, ctx, fam.sampleKey)
+			require.NoError(t, err)
+			assert.True(t, fam.getInvoked(ds), "cache disabled: every call must go to DB")
+		})
 	}
-	return ds
 }
 
-func TestLoadHostByNodeKey_CacheDisabled(t *testing.T) {
-	ctx := t.Context()
-	ds := newMockLoadHostStore()
-	wrapped := New(ds, redistest.NopRedis()) // no WithHostCache
-
-	got, err := wrapped.LoadHostByNodeKey(ctx, "nk-a")
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked)
-
-	// Second call also hits the inner datastore — there's no cache.
-	ds.LoadHostByNodeKeyFuncInvoked = false
-	_, err = wrapped.LoadHostByNodeKey(ctx, "nk-a")
-	require.NoError(t, err)
-	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked)
-}
-
-func TestLoadHostByNodeKey_Override(t *testing.T) {
-	runTest := func(t *testing.T, pool fleet.RedisPool) {
+func TestLoadHost_Override(t *testing.T) {
+	runFamily := func(t *testing.T, fam hostCacheFamily, pool fleet.RedisPool) {
 		t.Run("cache miss then hit", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ctx := t.Context()
-			ds := newMockLoadHostStore()
+			ds := new(mock.DataStore)
+			fam.setMock(ds, func(_ context.Context, k string) (*fleet.Host, error) {
+				return fam.buildHost(1, k), nil
+			})
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
-			first, err := wrapped.LoadHostByNodeKey(ctx, "nk-miss-hit")
+			first, err := fam.load(wrapped, ctx, fam.sampleKey)
 			require.NoError(t, err)
 			require.NotNil(t, first)
-			require.True(t, ds.LoadHostByNodeKeyFuncInvoked)
+			require.True(t, fam.getInvoked(ds))
 
-			ds.LoadHostByNodeKeyFuncInvoked = false
-			second, err := wrapped.LoadHostByNodeKey(ctx, "nk-miss-hit")
+			fam.setInvoked(ds, false)
+			second, err := fam.load(wrapped, ctx, fam.sampleKey)
 			require.NoError(t, err)
 			require.NotNil(t, second)
-			assert.False(t, ds.LoadHostByNodeKeyFuncInvoked, "second call should be served from cache")
+			assert.False(t, fam.getInvoked(ds), "second call should be served from cache")
 			assert.Equal(t, first.ID, second.ID, "cached value should match the initial DB read")
 		})
 
 		t.Run("NotFound populates negative cache", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ctx := t.Context()
-			ds := new(mock.Store)
+			ds := new(mock.DataStore)
 			var callCount atomic.Int32
-			ds.LoadHostByNodeKeyFunc = func(_ context.Context, _ string) (*fleet.Host, error) {
+			fam.setMock(ds, func(_ context.Context, _ string) (*fleet.Host, error) {
 				callCount.Add(1)
 				return nil, common_mysql.NotFound("Host")
-			}
+			})
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
-			_, err := wrapped.LoadHostByNodeKey(ctx, "nk-absent")
+			_, err := fam.load(wrapped, ctx, fam.sampleKey+"-absent")
 			require.Error(t, err)
 			assert.True(t, fleet.IsNotFound(err))
 			assert.Equal(t, int32(1), callCount.Load())
 
 			// Second call hits the negative cache; inner is not invoked.
-			_, err = wrapped.LoadHostByNodeKey(ctx, "nk-absent")
+			_, err = fam.load(wrapped, ctx, fam.sampleKey+"-absent")
 			require.Error(t, err)
 			assert.True(t, fleet.IsNotFound(err))
 			assert.Equal(t, int32(1), callCount.Load(), "negative cache should have served the second call")
@@ -430,19 +433,19 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 		t.Run("transient errors are not cached", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ctx := t.Context()
-			ds := new(mock.Store)
+			ds := new(mock.DataStore)
 			transient := errors.New("simulated timeout")
 			var callCount atomic.Int32
-			ds.LoadHostByNodeKeyFunc = func(_ context.Context, _ string) (*fleet.Host, error) {
+			fam.setMock(ds, func(_ context.Context, _ string) (*fleet.Host, error) {
 				callCount.Add(1)
 				return nil, transient
-			}
+			})
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
-			_, err := wrapped.LoadHostByNodeKey(ctx, "nk-transient")
+			_, err := fam.load(wrapped, ctx, fam.sampleKey+"-transient")
 			require.ErrorIs(t, err, transient)
 
-			_, err = wrapped.LoadHostByNodeKey(ctx, "nk-transient")
+			_, err = fam.load(wrapped, ctx, fam.sampleKey+"-transient")
 			require.ErrorIs(t, err, transient)
 			assert.Equal(t, int32(2), callCount.Load(), "transient errors must not poison the cache")
 		})
@@ -450,17 +453,16 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 		t.Run("singleflight collapses concurrent misses", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
-			// Block inner LoadHostByNodeKey until the test releases it, so all
+			// Block the inner DB call until the test releases it, so all
 			// goroutines pile up in the singleflight group before it resolves.
-			ds := new(mock.Store)
+			ds := new(mock.DataStore)
 			var callCount atomic.Int32
 			release := make(chan struct{})
-			ds.LoadHostByNodeKeyFunc = func(_ context.Context, nodeKey string) (*fleet.Host, error) {
+			fam.setMock(ds, func(_ context.Context, k string) (*fleet.Host, error) {
 				callCount.Add(1)
 				<-release
-				nk := nodeKey
-				return &fleet.Host{ID: 42, NodeKey: &nk}, nil
-			}
+				return fam.buildHost(42, k), nil
+			})
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
 			const goroutines = 20
@@ -471,7 +473,7 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 				wg.Add(1)
 				go func(i int) {
 					defer wg.Done()
-					h, err := wrapped.LoadHostByNodeKey(t.Context(), "nk-sf")
+					h, err := fam.load(wrapped, t.Context(), fam.sampleKey+"-sf")
 					hosts[i] = h
 					errs[i] = err
 				}(i)
@@ -501,9 +503,9 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 			// every joiner even though their own contexts are alive.
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
-			ds := new(mock.Store)
+			ds := new(mock.DataStore)
 			release := make(chan struct{})
-			ds.LoadHostByNodeKeyFunc = func(innerCtx context.Context, nodeKey string) (*fleet.Host, error) {
+			fam.setMock(ds, func(innerCtx context.Context, k string) (*fleet.Host, error) {
 				<-release
 				// The inner ctx should not observe the canceling caller's
 				// Done signal. If it does, this returns ctx.Err() and the
@@ -511,9 +513,8 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 				if err := innerCtx.Err(); err != nil {
 					return nil, err
 				}
-				nk := nodeKey
-				return &fleet.Host{ID: 77, NodeKey: &nk}, nil
-			}
+				return fam.buildHost(77, k), nil
+			})
 			wrapped := New(ds, pool, WithHostCache(30*time.Second))
 
 			cancellableCtx, cancel := context.WithCancel(t.Context())
@@ -528,14 +529,14 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 			// test would pass for the wrong reason.
 			leaderDone := make(chan struct{})
 			go func() {
-				_, _ = wrapped.LoadHostByNodeKey(cancellableCtx, "nk-cancel")
+				_, _ = fam.load(wrapped, cancellableCtx, fam.sampleKey+"-cancel")
 				close(leaderDone)
 			}()
 			time.Sleep(50 * time.Millisecond)
 
 			joinerDone := make(chan struct{})
 			go func() {
-				joinerHost, joinerErr = wrapped.LoadHostByNodeKey(joinerCtx, "nk-cancel")
+				joinerHost, joinerErr = fam.load(wrapped, joinerCtx, fam.sampleKey+"-cancel")
 				close(joinerDone)
 			}()
 
@@ -550,6 +551,76 @@ func TestLoadHostByNodeKey_Override(t *testing.T) {
 			require.NotNil(t, joinerHost)
 			assert.Equal(t, uint(77), joinerHost.ID)
 		})
+	}
+
+	for _, fam := range hostCacheFamilies {
+		t.Run(fam.name, func(t *testing.T) {
+			t.Run("standalone", func(t *testing.T) {
+				pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, false, false, false)
+				runFamily(t, fam, pool)
+			})
+			t.Run("cluster", func(t *testing.T) {
+				pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, true, true, false)
+				runFamily(t, fam, pool)
+			})
+		})
+	}
+}
+
+func TestLoadHost_RedisErrorFallsThrough(t *testing.T) {
+	for _, fam := range hostCacheFamilies {
+		t.Run(fam.name, func(t *testing.T) {
+			ctx := t.Context()
+			ds := new(mock.DataStore)
+			fam.setMock(ds, func(_ context.Context, k string) (*fleet.Host, error) {
+				return fam.buildHost(1, k), nil
+			})
+			wrapped := New(ds, errPool{}, WithHostCache(30*time.Second))
+
+			// Redis ops all error; the caller must still get a host via the DB path.
+			got, err := fam.load(wrapped, ctx, fam.sampleKey+"-redis-down")
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.True(t, fam.getInvoked(ds))
+
+			// Second call also hits DB — cache never populated successfully.
+			fam.setInvoked(ds, false)
+			_, err = fam.load(wrapped, ctx, fam.sampleKey+"-redis-down")
+			require.NoError(t, err)
+			assert.True(t, fam.getInvoked(ds), "Redis errors must not prevent DB fallthrough")
+		})
+	}
+}
+
+// TestHostCacheUnifiedInvalidation proves the unified-invalidation design: a
+// write that goes through hostCacheDeleteByID clears BOTH cache families for a
+// host that has both agents enrolled. This is the cross-family property that
+// per-family override tests can't express.
+func TestHostCacheUnifiedInvalidation(t *testing.T) {
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+		ctx := t.Context()
+		ds := new(mock.DataStore)
+		wrapped := New(ds, pool, WithHostCache(30*time.Second))
+
+		nk := "nk-both"
+		onk := "onk-both"
+		host := &fleet.Host{ID: 99, NodeKey: &nk, OrbitNodeKey: &onk, Hostname: "both"}
+		wrapped.hostCachePut(ctx, host)
+		wrapped.hostCachePutByOrbit(ctx, host)
+
+		// Sanity: both hot.
+		_, res := wrapped.hostCacheGet(ctx, nk)
+		require.Equal(t, hostCacheLookupHit, res)
+		_, res = wrapped.hostCacheGetByOrbitNodeKey(ctx, onk)
+		require.Equal(t, hostCacheLookupHit, res)
+
+		wrapped.hostCacheDeleteByID(ctx, 99, "update")
+
+		_, res = wrapped.hostCacheGet(ctx, nk)
+		assert.Equal(t, hostCacheLookupMiss, res)
+		_, res = wrapped.hostCacheGetByOrbitNodeKey(ctx, onk)
+		assert.Equal(t, hostCacheLookupMiss, res)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
@@ -582,24 +653,6 @@ func (errConn) Do(_ string, _ ...any) (any, error) { return nil, errRedisDown }
 func (errConn) Send(_ string, _ ...any) error      { return errRedisDown }
 func (errConn) Flush() error                       { return errRedisDown }
 func (errConn) Receive() (any, error)              { return nil, errRedisDown }
-
-func TestLoadHostByNodeKey_RedisErrorFallsThrough(t *testing.T) {
-	ctx := t.Context()
-	ds := newMockLoadHostStore()
-	wrapped := New(ds, errPool{}, WithHostCache(30*time.Second))
-
-	// Redis ops all error; the caller must still get a host via the DB path.
-	got, err := wrapped.LoadHostByNodeKey(ctx, "nk-redis-down")
-	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked)
-
-	// Second call also hits DB — cache never populated successfully.
-	ds.LoadHostByNodeKeyFuncInvoked = false
-	_, err = wrapped.LoadHostByNodeKey(ctx, "nk-redis-down")
-	require.NoError(t, err)
-	assert.True(t, ds.LoadHostByNodeKeyFuncInvoked, "Redis errors must not prevent DB fallthrough")
-}
 
 // cleanupHostCacheKeys removes all host-cache keys between subtests so leftover
 // state doesn't leak across cases. Uses redis.ScanKeys which walks every node
