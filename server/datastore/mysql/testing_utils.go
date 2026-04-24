@@ -376,6 +376,12 @@ func initializeDatabase(t testing.TB, testName string, opts *testing_utils.Datas
 func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
 	ds := initializeDatabase(t, cleanTestName, opts)
+	// In production, Windows profile reconciliation is handled by the
+	// mdm_windows_profile_manager cron. The cron does not run in unit tests,
+	// so we enable inline reconciliation so existing tests that observe
+	// host_mdm_windows_profiles state after BulkSetPendingMDMHostProfiles
+	// continue to work. Production (real server start-up) leaves this false.
+	ds.testEagerWindowsProfileReconciliation = true
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }

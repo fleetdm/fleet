@@ -85,6 +85,12 @@ type Datastore struct {
 	testUpsertMDMDesiredProfilesBatchSize int
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
+	// testEagerWindowsProfileReconciliation controls whether
+	// BulkSetPendingMDMHostProfiles reconciles Windows profiles inline. In
+	// production it stays false — the mdm_windows_profile_manager cron picks up
+	// the diff globally every 30s. Tests set it to true to observe
+	// host_mdm_windows_profiles state without running the cron.
+	testEagerWindowsProfileReconciliation bool
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next

@@ -3086,9 +3086,14 @@ ON DUPLICATE KEY UPDATE
 // state for the given hosts by marking obsolete profiles for removal and
 // upserting desired profiles. Each batch is committed in its own transaction
 // so InnoDB row locks on host_mdm_windows_profiles are held only for the
-// duration of one batch. Under large team transfers (thousands of hosts)
-// this keeps ambient MDM / osquery checkins from piling up behind the
-// reconciler.
+// duration of one batch.
+//
+// NOTE: production code no longer calls this. Windows profile reconciliation
+// is performed by the mdm_windows_profile_manager cron
+// (see ReconcileWindowsProfiles), which runs the same diff globally every
+// 30s. This method is retained as a test helper for tests that need to
+// observe host_mdm_windows_profiles state in the intermediate (pre-cron)
+// shape produced by the old eager path.
 func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 	ctx context.Context,
 	hostUUIDs []string,

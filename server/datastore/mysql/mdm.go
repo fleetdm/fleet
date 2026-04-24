@@ -722,13 +722,19 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) (updates fleet.MDMProfilesUpdates, err error) {
-	// Apple profiles, Apple declarations, and Android profiles run inside a
-	// single outer transaction. Windows profile reconciliation is deliberately
-	// split out (see bulkSetPendingMDMWindowsHostProfilesBatched): a large
-	// team transfer can hold row locks on host_mdm_windows_profiles for
-	// minutes inside one giant transaction, which stalls ambient MDM /
-	// osquery checkins that also touch host rows. Per-batch commits keep the
-	// Windows lock hold-time short.
+	// Apple profiles, Apple declarations, and Android profiles reconcile
+	// eagerly inside one transaction here. Windows profile reconciliation is
+	// intentionally NOT performed synchronously in production: the
+	// mdm_windows_profile_manager cron computes the full desired-vs-actual
+	// diff globally every 30s (see ReconcileWindowsProfiles,
+	// windowsProfilesToInstallQuery, windowsProfilesToRemoveQuery). Doing it
+	// synchronously on top of large team transfers ties up the writer for
+	// minutes and starves ambient MDM / osquery checkins of row locks on
+	// host_mdm_windows_profiles.
+	//
+	// Tests set ds.testEagerWindowsProfileReconciliation = true so that they
+	// can observe post-call host_mdm_windows_profiles state without running
+	// the cron.
 	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var innerErr error
@@ -739,9 +745,11 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		return updates, err
 	}
 
-	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, winHosts, profileUUIDs)
-	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	if ds.testEagerWindowsProfileReconciliation {
+		updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, winHosts, profileUUIDs)
+		if err != nil {
+			return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+		}
 	}
 	return updates, nil
 }
@@ -750,11 +758,11 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
 //
-// This runs the Apple profile, Apple declaration, and Android profile
+// This runs Apple profile, Apple declaration, and Android profile
 // reconciliation inside the caller-provided transaction. Windows profile
-// reconciliation is intentionally NOT performed here; the resolved Windows
-// host UUIDs are returned so the caller can run it in its own per-batch
-// transactions outside this tx.
+// reconciliation is NOT performed here; the resolved Windows host UUIDs are
+// returned so the caller can optionally reconcile them (only the test path
+// does so — production relies on the mdm_windows_profile_manager cron).
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -940,9 +948,6 @@ OR
 	if err != nil {
 		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
-
-	// Windows profile reconciliation is deliberately skipped here; the caller
-	// runs it in its own per-batch transactions after this function returns.
 
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
