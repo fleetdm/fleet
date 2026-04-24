@@ -15,7 +15,9 @@ Fleet 4.83.0 is now available. See the complete [changelog](https://github.com/f
 
 ### YAML validation for extraneous keys
 
-Fleet now returns a clear error when a YAML file contains an unrecognized or misspelled key. Previously, Fleet silently ignored unknown keys, which could cause configurations to take effect without the intended settings applied. This is especially useful for catching typos and errors in AI-generated GitOps PRs early, before a misconfiguration silently takes effect.
+Fleet now returns a clear error when a YAML file contains an unrecognized or misspelled key. Previously, Fleet silently ignored unknown keys, which could cause configurations to take effect without the intended settings applied.
+
+This is especially useful for catching typos and errors in AI-generated GitOps PRs before a misconfiguration takes effect.
 
 Heads up that after upgrading, you may encounter new errors from previously ignored misspelled or misplaced keys. Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
 
