@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.50.1
 	fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d
 	github.com/AbGuthrie/goquery/v2 v2.0.1
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358
+	github.com/Azure/go-ntlmssp v0.1.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.3.1
