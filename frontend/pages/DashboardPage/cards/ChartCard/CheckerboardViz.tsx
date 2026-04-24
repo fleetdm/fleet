@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { IFormattedDataPoint } from "./types";
+import { ChartTheme, IFormattedDataPoint } from "./types";
 
 const baseClass = "checkerboard-viz";
 
@@ -34,6 +35,16 @@ interface ICellData {
 interface ICheckerboardVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
+  theme?: ChartTheme;
+  tooltipFormatter?: ({
+    value,
+    total,
+    percentage,
+  }: {
+    value: number;
+    total?: number;
+    percentage?: number;
+  }) => string | React.ReactNode;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -49,6 +60,8 @@ const WIDE_MULTIPLIER = 1.5;
 const CheckerboardViz = ({
   data,
   selectedDays,
+  theme = "green",
+  tooltipFormatter,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
@@ -199,7 +212,12 @@ const CheckerboardViz = ({
   const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
 
   return (
-    <div className={baseClass} ref={containerRef}>
+    <div
+      className={classnames(baseClass, {
+        [`${baseClass}--theme-${theme}`]: theme !== "green",
+      })}
+      ref={containerRef}
+    >
       <div className={`${baseClass}__chart-row`}>
         {/* Y-axis 6am/6pm labels. Kept outside the scroll-wrapper so they stay
             pinned during horizontal scroll and label text can overflow

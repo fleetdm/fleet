@@ -41,6 +41,38 @@ const DATASETS: IDataSet[] = [
         during a given hour.
       </>
     ),
+    tooltipFormatter: ({
+      value,
+      total,
+      percentage,
+    }: {
+      value: number;
+      total?: number;
+      percentage?: number;
+    }) => (
+      <>
+        {percentage}% active
+        <br />({value} / {total} hosts)
+      </>
+    ),
+  },
+  {
+    name: "cve",
+    label: "Vulnerability exposure",
+    defaultChartType: "checkerboard",
+    description: (
+      <>
+        Shows the number of hosts with{" "}
+        <a
+          target="vulncode-link"
+          href="https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138"
+        >
+          certain critical vulnerabilities
+        </a>{" "}
+        during a given hour.
+      </>
+    ),
+    theme: "red",
   },
 ];
 
@@ -157,6 +189,8 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     const vizProps = {
       data: formattedData,
       selectedDays: CHART_DAYS,
+      theme: currentDataset.theme,
+      tooltipFormatter: currentDataset.tooltipFormatter,
     };
 
     switch (currentDataset.defaultChartType) {
