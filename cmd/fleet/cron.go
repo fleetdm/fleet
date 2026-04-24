@@ -2045,11 +2045,6 @@ func newHomebrewUpdatesSchedule(
 				Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 			}
 
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
 			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
 			for _, si := range installers {
 				var input homebrew.InputApp
@@ -2063,11 +2058,6 @@ func newHomebrewUpdatesSchedule(
 				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "current", si.Version, "latest", fma.Version)
 			}
 			logger.InfoContext(ctx, "--------------------------------------------------------------")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
-			logger.InfoContext(ctx, "")
 			return nil
 		}),
 	)

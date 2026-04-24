@@ -161,7 +161,7 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 	}
 
 	out.Name = input.Name
-	if len(cask.Name) > 0 {
+	if len(cask.Name) > 0 && cask.Name[0] != "" {
 		out.Name = cask.Name[0]
 	}
 	out.Version = strings.Split(cask.Version, ",")[0]

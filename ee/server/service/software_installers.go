@@ -56,7 +56,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	var iconPNG []byte
-	fmt.Println("FromHombrew: ", payload.FromHomebrew)
 	if payload.FromHomebrew != "" {
 		ingester := homebrew.BrewIngester{
 			BaseURL: homebrew.BaseBrewAPIURL,
