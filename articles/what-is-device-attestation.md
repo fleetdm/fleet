@@ -1,10 +1,15 @@
 # What is device attestation, and why does it matter for Apple enrollment?
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/o1YFhlzsRlg?si=OKiMLcbc9OyK2AAJ" title="0" allowfullscreen></iframe>
+</div>
+<p></p>
+
 If you've set up Automated Device Enrollment (ADE) for your organization, you've already solved
 the "how do devices get enrolled" problem. But there's a separate question worth asking: how do
 you know the device that enrolled is actually the device it claims to be?
 
-That's where device attestation comes in. Fleet 4.84 adds support for hardware-attested MDM
+That's where device attestation comes in. Fleet 4.84.0 adds support for hardware-attested MDM
 enrollment for Apple Silicon Macs via ADE, so let's talk about what attestation means
 and why it's worth enabling.
 
@@ -87,7 +92,7 @@ about proving the device is what it says it is.
 
 ## How Fleet supports device attestation
 
-Starting in Fleet 4.84, Fleet Premium customers can require hardware attestation for ADE
+Starting in Fleet 4.84.0, Fleet Premium customers can require hardware attestation for ADE
 enrollments on Apple Silicon Macs running macOS 14 or later.
 
 When you enable **Require hardware attestation** in Fleet's MDM settings, Fleet does two things:
@@ -132,9 +137,16 @@ device identity to feed those systems.
 For devices that already enrolled, you don't have to do anything disruptive.
 Enable the setting and qualifying devices upgrade to ACME on their next renewal cycle.
 
+
+---
+* [Learn more about the Fleet 4.84.0 release](https://fleetdm.com/releases/fleet-4-84-0)
+* [Learn more about Fleet](https://fleetdm.com)
+
+
+
 <meta name="articleTitle" value="What is device attestation, and why does it matter for Apple enrollment?">
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="TBD">
-<meta name="description" value="Fleet 4.84 adds hardware-attested MDM enrollment for Apple Silicon Macs. Here's what device attestation is and why it matters.">
+<meta name="publishedOn" value="2026-04-24">
+<meta name="description" value="Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs. Here's what device attestation is and why it matters.">
