@@ -2184,7 +2184,7 @@ func (c *Client) DoGitOps(
 			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			team["secrets"] = teamSecrets
 		}
 
