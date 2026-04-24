@@ -507,10 +507,7 @@ func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
-			n := len(group)
-			if n > hostCacheInvalidateBatchSize {
-				n = hostCacheInvalidateBatchSize
-			}
+			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
 			d.mgetChunk(ctx, chunk, indexOf, result)
@@ -520,12 +517,17 @@ func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 }
 
 func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) {
-	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	conn := d.pool.Get()
 	defer conn.Close()
+	// BindConn MUST come before ConfigureDoer — redisc's BindConn expects the
+	// raw cluster conn from the pool, not a RetryConn wrapper. See
+	// server/datastore/redis/ratelimit_store.go for the canonical ordering.
+	// In standalone mode BindConn is a no-op.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
 		return
 	}
+	conn = redis.ConfigureDoer(d.pool, conn)
 	args := redigo.Args{}.AddFlat(chunk)
 	values, err := redigo.Values(conn.Do("MGET", args...))
 	if err != nil {
@@ -554,10 +556,7 @@ func (d *Datastore) pipelinedDEL(ctx context.Context, keys []string) {
 	}
 	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
 		for len(group) > 0 {
-			n := len(group)
-			if n > hostCacheInvalidateBatchSize {
-				n = hostCacheInvalidateBatchSize
-			}
+			n := min(len(group), hostCacheInvalidateBatchSize)
 			chunk := group[:n]
 			group = group[n:]
 			d.delChunk(ctx, chunk)
@@ -566,12 +565,14 @@ func (d *Datastore) pipelinedDEL(ctx context.Context, keys []string) {
 }
 
 func (d *Datastore) delChunk(ctx context.Context, chunk []string) {
-	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	conn := d.pool.Get()
 	defer conn.Close()
+	// BindConn before ConfigureDoer — see mgetChunk for the rationale.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "del", err)
 		return
 	}
+	conn = redis.ConfigureDoer(d.pool, conn)
 	args := redigo.Args{}.AddFlat(chunk)
 	if _, err := conn.Do("DEL", args...); err != nil {
 		d.recordHostCacheErr(ctx, "del", err)
