@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -1388,6 +1390,39 @@ func registerMDM(
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
 	mux.Handle(apple_mdm.MDMPath, otel.WrapHandler(mdmHandler, apple_mdm.MDMPath, fleetConfig))
 	return nil
+}
+
+func WithMDMSSOCallbackRedirect(svc fleet.Service, logger *slog.Logger, next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/mdm/sso/callback") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Check for custom apple URL set and does not match the current request URL, then do a redirect to the custom URL, where the Cookie is set.
+		appCfg, err := svc.AppConfigUrls(r.Context())
+		if err != nil {
+			logger.ErrorContext(r.Context(), "fetching app config", "err", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		parsedUrl, err := url.Parse(appCfg.MDMUrl())
+		if err != nil {
+			logger.ErrorContext(r.Context(), "parsing custom Apple MDM URL", "err", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		reqHost := r.Host
+		if h, _, err := net.SplitHostPort(reqHost); err == nil {
+			reqHost = h
+		}
+		fmt.Printf("Comparing APPLE %s with incoming %s", parsedUrl.Hostname(), reqHost)
+		if !strings.EqualFold(parsedUrl.Hostname(), reqHost) {
+			logger.InfoContext(r.Context(), "redirecting to custom Apple MDM URL for SSO callback")
+			http.Redirect(w, r, appCfg.MDMUrl()+r.URL.Path+"?"+r.URL.RawQuery, http.StatusTemporaryRedirect)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }
 
 func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next http.Handler) http.HandlerFunc {

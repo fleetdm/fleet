@@ -1506,6 +1506,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if err := apiendpoints.Init(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
+		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request

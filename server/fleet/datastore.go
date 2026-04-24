@@ -3208,4 +3208,5 @@ type AccessesMDMConfigAssets interface {
 }
 type GetsAppConfig interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
+	AppConfigUrls(ctx context.Context) (*AppConfigUrls, error)
 }

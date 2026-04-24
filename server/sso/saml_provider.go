@@ -59,16 +59,11 @@ func SAMLProviderFromConfiguredMetadata(
 // from a valid SSO session (stored in sessionStore).
 func SAMLProviderFromSession(
 	ctx context.Context,
-	sessionID string,
-	sessionStore SessionStore,
+	session *Session,
 	acsURL *url.URL,
 	entityID string,
 	expectedAudiences []string,
 ) (samlProvider *saml.ServiceProvider, requestID, originalURL string, ssoRequestData SSORequestData, err error) {
-	session, err := sessionStore.Fullfill(sessionID)
-	if err != nil {
-		return nil, "", "", SSORequestData{}, ctxerr.Wrap(ctx, err, "validate request in session")
-	}
 	entityDescriptor, err := ParseMetadata([]byte(session.Metadata))
 	if err != nil {
 		return nil, "", "", SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse metadata")
