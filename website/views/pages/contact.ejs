@@ -68,6 +68,10 @@
             <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
             <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
           </div>
+          <div purpose="hp-input" aria-hidden="true">
+            <label>Website</label>
+            <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="formData.websiteUrl">
+          </div>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <div class="form-group btn-container">
             <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Send</ajax-button>

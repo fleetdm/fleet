@@ -25,6 +25,11 @@ module.exports = {
     platforms: {type: {}, required: true},
     useCase: {type: {}, required: true},
     notes: {type: 'string', defaultsTo: 'N/A'},
+
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
+    },
   },
 
 
@@ -38,6 +43,8 @@ module.exports = {
 
 
   fn: async function (inputs) {
+    if (inputs.websiteUrl) { return; }// Honeypot input provided — return a success response
+
     let emailDomain = inputs.submittersEmailAddress.split('@')[1];
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';

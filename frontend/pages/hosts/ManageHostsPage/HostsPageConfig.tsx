@@ -99,7 +99,7 @@ export const hostSelectStatuses = (isPremiumTier: boolean) => {
   const premiumStatuses = [
     {
       disabled: false,
-      label: "Pending",
+      label: "Pending hosts",
       value: "pending",
       helpText: "Hosts pending enrollment.",
     },
