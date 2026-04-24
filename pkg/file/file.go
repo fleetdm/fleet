@@ -83,9 +83,11 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 	return meta, err
 }
 
-// ExtractInstallerMetadataWithHint works like ExtractInstallerMetadata but accepts a filename
-// hint to disambiguate file types that share magic bytes (e.g. zip vs ipa) or that cannot
-// be detected by magic bytes alone (e.g. dmg).
+// ExtractInstallerMetadataWithHint works like ExtractInstallerMetadata but accepts a
+// filename hint that takes priority over magic-byte detection for the extensions it
+// handles specially. `zip` is routed to ExtractZipAppMetadata (macOS .app bundle) and
+// `dmg` to ExtractDMGMetadata; any other extension falls through to the magic-byte
+// based ExtractInstallerMetadata.
 func ExtractInstallerMetadataWithHint(tfr *fleet.TempFileReader, filename string) (*InstallerMetadata, error) {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
 
