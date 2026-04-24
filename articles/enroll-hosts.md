@@ -159,33 +159,18 @@ In the Google Admin console:
 
 ### Unenroll
 
-Determine if MDM is on via **MDM status** on the **Host details** page.
+1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-#### AB-enrolled hosts (macOS, iOS, iPadOS)
+2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
+  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
+  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's fleet on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
+  - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
 
-1. Turn off MDM:
-  - macOS: **Actions > Turn off MDM**
-  - iOS/iPadOS: **Actions > Unenroll**
+3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-2. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS hosts.
+4. Select **Actions > Delete** to delete the host from Fleet.
 
-3. Re-enroll the host. Fleet automatically cancels pending commands, scripts, and software installs, and clears completed activity from the previous enrollment.
-
-> Do not delete AB hosts from Fleet before re-enrolling. Fleet handles clearing stale state automatically on re-enrollment. For more details on AB host re-enrollment behavior, see the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts).
-
-
-#### All other hosts
-
-1. Turn off MDM:
-  - Windows: download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's fleet on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
-  - Android: **Actions > Unenroll**
-
-3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for Windows, and Linux hosts. 
-
-4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
-
-> Delete the host from Fleet before re-enrolling it. This prevents pending activity (like scripts or software installs) from running on the re-enrolled host and avoids showing the original host’s vitals.
-
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **AB hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
 
 ## Debugging
 
