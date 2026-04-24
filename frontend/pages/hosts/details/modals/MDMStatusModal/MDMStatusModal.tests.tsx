@@ -156,7 +156,7 @@ describe("MDMStatusModal - component", () => {
     expect(screen.queryByText("Assigned")).not.toBeInTheDocument();
   });
 
-  it("shows spinner while DEP assignment is loading", () => {
+  it("shows spinner while DEP assignment is loading", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
         // never resolve
@@ -174,7 +174,8 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a built-in anti-flash delay, so wait for it to appear.
+    expect(await screen.findByTestId("spinner")).toBeVisible();
   });
 
   it("shows DataError if DEP assignment fails", async () => {

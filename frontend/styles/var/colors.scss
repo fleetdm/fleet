@@ -85,6 +85,9 @@
   --core-fleet-blue-over: #303860;
   --core-fleet-blue-down: #192147;
 
+  // Nav active underline
+  --nav-active-underline: var(--core-fleet-black);
+
   // Overlay / semi-transparent (used in Modal & Button)
   --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
   --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
@@ -100,20 +103,20 @@ body.dark-mode {
   //   Base #181a1f → Surface-0 #1e2128 → Surface-1 #252830
   //   → Surface-2 #32363e → Surface-3 #42464f
   --core-fleet-black: #e2e4ea;
-  --core-fleet-green: #009a7d;
-  --core-fleet-white: #181a1f;
-  --ui-fleet-black-75: #b3b6c1;
-  --ui-fleet-black-50: #8b8fa2;
+  --core-fleet-green: #00C28B;
+  --core-fleet-white: #1a1c21;
+  --ui-fleet-black-75: #BEBEBF;
+  --ui-fleet-black-50: #87888B;
   --ui-fleet-black-33: #636777;
   --ui-fleet-black-25: #42464f;
-  --ui-fleet-black-10: #32363e;
-  --ui-fleet-black-5: #252830;
+  --ui-fleet-black-10: #474c58;
+  --ui-fleet-black-5: #25272D;
 
   // Secondary / interaction
   --ui-fleet-black-75-over: #c5c7d1;
   --ui-fleet-black-75-down: #d5d7de;
-  --core-fleet-green-over: #01a889;
-  --core-fleet-green-down: #02be9c;
+  --core-fleet-green-over: #01A889;
+  --core-fleet-green-down: #02BE9C;
   --ui-fleet-black-5-down: #2c2f37;
 
   // Core accent — slightly brighter for dark-bg contrast
@@ -163,7 +166,8 @@ body.dark-mode {
   --rainbow-blue: #70bbea;
 
   // Gradients — slightly lighter top for subtle depth
-  --gradient-background: #1c1f25;
+  --gradient-background: #202226;
+
 
   // Button hover / active
   --core-vibrant-red-over: #ff8da5;
@@ -174,6 +178,9 @@ body.dark-mode {
   --ui-success-down: #4dc98b;
   --core-fleet-blue-over: #7a7f96;
   --core-fleet-blue-down: #e2e4ea;
+
+  // Nav active underline
+  --nav-active-underline: var(--core-fleet-green);
 
   // Overlays
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
@@ -196,6 +203,7 @@ $ui-fleet-black-25: var(--ui-fleet-black-25);
 $ui-fleet-black-10: var(--ui-fleet-black-10);
 $ui-fleet-black-5: var(--ui-fleet-black-5);
 $core-focused-outline: var(--core-fleet-black);
+$nav-active-underline: var(--nav-active-underline);
 
 // 2025 secondary colors
 $ui-fleet-black-75-over: var(--ui-fleet-black-75-over);
@@ -271,6 +279,9 @@ $loading-overlay: var(--loading-overlay);
 // Use for elements that are always dark surfaces with light text (tooltips, code blocks).
 $static-white: #e8eaf0;
 $static-black: #192147;
+$dark-mode-table-header: #282c33;
+$dark-mode-table-row: #1f2229;
+$dark-mode-nav-hover: #1f2228;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.

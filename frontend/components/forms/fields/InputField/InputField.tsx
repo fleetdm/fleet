@@ -132,36 +132,54 @@ const InputField = ({
     [value]
   );
 
-  const renderShowSecretButton = () => {
+  // Old-style icon copy button for textarea (positioned absolutely above textarea)
+  const renderTextareaCopyButton = () => {
     return (
-      <Button
-        variant="icon"
-        className={`${baseClass}__show-secret-icon`}
-        onClick={onToggleSecret}
-        size="small"
+      <div
+        className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        <Icon name="eye" />
-      </Button>
+        {copied && (
+          <span className={`${baseClass}__copied-confirmation`}>Copied!</span>
+        )}
+        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
+          <Icon name="copy" />
+        </Button>
+      </div>
     );
   };
 
-  const renderCopyButton = () => {
-    const copyButtonValue = <Icon name="copy" />;
-    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`, {
-      [`${baseClass}__copy-wrapper__text-area`]: type === "textarea",
-    });
-
-    const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`
-    );
-
+  // New bordered action buttons for input fields
+  const renderActionButtons = () => {
     return (
-      <div className={wrapperClasses}>
-        {copied && <span className={copiedConfirmationClasses}>Copied!</span>}
-        <Button variant="icon" onClick={onClickCopy} size="small" iconStroke>
-          {copyButtonValue}
-        </Button>
-        {enableShowSecret && renderShowSecretButton()}
+      <div className={`${baseClass}__action-buttons`}>
+        {enableCopy && (
+          <div className={`${baseClass}__action-button-wrapper`}>
+            {copied && (
+              <span className={`${baseClass}__copied-confirmation`}>
+                Copied!
+              </span>
+            )}
+            <button
+              type="button"
+              className={`${baseClass}__action-button`}
+              onClick={onClickCopy}
+              aria-label="Copy to clipboard"
+            >
+              <Icon name="copy" />
+            </button>
+          </div>
+        )}
+        {enableShowSecret && (
+          <button
+            type="button"
+            className={`${baseClass}__action-button`}
+            onClick={onToggleSecret}
+            aria-label={showSecret ? "Hide secret" : "Show secret"}
+            aria-pressed={showSecret}
+          >
+            <Icon name="eye" />
+          </button>
+        )}
       </div>
     );
   };
@@ -189,18 +207,21 @@ const InputField = ({
     labelTooltipPosition,
   };
 
-  const inputContainerClasses = classnames(`${baseClass}__input-container`, {
-    "copy-enabled": enableCopy,
-  });
+  const hasActionButtons = enableCopy || enableShowSecret;
 
   if (type === "textarea") {
+    const textareaContainerClasses = classnames(
+      `${baseClass}__input-container`,
+      { "copy-enabled": enableCopy }
+    );
+
     return (
       <FormField
         {...formFieldProps}
         type="textarea"
         className={inputWrapperClasses}
       >
-        <div className={inputContainerClasses}>
+        <div className={textareaContainerClasses}>
           <textarea
             name={name}
             id={name}
@@ -216,13 +237,16 @@ const InputField = ({
             {...(inputOptions as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
             value={value as string | number}
           />
-          {enableCopy && renderCopyButton()}
+          {enableCopy && renderTextareaCopyButton()}
         </div>
       </FormField>
     );
   }
 
   const inputType = showSecret ? "text" : type;
+  const inputContainerClasses = classnames(`${baseClass}__input-container`, {
+    [`${baseClass}__input-container--has-actions`]: hasActionButtons,
+  });
 
   return (
     <FormField {...formFieldProps} type="input" className={inputWrapperClasses}>
@@ -248,7 +272,7 @@ const InputField = ({
           min={min}
           max={max}
         />
-        {enableCopy && renderCopyButton()}
+        {hasActionButtons && renderActionButtons()}
       </div>
     </FormField>
   );

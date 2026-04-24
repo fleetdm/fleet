@@ -72,6 +72,9 @@ export default {
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
+  // Chart endpoints
+  CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
+
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
@@ -197,6 +200,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
 
   ME: `/${API_VERSION}/fleet/me`,
 

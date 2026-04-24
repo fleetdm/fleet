@@ -818,6 +818,8 @@ type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnq
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
+type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -2109,6 +2111,9 @@ type Service struct {
 
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
+
+	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
+	GetHostManagedAccountPasswordFuncInvoked bool
 
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
@@ -5045,6 +5050,13 @@ func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) e
 	s.RotateRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
+func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	s.mu.Lock()
+	s.GetHostManagedAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAccountPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

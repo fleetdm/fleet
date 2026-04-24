@@ -27,8 +27,17 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | <nobr>Feb‑14‑2022</nobr> |
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
-| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
+| [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
 |[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |<nobr>Apr-15-2026</nobr> |
+
+### 📄 Whitepapers
+
+Downloadable PDFs for lead generation, ABM campaigns, and executive education. Audience: IT leaders, CISOs, procurement.
+
+| Asset | Description | Date updated |
+| --- | --- | --- |
+| [The IT leader's guide to Linux device management](https://fleetdm.com/whitepapers/it-leaders-guide-to-linux-device-management) | Comprehensive guide for IT leaders evaluating Linux device management strategies and tooling. | 2026-04-20 |
+| [Modern endpoint management: Managing devices as code](https://fleetdm.com/whitepapers/modern-endpoint-management-managing-devices-as-code) | How modern IT teams use Infrastructure as Code and GitOps to scale device management and improve security. | 2026-03-09 |
 
 ### Sales enablement
 
@@ -73,6 +82,9 @@ Opinion, industry analysis, executive POV, named-series articles, and standalone
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Old IT is dead - GitOps & AI are burying it](https://fleetdm.com/articles/old-it-is-dead) | How AI and open-source GitOps workflows are replacing legacy device management, with lessons from the Intune breach. | Allen Houchins | 2026-03-18 |
+| [The 7 Best Jamf Alternatives in 2026 (Compared)](https://fleetdm.com/articles/seven-best-jamf-alternatives-in-2026-compared) | Feature comparison of Fleet, Intune, Iru, Mosyle, NinjaOne, Kandji, and Hexnode for teams evaluating Jamf alternatives. | Brock Walters | 2026-04-07 |
+| [The business case for managing Linux devices](https://fleetdm.com/articles/business-vase-for-managing-linux-devices) | Why managing Linux endpoints matters and how to build the business case internally. | Ashish Kuthiala | 2026-04-17 |
 | [Redefining endpoint management at scale: Fleet's momentum in the 2026 Gartner reports](https://fleetdm.com/announcements/redefining-endpoint-management-at-scale) | Fleet's open approach to device management is validated in Gartner's 2026 reports, highlighting GitOps, scale, transparency, and real-time data. | Ashish Kuthiala | <nobr>2026‑01‑23</nobr> |
 | [A new chapter for device management](https://fleetdm.com/announcements/a-new-chapter-for-device-management) | Jamf's acquisition marks a shift in device management. Fleet provides an open, cross-platform alternative for IT and security teams. | Ashish Kuthiala | <nobr>2025‑11‑27</nobr> |
 | [Fleet reimagines observability with DevOps teams at Roblox, Atlassian, Dropbox](https://fleetdm.com/announcements/fleet-reimagines-observability-with-devops-teams) | Fleet speeds up compliance audits and enables next-gen intrusion detection in large production infrastructures. | Mike McNeil | <nobr>2024‑11‑14</nobr> |
@@ -107,7 +119,7 @@ Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is f
 | --- | --- | --- | --- |
 | <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
 | <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| <nobr>3 of 3</nobr> | [Coming soon]| Ashish Kuthiala | <nobr>March 2026</nobr> |
+| <nobr>3 of 3</nobr> | [Supercharging endpoint management with AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)| Ashish Kuthiala | <nobr>2026‑04‑22</nobr> |
 
 #### 📚 Protecting Linux Endpoints (6-part series)
 
@@ -224,6 +236,7 @@ Turn on MDM for each platform - start here if Fleet MDM is not yet configured.
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Configure Wi-Fi on Android](https://fleetdm.com/guides/configure-eap-tls-wifi-android) | How to configure EAP-TLS Wi-Fi for Android devices managed by Fleet. | Fleet | 2026-04-07 |
 | [Android MDM setup](https://fleetdm.com/guides/android-mdm-setup) | Learn how to turn on Android MDM in Fleet. | Marko Lisica | <nobr>2025‑04‑05</nobr> |
 | [Apple MDM setup](https://fleetdm.com/guides/apple-mdm-setup) | Learn how to turn on MDM features for Apple hosts in Fleet. | Mo Zhu | <nobr>2024‑07‑02</nobr> |
 | [Setup experience](https://fleetdm.com/guides/setup-experience) | Customize the out-of-the-box macOS, Windows, Linux, iOS, iPadOS, and Android setup. | Noah Talerman | <nobr>2024‑07‑03</nobr> |
@@ -450,6 +463,7 @@ Feature launches, OS support announcements, integration announcements, and roadm
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [A new Fleet](https://fleetdm.com/announcements/a-new-fleet) | Announcement of Fleet's rebrand and updated positioning. | Mike McNeil | 2024-03-14 |
 | [Fleet supports Apple's latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-tahoe-26) | Fleet is pleased to announce full support for macOS Tahoe 26, iOS 26, and iPadOS 26. | Andrey Kizimenko | <nobr>2025‑09‑15</nobr> |
 | [Secureframe adopts Fleet as its default agent for security compliance](https://fleetdm.com/announcements/secureframe-adopts-fleet-as-its-default-agent) | Secureframe has selected Fleet as its default agent for collecting device compliance data across customer environments. | Mike McNeil | <nobr>2025‑07‑10</nobr> |
 | [Fleet supports Apple's latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-15-sequoia) | Fleet is pleased to announce full support for macOS 15 Sequoia, iOS 18, and iPadOS 18. | JD Strong | <nobr>2024‑09‑27</nobr> |
