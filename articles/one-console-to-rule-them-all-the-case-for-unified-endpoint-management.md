@@ -57,7 +57,7 @@ There's also the hidden cost of vendor management overhead. Each contract is a r
 
 ## The risk argument: Gaps live between tools
 
-Here's what no one tells you when you're evaluating point solutions: the risk doesn't live inside the tools. It lives in the spaces between them.
+Here's what no one tells you when you're evaluating point solutions. The risk doesn't live inside the tools. It lives in the spaces between them.
 
 When you manage macOS devices in one tool and Windows in another, you get two separate data models, two separate policy frameworks, and - critically - two separate views of your fleet. Correlation across them requires manual work or a complex integration layer. Manual work introduces lag. Lag creates exposure windows.
 
