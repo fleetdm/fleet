@@ -374,6 +374,12 @@ func (c *TestWindowsMDMClient) AppendResponse(op fleet.SyncMLCmd) {
 	c.queuedCommandResponses[op.CmdID.Value] = op
 }
 
+// HasQueuedResponses reports whether any command responses have been queued via AppendResponse
+// and not yet flushed by a SendResponse call.
+func (c *TestWindowsMDMClient) HasQueuedResponses() bool {
+	return len(c.queuedCommandResponses) > 0
+}
+
 func (c *TestWindowsMDMClient) GetCurrentMsgID() (string, error) {
 	msgID, err := c.lastManagementResp.GetMessageID()
 	if err != nil {
