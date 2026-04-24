@@ -26,10 +26,10 @@ import (
 // The returned iconPNG (nil if extraction failed) is uploaded by the caller after the
 // installer and software title have been persisted.
 //
-// Note: IngestOne is called twice — once to get the installer URL/version/SHA, and again
-// after the bundle identifier is extracted so install/uninstall scripts reference the
-// correct bundle ID. A future refactor could have IngestOne return the parsed cask so
-// the scripts can be rebuilt without a second HTTP round-trip.
+// The homebrew API is contacted exactly once via FetchCask. Install/uninstall scripts
+// are built locally from the parsed cask — once up front for URL/SHA, then again after
+// the bundle identifier is extracted from the downloaded .app bundle — so extracting
+// the bundle ID does not trigger a second HTTP round-trip.
 func (svc *Service) prepareHomebrewUpload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) ([]byte, error) {
 	ingester := homebrew.BrewIngester{
 		BaseURL: homebrew.BaseBrewAPIURL,
@@ -38,9 +38,14 @@ func (svc *Service) prepareHomebrewUpload(ctx context.Context, payload *fleet.Up
 	}
 	input := homebrew.InputApp{Token: payload.FromHomebrew}
 
-	fma, err := ingester.IngestOne(ctx, input)
+	cask, err := ingester.FetchCask(ctx, input.Token)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew cask")
+		return nil, ctxerr.Wrap(ctx, err, "fetching homebrew cask")
+	}
+
+	fma, err := ingester.BuildManifest(ctx, input, cask)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building homebrew manifest")
 	}
 
 	payload.URL = fma.InstallerURL
@@ -73,12 +78,13 @@ func (svc *Service) prepareHomebrewUpload(ctx context.Context, payload *fleet.Up
 		return nil, ctxerr.Wrap(ctx, err, "rewind installer after metadata extraction")
 	}
 
-	// Re-run IngestOne so install/uninstall scripts reference the extracted bundle ID.
+	// Rebuild the manifest (and its scripts) locally with the extracted bundle
+	// identifier — no second HTTP call to the homebrew API.
 	if payload.BundleIdentifier != "" {
 		input.UniqueIdentifier = payload.BundleIdentifier
-		fma, err = ingester.IngestOne(ctx, input)
+		fma, err = ingester.BuildManifest(ctx, input, cask)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "re-ingesting with extracted bundle identifier")
+			return nil, ctxerr.Wrap(ctx, err, "rebuilding homebrew manifest with extracted bundle identifier")
 		}
 	}
 

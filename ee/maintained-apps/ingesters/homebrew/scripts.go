@@ -11,7 +11,7 @@ import (
 	"github.com/micromdm/plist"
 )
 
-func installScriptForApp(app InputApp, cask *brewCask) (string, error) {
+func installScriptForApp(app InputApp, cask *BrewCask) (string, error) {
 	sb := newScriptBuilder()
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
@@ -88,7 +88,7 @@ fi`, appPath)
 	return sb.String(), nil
 }
 
-func uninstallScriptForApp(cask *brewCask) string {
+func uninstallScriptForApp(cask *BrewCask) string {
 	sb := newScriptBuilder()
 
 	for _, artifact := range cask.Artifacts {

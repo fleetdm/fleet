@@ -101,12 +101,24 @@ type BrewIngester struct {
 	Client  *http.Client
 }
 
-// IngestOne fetches a single cask from the homebrew API, parses the response,
-// and produces an FMAManifestApp including install/uninstall scripts. When
-// input.UniqueIdentifier is set, it is baked into the install/uninstall scripts
-// so macOS can quit/relaunch the app using its bundle identifier.
+// IngestOne fetches a single cask from the homebrew API and builds its
+// FMAManifestApp. It is a convenience wrapper around FetchCask + BuildManifest
+// for callers that don't need to intercept the parsed cask between the two
+// steps.
 func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
+	cask, err := i.FetchCask(ctx, input.Token)
+	if err != nil {
+		return nil, err
+	}
+	return i.BuildManifest(ctx, input, cask)
+}
+
+// FetchCask performs the homebrew API call and returns the parsed cask.
+// Callers that need to mutate InputApp fields (e.g. UniqueIdentifier extracted
+// from the downloaded installer) can then call BuildManifest with the updated
+// input and the already-fetched cask, avoiding a second HTTP round-trip.
+func (i *BrewIngester) FetchCask(ctx context.Context, token string) (*BrewCask, error) {
+	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -136,11 +148,17 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
 	}
 
-	var cask brewCask
+	var cask BrewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", token)
 	}
+	return &cask, nil
+}
 
+// BuildManifest turns an InputApp + already-fetched BrewCask into an
+// FMAManifestApp, including install/uninstall scripts baked with
+// input.UniqueIdentifier (so macOS can quit/relaunch via the bundle ID).
+func (i *BrewIngester) BuildManifest(ctx context.Context, input InputApp, cask *BrewCask) (*maintained_apps.FMAManifestApp, error) {
 	out := &maintained_apps.FMAManifestApp{}
 
 	// validate required fields
@@ -156,8 +174,7 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 	if cask.URL == "" {
 		return nil, ctxerr.Errorf(ctx, "missing URL for cask %s", input.Token)
 	}
-	_, err = url.Parse(cask.URL)
-	if err != nil {
+	if _, err := url.Parse(cask.URL); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", input.Token)
 	}
 
@@ -183,10 +200,11 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 	out.DefaultCategories = input.DefaultCategories
 
 	var installScript, uninstallScript string
+	var err error
 
 	switch input.InstallScriptPath {
 	case "":
-		installScript, err = installScriptForApp(input, &cask)
+		installScript, err = installScriptForApp(input, cask)
 		if err != nil {
 			return nil, ctxerr.WrapWithData(ctx, err, "generating install script for maintained app", map[string]any{"unique_identifier": input.UniqueIdentifier})
 		}
@@ -209,7 +227,7 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
@@ -272,7 +290,11 @@ type InputApp struct {
 	PatchPolicyPath      string   `json:"patch_policy_path"`
 }
 
-type brewCask struct {
+// BrewCask is the parsed payload of a cask fetched from formulae.brew.sh.
+// It is returned by BrewIngester.FetchCask and consumed by BuildManifest so
+// callers can mutate InputApp between the two steps (e.g. after extracting a
+// bundle identifier from the downloaded installer).
+type BrewCask struct {
 	Token                string          `json:"token"`
 	FullToken            string          `json:"full_token"`
 	Tap                  string          `json:"tap"`

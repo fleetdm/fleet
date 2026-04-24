@@ -27,7 +27,7 @@ func TestIngestValidations(t *testing.T) {
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.sh"), []byte(testUninstallScriptContents), 0644))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var cask brewCask
+		var cask BrewCask
 
 		appToken := strings.TrimSuffix(path.Base(r.URL.Path), ".json")
 		switch appToken {
@@ -40,7 +40,7 @@ func TestIngestValidations(t *testing.T) {
 			return
 
 		case "noname":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    nil,
 				URL:     "https://example.com",
@@ -48,7 +48,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "emptyname":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    []string{""},
 				URL:     "https://example.com",
@@ -56,7 +56,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "notoken":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   "",
 				Name:    []string{appToken},
 				URL:     "https://example.com",
@@ -64,7 +64,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "noversion":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
@@ -72,7 +72,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "nourl":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "",
@@ -80,7 +80,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "invalidurl":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://\x00\x01\x02",
@@ -88,7 +88,7 @@ func TestIngestValidations(t *testing.T) {
 			}
 
 		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
-			cask = brewCask{
+			cask = BrewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
