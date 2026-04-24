@@ -928,12 +928,18 @@ OR
 
 	var appleHosts []string
 	var androidHosts []string
+	// winHosts is only consumed by the test-only eager Windows reconciliation
+	// path. In production we leave it nil so large host sets don't pay the
+	// allocation + per-row append cost.
+	collectWinHosts := ds.testEagerWindowsProfileReconciliation
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
-			winHosts = append(winHosts, h.UUID)
+			if collectWinHosts {
+				winHosts = append(winHosts, h.UUID)
+			}
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:

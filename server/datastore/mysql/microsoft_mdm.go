@@ -3066,9 +3066,13 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 	slices.SortFunc(profilesToInstall, cmpByHostThenProfile)
 
 	const defaultBatchSize = 2000
-	batchSize := defaultBatchSize
+	removeBatchSize := defaultBatchSize
+	if ds.testDeleteMDMProfilesBatchSize > 0 {
+		removeBatchSize = ds.testDeleteMDMProfilesBatchSize
+	}
+	installBatchSize := defaultBatchSize
 	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+		installBatchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	if len(profilesToRemove) > 0 {
@@ -3078,7 +3082,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 		//
 		// Tuple order `(host_uuid, profile_uuid)` matches the PK so MySQL can
 		// perform direct PK point lookups for each pair.
-		err := common_mysql.BatchProcessSimple(profilesToRemove, batchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
+		err := common_mysql.BatchProcessSimple(profilesToRemove, removeBatchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
 			return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 				var sb strings.Builder
 				sb.WriteString(`UPDATE host_mdm_windows_profiles
@@ -3110,7 +3114,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesBatched(
 		return updatedDB, nil
 	}
 
-	err = common_mysql.BatchProcessSimple(profilesToInstall, batchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
+	err = common_mysql.BatchProcessSimple(profilesToInstall, installBatchSize, func(batch []*fleet.MDMWindowsProfilePayload) error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			didUpdate, execErr := executeWindowsProfileUpsertBatch(ctx, tx, batch)
 			if execErr != nil {

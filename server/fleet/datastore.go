@@ -1507,6 +1507,16 @@ type Datastore interface {
 	// remove for each affected host to pending for the provided criteria, which
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
+	//
+	// This reconciles Apple profiles, Apple declarations, and Android profiles
+	// synchronously. Windows profile reconciliation is deferred: the
+	// mdm_windows_profile_manager cron computes the full desired-vs-actual
+	// diff globally every 30s (see ReconcileWindowsProfiles). Callers must not
+	// assume host_mdm_windows_profiles rows are written by the time this
+	// function returns — if a caller needs immediate Windows state (e.g. a
+	// test, or a synchronous UX flow), it must trigger reconciliation
+	// explicitly. MDMProfilesUpdates.WindowsConfigProfile is always false in
+	// production.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)

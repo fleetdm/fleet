@@ -370,18 +370,21 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // test.
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	testing_utils.LoadDefaultSchema(t, testName, opts)
-	return connectMySQL(t, testName, opts)
-}
-
-func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
-	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
-	ds := initializeDatabase(t, cleanTestName, opts)
+	ds := connectMySQL(t, testName, opts)
 	// In production, Windows profile reconciliation is handled by the
 	// mdm_windows_profile_manager cron. The cron does not run in unit tests,
 	// so we enable inline reconciliation so existing tests that observe
 	// host_mdm_windows_profiles state after BulkSetPendingMDMHostProfiles
 	// continue to work. Production (real server start-up) leaves this false.
+	// Set here (rather than in createMySQLDSWithOptions) so every test
+	// constructor path — including CreateNamedMySQLDSWithConns — gets it.
 	ds.testEagerWindowsProfileReconciliation = true
+	return ds
+}
+
+func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
+	ds := initializeDatabase(t, cleanTestName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }
