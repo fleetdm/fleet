@@ -85,6 +85,9 @@ export interface IMdmConfig {
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
   };
+  macos_setup?: {
+    enable_managed_local_account?: boolean;
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
