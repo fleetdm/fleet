@@ -56,7 +56,7 @@ func SAMLProviderFromConfiguredMetadata(
 }
 
 // SAMLProviderFromSession creates a SAML provider that can validate SAML responses
-// from a valid SSO session (stored in sessionStore).
+// from a valid SSO session.
 func SAMLProviderFromSession(
 	ctx context.Context,
 	session *Session,

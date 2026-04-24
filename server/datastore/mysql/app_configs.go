@@ -63,10 +63,10 @@ func (ds *Datastore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, e
 	info := &fleet.AppConfigUrls{}
 	var bytes []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "selecting app config urls")
 	}
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return &fleet.AppConfigUrls{}, nil
 	}
 

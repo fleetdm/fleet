@@ -1394,7 +1394,7 @@ func registerMDM(
 
 func WithMDMSSOCallbackRedirect(svc fleet.Service, logger *slog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasSuffix(r.URL.Path, "/mdm/sso/callback") {
+		if !strings.HasSuffix(r.URL.Path, "/fleet/mdm/sso/callback") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1415,10 +1415,13 @@ func WithMDMSSOCallbackRedirect(svc fleet.Service, logger *slog.Logger, next htt
 		if h, _, err := net.SplitHostPort(reqHost); err == nil {
 			reqHost = h
 		}
-		fmt.Printf("Comparing APPLE %s with incoming %s", parsedUrl.Hostname(), reqHost)
+
 		if !strings.EqualFold(parsedUrl.Hostname(), reqHost) {
+			target := *parsedUrl
+			target.Path = r.URL.Path
+			target.RawQuery = r.URL.RawQuery
 			logger.InfoContext(r.Context(), "redirecting to custom Apple MDM URL for SSO callback")
-			http.Redirect(w, r, appCfg.MDMUrl()+r.URL.Path+"?"+r.URL.RawQuery, http.StatusTemporaryRedirect)
+			http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 			return
 		}
 		next.ServeHTTP(w, r)
