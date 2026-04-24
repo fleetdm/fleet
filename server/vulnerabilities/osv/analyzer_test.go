@@ -37,9 +37,14 @@ func TestIsPlatformSupported(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "RHEL not supported",
+			name:     "RHEL lowercase",
 			platform: "rhel",
-			expected: false,
+			expected: true,
+		},
+		{
+			name:     "RHEL uppercase",
+			platform: "RHEL",
+			expected: true,
 		},
 		{
 			name:     "Windows not supported",
@@ -637,4 +642,169 @@ func TestLoadOSVArtifactZeroTimeUsesLatest(t *testing.T) {
 
 	// Verify it loaded successfully (artifact should have schema_version)
 	require.Equal(t, "1.0.0", artifact.SchemaVersion)
+}
+
+func TestExtractRHELMajorVersion(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"RHEL 9.4.0", "9.4.0", "9"},
+		{"RHEL 8.10.0", "8.10.0", "8"},
+		{"RHEL 7.9.0", "7.9.0", "7"},
+		{"Major only", "9", "9"},
+		{"Empty string", "", ""},
+		{"Whitespace", "  9.4.0  ", "9"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, extractRHELMajorVersion(tt.input))
+		})
+	}
+}
+
+func TestIsVulnerableRPM(t *testing.T) {
+	tests := []struct {
+		name     string
+		version  string
+		release  string
+		vuln     OSVVulnerability
+		expected bool
+	}{
+		{
+			name:    "vulnerable - older than fixed",
+			version: "2.1.3", release: "3.el9",
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			expected: true,
+		},
+		{
+			name:    "not vulnerable - at fixed version",
+			version: "2.1.3", release: "4.el9_1",
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			expected: false,
+		},
+		{
+			name:    "not vulnerable - newer than fixed",
+			version: "2.1.3", release: "5.el9_2",
+			vuln:     OSVVulnerability{Fixed: "0:2.1.3-4.el9_1", Introduced: "0"},
+			expected: false,
+		},
+		{
+			name:    "vulnerable - no release field",
+			version: "1.0.0", release: "",
+			vuln:     OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0"},
+			expected: true,
+		},
+		{
+			name:    "vulnerable - no fixed version (still affected)",
+			version: "1.0.0", release: "1.el9",
+			vuln:     OSVVulnerability{Introduced: "0"},
+			expected: true,
+		},
+		{
+			name:    "not vulnerable - below introduced",
+			version: "0.9.0", release: "1.el9",
+			vuln:     OSVVulnerability{Fixed: "0:2.0.0-1.el9", Introduced: "0:1.0.0-1.el9"},
+			expected: false,
+		},
+		{
+			name:    "vulnerable - kernel version with epoch",
+			version: "5.14.0", release: "503.26.1.el9_5",
+			vuln:     OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			expected: true,
+		},
+		{
+			name:    "not vulnerable - kernel at fixed",
+			version: "5.14.0", release: "611.8.1.el9_7",
+			vuln:     OSVVulnerability{Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, isVulnerableRPM(tt.version, tt.release, tt.vuln))
+		})
+	}
+}
+
+func TestMatchSoftwareToRHELOSV(t *testing.T) {
+	artifact := &RHELOSVArtifact{
+		RHELVersion: "9",
+		Vulnerabilities: map[string][]OSVVulnerability{
+			"curl": {
+				{CVE: "CVE-2024-1234", Fixed: "0:7.76.1-29.el9_4.2", Introduced: "0"},
+			},
+			"kernel": {
+				{CVE: "CVE-2025-5678", Fixed: "0:5.14.0-611.8.1.el9_7", Introduced: "0"},
+			},
+		},
+	}
+
+	t.Run("regular package match", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 1, Name: "curl", Version: "7.76.1", Release: "26.el9_3.2"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Len(t, result, 1)
+		require.Equal(t, "CVE-2024-1234", result[0].CVE)
+		require.Equal(t, uint(1), result[0].SoftwareID)
+		require.NotNil(t, result[0].ResolvedInVersion)
+		require.Equal(t, "0:7.76.1-29.el9_4.2", *result[0].ResolvedInVersion)
+	})
+
+	t.Run("package not in artifact", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 2, Name: "nginx", Version: "1.0", Release: "1.el9"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Empty(t, result)
+	})
+
+	t.Run("kernel-core maps to kernel", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 3, Name: "kernel-core", Version: "5.14.0", Release: "503.26.1.el9_5"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Len(t, result, 1)
+		require.Equal(t, "CVE-2025-5678", result[0].CVE)
+		require.NotNil(t, result[0].ResolvedInVersion)
+		require.Equal(t, "0:5.14.0-611.8.1.el9_7", *result[0].ResolvedInVersion)
+	})
+
+	t.Run("kernel-modules maps to kernel", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 4, Name: "kernel-modules", Version: "5.14.0", Release: "503.26.1.el9_5"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Len(t, result, 1)
+		require.Equal(t, "CVE-2025-5678", result[0].CVE)
+	})
+
+	t.Run("kernel-debug-core maps to kernel", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 5, Name: "kernel-debug-core", Version: "5.14.0", Release: "503.26.1.el9_5"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Len(t, result, 1)
+		require.Equal(t, "CVE-2025-5678", result[0].CVE)
+	})
+
+	t.Run("patched kernel not vulnerable", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 6, Name: "kernel-core", Version: "5.14.0", Release: "611.8.1.el9_7"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Empty(t, result)
+	})
+
+	t.Run("patched curl not vulnerable", func(t *testing.T) {
+		software := []fleet.Software{
+			{ID: 7, Name: "curl", Version: "7.76.1", Release: "29.el9_4.2"},
+		}
+		result := matchSoftwareToRHELOSV(software, artifact)
+		require.Empty(t, result)
+	})
 }

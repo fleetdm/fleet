@@ -47,6 +47,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"controls.setup_experience.enable_release_device_manually", "controls.setup_experience.apple_enable_release_device_manually"},
 	{"controls.setup_experience.script", "controls.setup_experience.macos_script"},
 	{"controls.setup_experience.manual_agent_install", "controls.setup_experience.macos_manual_agent_install"},
+	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
 
 	// Org settings: server_settings
 	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},

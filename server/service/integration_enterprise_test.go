@@ -295,6 +295,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -425,6 +427,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -466,6 +470,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -509,6 +515,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -1780,6 +1788,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team whose name only differs by case — must also 409 with the
+	// canonical "must differ" message.
+	teamCaseVariant := &fleet.Team{
+		Name:        strings.ToLower(name),
+		Description: "case variant",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
+	}
+	r := s.Do("POST", "/api/latest/fleet/teams", teamCaseVariant, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
 		Name:        "no TeAm",
@@ -1787,7 +1805,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Secrets:     []*fleet.EnrollSecret{{Secret: "foobar"}},
 	}
 
-	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
@@ -1816,6 +1834,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// rename with leading/trailing whitespace — name should be trimmed
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
 	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
+
+	// case-only self-rename is allowed (the team's own id is excluded from
+	// the conflict check).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new("RENAMED PADDED")}, http.StatusOK, &tmResp)
+	require.Equal(t, "RENAMED PADDED", tmResp.Team.Name)
+
+	// renaming into another team's name (the original team created above)
+	// using only case differences must return 409 with the canonical message.
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)
@@ -3166,6 +3194,8 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3342,15 +3372,24 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	t := s.T()
 
-	// Enable GitOps mode first
+	// Start from a known state: GitOps mode on, all exceptions disabled.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+		"gitops": {
+			"gitops_mode_enabled": true,
+			"repository_url": "https://example.com/repo",
+			"exceptions": { "labels": false, "software": false, "secrets": false }
+		}
 	}`), http.StatusOK)
 
-	// Set exceptions
+	// Enable two exceptions (labels and software); secrets stays false.
+	// Two enabled_gitops_exception activities expected — one per flipped field.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
 	}`), http.StatusOK)
+	enabledExceptions := s.listRecentExceptionActivities(fleet.ActivityTypeEnabledGitOpsException{}.ActivityName())
+	assert.Contains(t, enabledExceptions, "labels", "expected activity for enabled labels exception")
+	assert.Contains(t, enabledExceptions, "software", "expected activity for enabled software exception")
+	assert.NotContains(t, enabledExceptions, "secrets", "no activity expected for unchanged secrets exception")
 
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3360,10 +3399,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
 
-	// Partial update — only change one exception, others should persist
+	// Partial update — only change one exception, others should persist.
+	// Capture the last activity id before the update so we can verify no
+	// activity is recorded for the fields that did not change.
+	lastIDBefore := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "software": false } }
 	}`), http.StatusOK)
+	lastID := s.lastActivityMatches(
+		fleet.ActivityTypeDisabledGitOpsException{}.ActivityName(),
+		`{"exception": "software"}`, 0)
+	assert.Greater(t, lastID, lastIDBefore, "a new activity should have been recorded")
+
+	// Save app config with no exception changes — no new exception activity should be recorded.
+	lastIDBefore = s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": false, "secrets": false } }
+	}`), http.StatusOK)
+	lastIDAfter := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastIDBefore, lastIDAfter, "no activity should have been recorded when exceptions are unchanged")
 
 	config, err = s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3381,6 +3435,29 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.False(t, getResp.GitOpsConfig.Exceptions.Secrets)
 	assert.True(t, getResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", getResp.GitOpsConfig.RepositoryURL)
+}
+
+// listRecentExceptionActivities returns the set of exception names found among
+// the recent activities of the given type (enabled_gitops_exception or
+// disabled_gitops_exception). Used to assert on exception activities without
+// depending on ordering when multiple are emitted by a single PATCH.
+func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityType string) map[string]struct{} {
+	t := s.T()
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	found := map[string]struct{}{}
+	for _, act := range listActivities.Activities {
+		if act.Type != activityType || act.Details == nil {
+			continue
+		}
+		var d struct {
+			Exception string `json:"exception"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(*act.Details), &d))
+		found[d.Exception] = struct{}{}
+	}
+	return found
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -28984,4 +29061,74 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	require.NotNil(t, foundRegular, "regular user should appear in list")
 	require.False(t, foundRegular.APIOnly)
 	require.Empty(t, foundRegular.APIEndpoints)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
+	t := s.T()
+
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	createAPIOnlyUser := func(name string, endpoints []map[string]any) string {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+
+		body := map[string]any{
+			"name":        name,
+			"global_role": "observer",
+		}
+		if endpoints != nil {
+			body["api_endpoints"] = endpoints
+		}
+		var createResp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", body, http.StatusOK, &createResp)
+		require.NotEmpty(t, createResp.Token)
+		return createResp.Token
+	}
+
+	// With no endpoint restrictions the user can reach any endpoint in the catalog.
+	t.Run("no restrictions allows all catalog endpoints", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-no-restrictions", nil)
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
+	})
+
+	// Paths not registered in the API endpoint catalog are always rejected for
+	// api-only users, regardless of whether they have endpoint restrictions.
+	t.Run("non-catalog path is rejected", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-unrestricted", nil)
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+	})
+
+	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
+	t.Run("endpoint restrictions limit access to the allowed list", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+
+		// The only allowed endpoint returns 200.
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+
+		// These are in the catalog but not in the user's allow list.
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+	})
+
+	// Non-api-only users must not be affected by the middleware at all.
+	t.Run("non-api-only user is unaffected", func(t *testing.T) {
+		s.token = s.getTestAdminToken()
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
+	})
 }

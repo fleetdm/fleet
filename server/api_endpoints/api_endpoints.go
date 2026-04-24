@@ -7,13 +7,20 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
+
+// FeatureRouteFunc registers the routes of a bounded-context / feature module
+// onto a mux router. It mirrors endpointer.HandlerRoutesFunc.
+type FeatureRouteFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
 //go:embed api_endpoints.yml
 var apiEndpointsYAML []byte
 
 var apiEndpoints []fleet.APIEndpoint
+
+var apiEndpointsSet map[string]struct{}
 
 // GetAPIEndpoints returns a copy of the embedded API endpoints slice.
 func GetAPIEndpoints() []fleet.APIEndpoint {
@@ -22,28 +29,51 @@ func GetAPIEndpoints() []fleet.APIEndpoint {
 	return result
 }
 
-func Init(h http.Handler) error {
+// IsInCatalog reports whether the given endpoint fingerprint is in the catalog.
+func IsInCatalog(fingerprint string) bool {
+	_, ok := apiEndpointsSet[fingerprint]
+	return ok
+}
+
+// Init validates that every endpoint in the embedded catalog is registered
+// on the provided handler or one of the given feature routes. Feature routes
+// are walked on a throwaway router so callers can validate routes that are
+// declared elsewhere.
+func Init(h http.Handler, featureRoutes ...FeatureRouteFunc) error {
 	r, ok := h.(*mux.Router)
 	if !ok {
 		return fmt.Errorf("expected *mux.Router, got %T", h)
 	}
 
 	registered := make(map[string]struct{})
-	_ = r.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil {
+	collect := func(rt *mux.Router) {
+		_ = rt.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+			tpl, err := route.GetPathTemplate()
+			if err != nil {
+				return nil
+			}
+			meths, err := route.GetMethods()
+			if err != nil || len(meths) == 0 {
+				return nil
+			}
+			for _, m := range meths {
+				val := fleet.NewAPIEndpointFromTpl(m, tpl)
+				registered[val.Fingerprint()] = struct{}{}
+			}
 			return nil
+		})
+	}
+
+	collect(r)
+
+	for _, fr := range featureRoutes {
+		if fr == nil {
+			continue
 		}
-		meths, err := route.GetMethods()
-		if err != nil || len(meths) == 0 {
-			return nil
-		}
-		for _, m := range meths {
-			val := fleet.NewAPIEndpointFromTpl(m, tpl)
-			registered[val.Fingerprint()] = struct{}{}
-		}
-		return nil
-	})
+		tmp := mux.NewRouter()
+		fr(tmp, nil)
+		collect(tmp)
+	}
 
 	loadedApiEndpoints, err := loadAPIEndpoints()
 	if err != nil {
@@ -62,6 +92,12 @@ func Init(h http.Handler) error {
 	}
 
 	apiEndpoints = loadedApiEndpoints
+
+	set := make(map[string]struct{}, len(loadedApiEndpoints))
+	for _, e := range loadedApiEndpoints {
+		set[e.Fingerprint()] = struct{}{}
+	}
+	apiEndpointsSet = set
 
 	return nil
 }

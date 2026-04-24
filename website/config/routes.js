@@ -56,17 +56,17 @@ module.exports.routes = {
     }
   },
 
-  'GET /queries': {
-    action: 'docs/view-query-library',
+  'GET /reports': {
+    action: 'docs/view-report-library',
     locals: {
       currentSection: 'more',
-      pageTitleForMeta: 'Queries',
-      pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
+      pageTitleForMeta: 'Reports',
+      pageDescriptionForMeta: 'A growing collection of optional reports you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
   },
 
-  'GET /queries/:slug': {
-    action: 'docs/view-query-detail',// Meta title and description set in view action
+  'GET /reports/:slug': {
+    action: 'docs/view-report-details',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
     }
@@ -489,7 +489,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /query-generator': {
+  'GET /report-generator': {
     action: 'query-generator/view-query-generator',
     locals: {
       showAdminLinks: true,
@@ -1079,6 +1079,15 @@ module.exports.routes = {
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
   'GET /fleet-gitops': '/infrastructure-as-code',
+  'GET /queries': '/reports',
+  'GET /query-generator': '/report-generator',
+  'GET /queries/:slug': {
+    fn: (req, res) => {
+      return res.redirect(301, '/reports/' + req.param('slug'));
+    }
+  },
+
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1239,7 +1248,7 @@ module.exports.routes = {
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
   'GET /learn-more-about/managed-lost-mode': 'https://support.apple.com/en-gb/guide/security/secc46f3562c/web',
-  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#partial-failure-android',
+  'GET /learn-more-about/android-profile-errors': '/guides/custom-os-settings#special-android-behavior',
   'GET /learn-more-about/how-to-craft-android-profile': '/guides/custom-os-settings#create-configuration-profile',
   'GET /learn-more-about/example-android-profile': 'https://gist.github.com/marko-lisica/45ee31f6850e1f002141c1b5b43ce519',
   'GET /learn-more-about/manual-enrollment-profile': '/docs/rest-api/rest-api#get-manual-enrollment-profile',
@@ -1268,6 +1277,7 @@ module.exports.routes = {
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
+  'GET /learn-more-about/psso-local-account': '/guides/setup-experience',
 
   // Sitemap
   // =============================================================================================================
@@ -1354,10 +1364,8 @@ module.exports.routes = {
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
   'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
-  'POST /api/v1/deliver-mdm-beta-signup': { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false },
-  'POST /api/v1/deliver-mdm-demo-email': { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
