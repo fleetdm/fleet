@@ -87,14 +87,24 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	return manifestApps, nil
 }
 
+// BaseBrewAPIURL is the root of the public homebrew formulae API. Tests override
+// it via BrewIngester.BaseURL.
 const BaseBrewAPIURL = "https://formulae.brew.sh/api/"
 
+// BrewIngester fetches cask manifests from the homebrew API and converts them
+// into Fleet's FMA manifest format. It is used both by the offline
+// maintained-apps ingest job (cmd/maintained-apps-ingest) and by the runtime
+// UploadSoftwareInstaller path when a user imports a package via homebrew.
 type BrewIngester struct {
 	BaseURL string
 	Logger  *slog.Logger
 	Client  *http.Client
 }
 
+// IngestOne fetches a single cask from the homebrew API, parses the response,
+// and produces an FMAManifestApp including install/uninstall scripts. When
+// input.UniqueIdentifier is set, it is baked into the install/uninstall scripts
+// so macOS can quit/relaunch the app using its bundle identifier.
 func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintained_apps.FMAManifestApp, error) {
 	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
 
@@ -239,6 +249,9 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 	return out, nil
 }
 
+// InputApp describes a homebrew cask that should be ingested, either as input
+// from a curated JSON file on disk (for offline maintained-apps generation) or
+// synthesized at runtime when a user imports an app via homebrew.
 type InputApp struct {
 	// Name is the user-friendly name of the app.
 	Name string `json:"name"`
