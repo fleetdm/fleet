@@ -154,6 +154,21 @@ make osqueryd-app-tar-gz pr=8815 out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
 ```
 
+E.g. to add a custom `osqueryd` version from a osquery PR for Linux (amd64 and arm64):
+```sh
+# Grab osqueryd linux amd64 executable from pull request https://github.com/osquery/osquery/pull/8844.
+make osqueryd-linux pr=8844 arch=amd64 out-path=.
+
+# Push the osqueryd amd64 target as a new version.
+./tools/tuf/test/push_target.sh linux osqueryd osqueryd 5.23.0
+
+# Grab osqueryd linux arm64 executable from pull request https://github.com/osquery/osquery/pull/8844.
+make osqueryd-linux pr=8844 arch=arm64 out-path=.
+
+# Push the osqueryd arm64 target as a new version.
+./tools/tuf/test/push_target.sh linux-arm64 osqueryd osqueryd 5.23.0
+```
+
 E.g. to add a new version of `desktop` for macOS:
 ```sh
 source ./tools/tuf/test/load_orbit_version_vars.sh
