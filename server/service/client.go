@@ -1908,7 +1908,7 @@ func (c *Client) DoGitOps(
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
-	if appConfig != nil {
+	if appConfig != nil && appConfig.License.IsPremium() {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if appConfig.License.IsPremium() {
 			if exceptions.Labels && incoming.LabelsPresent {
