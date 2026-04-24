@@ -19,7 +19,7 @@ Fleet now returns a clear error when a YAML file contains an unrecognized or mis
 
 This is especially useful for catching typos and errors in AI-generated GitOps PRs before a misconfiguration takes effect.
 
-Heads up that after upgrading, you may encounter new errors from previously ignored misspelled or misplaced keys. Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
+> **Note:** After upgrading, you may encounter new errors from previously ignored misspelled or misplaced keys. [Reach out to Fleet](https://fleetdm.com/support) if you need help.
 
 GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 
