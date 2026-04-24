@@ -1147,12 +1147,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err != nil {
 			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
 		}
-
-		if parsedURL.Scheme == "" {
+		scheme := strings.ToLower(parsedURL.Scheme)
+		if scheme == "" {
 			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
 		}
 
-		if parsedURL.Host == "" {
+		if scheme != "http" && scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+		}
+
+		if parsedURL.Hostname() == "" {
 			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
 		}
 	}

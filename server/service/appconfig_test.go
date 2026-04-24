@@ -1354,6 +1354,14 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: "mdmAppleServerURL must include a URL scheme",
 		},
 		{
+			name:        "apple MDM server URL invalid protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "ftp://bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL URL scheme must be http or https",
+		},
+		{
 			name:        "apple MDM server invalid URL",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
