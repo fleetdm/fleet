@@ -70,7 +70,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
-          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24@2x.png">
           <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
           <!-- Group four -->
           <img alt="Censys logo" src="/images/logos/logo-censys-110x32@2x.png">
@@ -124,7 +124,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
-          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24@2x.png">
           <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
           <!-- Group four -->
           <img alt="Censys logo" src="/images/logos/logo-censys-110x32@2x.png">
@@ -191,7 +191,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
-          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24@2x.png">
           <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
         </a>
       </div>
@@ -242,7 +242,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Mr Beast logo" src="/images/logos/logo-mr-beast-90x32@2x.png">
           <img alt="Deeploi logo" src="/images/logos/logo-deeploi-69x32@2x.png">
           <img alt="Flywire logo" src="/images/logos/logo-flywire-69x32@2x.png">
-          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24.png">
+          <img alt="SandboxAQ logo" src="/images/logos/logo-sandboxaq-132x24@2x.png">
           <img alt="Webflow logo" src="/images/logos/logo-webflow-144x32@2x.png">
         </a>
       </div>
