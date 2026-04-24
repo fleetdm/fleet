@@ -61,7 +61,7 @@ Here's what no one tells you when you're evaluating point solutions. The risk do
 
 When you manage macOS devices in one tool and Windows in another, you get two separate data models, two separate policy frameworks, and - critically - two separate views of your fleet. Correlation across them requires manual work or a complex integration layer. Manual work introduces lag. Lag creates exposure windows.
 
-Consider a concrete scenario: your security team detects a novel vulnerability affecting a third-party application that runs on both macOS and Windows. In a unified platform, you run one query across your entire fleet, get a single result set, and know your exposure in minutes. In a fragmented environment, you run separate queries in separate tools, try to combine the results, and spend an hour reconciling before you even know the scope of the problem.
+Consider a concrete scenario. Your security team detects a novel vulnerability affecting a third-party application that runs on both macOS and Windows. In a unified platform, you run one query across your entire fleet, get a single result set, and know your exposure in minutes. In a fragmented environment, you run separate queries in separate tools, try to combine the results, and spend an hour reconciling before you even know the scope of the problem.
 
 That hour matters during an incident. It also matters during every routine security operation your team performs.
 
