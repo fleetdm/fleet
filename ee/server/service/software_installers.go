@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -57,64 +55,12 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	var iconPNG []byte
 	if payload.FromHomebrew != "" {
-		ingester := homebrew.BrewIngester{
-			BaseURL: homebrew.BaseBrewAPIURL,
-			Logger:  slog.New(slog.DiscardHandler),
-			Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-		}
-		var input homebrew.InputApp
-		input.Token = payload.FromHomebrew
-
-		// Download the installer first so we can extract the bundle identifier from it
-		// before calling IngestOne (which needs the bundle ID for install/uninstall scripts).
-		fma, err := ingester.IngestOne(ctx, input)
+		var err error
+		iconPNG, err = svc.prepareHomebrewUpload(ctx, payload)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingest one")
+			return nil, err
 		}
-
-		payload.URL = fma.InstallerURL
-		payload.Version = fma.Version
-		payload.Title = payload.FromHomebrew
-		payload.Extension = strings.TrimPrefix(filepath.Ext(payload.URL), ".")
-		payload.Platform = "darwin"
-		payload.Source = "apps"
-
-		timeout := maintained_apps.InstallerTimeout
-		client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-		installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, fma.InstallerURL, client)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "downloading app installer")
-		}
-		defer installerTFR.Close()
-
-		payload.Filename = filename
-		payload.InstallerFile = installerTFR
-		payload.StorageID = fma.SHA256
-
-		// Extract bundle identifier and icon from the installer (works for zip and dmg on macOS).
-		meta, err := file.ExtractInstallerMetadataWithHint(installerTFR, filename)
-		if err == nil {
-			if meta.BundleIdentifier != "" {
-				payload.BundleIdentifier = meta.BundleIdentifier
-			}
-			iconPNG = meta.IconPNG
-		}
-		if err := installerTFR.Rewind(); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "rewind installer after metadata extraction")
-		}
-
-		// Re-run IngestOne with the extracted bundle identifier so install/uninstall
-		// scripts reference the correct bundle ID for quit/relaunch.
-		if payload.BundleIdentifier != "" {
-			input.UniqueIdentifier = payload.BundleIdentifier
-			fma, err = ingester.IngestOne(ctx, input)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "re-ingest with extracted bundle identifier")
-			}
-		}
-
-		payload.InstallScript = fma.InstallScript
-		payload.UninstallScript = fma.UninstallScript
+		defer payload.InstallerFile.Close()
 	}
 
 	// validate labels before we do anything else
@@ -149,6 +95,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	failOnBlankScript := !strings.HasSuffix(payload.Filename, ".ipa")
 
+	// Homebrew uploads already have their metadata filled in by prepareHomebrewUpload.
 	if payload.FromHomebrew == "" {
 		if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
@@ -225,29 +172,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	svc.logger.DebugContext(ctx, "software installer uploaded", "installer_id", installerID)
 
-	// Upload extracted app icon if available (from homebrew zip/dmg extraction)
-	if payload.FromHomebrew != "" && len(iconPNG) > 0 {
-		var tmID uint
-		if payload.TeamID != nil {
-			tmID = *payload.TeamID
-		}
-		iconHash := fmt.Sprintf("%x", sha256.Sum256(iconPNG))
-		iconTFR, err := fleet.NewTempFileReader(bytes.NewReader(iconPNG), nil)
-		if err == nil {
-			defer iconTFR.Close()
-			iconPayload := &fleet.UploadSoftwareTitleIconPayload{
-				TitleID:   titleID,
-				TeamID:    tmID,
-				Filename:  "icon.png",
-				StorageID: iconHash,
-				IconFile:  iconTFR,
-			}
-			if err := svc.softwareTitleIconStore.Put(ctx, iconHash, iconTFR); err != nil {
-				svc.logger.ErrorContext(ctx, "failed to store homebrew app icon", "err", err)
-			} else if _, err := svc.ds.CreateOrUpdateSoftwareTitleIcon(ctx, iconPayload); err != nil {
-				svc.logger.ErrorContext(ctx, "failed to create homebrew app icon record", "err", err)
-			}
-		}
+	if payload.FromHomebrew != "" {
+		svc.uploadHomebrewIcon(ctx, titleID, payload.TeamID, iconPNG)
 	}
 
 	var teamName *string
