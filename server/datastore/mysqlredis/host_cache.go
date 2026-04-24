@@ -2,7 +2,6 @@ package mysqlredis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	mathrand "math/rand/v2"
 	"strconv"
@@ -13,20 +12,32 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	json "github.com/go-json-experiment/json/v1"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
 // All host-cache keys live under this single versioned prefix so operators can
-// purge with `redis-cli --scan --pattern 'fleet:hostcache:v2:*' | xargs redis-cli DEL`.
+// purge with `redis-cli --scan --pattern 'fleet:hostcache:v1:*' | xargs redis-cli DEL`.
 // Bumping the version on a cached-payload schema change orphans old keys; they
-// TTL out within hostCacheTTL. v2 changed the wire format from a hand-mirrored
-// struct to an envelope that embeds fleet.Host.
-const hostCacheKeyPrefix = "fleet:hostcache:v2"
+// TTL out within hostCacheTTL.
+const hostCacheKeyPrefix = "fleet:hostcache:v1"
 
 const (
-	// hostCacheNegativeTTL caps how long a "not found" result is cached. Short
-	// because an enrollment can legitimately create a host with a node_key that
-	// was just queried and missed.
+	// hostCacheNegativeTTL caps how long a "not found" result is cached. The value trades off two forces:
+	//   - DoS/retry protection: collapse bursts of identical bad-key auth attempts (retry storms, multi-verb request
+	//     clusters from one agent, attacker probes) into a single DB hit within the window.
+	//   - Enrollment-race safety: if a key is probed before EnrollOsquery/EnrollOrbit creates it AND the enrollment's
+	//     invalidation somehow misses the negative entry, this bounds the delay on the host's first successful auth.
+	//
+	// Why 5s rather than neighboring values:
+	//   - 1s is too short. It sits inside common HTTP retry backoffs (250ms-1s), so it adds little beyond the
+	//     singleflight collapse that already dedupes concurrent in-flight misses.
+	//   - 10s matches the default osquery poll interval (distributed_interval), producing noisy hit/miss behavior
+	//     on clock skew and starting to feel like a real delay when debugging a failed enrollment.
+	//   - 30s+ would start protecting against a persistent stale agent (deleted host, agent still polling every 10s),
+	//     but magnifies the enrollment-debug window if invalidation ever misses. Bump here as a follow-up if
+	//     production metrics show repeated-bad-key traffic is a real DB pressure source; the immediate goal is
+	//     burst absorption, which 5s handles.
 	hostCacheNegativeTTL = 5 * time.Second
 
 	// hostCacheTTLJitterFraction spreads entry expiry across a ±(fraction/2)
@@ -80,7 +91,7 @@ func hostCacheOrbitIndexByID(hostID uint) string {
 
 // jitteredHostCacheTTL returns the configured base TTL perturbed by
 // ±(hostCacheTTLJitterFraction / 2). With the default 0.2 and a 60s base, the
-// result falls in [54s, 66s] — yielding ~5 cache hits per miss at the default
+// result falls in [54s, 66s], yielding ~5 cache hits per miss at the default
 // 10s osquery check-in interval (~83% hit rate).
 func (d *Datastore) jitteredHostCacheTTL() time.Duration {
 	if d.hostCacheTTL <= 0 {
@@ -109,8 +120,8 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByNodeKey(nodeKey)))
 	switch {
 	case err == nil:
-		env := new(hostCacheEnvelope)
-		if jerr := json.Unmarshal(raw, env); jerr != nil {
+		envelope := new(hostCacheEnvelope)
+		if jerr := json.Unmarshal(raw, envelope); jerr != nil {
 			// Schema drift or a poisoned entry. Drop the bad key so the next
 			// lookup repopulates from the database, and treat this call as a
 			// miss.
@@ -122,7 +133,7 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 			return nil, hostCacheLookupMiss
 		}
 		d.recordHostCacheLookup(ctx, "hit")
-		return env.toHost(), hostCacheLookupHit
+		return envelope.toHost(), hostCacheLookupHit
 
 	case errors.Is(err, redigo.ErrNil):
 		// positive miss; fall through to negative-cache probe
@@ -163,6 +174,7 @@ func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
 	}
 
 	ttl := d.jitteredHostCacheTTL()
+	// Redis only accepts integer TTLs
 	ttlSec := int(ttl.Seconds())
 	if ttlSec <= 0 {
 		ttlSec = 1
@@ -174,7 +186,7 @@ func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
 	// Write the reverse index BEFORE the payload. If both succeed, the cache
 	// is consistent. If the index SET fails, no payload is written, so
 	// nothing is stranded. If the payload SET fails after the index succeeds,
-	// the orphaned index points at a non-existent key — the next read takes
+	// the orphaned index points at a non-existent key. The next read takes
 	// the DB path, and any subsequent hostCacheDeleteByID call cleans the
 	// stranded index. The problematic state (payload present, index missing,
 	// so hostCacheDeleteByID silently no-ops and leaves the payload alive
@@ -210,9 +222,9 @@ func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
 // caller does not know the ID; the index is skipped in that case.
 // `reason` is a low-cardinality label recorded on the invalidations counter.
 //
-// When hostID > 0 and the reverse index points at a DIFFERENT (prior) key —
+// When hostID > 0 and the reverse index points at a DIFFERENT (prior) key,
 // e.g., osquery re-enrollment rotated node_key from OLD to NEW and we're
-// called with NEW — the entry under the OLD key is also cleared. Without
+// called with NEW, the entry under the OLD key is also cleared. Without
 // this step the rotated key would keep authenticating for up to TTL.
 func (d *Datastore) hostCacheDeleteByNodeKey(ctx context.Context, nodeKey string, hostID uint, reason string) {
 	if !d.hostCacheEnabled || nodeKey == "" {
@@ -265,8 +277,8 @@ func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey
 	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByOrbitNodeKey(orbitNodeKey)))
 	switch {
 	case err == nil:
-		env := new(hostCacheEnvelope)
-		if jerr := json.Unmarshal(raw, env); jerr != nil {
+		envelope := new(hostCacheEnvelope)
+		if jerr := json.Unmarshal(raw, envelope); jerr != nil {
 			d.recordHostCacheErr(ctx, "get", jerr)
 			if _, derr := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(orbitNodeKey)); derr != nil {
 				d.recordHostCacheErr(ctx, "del", derr)
@@ -275,7 +287,7 @@ func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey
 			return nil, hostCacheLookupMiss
 		}
 		d.recordHostCacheLookup(ctx, "hit")
-		return env.toHost(), hostCacheLookupHit
+		return envelope.toHost(), hostCacheLookupHit
 	case errors.Is(err, redigo.ErrNil):
 		// positive miss; fall through to negative cache
 	default:
