@@ -31,6 +31,10 @@
     align-items: center;
     gap: $pad-medium;
   }
+
+  &__platform-dropdown {
+    width: 200px;
+  }
 }
 
 .automations-cell {

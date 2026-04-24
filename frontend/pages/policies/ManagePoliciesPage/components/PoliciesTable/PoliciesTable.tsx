@@ -151,6 +151,7 @@ const PoliciesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        iconName="filter-alt"
       />
     );
   }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
