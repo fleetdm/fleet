@@ -79,13 +79,31 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/endpoint"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 	"google.golang.org/api/androidmanagement/v1"
 )
+
+// stubActivityRoutes returns a HandlerRoutesFunc that registers placeholder routes
+// matching the activity bounded context endpoints listed in the API endpoints catalog.
+// Used by tests that run against a mock datastore where the real bounded context
+// cannot be wired up. Handlers return 501 so accidental use is obvious.
+func stubActivityRoutes() endpointer.HandlerRoutesFunc {
+	return func(r *mux.Router, _ []kithttp.ServerOption) {
+		stub := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "activity endpoint not wired up in this test", http.StatusNotImplemented)
+		})
+		for _, v := range []string{"v1", "latest"} {
+			r.Handle("/api/"+v+"/fleet/activities", stub).Methods("GET")
+			r.Handle("/api/"+v+"/fleet/hosts/{id:[0-9]+}/activities", stub).Methods("GET")
+		}
+	}
+}
 
 func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
@@ -468,6 +486,17 @@ type TestServerOpts struct {
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	// Derive activity DBConns from the unwrapped datastore before any caching layer
+	// wraps it, so RunServerForTestsWithServiceWithDS can register activity routes
+	// even when opts[0].DBConns wasn't provided explicitly.
+	if mysqlDS, ok := ds.(*mysql.Datastore); ok {
+		if len(opts) == 0 {
+			opts = append(opts, &TestServerOpts{})
+		}
+		if opts[0].DBConns == nil {
+			opts[0].DBConns = mysql.TestDBConnections(t, mysqlDS)
+		}
+	}
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
 	}
@@ -511,6 +540,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	} else if mysqlDS, ok := ds.(*mysql.Datastore); ok {
 		activityDBConns = mysql.TestDBConnections(t, mysqlDS)
 	}
+	var activityRoutes endpointer.HandlerRoutesFunc
 	if activityDBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
