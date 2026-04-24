@@ -1229,7 +1229,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, ac.ServerSettings.ScriptsDisabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1249,7 +1249,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, ac.ServerSettings.ScriptsDisabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -2000,6 +2000,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostPlatform string,
 	hostOrbitNodeKey *string,
 	hostScriptsEnabled *bool,
+	scriptsDisabled bool,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
@@ -2012,11 +2013,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
 		return nil
 	}
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if cfg.ServerSettings.ScriptsDisabled {
+	if scriptsDisabled {
 		return nil
 	}
 
@@ -2248,6 +2245,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostPlatform string,
 	hostOrbitNodeKey *string,
 	hostScriptsEnabled *bool,
+	scriptsDisabled bool,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
@@ -2259,13 +2257,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
 		return nil
 	}
-
-	// Bail if scripts are disabled globally
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if cfg.ServerSettings.ScriptsDisabled {
+	if scriptsDisabled {
 		return nil
 	}
 
