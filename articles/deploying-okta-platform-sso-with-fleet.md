@@ -185,7 +185,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
-**Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_SCEP_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+> **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_SCEP_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
 
 ```sql
 SELECT 1
