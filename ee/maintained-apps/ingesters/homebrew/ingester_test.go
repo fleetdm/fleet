@@ -109,31 +109,31 @@ func TestIngestValidations(t *testing.T) {
 
 	cases := []struct {
 		wantErr  string
-		inputApp inputApp
+		inputApp InputApp
 	}{
-		{"brew API returned status 500", inputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"app not found in brew API", inputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"missing name for cask noname", inputApp{Token: "noname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"missing name for cask emptyname", inputApp{Token: "emptyname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"missing token for cask notoken", inputApp{Token: "notoken", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"missing version for cask noversion", inputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
-		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
-		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
-		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
-		{"cannot provide post-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
+		{"brew API returned status 500", InputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"app not found in brew API", InputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing name for cask noname", InputApp{Token: "noname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing name for cask emptyname", InputApp{Token: "emptyname", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing token for cask notoken", InputApp{Token: "notoken", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing version for cask noversion", InputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"missing URL for cask nourl", InputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"parse URL for cask invalidurl", InputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", InputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", InputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
+		{"", InputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
+		{"cannot provide pre-uninstall scripts if uninstall script is provided", InputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
+		{"cannot provide post-uninstall scripts if uninstall script is provided", InputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
 	}
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
-			i := &brewIngester{
-				logger:  slog.New(slog.DiscardHandler),
-				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-				baseURL: srv.URL + "/",
+			i := &BrewIngester{
+				Logger:  slog.New(slog.DiscardHandler),
+				Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				BaseURL: srv.URL + "/",
 			}
 
-			out, err := i.ingestOne(ctx, c.inputApp)
+			out, err := i.IngestOne(ctx, c.inputApp)
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				return
