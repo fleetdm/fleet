@@ -868,6 +868,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
+	newExceptions := appConfig.GitOpsConfig.Exceptions
+	exceptionChanges := []struct {
+		name       string
+		oldEnabled bool
+		newEnabled bool
+	}{
+		{"labels", oldExceptions.Labels, newExceptions.Labels},
+		{"software", oldExceptions.Software, newExceptions.Software},
+		{"secrets", oldExceptions.Secrets, newExceptions.Secrets},
+	}
+	for _, c := range exceptionChanges {
+		if c.oldEnabled == c.newEnabled {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if c.newEnabled {
+			act = fleet.ActivityTypeEnabledGitOpsException{Exception: c.name}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsException{Exception: c.name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	addedEntraTenantIDs := make([]string, 0)
 	removedEntraTenantIDs := make([]string, 0)
 	oldTenantIDSet := make(map[string]struct{})
