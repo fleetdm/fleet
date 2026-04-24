@@ -3,6 +3,7 @@ package mysqlredis
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -289,6 +290,49 @@ func TestWritePathInvalidation(t *testing.T) {
 			assert.Equal(t, hostCacheLookupMiss, res)
 			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
 			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("AddHostsToTeam pipelines large batches (regression: 10k-host stall)", func(t *testing.T) {
+			// Regression test for the cloud-loadtest finding where
+			// AddHostsToTeam was taking ~80 s on 10k-host batches because
+			// hostCacheDeleteByID-in-a-loop issued ~8 sequential Redis
+			// round-trips per host. The pipelined invalidateHostIDs variant
+			// should collapse that to O(slots × chunks) and stay well
+			// under a few seconds even for thousands of hosts.
+			//
+			// This test proves correctness at scale (every primed entry is
+			// gone after the call); the wall-clock win is a property of
+			// the pipelined Redis commands, not the test harness. A batch
+			// size above hostCacheInvalidateBatchSize (500) ensures the
+			// chunking path is exercised.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			const hostCount = 1500 // exceeds the 500-key batch threshold
+			ids := make([]uint, hostCount)
+			nks := make([]string, hostCount)
+			for i := range ids {
+				ids[i] = uint(10_000 + i)
+				nks[i] = fmt.Sprintf("nk-pipeline-%04d", i)
+				primeCachedHost(t, d, ids[i], nks[i])
+			}
+
+			teamID := uint(77)
+			start := time.Now()
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamID, ids)))
+			elapsed := time.Since(start)
+			t.Logf("AddHostsToTeam invalidation for %d hosts took %s", hostCount, elapsed)
+
+			// Every primed entry must be gone. Spot-check by scanning the
+			// cache keyspace — we primed N entries, there should be 0 left
+			// after the invalidation. (Other tests may have left unrelated
+			// keys behind, so scan for the known prefix we used.)
+			for _, nk := range nks {
+				_, result := d.hostCacheGet(ctx, nk)
+				require.Equal(t, hostCacheLookupMiss, result, "nk %q should be invalidated", nk)
+			}
 		})
 
 		t.Run("inner error preserves cache", func(t *testing.T) {
