@@ -1903,12 +1903,12 @@ func (c *Client) DoGitOps(
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
 	// Check GitOps exception enforcement. When an entity type is excepted:
-	// - If the key is present in the YAML, fail with an error.
+	// - If the key is present in the YAML, fail with an error (premium tier only)
 	// - If the key is absent, it's a no-op (existing entities preserved).
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
-	if appConfig != nil {
+	if appConfig != nil && appConfig.License.IsPremium() {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if exceptions.Labels && incoming.LabelsPresent {
 			return nil, errors.New(
