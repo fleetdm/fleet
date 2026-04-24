@@ -27,7 +27,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | <nobr>Feb‑14‑2022</nobr> |
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
-| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
+| [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
 |[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |<nobr>Apr-15-2026</nobr> |
 
 ### 📄 Whitepapers
@@ -119,7 +119,7 @@ Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is f
 | --- | --- | --- | --- |
 | <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
 | <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| <nobr>3 of 3</nobr> | [Coming soon]| Ashish Kuthiala | <nobr>March 2026</nobr> |
+| <nobr>3 of 3</nobr> | [Supercharging endpoint management with AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)| Ashish Kuthiala | <nobr>2026‑04‑22</nobr> |
 
 #### 📚 Protecting Linux Endpoints (6-part series)
 

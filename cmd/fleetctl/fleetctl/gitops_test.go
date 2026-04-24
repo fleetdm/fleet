@@ -1661,6 +1661,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		// Simulate a pre-existing "Conflict" team so renaming into it
+		// triggers the 409 path. excludeID is the current team's id and
+		// wouldn't match the Conflict team anyway.
+		if strings.EqualFold(name, "Conflict") {
+			return &fleet.Team{ID: 999, Name: "Conflict"}, nil
+		}
+		return nil, nil
+	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		if savedTeam != nil && *savedTeam.Filename == filename {
 			return savedTeam, nil
@@ -1903,9 +1912,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
 			_, err := RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-			require.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
 			_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
-			require.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
 
 			// Now clear the settings
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
@@ -2849,7 +2858,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
-	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
