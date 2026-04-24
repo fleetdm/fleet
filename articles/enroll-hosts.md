@@ -197,9 +197,7 @@ If you're running into issues when enrolling hosts, the best practice is to look
 
 ### Switch a workstation's operating system
 
-If an end user wants to switch their workstation's operating system (e.g., Windows to Linux):
-  - **AB-enrolled hosts**: Re-enroll the host after switching. Fleet automatically clears stale labels and cancels pending commands, scripts, and software installs from the previous enrollment. Do not delete the host from Fleet before re-enrolling.
-  - **All other hosts**: Delete the host from Fleet before they switch, then re-enroll the host.
+If an end user wants to switch their workstation's operating system (e.g., Windows to Linux), delete the host from Fleet before they switch. Then, re-enroll the host.
 
 ### Supported osquery versions
 
