@@ -6,7 +6,7 @@ Fleet's conditional access feature lets IT and security teams enforce access con
 
 1. IT enables the conditional access automation for the policies which determine access.
 2. Fleet evaluates policies on each host.
-3. Fleet communicates compliance status to the IdP (directly for Okta, via Intune for Entra).
+3. Fleet communicates compliance status to the identity provider (IdP).
 4. The IdP enforces access decisions, blocking users who are failing the policies from logging into protected apps.
 5. Users remediate issues on their hosts and refetch to verify. Once the host passes all required policies, access is restored.
 
