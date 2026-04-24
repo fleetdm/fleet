@@ -691,7 +691,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 					continue
 				}
 				// Use details as a filter: skip activities whose details don't match.
-				var wantDetails, gotDetails interface{}
+				var wantDetails, gotDetails any
 				require.NoError(t, json.Unmarshal([]byte(details), &wantDetails))
 				if err := json.Unmarshal([]byte(*act.Details), &gotDetails); err != nil {
 					continue

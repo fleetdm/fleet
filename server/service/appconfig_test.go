@@ -2104,4 +2104,46 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 			require.Equal(t, tt.expectFired, fired)
 		})
 	}
+
+	t.Run("no activity is emitted when SaveAppConfig fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://example.com/repo",
+				Exceptions:        fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: false},
+			},
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			return errors.New("save failed")
+		}
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		var fired []exceptionActivity
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			switch ex := act.(type) {
+			case fleet.ActivityTypeEnabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			case fleet.ActivityTypeDisabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			}
+			return nil
+		}
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"gitops": {"exceptions": {"labels": true, "software": true, "secrets": true}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Empty(t, fired, "no exception activity should be emitted when SaveAppConfig fails")
+	})
 }

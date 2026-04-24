@@ -487,8 +487,10 @@ type TestServerOpts struct {
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	// Derive activity DBConns from the unwrapped datastore before any caching layer
-	// wraps it, so RunServerForTestsWithServiceWithDS can register activity routes
-	// even when opts[0].DBConns wasn't provided explicitly.
+	// wraps it, so RunServerForTestsWithServiceWithDS can register real activity
+	// routes even when opts[0].DBConns wasn't provided explicitly. The type
+	// assertion in RunServerForTestsWithServiceWithDS would otherwise fail against
+	// the cached_mysql wrapper and silently fall back to stub routes.
 	if mysqlDS, ok := ds.(*mysql.Datastore); ok {
 		if len(opts) == 0 {
 			opts = append(opts, &TestServerOpts{})

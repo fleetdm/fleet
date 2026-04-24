@@ -858,6 +858,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	}
 
+	if !lic.IsPremium() {
+		// reset fleet desktop settings to empty values for downgraded licenses
+		appConfig.FleetDesktop.TransparencyURL = ""
+		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+	}
+
+	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
+		return nil, err
+	}
+
 	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
 	newExceptions := appConfig.GitOpsConfig.Exceptions
 	exceptionChanges := []struct {
@@ -882,16 +892,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
-	}
-
-	if !lic.IsPremium() {
-		// reset fleet desktop settings to empty values for downgraded licenses
-		appConfig.FleetDesktop.TransparencyURL = ""
-		appConfig.FleetDesktop.AlternativeBrowserHost = ""
-	}
-
-	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
-		return nil, err
 	}
 
 	addedEntraTenantIDs := make([]string, 0)
