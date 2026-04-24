@@ -47,7 +47,9 @@ Next, download Okta Verify for macOS from the Admin Console (**Settings** → **
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_SCEP_RENEWAL_ID` is included in the OU field of your certificate profile. Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
+Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_SCEP_RENEWAL_ID` is included in the OU field of your certificate profile. 
+
+Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
 
 The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic challenge. Fleet fetches a unique, short-lived challenge from Okta for each host at enrollment, so no static secret is shared across devices or embedded in your profile. See [Okta's guide to configuring Okta as a CA with a dynamic SCEP challenge](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm) for more details on how dynamic challenges work.
 
