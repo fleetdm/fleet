@@ -766,6 +766,73 @@ else
 	rm -r $(TMP_DIR)
 endif
 
+# Download the osqueryd Linux executable from a pull request in osquery/osquery
+# and extract it into out-path.
+#
+# Usage:
+# make osqueryd-linux pr=8844 arch=amd64 out-path=.
+# make osqueryd-linux pr=8844 arch=arm64 out-path=.
+osqueryd-linux:
+ifndef pr
+	@echo "Error: pr argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
+	@exit 1
+endif
+ifndef out-path
+	@echo "Error: out-path argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
+	@exit 1
+endif
+ifeq ($(arch),amd64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz)
+else ifeq ($(arch),arm64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz_aarch64)
+else
+	@echo "Error: arch must be 'amd64' or 'arm64' (got '$(arch)')"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@echo "Fetching $(ARTIFACT_NAME) artifact from osquery/osquery PR $(pr)..."
+	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
+		echo "PR head SHA: $$PR_SHA" && \
+		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
+			-q '[.workflow_runs[] | .id] | .[]') && \
+		if [ -z "$$RUN_IDS" ]; then \
+			echo "Error: no workflow runs found for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		DOWNLOADED=false && \
+		for run_id in $$RUN_IDS; do \
+			if gh run download -R osquery/osquery $$run_id -n $(ARTIFACT_NAME) -D $(TMP_DIR)/artifact 2>/dev/null; then \
+				DOWNLOADED=true; \
+				echo "Downloaded artifact from run $$run_id"; \
+				break; \
+			fi; \
+		done && \
+		if [ "$$DOWNLOADED" != "true" ]; then \
+			echo "Error: $(ARTIFACT_NAME) artifact not found in any workflow run for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi
+	@INNER_TGZ=$$(find $(TMP_DIR)/artifact -name '*.tar.gz' -o -name '*.tgz' | head -1) && \
+		if [ -z "$$INNER_TGZ" ]; then \
+			echo "Error: no tarball found inside downloaded artifact"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		mkdir -p $(TMP_DIR)/extracted && \
+		tar xf "$$INNER_TGZ" -C $(TMP_DIR)/extracted
+	@OSQUERYD=$$(find $(TMP_DIR)/extracted -type f -name 'osqueryd' | head -1) && \
+		if [ -z "$$OSQUERYD" ]; then \
+			echo "Error: osqueryd not found in extracted artifact. Contents:"; \
+			find $(TMP_DIR)/extracted -type f; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		cp "$$OSQUERYD" "$(out-path)/osqueryd" && \
+		chmod +x "$(out-path)/osqueryd" && \
+		echo "Extracted osqueryd to $(out-path)/osqueryd"
+	rm -rf $(TMP_DIR)
+
 # Generate nudge.app.tar.gz bundle from nudge repo.
 #
 # Usage:
