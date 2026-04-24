@@ -144,6 +144,11 @@
             <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
             <a href="/case-study/thumbtack">Read their story</a>
           </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/proton', $event)">
+            <img alt="Proton logo" src="/images/logo-proton-99x32@2x.png">
+            <p>Proton manages devices with the same privacy and security standards it promises its users.</p>
+            <a href="/case-study/proton">Read their story</a>
+          </div>
           <% /*  Automatically created cards for anonymous case studies  */%>
           <% for(let article of initalCaseStudyLinksToShow) { %>
             <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)">
