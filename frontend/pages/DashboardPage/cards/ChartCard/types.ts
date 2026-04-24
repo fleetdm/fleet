@@ -18,6 +18,7 @@ export interface IFormattedDataPoint {
   label: string;
   value: number;
   percentage: number;
+  total?: number;
 }
 
 export type TooltipFormatter = ({

@@ -27,6 +27,8 @@ const formatHourLabel = (hourVal: number): string => {
 interface ICellData {
   dayIndex: number;
   hourRow: number;
+  value: number;
+  total?: number;
   percentage: number;
   dayLabel: string;
   hourLabel: string;
@@ -160,6 +162,8 @@ const CheckerboardViz = ({
           dayIndex,
           hourRow: row,
           percentage: point?.percentage ?? 0,
+          value: point?.value ?? 0,
+          total: point?.total,
           dayLabel: format(date, "MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
@@ -306,7 +310,13 @@ const CheckerboardViz = ({
             {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
           </div>
           <div className="chart-card__tooltip-value">
-            {hoveredCell.percentage}% of hosts
+            {tooltipFormatter
+              ? tooltipFormatter({
+                  value: hoveredCell.value,
+                  percentage: hoveredCell.percentage,
+                  total: hoveredCell.total,
+                })
+              : `${hoveredCell.percentage}% of hosts`}
           </div>
         </div>
       )}

@@ -72,6 +72,20 @@ const DATASETS: IDataSet[] = [
         during a given hour.
       </>
     ),
+    tooltipFormatter: ({
+      value,
+      total,
+      percentage,
+    }: {
+      value: number;
+      total?: number;
+      percentage?: number;
+    }) => (
+      <>
+        {percentage}% exposed
+        <br />({value} / {total} hosts)
+      </>
+    ),
     theme: "red",
   },
 ];
@@ -167,6 +181,7 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
         label: format(date, "MMM d, h:mm a"),
         value: point.value,
         percentage: Math.round((point.value / totalHosts) * 100),
+        total: totalHosts,
       };
     });
   }, [chartData]);
