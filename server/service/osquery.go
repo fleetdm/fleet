@@ -1249,7 +1249,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1999,11 +1999,24 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// We do not want to queue software installations on vanilla osquery hosts.
+		return nil
+	}
+	// Software installs require running install scripts on the host, so skip
+	// hosts where scripts are disabled at the host level or globally.
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
 		return nil
 	}
 
