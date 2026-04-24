@@ -3,10 +3,10 @@ import React, { useCallback, useRef, useState } from "react";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -22,8 +22,6 @@ import {
   IFormDataIdp,
   newFormDataIdp,
 } from "../IdentityProviders/components/EndUserAuthSection/helpers";
-
-const baseClass = "app-config-form";
 
 interface ISsoFormData {
   idpName: string;
@@ -318,7 +316,6 @@ const Sso = ({
           )}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
@@ -352,6 +349,21 @@ const Sso = ({
 
   return (
     <SettingsSection title="Single sign-on (SSO)">
+      <PageDescription
+        content={
+          <>
+            Configure authentication for Fleet users logging into Fleet or end
+            users enrolling their hosts. To populate identity provider (IdP)
+            host vitals and automatically delete Fleet users, head to{" "}
+            <CustomLink
+              text="Identity provider (IdP)"
+              url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+            />
+            .
+          </>
+        }
+        variant="right-panel"
+      />
       <TabNav secondary>
         <Tabs
           selectedIndex={AUTH_TARGETS_BY_INDEX.indexOf(selectedAuthTarget)}

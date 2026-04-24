@@ -555,6 +555,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
+	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
+	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
 

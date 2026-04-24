@@ -80,6 +80,8 @@ Apps can be installed manually on each host's **Host details** page. For macOS a
 > 
 > To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
+> VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries) to handle intermittent issues.
+
 Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.

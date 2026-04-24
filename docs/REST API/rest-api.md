@@ -753,7 +753,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 | name   | string | body | **Required.** The name of the certificate. Name can be used as certificate alias to reference in configuration profiles. |
 | fleet_id      | string  | body | _Available in Fleet Premium_. The ID of the fleet to add profiles to. |
 | certificate_authority_id   | integer | body | **Required.** The certificate authority (CA) ID to issue certificate from. Currently, only custom SCEP CA is supported. To get ID use [List certificate authorities](#list-certificate-authorities-cas). |
-| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a "/". For example: "/CN=john@example.com/O=Acme Inc.".    |
+| subject_name       | string | body |**Required** The certificate's subject name (SN). Separate subject fields by a ",". For example: "CN=john@example.com, O=Acme Inc.".    |
 
 #### Example
 
@@ -767,7 +767,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -780,7 +780,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "certificate_authority_id": 1,
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
 
@@ -983,7 +983,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "wifi-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
       "created_at": "2025-11-04T00:00:00Z",
     },
     {
@@ -991,7 +991,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
       "name": "vpn-certificate",
       "certificate_authority_id": "1",
       "certificate_authority_name": "PRODUCTION_SCEP_SERVER",
-      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+      "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID",
       "created_at": "2025-11-04T00:00:00Z",
     }
   ],
@@ -1062,7 +1062,7 @@ Authorization: Bearer sunVIQ+wqYQvJlXf1aqYTt8LrlUGKBigNdWmdH5bhT1MH
   "created_at": "2025-11-04T00:00:00Z",
   "id": 1,
   "name": "wifi-certificate",
-  "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
 }
 ```
 
@@ -2032,10 +2032,10 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------- |
 | server_url                        | string  | The Fleet server URL.                                                                       |
 | enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
-| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                           |
-| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                             |
+| live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
+| discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
-| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
+| report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
 
@@ -2048,8 +2048,8 @@ Modifies the Fleet's configuration with the supplied information.
   "server_settings": {
     "server_url": "https://localhost:8080",
     "enable_analytics": true,
-    "live_query_disabled": false,
-    "query_reports_disabled": false,
+    "live_reporting_disabled": false,
+    "discard_reports_data": false,
     "ai_features_disabled": false
   }
 }
@@ -3973,6 +3973,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 ### Get host by Fleet Desktop token
 
+> If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
+
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
@@ -3986,6 +3988,7 @@ This endpoint doesn't require API token authentication. Authentication on macOS,
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
 | token | string | path | The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For macOS, Windows, and Linux, this is a random UUID that rotates hourly. For iOS and iPadOS, this is the host's hardware UUID. |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 
 #### Request headers
 
@@ -4753,8 +4756,6 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 ```
 
 ### Get host's software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/hosts/:id/software`
 
@@ -10187,8 +10188,6 @@ Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                |
@@ -10546,8 +10545,6 @@ Returns a list of all operating systems.
 Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
@@ -12356,7 +12353,7 @@ _Available in Fleet Premium_
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The fleet's name. |
+| name | string | body | **Required.** The fleet's name. Fleet names must differ by more than letter case. |
 
 #### Example
 
@@ -12367,6 +12364,24 @@ _Available in Fleet Premium_
 ```json
 {
   "name": "workstations"
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from an existing fleet's name by letter case.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 
@@ -12425,7 +12440,7 @@ _Available in Fleet Premium_
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The fleet's name.                                                                                                                                                                                          |
+| name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -12442,6 +12457,24 @@ _Available in Fleet Premium_
 ```json
 {
   "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from another fleet's name by letter case. Renaming a fleet to a case variant of its own current name (e.g., `ABC` → `abc`) succeeds.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 

@@ -117,6 +117,7 @@ import DeleteHostModal from "../../components/DeleteHostModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
+import ManagedAccountModal from "./modals/ManagedAccountModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
@@ -139,6 +140,7 @@ import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
+import ClearPasscodeModal from "./modals/ClearPasscodeModal";
 
 const baseClass = "host-details";
 
@@ -164,6 +166,7 @@ interface IHostDetailsProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       fleet_id?: string;
+      show_mdm_status?: string;
     };
     search?: string;
   };
@@ -225,6 +228,7 @@ const HostDetailsPage = ({
     showRecoveryLockPasswordModal,
     setShowRecoveryLockPasswordModal,
   ] = useState(false);
+  const [showManagedAccountModal, setShowManagedAccountModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -236,7 +240,16 @@ const HostDetailsPage = ({
   const [showLocationModal, setShowLocationModal] = useState<
     boolean | undefined
   >(false);
-  const [showMDMStatusModal, setShowMDMStatusModal] = useState(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(
+    location.query.show_mdm_status === "true"
+  );
+  // Sync MDM status modal state when the query param changes while mounted
+  // (e.g., browser back/forward navigation).
+  useEffect(() => {
+    setShowMDMStatusModal(location.query.show_mdm_status === "true");
+  }, [location.query.show_mdm_status]);
+
+  const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -679,8 +692,22 @@ const HostDetailsPage = ({
   }, [showLocationModal, setShowLocationModal]);
 
   const toggleMDMStatusModal = useCallback(() => {
-    setShowMDMStatusModal(!showMDMStatusModal);
-  }, [showMDMStatusModal, setShowMDMStatusModal]);
+    setShowMDMStatusModal((prev) => {
+      const closing = prev;
+      // When closing, strip ?show_mdm_status=true so that refreshing or
+      // sharing the URL won't reopen the modal. Opening never adds the param
+      // — it's only set by external deep-links.
+      if (closing && location.query.show_mdm_status === "true") {
+        const { show_mdm_status: _, ...rest } = location.query;
+        router.replace({ pathname: location.pathname, query: rest });
+      }
+      return !prev;
+    });
+  }, [location, router]);
+
+  const toggleClearPasscodeModal = useCallback(() => {
+    setShowClearPasscodeModal(!showClearPasscodeModal);
+  }, [showClearPasscodeModal, setShowClearPasscodeModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setPolicyDetailsModal(!showPolicyDetailsModal);
@@ -942,6 +969,9 @@ const HostDetailsPage = ({
       case "recoveryLockPassword":
         setShowRecoveryLockPasswordModal(true);
         break;
+      case "managedAccount":
+        setShowManagedAccountModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -959,6 +989,9 @@ const HostDetailsPage = ({
         break;
       case "wipe":
         setShowWipeModal(true);
+        break;
+      case "clearPasscode":
+        setShowClearPasscodeModal(true);
         break;
       default: // do nothing
     }
@@ -999,6 +1032,12 @@ const HostDetailsPage = ({
         recoveryLockPasswordAvailable={
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
+        }
+        isManagedLocalAccountEnabled={
+          mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+        }
+        managedAccountStatus={
+          host.mdm.os_settings?.managed_local_account?.status
         }
       />
     );
@@ -1602,6 +1641,17 @@ const HostDetailsPage = ({
               onCancel={() => setShowRecoveryLockPasswordModal(false)}
             />
           )}
+          {showManagedAccountModal && host && (
+            <ManagedAccountModal
+              hostId={host.id}
+              onCancel={() => {
+                setShowManagedAccountModal(false);
+                // Opening the modal triggers a "viewed managed account"
+                // activity server-side, so refetch to show it in the feed.
+                refetchPastActivities();
+              }}
+            />
+          )}
           {showBootstrapPackageModal &&
             bootstrapPackageData.details &&
             bootstrapPackageData.name && (
@@ -1760,6 +1810,9 @@ const HostDetailsPage = ({
             router={router}
             onExit={toggleMDMStatusModal}
           />
+        )}
+        {showClearPasscodeModal && (
+          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
         )}
       </>
     );

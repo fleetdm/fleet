@@ -58,6 +58,9 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"RepointCustomPackagePolicyToNewInstaller", testRepointPolicyToNewInstaller},
+		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
+		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
+		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
 	}
 
 	for _, c := range cases {
@@ -3450,6 +3453,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
 		require.Equal(t, "darwin", i.Platform)
+		require.Equal(t, hash1, i.StorageID)
 	}
 
 	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
@@ -3473,6 +3477,8 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	var foundPlatforms []string
 	for _, inst := range installers[team1.ID] {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
+		require.Equal(t, "inhouse", inst.StorageID)
+		require.Nil(t, inst.HTTPETag) // in-house apps don't have ETags
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 
@@ -4605,4 +4611,440 @@ func testRepointPolicyToNewInstaller(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, metadata.InstallerID, *policyAfterUpdate.SoftwareInstallerID)
 	})
+}
+
+func testCustomToFMAInstallerReplacement(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma"})
+	require.NoError(t, err)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg1",
+		Slug:             "pkg1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg1",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	// Seed a custom installer for title "pkg1".
+	customInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:              "pkg1",
+		Source:             "apps",
+		Platform:           "darwin",
+		PreInstallQuery:    "SELECT 1",
+		InstallScript:      "echo install",
+		PostInstallScript:  "echo post install",
+		UninstallScript:    "echo uninstall",
+		InstallerFile:      tfr,
+		StorageID:          "storageid_custom",
+		Filename:           "pkg1.pkg",
+		Version:            "1.0",
+		UserID:             user.ID,
+		ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		InstallDuringSetup: new(true),
+		SelfService:        false,
+		TeamID:             new(team.ID),
+	})
+	require.NoError(t, err)
+
+	// Attach a policy to the custom installer so we also exercise the
+	// policy re-point on deletion (policies.software_installer_id FK has no
+	// ON DELETE CASCADE).
+	policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+		Name:                "p_custom_to_fma",
+		Query:               "SELECT 1;",
+		SoftwareInstallerID: &customInstallerID,
+	})
+	require.NoError(t, err)
+
+	// Seed a display name for the title so we can verify it's updated in
+	// place (rather than deleted + re-inserted) when the batch sets a new
+	// display name.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+			INSERT INTO software_title_display_names (team_id, software_title_id, display_name)
+			VALUES (?, ?, ?)
+		`, team.ID, titleID, "Initial Name")
+		return err
+	})
+	var initialDisplayNameID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &initialDisplayNameID, `
+			SELECT id FROM software_title_display_names
+			WHERE team_id = ? AND software_title_id = ?
+		`, team.ID, titleID)
+	})
+
+	// GitOps run: same title, now an FMA payload with a display name.
+	err = ds.BatchSetSoftwareInstallers(ctx, new(team.ID), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			FleetMaintainedAppID: new(fma.ID),
+			Title:                "pkg1",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1 DIFFERENT",
+			InstallScript:        "echo install 2",
+			PostInstallScript:    "echo post install 2",
+			UninstallScript:      "echo uninstall 2",
+			InstallerFile:        tfr,
+			StorageID:            "storageid_fma",
+			Filename:             "pkg1_fma.pkg",
+			Version:              "2.0",
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup:   new(true),
+			SelfService:          true,
+			DisplayName:          "Cool Package",
+			TeamID:               new(team.ID),
+		},
+	})
+	require.NoError(t, err)
+
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team.ID)}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+
+	// The old custom row (fleet_maintained_app_id IS NULL) must be gone.
+	var customRows int
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &customRows, `
+			SELECT COUNT(*) FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+		`, team.ID, titles[0].ID)
+	})
+	require.Zero(t, customRows, "stale custom installer row was not cleaned up after FMA replacement")
+
+	// Exactly one active installer remains for the title, and it's the FMA.
+	var activeCount int
+	var activeFMAID *uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &activeCount, `
+			SELECT COUNT(*) FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
+		`, team.ID, titles[0].ID)
+	})
+	require.Equal(t, 1, activeCount)
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &activeFMAID, `
+			SELECT fleet_maintained_app_id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
+		`, team.ID, titles[0].ID)
+	})
+	require.NotNil(t, activeFMAID)
+	require.Equal(t, fma.ID, *activeFMAID)
+
+	// The policy that pointed at the deleted custom installer must have
+	// been re-pointed to the new FMA row, not dropped/nulled.
+	metadata, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, new(team.ID), titles[0].ID, false)
+	require.NoError(t, err)
+	policyAfter, err := ds.TeamPolicy(ctx, team.ID, policy.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policyAfter.SoftwareInstallerID)
+	require.Equal(t, metadata.InstallerID, *policyAfter.SoftwareInstallerID)
+	require.NotEqual(t, customInstallerID, *policyAfter.SoftwareInstallerID)
+
+	// The display name from the batch payload must survive the side-effect
+	// cleanup. The display_name row should be UPDATEd in place (same id),
+	// not DELETEd and re-INSERTed.
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, team.ID, titles[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, "Cool Package", displayName)
+	var afterDisplayNameID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &afterDisplayNameID, `
+			SELECT id FROM software_title_display_names
+			WHERE team_id = ? AND software_title_id = ?
+		`, team.ID, titles[0].ID)
+	})
+	require.Equal(t, initialDisplayNameID, afterDisplayNameID, "display_name row should be upserted in place, not deleted and re-inserted")
+
+	// Same-version case: custom installer and incoming FMA share a version
+	// string. ON DUPLICATE KEY UPDATE on (team, title, version) upserts in
+	// place; the row must be converted to FMA, not deleted.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_custom_to_fma_same_version"})
+	require.NoError(t, err)
+
+	fma2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg2",
+		Slug:             "pkg2",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg2",
+	})
+	require.NoError(t, err)
+
+	customInstallerID2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:              "pkg2",
+		Source:             "apps",
+		Platform:           "darwin",
+		PreInstallQuery:    "SELECT 1",
+		InstallScript:      "echo install",
+		PostInstallScript:  "echo post install",
+		UninstallScript:    "echo uninstall",
+		InstallerFile:      tfr,
+		StorageID:          "storageid_custom2",
+		Filename:           "pkg2.pkg",
+		Version:            "1.0",
+		UserID:             user.ID,
+		ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		InstallDuringSetup: new(true),
+		TeamID:             new(team2.ID),
+	})
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, new(team2.ID), []*fleet.UploadSoftwareInstallerPayload{
+		{
+			FleetMaintainedAppID: new(fma2.ID),
+			Title:                "pkg2",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1",
+			InstallScript:        "echo install",
+			PostInstallScript:    "echo post install",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            "storageid_fma2",
+			Filename:             "pkg2_fma.pkg",
+			Version:              "1.0", // same version as the custom installer
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			InstallDuringSetup:   new(true),
+			TeamID:               new(team2.ID),
+		},
+	})
+	require.NoError(t, err)
+
+	tmFilter2 := fleet.TeamFilter{User: test.UserAdmin, TeamID: new(team2.ID)}
+	titles2, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: new(team2.ID), Platform: "darwin", AvailableForInstall: true}, tmFilter2)
+	require.NoError(t, err)
+	require.Len(t, titles2, 1, "exactly one installer row should remain after same-version custom\u2192FMA upsert")
+
+	var installerRows []struct {
+		ID       uint  `db:"id"`
+		FMAID    *uint `db:"fleet_maintained_app_id"`
+		IsActive bool  `db:"is_active"`
+	}
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &installerRows, `
+			SELECT id, fleet_maintained_app_id, is_active FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+		`, team2.ID, titles2[0].ID)
+	})
+	require.Len(t, installerRows, 1)
+	require.Equal(t, customInstallerID2, installerRows[0].ID, "row should be updated in place, not deleted+re-inserted")
+	require.NotNil(t, installerRows[0].FMAID, "row should have been converted to FMA via ON DUPLICATE KEY UPDATE")
+	require.Equal(t, fma2.ID, *installerRows[0].FMAID)
+	require.True(t, installerRows[0].IsActive)
+}
+
+func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	etag := `"abc123"`
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.app",
+			Extension:        "pkg",
+			StorageID:        "hash1",
+			Filename:         "app.pkg",
+			Title:            "App",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/app/latest",
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	// Correct team and URL returns the installer with ETag
+	existing, err := ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash1", existing.StorageID)
+	assert.Equal(t, "app.pkg", existing.Filename)
+	require.NotNil(t, existing.HTTPETag)
+	assert.Equal(t, etag, *existing.HTTPETag)
+
+	// Wrong team returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team2.ID, "https://example.com/app/latest")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// Wrong URL returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/other")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// nil team (cross-team fallback) returns the installer from any team
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, nil, "https://example.com/app/latest")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash1", existing.StorageID)
+	assert.Equal(t, "app.pkg", existing.Filename)
+
+	// nil team with non-existent URL returns nil
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, nil, "https://example.com/nonexistent")
+	require.NoError(t, err)
+	assert.Nil(t, existing)
+
+	// URL with query params (GlobalProtect pattern)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.gp",
+			Extension:        "msi",
+			StorageID:        "hash2",
+			Filename:         "gp.msi",
+			Title:            "GlobalProtect",
+			Version:          "1.0",
+			Source:           "programs",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "windows",
+			URL:              "https://example.com/gp?version=64&platform=windows",
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/gp?version=64&platform=windows")
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "hash2", existing.StorageID)
+
+	// Simulate an FMA rollback: two rows for the same (team, URL), where the
+	// inactive row has a higher id than the active row. The lookup must return
+	// the active row even though ORDER BY id DESC would otherwise pick the
+	// inactive one.
+	rollbackURL := "https://example.com/rollback"
+	err = ds.BatchSetSoftwareInstallers(ctx, &team2.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr,
+			BundleIdentifier: "com.example.rb",
+			Extension:        "pkg",
+			StorageID:        "active_hash",
+			Filename:         "rb.pkg",
+			Title:            "Rollback",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team2.ID,
+			Platform:         "darwin",
+			URL:              rollbackURL,
+			HTTPETag:         &etag,
+		},
+	})
+	require.NoError(t, err)
+
+	inactiveETag := `"inactive-etag"`
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
+				 install_script_content_id, uninstall_script_content_id, is_active, url, package_ids, patch_query, http_etag)
+			SELECT team_id, global_or_team_id, 'inactive_hash', filename, extension, 'old_version', platform, title_id,
+				install_script_content_id, uninstall_script_content_id, 0, url, package_ids, patch_query, ?
+			FROM software_installers WHERE team_id = ? AND url = ?
+		`, inactiveETag, team2.ID, rollbackURL)
+		return err
+	})
+
+	existing, err = ds.GetInstallerByTeamAndURL(ctx, &team2.ID, rollbackURL)
+	require.NoError(t, err)
+	require.NotNil(t, existing)
+	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
+	require.NotNil(t, existing.HTTPETag)
+	assert.Equal(t, etag, *existing.HTTPETag)
+}
+
+func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_fma_ordering"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "host_fma_ordering", "1", "hostkey_fma_ordering", "hostuuid_fma_ordering", time.Now())
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg_ord",
+		Slug:             "pkg_ord",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg_ord",
+	})
+	require.NoError(t, err)
+
+	basePayload := func(version, storageID, installScript string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storageID), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			FleetMaintainedAppID: &fma.ID,
+			Title:                "pkg_ord",
+			Source:               "apps",
+			Platform:             "darwin",
+			PreInstallQuery:      "SELECT 1",
+			InstallScript:        installScript,
+			PostInstallScript:    "echo post",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            storageID,
+			Filename:             "pkg_ord.pkg",
+			Version:              version,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &team.ID,
+		}
+	}
+
+	// v1.0 first (active), then v2.0 (active, v1 demoted to inactive cache).
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("1.0", "storage_v1", "echo v1")}))
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("2.0", "storage_v2", "echo v2")}))
+
+	var v2ID uint
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &v2ID, `
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND version = ? AND is_active = 1
+		`, team.ID, "2.0")
+	})
+
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, v2ID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	var pending int
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &pending, `
+			SELECT COUNT(*) FROM software_install_upcoming_activities
+			WHERE software_installer_id = ?
+		`, v2ID)
+	})
+	require.Equal(t, 1, pending)
+
+	require.NoError(t, ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{basePayload("2.0", "storage_v2_updated", "echo v2 updated")}))
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, tx, &pending, `
+			SELECT COUNT(*) FROM software_install_upcoming_activities
+			WHERE software_installer_id = ?
+		`, v2ID)
+	})
+	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
 }

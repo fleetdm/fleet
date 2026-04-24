@@ -614,8 +614,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
@@ -684,8 +684,8 @@ reports:
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
@@ -741,8 +741,8 @@ reports:
 	_, err = globalFile.WriteString(`
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -933,8 +933,8 @@ labels:
   - name: Label1
     query: select 1
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 %s
 org_settings:
@@ -955,8 +955,8 @@ reports:
 `
 		teamTemplate = `
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 %s
 software:
@@ -1265,8 +1265,8 @@ reports:
 		noTeamTemplate = `name: Unassigned
 policies:
 controls:
-  macos_setup:
-    script: %s
+  setup_experience:
+    macos_script: %s
 software:
 `
 	)
@@ -1606,8 +1606,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefau
 		globalTemplateWithCustomSettings = `
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 org_settings:
   server_settings:
@@ -1701,9 +1701,9 @@ reports:
 		globalConfigOnly = `
 agent_options:
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: %t
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: %t
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -1716,18 +1716,18 @@ reports:
 
 		noTeamConfig = `name: Unassigned
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 policies:
 software:
 `
 
 		teamConfig = `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: %t
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: %t
 software:
 reports:
 policies:
@@ -1902,8 +1902,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecr
 	const noTeamTemplate = `name: Unassigned
 policies:
 controls:
-  macos_setup:
-    script: %s
+  setup_experience:
+    macos_script: %s
 software:
 `
 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -2013,8 +2013,8 @@ agent_options:
       load:
         - SELECT uuid AS host_uuid FROM system_info;
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 reports: []
 policies: []
@@ -2149,8 +2149,8 @@ agent_options:
       load:
         - SELECT uuid AS host_uuid FROM system_info;
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 reports:
 policies:
@@ -3733,9 +3733,9 @@ queries:
 
 	testVPP := `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 software:
   app_store_apps:
     - app_store_id: "2"
@@ -3758,9 +3758,9 @@ team_settings:
 	//nolint:gosec // test code
 	testPackages := `
 controls:
-  macos_setup:
-    bootstrap_package: %s
-    manual_agent_install: true
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
 software:
   app_store_apps:
   packages:
@@ -3884,8 +3884,8 @@ org_settings:
     - secret: test_secret
 agent_options:
 controls:
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: %s
 policies:
 reports:
@@ -3926,6 +3926,108 @@ reports:
 	require.Len(t, secrets, 1)
 	assert.Equal(t, secretPasswordValue, secrets[0].Value,
 		"secret should be stored as the raw value (not XML-escaped)")
+}
+
+// TestJSONConfigurationProfileEscaping covers issue #38013 — JSON profiles
+// (Apple DDM declarations) must have variable values JSON-escaped at expansion
+// time, while the underlying secret is still stored on the server unescaped.
+func (s *enterpriseIntegrationGitopsTestSuite) TestJSONConfigurationProfileEscaping() {
+	t := s.T()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		declIdentifier     = "com.fleetdm.json.escape.test"
+		secretPasswordName = "JSON_ESCAPE_PASSWORD"
+
+		// Values contain characters that break naive JSON string interpolation
+		// (double quote, backslash, and XML-significant chars for completeness).
+		secretPasswordValue = `custom"password\tag&<>` //nolint:gosec // G101: test fixture, not a credential
+		apiKeyValue         = `my"api&key\v`           //nolint:gosec // G101: test fixture, not a credential
+	)
+
+	t.Setenv("FLEET_SECRET_"+secretPasswordName, secretPasswordValue)
+	t.Setenv("API_KEY", apiKeyValue)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	declBody := fmt.Sprintf(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": %q,
+		"Payload": {
+			"Password": "$FLEET_SECRET_%s",
+			"ApiKey": "$API_KEY"
+		}
+	}`, declIdentifier, secretPasswordName)
+	require.NoError(t, os.WriteFile(declPath, []byte(declBody), 0o644)) //nolint:gosec
+
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: json_escape_test_secret
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+reports:
+`, s.Server.URL, declPath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte(gitopsConfig), 0o644)) //nolint:gosec
+
+	// Before the fix, this run would fail with
+	// "Declaration profiles should include valid JSON."
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Retrieve the stored declaration by listing profiles and matching on identifier.
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	var declUUID string
+	for _, p := range profs {
+		if p.Platform == "darwin" && p.Identifier == declIdentifier {
+			declUUID = p.ProfileUUID
+			break
+		}
+	}
+	require.NotEmpty(t, declUUID, "uploaded declaration should be listed")
+
+	decl, err := s.DS.GetMDMAppleDeclaration(ctx, declUUID)
+	require.NoError(t, err)
+	stored := string(decl.RawJSON)
+
+	// Stored bytes must be valid JSON — this is the regression guard for #38013.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(decl.RawJSON, &parsed),
+		"stored declaration must be valid JSON")
+
+	// $FLEET_SECRET_* placeholder must be stored literally; it is expanded
+	// server-side at delivery time so secrets are never double-encoded.
+	assert.Contains(t, stored, "$FLEET_SECRET_"+secretPasswordName,
+		"stored declaration should still contain the FLEET_SECRET_ placeholder")
+
+	// $API_KEY must be JSON-escaped: `"` → `\"`, `\` → `\\`.
+	payload, ok := parsed["Payload"].(map[string]any)
+	require.True(t, ok, "Payload should be an object")
+	assert.Equal(t, apiKeyValue, payload["ApiKey"],
+		"ApiKey should round-trip to the raw env var value after JSON parse")
+	assert.NotContains(t, stored, "$API_KEY",
+		"stored declaration should not contain the unexpanded $API_KEY reference")
+
+	// The custom secret must be stored raw so server-side expansion doesn't double-encode it.
+	dbSecrets, err := s.DS.GetSecretVariables(ctx, []string{secretPasswordName})
+	require.NoError(t, err)
+	require.Len(t, dbSecrets, 1)
+	assert.Equal(t, secretPasswordValue, dbSecrets[0].Value,
+		"secret should be stored as the raw value (not JSON-escaped)")
 }
 
 // TestGitOpsSoftwareWithEnvVarInstalledByPolicy tests that a software package
@@ -4222,7 +4324,7 @@ labels:
   - name: Test Fleet Label
     label_membership_type: dynamic
     query: SELECT 1
-  
+
 `, fleetName)
 
 	fullFleetFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -4517,4 +4619,127 @@ settings:
 	require.Empty(t, teamMeta.LabelsIncludeAny)
 	require.Empty(t, teamMeta.LabelsExcludeAny)
 	require.Empty(t, teamMeta.LabelsIncludeAll)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitopsDDMUnsupportedFleetVariable() {
+	t := s.T()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Create a DDM declaration with an unsupported Fleet variable
+	declDir := t.TempDir()
+	declFile := path.Join(declDir, "decl-unsupported-var.json")
+	err := os.WriteFile(declFile, []byte(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": "com.example.unsupported-var",
+		"Payload": {"Value": "$FLEET_VAR_BOZO"}
+	}`), 0o644)
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`, declFile))
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Applying a DDM declaration with an unsupported Fleet variable should fail
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_BOZO is not supported in DDM profiles")
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestManagedLocalAccount() {
+	t := s.T()
+	ctx := context.Background()
+
+	originalAppConfig, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.DS.SaveAppConfig(ctx, originalAppConfig))
+	})
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	const (
+		globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		noTeamConfig = `name: Unassigned
+controls:
+  setup_experience:
+    enable_create_local_admin_account: true
+    end_user_local_account_type: "admin"
+policies:
+software:
+`
+
+		teamConfig = `
+controls:
+  setup_experience:
+    enable_create_local_admin_account: true
+    end_user_local_account_type: "admin"
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
+		return p
+	}
+
+	globalFile := write("global.yml", globalConfig)
+	noTeamFile := write("unassigned.yml", noTeamConfig)
+	teamName := uuid.NewString()
+	teamFile := write("team.yml", fmt.Sprintf(teamConfig, teamName))
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", teamFile, "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", teamFile}))
+
+	appConfig, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }

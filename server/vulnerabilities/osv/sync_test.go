@@ -119,6 +119,30 @@ func TestRemoveOldOSVArtifactsWithSkippedVersions(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "old artifact from day before should be removed even when version was skipped")
 }
 
+func TestRemoveOldOSVArtifactsDateBoundaryRace(t *testing.T) {
+	tmpDir := t.TempDir()
+	// now is April 10 but the release only created April 9 artifacts.
+	today := time.Date(2026, 4, 10, 0, 5, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-ubuntu-2404-2026-04-09.json.gz", // Yesterday's artifact (only one available)
+	}
+
+	for _, file := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644)
+		require.NoError(t, err)
+	}
+
+	// 2404 is in NotInRelease, not Skipped
+	// so removeOldOSVArtifacts should not touch it
+	err := removeOldOSVArtifacts(today, tmpDir, []string{})
+	require.NoError(t, err)
+
+	// Yesterday's artifact must still exist since the version wasn't in the successful set
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2404-2026-04-09.json.gz"))
+	require.NoError(t, err, "old artifact must be preserved when version is not in release")
+}
+
 func TestGetNeededUbuntuVersions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -173,6 +197,140 @@ func TestGetNeededUbuntuVersions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getNeededUbuntuVersions(tt.osVers)
 			require.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetNeededRHELVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		osVers   *fleet.OSVersions
+		expected []string
+	}{
+		{
+			name: "multiple RHEL versions",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 8.10.0", Version: "8.10.0"},
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+				},
+			},
+			expected: []string{"8", "9"},
+		},
+		{
+			name: "duplicate major versions deduplicated",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.2.0", Version: "9.2.0"},
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "Fedora skipped",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+					{Platform: "rhel", Name: "Fedora Linux 36.0.0", Version: "36.0.0"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "non-RHEL platforms ignored",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+					{Platform: "ubuntu", Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"},
+					{Platform: "windows", Name: "Windows 10", Version: "10.0.19041"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "no RHEL platforms",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "ubuntu", Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "only Fedora",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Fedora Linux 36.0.0", Version: "36.0.0"},
+				},
+			},
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getNeededRHELVersions(tt.osVers)
+			require.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRemoveOldRHELOSVArtifacts(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-rhel-9-2026-04-08.json.gz",      // today — keep
+		"osv-rhel-9-2026-04-07.json.gz",      // yesterday — remove
+		"osv-rhel-8-2026-04-07.json.gz",      // yesterday, different version, not in successful — keep
+		"osv-ubuntu-2204-2026-04-07.json.gz", // ubuntu — not touched
+		"some-other-file.json",               // unrelated — not touched
+	}
+
+	for _, file := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
+	}
+
+	err := removeOldRHELOSVArtifacts(today, tmpDir, []string{"9"})
+	require.NoError(t, err)
+
+	// Today's RHEL 9 — kept
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-08.json.gz"))
+	require.NoError(t, err)
+
+	// Yesterday's RHEL 9 — removed (successfully downloaded today)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-07.json.gz"))
+	require.True(t, os.IsNotExist(err))
+
+	// Yesterday's RHEL 8 — kept (not in successful list, last-known-good)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-8-2026-04-07.json.gz"))
+	require.NoError(t, err)
+
+	// Ubuntu artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-04-07.json.gz"))
+	require.NoError(t, err)
+
+	// Other file — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
+	require.NoError(t, err)
+}
+
+func TestRHELOSVFilename(t *testing.T) {
+	date := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"9", "osv-rhel-9-2026-04-08.json.gz"},
+		{"8", "osv-rhel-8-2026-04-08.json.gz"},
+		{"10", "osv-rhel-10-2026-04-08.json.gz"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, rhelOSVFilename(tt.version, date))
 		})
 	}
 }
@@ -243,11 +401,11 @@ func TestSyncOSVFaultTolerance(t *testing.T) {
 		return errors.New("mock download failure")
 	}
 
-	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload)
-	require.NoError(t, err)
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload, osvFilename)
+	require.Error(t, err)
 	require.NotNil(t, result)
 
-	require.Contains(t, result.Skipped, "2504", "2504 artifact not in release, should be skipped")
+	require.Contains(t, result.NotInRelease, "2504", "2504 artifact not in release")
 	require.Contains(t, result.Failed, "2204", "2204 download failed, should be in Failed")
 }
 

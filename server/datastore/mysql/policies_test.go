@@ -46,6 +46,7 @@ func TestPolicies(t *testing.T) {
 		{"PoliciesByID", testPoliciesByID},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
+		{"ApplyPolicySpecDefaultType", testApplyPolicySpecDefaultType},
 		{"ApplyPolicySpecWithQueryPlatformChanges", testApplyPolicySpecWithQueryPlatformChanges},
 		{"Save", testPoliciesSave},
 		{"DelUser", testPoliciesDelUser},
@@ -92,6 +93,7 @@ func TestPolicies(t *testing.T) {
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
+		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2041,6 +2043,26 @@ func updatePolicyFailureCountsForHosts(ctx context.Context, ds *Datastore, hosts
 	}
 
 	return hosts, nil
+}
+
+func testApplyPolicySpecDefaultType(t *testing.T, ds *Datastore) {
+	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
+	ctx := context.Background()
+
+	// Apply a policy spec with an empty Type (simulates omitting "type" from JSON).
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:  "no-type-policy",
+			Query: "SELECT 1;",
+			Type:  "", // omitted
+		},
+	}))
+
+	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, "no-type-policy", policies[0].Name)
+	assert.Equal(t, fleet.PolicyTypeDynamic, policies[0].Type)
 }
 
 func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
@@ -7698,6 +7720,108 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Windows - Maintained2 up to date", p5.Name)
 	require.Equal(t, "windows", p5.Platform)
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Maintained2' AND version_compare(version, '1.0') < 0);", p5.Query)
+
+	//////////////////////////////////////////////
+	// ApplyPolicySpecs
+
+	// Test ApplyPolicySpecs with patch policies using a separate team.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Set up an FMA installer on team2 for the valid slug test.
+	team2Payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-team2",
+		Filename:             "maintained1-team2",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               &team2.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	}
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, team2Payload)
+	require.NoError(t, err)
+
+	// ApplyPolicySpecs with type=patch and empty fleet_maintained_app_slug should return an error.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:  "patch-no-slug",
+			Query: "SELECT 1;",
+			Team:  "team2",
+			Type:  fleet.PolicyTypePatch,
+		},
+	})
+	require.Error(t, err)
+
+	// ApplyPolicySpecs with type=patch and a non-existent fleet_maintained_app_slug should return an error.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-bad-slug",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "nonexistent-slug",
+		},
+	})
+	require.Error(t, err)
+
+	// ApplyPolicySpecs with type=patch and a valid fleet_maintained_app_slug should succeed.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-valid-slug",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify the policy was created with the expected auto-generated query and platform.
+	policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "patch-valid-slug", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
+	require.Equal(t, "darwin", policies[0].Platform)
+	require.Contains(t, policies[0].Query, "fleet.maintained1")
+
+	// Renaming a patch policy via ApplyPolicySpecs should update it, not delete it.
+	previousID := policies[0].ID
+	var previousChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &previousChecksum, `SELECT checksum FROM policies WHERE id = ?`, previousID)
+	})
+
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-renamed",
+			Query:                  "SELECT 1;",
+			Team:                   "team2",
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, previousID, policies[0].ID)
+	require.Equal(t, "patch-renamed", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
+
+	var newChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newChecksum, `SELECT checksum FROM policies WHERE id = ?`, previousID)
+	})
+	require.NotEqual(t, previousChecksum, newChecksum)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
@@ -7926,4 +8050,88 @@ func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	mergedCount, err = ds.CountPolicies(ctx, ptr.Uint(0), "", "software")
 	require.NoError(t, err)
 	assert.Equal(t, 3, mergedCount)
+}
+
+// testApplyPolicySpecNoSpuriousStatsReset verifies that re-applying a team
+// policy via ApplyPolicySpecs does not spuriously reset policy_stats when the
+// only change is author_id (e.g. a different user runs GitOps) and the spec
+// has SoftwareTitleID set to ptr.Uint(0) (as the GitOps client does for all
+// team policies to "unset" the installer field).
+func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user1 := test.NewUser(t, ds, "StatsUser1", "statsuser1@example.com", true)
+	user2 := test.NewUser(t, ds, "StatsUser2", "statsuser2@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a team policy (no software installer) as user1.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:     "stats-test-policy",
+			Query:    "SELECT 1;",
+			Team:     team.Name,
+			Platform: "darwin",
+			Type:     fleet.PolicyTypeDynamic,
+		},
+	}))
+
+	// Create a host on the team and record a failing result.
+	hostID := fmt.Sprintf("%s-host", strings.ReplaceAll(t.Name(), "/", "_"))
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   &hostID,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         &hostID,
+		UUID:            hostID,
+		Hostname:        hostID,
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Get the policy to find its ID.
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	pol := policies[0]
+
+	// Record a failing result for the host.
+	err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+
+	// Update aggregate counts.
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+
+	// Verify the policy has a failing host count of 1.
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, uint(1), policies[0].FailingHostCount)
+
+	// Now re-apply the same policy as a DIFFERENT user (simulating GitOps run
+	// by a different API token), with SoftwareTitleID=ptr.Uint(0) as the GitOps
+	// client sets for all team policies. This changes author_id in the DB, which
+	// causes insertOnDuplicateDidInsertOrUpdate to return true. Before the fix,
+	// the comparison logic would see SoftwareTitleID!=nil and incorrectly
+	// conclude the software installer changed, resetting stats.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user2.ID, []*fleet.PolicySpec{
+		{
+			Name:            "stats-test-policy",
+			Query:           "SELECT 1;",
+			Team:            team.Name,
+			Platform:        "darwin",
+			SoftwareTitleID: new(uint), // ptr to 0, as GitOps does
+			Type:            fleet.PolicyTypeDynamic,
+		},
+	}))
+
+	// Verify that policy stats were NOT reset.
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }

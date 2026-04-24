@@ -74,6 +74,7 @@ const TargetsInput = ({
         document.removeEventListener("mousedown", handleClickOutside);
       };
     }
+    return undefined;
   }, [isTargetsLoading]);
 
   useEffect(() => {
@@ -89,7 +90,6 @@ const TargetsInput = ({
           type="search"
           iconSvg="search"
           value={searchText}
-          iconPosition="start"
           label={label}
           placeholder={placeholder}
           onChange={setSearchText}

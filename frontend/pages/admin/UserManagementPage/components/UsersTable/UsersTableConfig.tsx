@@ -5,13 +5,17 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import PillBadge from "components/PillBadge";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { renderApiUserIndicator } from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPageTableConfig";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
+
+const renderApiUserIndicator = () => {
+  return <PillBadge tipContent="This user only has API access.">API</PillBadge>;
+};
 
 interface IHeaderProps {
   column: {
@@ -101,11 +105,9 @@ const generateTableHeaders = (
             <TooltipWrapper
               tipContent={
                 <>
-                  The GitOps role is only available on the command-line
+                  The GitOps role is only available for API-only
                   <br />
-                  when creating an API-only user. This user has no
-                  <br />
-                  access to the UI.
+                  users. This user has no access to the UI.
                 </>
               }
             >
@@ -158,9 +160,20 @@ const generateTableHeaders = (
       Header: "Email",
       disableSortBy: true,
       accessor: "email",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const isApiOnly = cellProps.row.original.api_only;
+        if (isApiOnly) {
+          return (
+            <TooltipWrapper
+              tipContent="API-only users do not receive emails or log into the UI."
+              underline={false}
+            >
+              ---
+            </TooltipWrapper>
+          );
+        }
+        return <TextCell value={cellProps.cell.value} />;
+      },
     },
     {
       title: "Actions",
@@ -209,7 +222,8 @@ const generateStatus = (type: string, data: IUser | IInvite): string => {
 const generateActionDropdownOptions = (
   isCurrentUser: boolean,
   isInvitePending: boolean,
-  isSsoEnabled: boolean
+  isSsoEnabled: boolean,
+  isApiOnly: boolean
 ): IDropdownOption[] => {
   const disableDelete = isCurrentUser;
 
@@ -254,7 +268,7 @@ const generateActionDropdownOptions = (
     );
   }
 
-  if (isSsoEnabled) {
+  if (isSsoEnabled || isApiOnly) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(
       (option) => option.label !== "Require password reset"
@@ -277,7 +291,8 @@ const enhanceUserData = (
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
         false,
-        user.sso_enabled
+        user.sso_enabled,
+        user.api_only
       ),
       id: `user-${user.id}`,
       apiId: user.id,
@@ -295,7 +310,12 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       role: generateRole(invite.teams, invite.global_role),
-      actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
+      actions: generateActionDropdownOptions(
+        false,
+        true,
+        invite.sso_enabled,
+        false
+      ),
       id: `invite-${invite.id}`,
       apiId: invite.id,
       type: "invite",

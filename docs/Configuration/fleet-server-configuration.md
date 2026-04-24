@@ -15,7 +15,7 @@ You can specify configuration options in the following formats:
 
 ## MySQL
 
-This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). **Read replica configuration is fully independent from the primary — no values are inherited.** All required settings (address, region, TLS, authentication, etc.) must be explicitly set for the read replica using the `mysql_read_replica_` prefix. For example, if IAM authentication is used, both `FLEET_MYSQL_REGION` and `FLEET_MYSQL_READ_REPLICA_REGION` must be set. Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -119,7 +119,9 @@ The path to a PEM encoded private key used for TLS authentication.
 
 ### mysql_tls_config
 
-The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+The TLS value in a MySQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+
+When using IAM authentication with RDS, this setting is typically not needed — Fleet automatically uses `rdsmysql` as the TLS config, which includes bundled RDS CA certificates (including GovCloud regions). Setting this to `true` uses the system CA pool instead, which may not include RDS certificates in minimal container environments.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
@@ -204,6 +206,8 @@ AWS region to use for Identity and Access Management (IAM) authentication of an 
 
 - `mysql_password` is not set
 - `mysql_password_path` is not set
+
+If a read replica is configured, the read replica's region must also be set explicitly via `mysql_read_replica_region` — it is not inherited from this setting.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_REGION`
@@ -864,7 +868,7 @@ How long an SSO authentication process can take between initiation and callback.
 
 > Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
 
-- Default value: `5m` (5 minutes)
+- Default value: `15m` (15 minutes)
 - Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -3350,6 +3354,40 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   ```yaml
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+
+### mdm.enable_custom_os_updates_and_filevault
+
+*Available in Fleet Premium.*
+
+Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+
+> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_os_updates_and_filevault: true
+  ```
+
+### mdm.allow_all_declarations
+
+Allows all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) to be sent, bypassing all safety checks. By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+Currently, Fleet only supports device-scoped declarations. User-scoped declarations are [coming soon](https://github.com/fleetdm/fleet/issues/38986).
+
+> Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
+
+[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

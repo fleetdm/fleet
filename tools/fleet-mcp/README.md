@@ -28,6 +28,7 @@ Both **SSE** (Server-Sent Events) and **stdio** transports are supported.
 |------|-------------|
 | `get_endpoints` | List all hosts/endpoints enrolled in Fleet |
 | `get_host` | Get full details for a single host including labels, team, and platform info |
+| `get_fleets` | Get all fleets (teams) with their IDs and names |
 | `get_queries` | List all saved Fleet queries |
 | `get_policies` | List all policies with pass/fail host counts |
 | `get_labels` | List all endpoint labels |
@@ -53,7 +54,7 @@ Configure the server using environment variables or a `.env` file.
 | `LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, `error` |
 | `FLEET_TLS_SKIP_VERIFY` | `false` | Skip TLS certificate verification. **Dev/test only — do not use in production.** |
 | `FLEET_CA_FILE` | *(optional)* | Path to a PEM CA certificate for self-signed Fleet instances |
-| `MCP_AUTH_TOKEN` | *(required in production)* | Bearer token MCP clients must send in the `Authorization` header. Generate with `openssl rand -hex 32`. If unset the server starts unauthenticated (with a warning) — acceptable for local dev only. |
+| `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32`. The server will refuse to start without it. In SSE mode, clients must include this token in the `Authorization` header on every request, and the server validates it each time. In stdio mode the token is not checked at runtime (the client launches the binary as a local subprocess) but must still be set. |
 
 Copy the provided example to get started:
 
@@ -136,6 +137,7 @@ Stdio mode runs the binary directly as a subprocess with no network port needed.
       "env": {
         "FLEET_BASE_URL": "https://your-fleet.example.com",
         "FLEET_API_KEY": "YOUR_FLEET_API_KEY",
+        "MCP_AUTH_TOKEN": "YOUR_MCP_AUTH_TOKEN",
         "LOG_LEVEL": "info"
       }
     }

@@ -40,12 +40,15 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package:
+        enable_create_local_admin_account:
         enable_end_user_authentication: false
         apple_enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         apple_setup_assistant:
         macos_manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         macos_script:
         software:
     scripts: null
@@ -93,11 +96,14 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_managed_local_account:
         enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null
@@ -151,12 +157,15 @@ spec:
         certificates:
       setup_experience:
         macos_bootstrap_package:
+        enable_create_local_admin_account:
         enable_end_user_authentication: false
         apple_enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         apple_setup_assistant:
         macos_manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         macos_script:
         software:
     scripts: null
@@ -205,11 +214,14 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
+        enable_managed_local_account:
         enable_release_device_manually: false
+        end_user_local_account_type:
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
         require_all_software_macos: false
+        require_all_software_windows: false
         script:
         software:
     scripts: null

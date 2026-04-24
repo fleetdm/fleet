@@ -1,3 +1,18 @@
+## Fleet 4.83.2 (Apr 13, 2026)
+
+### Bug fixes
+
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.```
+
+## Fleet 4.83.1 (Apr 10, 2026)
+
+### Bug fixes
+
+- Fixed policy creation failing when type was omitted.
+- Fixed auth token not persisting when logging in via SSO.
+- Fleet UI: Fixed infinite page loop pagination bug on software table page happening when viewing a subsequent page and then using the software filter dropdown to filter.
+- Fleet UI: Fixed software table page number to be bookmarkable
+
 ## Fleet 4.83.0 (Apr 1, 2026)
 
 ### IT Admins
