@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1",
+      "version": "2026.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine' AND version_compare(bundle_short_version, '2026.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.rubymine' AND version_compare(bundle_short_version, '2026.1.1') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.1.1-aarch64.dmg",
       "install_script_ref": "a13041df",
       "uninstall_script_ref": "65b92f82",
-      "sha256": "c43f896268ae74c246082241dcf7fcfa634651124547130387e363ef152b7f3f",
+      "sha256": "50f9c44a8b810b1e7d7b69fc8a74df7becd20a440c1765dea0dc3cdb92d32ae5",
       "default_categories": [
         "Developer tools"
       ]
