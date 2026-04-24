@@ -147,11 +147,11 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	}
 
 	// Policies and queries
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) ([]*fleet.Policy, []*fleet.Policy, error) {
 		return nil, nil, nil
 	}

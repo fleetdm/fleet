@@ -8,6 +8,12 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
+import {
+  CommaSeparatedPlatformString,
+  isQueryablePlatform,
+  QueryablePlatform,
+} from "interfaces/platform";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -51,9 +57,20 @@ interface ICellProps {
   };
 }
 
+interface IPlatformCellProps {
+  cell: {
+    value: CommaSeparatedPlatformString;
+  };
+  row: {
+    original: IPolicyStats;
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -138,6 +155,19 @@ const generateTableHeaders = (
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Targeted platforms",
+      Header: "Targeted platforms",
+      disableSortBy: true,
+      accessor: "platform",
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => isQueryablePlatform(s)) as QueryablePlatform[];
+        return <PlatformCell platforms={platforms} />;
+      },
     },
     {
       title: "Automations",

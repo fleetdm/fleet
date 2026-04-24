@@ -97,6 +97,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      platform?: string;
     };
     search: string;
   };
@@ -213,6 +214,7 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
+  const targetedPlatformParam = queryParams?.platform;
   const initialAutomationFilter = (() => {
     const automationQueryParam = queryParams.automation_type;
 
@@ -303,6 +305,7 @@ const ManagePolicyPage = ({
         orderDirection: sortDirection,
         orderKey: sortHeader,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -325,6 +328,7 @@ const ManagePolicyPage = ({
         scope: "policiesCount",
         query: !isAllTeamsSelected ? "" : searchQuery,
         automationType: automationFilter as GlobalPoliciesAutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -361,6 +365,7 @@ const ManagePolicyPage = ({
         // no teams does inherit
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => {
@@ -389,6 +394,7 @@ const ManagePolicyPage = ({
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
         mergeInherited: true,
         automationType: automationFilter as AutomationType,
+        platform: targetedPlatformParam,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -1024,7 +1030,10 @@ const ManagePolicyPage = ({
     const hide =
       isFetchingCount ||
       policiesErrors ||
-      (!policyResults && searchQuery === "" && !automationFilter);
+      (!policyResults &&
+        searchQuery === "" &&
+        !automationFilter &&
+        !targetedPlatformParam);
 
     if (hide) {
       return null;
@@ -1097,10 +1106,13 @@ const ManagePolicyPage = ({
 
   const renderAutomationFilter = isPremiumTier
     ? () => {
-        // Hide dropdown if there are errors OR there are no policy results with no filters (search or automation dropdown)
+        // Hide dropdown if there are errors OR there are no policy results with no filters (search, automation dropdown, or platform)
         const hide =
           policiesErrors ||
-          (!policyResults && searchQuery === "" && !automationFilter);
+          (!policyResults &&
+            searchQuery === "" &&
+            !automationFilter &&
+            !targetedPlatformParam);
 
         if (hide) {
           return null;
@@ -1161,6 +1173,9 @@ const ManagePolicyPage = ({
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
           isFiltered={!!automationFilter}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
         />
       );
     }
@@ -1200,6 +1215,9 @@ const ManagePolicyPage = ({
           onQueryChange={onQueryChange}
           customControl={renderAutomationFilter}
           isFiltered={!!automationFilter}
+          router={router}
+          queryParams={queryParams}
+          platform={targetedPlatformParam}
         />
       </div>
     );

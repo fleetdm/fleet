@@ -25,6 +25,8 @@ export interface IGlobalPoliciesApiQueryParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   automationType?: GlobalPoliciesAutomationType;
+  /** Targeted platform to filter policies by (e.g. "darwin"/"windows"/"linux"/"chrome"). */
+  platform?: string;
 }
 
 export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
@@ -32,7 +34,10 @@ export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
 }
 
 export interface IPoliciesCountQueryKey
-  extends Pick<IGlobalPoliciesApiQueryParams, "query" | "automationType"> {
+  extends Pick<
+    IGlobalPoliciesApiQueryParams,
+    "query" | "automationType" | "platform"
+  > {
   scope: "policiesCount";
 }
 
@@ -76,6 +81,7 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     automationType,
+    platform,
   }: IGlobalPoliciesApiQueryParams): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
 
@@ -86,6 +92,7 @@ export default {
       orderDirection: orderDir,
       query,
       automationType,
+      platform: platform === "all" ? undefined : platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -97,15 +104,17 @@ export default {
   getCount: ({
     query,
     automationType,
+    platform,
   }: Pick<
     IGlobalPoliciesApiQueryParams,
-    "query" | "automationType"
+    "query" | "automationType" | "platform"
   >): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/count`;
     const queryParams = {
       query,
       automationType,
+      platform: platform === "all" ? undefined : platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

@@ -354,6 +354,77 @@ describe("Policies table", () => {
     expect(screen.queryByText("Patch")).not.toBeInTheDocument();
   });
 
+  it("Renders the Targeted platforms column using the policy's platform field", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const policyWithAllPlatforms = createMockPolicy({
+      id: 100,
+      name: "cross-platform policy",
+      platform: "",
+    });
+    const policyWithDarwin = createMockPolicy({
+      id: 101,
+      name: "macOS policy",
+      platform: "darwin",
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[policyWithAllPlatforms, policyWithDarwin]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={2}
+      />
+    );
+
+    expect(screen.getByText("Targeted platforms")).toBeInTheDocument();
+    // Platform icon row for the darwin policy should render an <Icon /> whose
+    // data-testid is "icons"; the "all platforms" row should render the empty
+    // "---" TextCell instead.
+    expect(screen.getAllByTestId("icons").length).toBe(1);
+  });
+
+  it("Renders the platform filter dropdown when the table is searchable", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[createMockPolicy({ platform: "darwin" })]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.getByText("All platforms")).toBeInTheDocument();
+  });
+
   it("Renders the Automations column with correct values", () => {
     const render = createCustomRenderer({
       context: {

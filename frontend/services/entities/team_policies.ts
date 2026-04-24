@@ -27,6 +27,8 @@ interface IPoliciesApiQueryParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   automationType?: AutomationType | GlobalPoliciesAutomationType;
+  /** Targeted platform to filter policies by (e.g. "darwin"/"windows"/"linux"/"chrome"). */
+  platform?: string;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -41,7 +43,7 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 export interface ITeamPoliciesCountQueryKey
   extends Pick<
     IPoliciesApiParams,
-    "query" | "teamId" | "mergeInherited" | "automationType"
+    "query" | "teamId" | "mergeInherited" | "automationType" | "platform"
   > {
   scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
@@ -51,6 +53,7 @@ export interface IPoliciesCountApiParams {
   query?: string;
   mergeInherited?: boolean;
   automationType?: AutomationType;
+  platform?: string;
 }
 
 const ORDER_KEY = "name";
@@ -169,6 +172,7 @@ export default {
     query,
     mergeInherited,
     automationType,
+    platform,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -180,6 +184,7 @@ export default {
       query,
       mergeInherited,
       automationType,
+      platform: platform === "all" ? undefined : platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -192,9 +197,10 @@ export default {
     teamId,
     mergeInherited = true,
     automationType,
+    platform,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "mergeInherited" | "automationType"
+    "query" | "teamId" | "mergeInherited" | "automationType" | "platform"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
@@ -202,6 +208,7 @@ export default {
       query,
       mergeInherited,
       automationType,
+      platform: platform === "all" ? undefined : platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

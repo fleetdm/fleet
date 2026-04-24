@@ -91,19 +91,19 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ListGlobalPoliciesRequest)
-	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
+	resp, err := svc.ListGlobalPolicies(ctx, req.Opts, req.Platform)
 	if err != nil {
 		return fleet.ListGlobalPoliciesResponse{Err: err}, nil
 	}
 	return fleet.ListGlobalPoliciesResponse{Policies: resp}, nil
 }
 
-func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListGlobalPolicies(ctx, opts)
+	return svc.ds.ListGlobalPolicies(ctx, opts, platform)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -144,19 +144,19 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.CountGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
+	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery, req.Platform)
 	if err != nil {
 		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
 	}
 	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
 }
 
-func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
+func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "", platform)
 	if err != nil {
 		return 0, err
 	}
@@ -296,7 +296,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 		if err != nil {
 			return err
 		}

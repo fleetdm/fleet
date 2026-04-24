@@ -231,14 +231,14 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.ListTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -254,7 +254,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter, platform)
 		for i := range policies {
 			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
@@ -266,7 +266,7 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return policies, nil, err
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter, platform)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -292,14 +292,14 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.CountTeamPoliciesRequest)
-	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.CountTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -315,18 +315,18 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if mergeInherited {
-		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
-		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType)
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
 		return count, inheritedCount, nil
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType, platform)
 	if err != nil {
 		return 0, 0, err
 	}

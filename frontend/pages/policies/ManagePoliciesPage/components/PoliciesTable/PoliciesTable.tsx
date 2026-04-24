@@ -1,12 +1,20 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
+import { getNextLocationPath } from "utilities/helpers";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import EmptyTable from "components/EmptyTable";
+import { AutomationType } from "services/entities/team_policies";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import {
   DEFAULT_SORT_COLUMN,
@@ -20,6 +28,36 @@ const isLastPage = (count: number, pageSize: number, page: number) => {
 };
 
 const baseClass = "policies-table";
+
+const DEFAULT_PLATFORM: SelectedPlatform = "all";
+
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "All platforms",
+    value: "all",
+  },
+  {
+    disabled: false,
+    label: "macOS",
+    value: "darwin",
+  },
+  {
+    disabled: false,
+    label: "Windows",
+    value: "windows",
+  },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+  },
+  {
+    disabled: false,
+    label: "ChromeOS",
+    value: "chrome",
+  },
+];
 
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
@@ -39,6 +77,17 @@ interface IPoliciesTableProps {
   count: number;
   customControl?: () => JSX.Element | null;
   isFiltered?: boolean;
+  router?: InjectedRouter;
+  queryParams?: {
+    fleet_id?: string;
+    query?: string;
+    order_key?: string;
+    order_direction?: "asc" | "desc";
+    page?: string;
+    automation_type?: AutomationType;
+    platform?: string;
+  };
+  platform?: string;
 }
 
 const PoliciesTable = ({
@@ -59,8 +108,52 @@ const PoliciesTable = ({
   count,
   customControl,
   isFiltered,
+  router,
+  queryParams,
+  platform,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
+
+  const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
+    platform
+  )
+    ? platform
+    : DEFAULT_PLATFORM;
+
+  const isPlatformFiltered = curTargetedPlatformFilter !== "all";
+  const combinedIsFiltered = !!isFiltered || isPlatformFiltered;
+
+  const handlePlatformFilterDropdownChange = useCallback(
+    (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
+      router?.push(
+        getNextLocationPath({
+          pathPrefix: PATHS.MANAGE_POLICIES,
+          queryParams: {
+            ...queryParams,
+            page: 0,
+            platform:
+              selectedTargetedPlatform?.value === "all"
+                ? undefined
+                : selectedTargetedPlatform?.value,
+          },
+        })
+      );
+    },
+    [queryParams, router]
+  );
+
+  const renderPlatformDropdown = useCallback(() => {
+    return (
+      <DropdownWrapper
+        name="platform-dropdown"
+        value={curTargetedPlatformFilter}
+        className={`${baseClass}__platform-dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        onChange={handlePlatformFilterDropdownChange}
+        variant="table-filter"
+      />
+    );
+  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
 
   const emptyState: IEmptyTableProps = {
     graphicName: "empty-policies",
@@ -84,7 +177,7 @@ const PoliciesTable = ({
     emptyState.info = "";
   }
 
-  if (searchQuery || isFiltered) {
+  if (searchQuery || combinedIsFiltered) {
     delete emptyState.graphicName;
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
@@ -94,8 +187,17 @@ const PoliciesTable = ({
   const searchable = !(
     policiesList?.length === 0 &&
     searchQuery === "" &&
-    !isFiltered
+    !combinedIsFiltered
   );
+
+  const combinedCustomControl = () => {
+    return (
+      <>
+        {customControl?.()}
+        {renderPlatformDropdown()}
+      </>
+    );
+  };
 
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const viewingTeamPolicies =
@@ -158,7 +260,8 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        customControl={customControl}
+        customControl={searchable ? combinedCustomControl : undefined}
+        selectedDropdownFilter={curTargetedPlatformFilter}
       />
     </div>
   );
