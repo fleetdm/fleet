@@ -4173,12 +4173,12 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 	})
 }
 
-// decimal2Equal reports whether two float64 values round to the same DECIMAL(10,2).
-// MySQL rounds float inputs to the column's 2-decimal precision on write, so raw float64
-// equality against values loaded back from DECIMAL columns is brittle when callers pass
-// higher-precision inputs.
+// decimal2Equal reports whether two float64 values are close enough to treat as equal
+// for disk-space skip-if-unchanged checks. The tolerance is larger than the DECIMAL(10,2)
+// rounding step on purpose: sub-10 MB (0.01 GB) fluctuations are noise we do not want to
+// write to the primary on every host update interval.
 func decimal2Equal(a, b float64) bool {
-	const decimal2Tolerance = 0.005
+	const decimal2Tolerance = 0.01
 	diff := a - b
 	if diff < 0 {
 		diff = -diff
@@ -4740,11 +4740,12 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 // disks for the specified host.
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 	// Skip the UPDATE entirely when stored values already match. At load-test scale these
-	// calls fire on every /osquery/config request, and most carry the same disk-space values
-	// as the last ingest. Read from the replica on purpose — the goal is to avoid writer load,
-	// and in the worst case (replica lag matching a stale value) the next ingest round will
-	// write through once the replica catches up. The host_disks columns are DECIMAL(10,2),
-	// so we compare with tolerance matching that precision rather than raw float64 equality.
+	// calls fire on every host update interval, and most carry the same disk-space values
+	// as the last ingest (used by Android, iPhones/iPads, and hosts where osquery runs).
+	// Read from the replica on purpose. The goal is to avoid writer load, and in the worst
+	// case (replica lag matching a stale value) the next ingest round will write through
+	// once the replica catches up. We compare with a small tolerance to absorb sub-10 MB
+	// fluctuations rather than using raw float64 equality.
 	var current struct {
 		GigsAvailable    float64  `db:"gigs_disk_space_available"`
 		PercentAvailable float64  `db:"percent_disk_space_available"`

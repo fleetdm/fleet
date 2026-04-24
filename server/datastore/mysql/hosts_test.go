@@ -9853,29 +9853,32 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	loadUpdatedAt := func(hostID uint) time.Time {
 		var ts time.Time
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &ts, `SELECT updated_at FROM host_disks WHERE host_id = ?`, hostID)
+			return sqlx.GetContext(t.Context(), q, &ts, `SELECT updated_at FROM host_disks WHERE host_id = ?`, hostID)
 		})
 		return ts
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(context.Background(),
+		_, err := q.ExecContext(t.Context(),
 			`UPDATE host_disks SET updated_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE host_id = ?`, host.ID)
 		return err
 	})
 	pinned := loadUpdatedAt(host.ID)
 
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0, nil))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 5, 6, 80.0, nil))
 	require.True(t, pinned.Equal(loadUpdatedAt(host.ID)), "updated_at should not change on no-op SetOrUpdateHostDisksSpace")
 
 	// A real change must bump updated_at.
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 7, 8, 80.0, nil))
-	require.True(t, loadUpdatedAt(host.ID).After(pinned), "updated_at should advance when values change")
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 7, 8, 80.0, nil))
+	changedAt := loadUpdatedAt(host.ID)
+	require.True(t, changedAt.After(pinned), "updated_at should advance when values change")
 
-	// A caller passing higher-precision floats that round to the same DECIMAL(10,2) as the
-	// stored row must also hit the skip path — otherwise the optimization is defeated for
-	// any caller with sub-cent precision.
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 7.001, 8.001, 80.004, nil))
-	h, err = ds.Host(context.Background(), host.ID)
+	// A caller passing higher-precision floats that land within the skip tolerance of the
+	// stored row must also hit the skip path, otherwise the optimization is defeated for
+	// any caller reporting sub-10 MB fluctuations.
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 7.001, 8.001, 80.004, nil))
+	require.True(t, changedAt.Equal(loadUpdatedAt(host.ID)),
+		"updated_at should not change when higher-precision inputs are within the skip tolerance")
+	h, err = ds.Host(t.Context(), host.ID)
 	require.NoError(t, err)
 	require.InDelta(t, 7.0, h.GigsDiskSpaceAvailable, 0.001)
 	require.InDelta(t, 8.0, h.PercentDiskSpaceAvailable, 0.001)
@@ -11956,6 +11959,52 @@ func testGetHostOrbitInfo(t *testing.T, ds *Datastore) {
 	hostOrbitInfo, err = ds.GetHostOrbitInfo(context.Background(), host.ID)
 	require.NoError(t, err)
 	assert.True(t, *hostOrbitInfo.ScriptsEnabled)
+
+	// Regression check around the skip-if-unchanged path for host_orbit_info. The table has
+	// no updated_at column, so we verify skip behavior with a sentinel: plant a value via
+	// direct UPDATE, then call SetOrUpdateHostOrbitInfo with inputs that match the planted
+	// row. If the skip path fires, the sentinel survives. If the writer runs, it would
+	// overwrite the row with the caller's args, which we detect.
+	loadDesktopVersion := func(hostID uint) string {
+		var v sql.NullString
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &v,
+				`SELECT desktop_version FROM host_orbit_info WHERE host_id = ?`, hostID)
+		})
+		return v.String
+	}
+	plantSentinel := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_orbit_info SET desktop_version = 'sentinel' WHERE host_id = ?`, host.ID)
+			return err
+		})
+	}
+
+	// Same values as the reader sees, so the skip path fires and the sentinel survives.
+	plantSentinel()
+	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(
+		t.Context(), host.ID, orbitVersion,
+		sql.NullString{String: "sentinel", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	))
+	require.Equal(t, "sentinel", loadDesktopVersion(host.ID),
+		"no-op SetOrUpdateHostOrbitInfo must not touch the row")
+
+	// A real change must write through.
+	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(
+		t.Context(), host.ID, "2.0.0",
+		sql.NullString{String: "sentinel", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	))
+	var stored struct {
+		Version        string         `db:"version"`
+		DesktopVersion sql.NullString `db:"desktop_version"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &stored,
+			`SELECT version, desktop_version FROM host_orbit_info WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, "2.0.0", stored.Version)
+	require.Equal(t, "sentinel", stored.DesktopVersion.String)
 }
 
 func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
