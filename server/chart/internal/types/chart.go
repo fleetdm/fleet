@@ -40,6 +40,15 @@ type Datastore interface {
 	// past the vulnerable version, so the join naturally stops matching.
 	AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error)
 
+	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
+	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
+	// titles, unioned with all critical OS vulnerabilities. Returns a non-nil
+	// empty slice when nothing matches — callers pass this to GetSCDData's
+	// entityIDs parameter where nil vs empty have distinct semantics.
+	//
+	// TODO(iteration-2): replace with user-configurable filtering.
+	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
+
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of
 	// each strategy.

@@ -269,7 +269,13 @@ func (ds *Datastore) GetSCDData(
 	lastBucketEnd := endDate.Add(bucketSize)
 	args := []any{dataset, lastBucketEnd, firstBucketStart}
 	var entityClause string
-	if len(entityIDs) > 0 {
+	switch {
+	case entityIDs == nil:
+		// no clause — match every entity for this dataset
+	case len(entityIDs) == 0:
+		// explicit empty set — match nothing; avoids MySQL syntax error from `IN ()`
+		entityClause = " AND 1=0"
+	default:
 		entityClause = " AND entity_id IN (?)"
 		args = append(args, entityIDs)
 	}
