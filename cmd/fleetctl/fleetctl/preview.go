@@ -100,9 +100,7 @@ func previewCommand() *cli.Command {
 		Name:    "preview",
 		Aliases: []string{"sandbox"},
 		Usage:   "Start a sandbox deployment of the Fleet server",
-		Description: `Start a sandbox deployment of the Fleet server using Docker and docker compose. Docker tools must be available in the environment.
-
-Use the stop and reset subcommands to manage the server and dependencies once started.`,
+		Description: `The quickest way to try Fleet. For a long-lived instance, deploy Fleet: https://fleetdm.com/learn-more-about/deploy-fleet`,
 		Subcommands: []*cli.Command{
 			previewStopCommand(),
 			previewResetCommand(),
