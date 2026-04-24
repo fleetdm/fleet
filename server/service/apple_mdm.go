@@ -5028,15 +5028,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal device information command result")
 	}
-
-	// Apple MDM responses occasionally omit DeviceInformation fields or return them
-	// as nil/wrong types; type-assert defensively rather than panicking, and preserve
-	// existing host values or skip dependent updates when fields are missing.
 	queryResponses := deviceInformationResponse.QueryResponses
 	deviceName, deviceNameOK := queryResponses["DeviceName"].(string)
 	deviceCapacity, deviceCapacityOK := queryResponses["DeviceCapacity"].(float64)
 	availableDeviceCapacity, availableDeviceCapacityOK := queryResponses["AvailableDeviceCapacity"].(float64)
 	osVersion, osVersionOK := queryResponses["OSVersion"].(string)
+
+	if supplementalOSVersionExtra, supplementalOSVersionExtraOK := queryResponses["SupplementalOSVersionExtra"]; supplementalOSVersionExtraOK {
+		osVersion += " " + supplementalOSVersionExtra.(string)
+	}
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
 	isLostModeEnabled, _ := queryResponses["IsMDMLostModeEnabled"].(bool)
