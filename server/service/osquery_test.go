@@ -1715,7 +1715,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// +1 due to fleet_no_policies_wildcard query.
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1951,7 +1951,7 @@ func TestDetailQueries(t *testing.T) {
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2492,8 +2492,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// +1 for the distributed query for campaign ID 42, +1 for windows update history, +1 for the fleet_no_policies_wildcard query.
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+3, len(queries)) {
+	// +1 for the distributed query for campaign ID 42, +1 for the fleet_no_policies_wildcard query.
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-2) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
