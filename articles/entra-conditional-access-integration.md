@@ -1,6 +1,8 @@
 # Conditional access: Entra
 
-With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS hosts.
+With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS and Windows hosts.
+
+> Instructions for Windows setup are coming soon.
 
 When a host fails a policy in Fleet, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
 
