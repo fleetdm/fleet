@@ -640,7 +640,14 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	// if a node_key ever happened to equal an orbit_node_key (astronomically
 	// unlikely with 32-char random keys but cheap to defend against). Also
 	// helps telemetry/debugging distinguish the two flight populations.
-	v, err, _ := d.hostCacheSF.Do("nk:"+nodeKey, func() (any, error) {
+	//
+	// DoChan lets the caller abandon the wait if its own ctx is canceled
+	// without affecting the shared flight — the flight runs under flightCtx
+	// (no cancellation inherited from the initiating caller) so peers that
+	// joined the same flight still receive the result. Using plain Do would
+	// block the canceled caller until the flight completes, burning caller
+	// resources on a result it no longer needs.
+	ch := d.hostCacheSF.DoChan("nk:"+nodeKey, func() (any, error) {
 		h, derr := d.Datastore.LoadHostByNodeKey(flightCtx, nodeKey)
 		switch {
 		case derr == nil && h != nil:
@@ -651,6 +658,14 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 		}
 		return h, derr
 	})
+	var v any
+	var err error
+	select {
+	case r := <-ch:
+		v, err = r.Val, r.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +702,9 @@ func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey str
 	// reapplying the caller's deadline.
 	flightCtx := context.WithoutCancel(ctx)
 
-	v, err, _ := d.hostCacheSF.Do("onk:"+orbitNodeKey, func() (any, error) {
+	// DoChan lets the caller bail on cancellation without blocking; see
+	// LoadHostByNodeKey for the full rationale.
+	ch := d.hostCacheSF.DoChan("onk:"+orbitNodeKey, func() (any, error) {
 		h, derr := d.Datastore.LoadHostByOrbitNodeKey(flightCtx, orbitNodeKey)
 		switch {
 		case derr == nil && h != nil:
@@ -697,6 +714,14 @@ func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey str
 		}
 		return h, derr
 	})
+	var v any
+	var err error
+	select {
+	case r := <-ch:
+		v, err = r.Val, r.Err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 	if err != nil {
 		return nil, err
 	}
