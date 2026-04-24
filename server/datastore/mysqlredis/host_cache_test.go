@@ -2,7 +2,6 @@ package mysqlredis
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	json "github.com/go-json-experiment/json/v1"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -25,7 +25,7 @@ import (
 // hostCacheTestCleanupPrefix is the key-prefix passed to redistest.SetupRedis so
 // every run cleans up only keys owned by these tests (redistest requires a
 // prefix to prevent concurrent tests from clobbering each other's keys).
-const hostCacheTestCleanupPrefix = "fleet:hostcache:v2"
+const hostCacheTestCleanupPrefix = "fleet:hostcache:v1"
 
 // hostCacheFamily parameterizes the load-path tests across both cache families
 // (osquery `LoadHostByNodeKey` and orbit `LoadHostByOrbitNodeKey`). Every
@@ -306,9 +306,9 @@ func TestHostCacheEnvelopeRoundTrip(t *testing.T) {
 	raw, err := json.Marshal(envelopeFromHost(orig))
 	require.NoError(t, err)
 
-	env := new(hostCacheEnvelope)
-	require.NoError(t, json.Unmarshal(raw, env))
-	got := env.toHost()
+	envelope := new(hostCacheEnvelope)
+	require.NoError(t, json.Unmarshal(raw, envelope))
+	got := envelope.toHost()
 
 	// Ignore unexported fields — they don't round-trip through JSON by
 	// construction (encoding/json only marshals exported fields), so the
