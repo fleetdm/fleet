@@ -2505,7 +2505,11 @@ func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, prof
 		return nil, ctxerr.Wrap(ctx, err, "building IN for existing Windows profile UUIDs")
 	}
 	var rows []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+	// Route this existence check to the primary. The whole point of the
+	// guard is to catch admin deletes that happened seconds ago (between
+	// the cron's initial list and the upsert); replica lag could show a
+	// just-deleted profile as still present and defeat the guard.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting existing Windows profile UUIDs")
 	}
 	result := make(map[string]struct{}, len(rows))

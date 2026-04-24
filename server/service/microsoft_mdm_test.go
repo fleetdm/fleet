@@ -671,6 +671,16 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return profileContentsMap, nil
 	}
 
+	// Default: every requested profile still exists. Tests that want to
+	// exercise the deletion-race guard can override this with their own Func.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		out := make(map[string]struct{}, len(profileUUIDs))
+		for _, u := range profileUUIDs {
+			out[u] = struct{}{}
+		}
+		return out, nil
+	}
+
 	capturedUpdates = &[]*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
 	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		*capturedUpdates = append(*capturedUpdates, payload...)
