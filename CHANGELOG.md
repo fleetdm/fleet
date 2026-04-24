@@ -85,7 +85,6 @@
 - Fixed SCIM user not associating with host when IdP username was set before the SCIM user was created.
 - Fixed  Google Drive version not matching upstream.
 - Fixed bug that cleared the MDM lock state if an "idle" message was received right after the lock ACK.
-- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
 - Fixed team maintainers, admins, and GitOps users being unable to add certificate templates due to missing read access to certificate authorities.
 - Fixed fleetd installation failure on macOS when installing it through Host details page > Software > Library as a Custom package.
 - Fixed a bug where SQL queries using table aliases (e.g., `FROM mounts m`) incorrectly reported no compatible platforms.
