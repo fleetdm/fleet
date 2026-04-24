@@ -137,25 +137,25 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{"kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE. It streams two joins
-// (software-level and OS-level vulnerabilities) and merges the results into a
-// single map. Duplicates across sources are harmless — the downstream
+// AffectedHostIDsByCVE returns host IDs grouped by CVE. It runs two joins
+// (software-level and OS-level vulnerabilities) and merges the results into
+// a single map. Duplicates across sources are harmless — the downstream
 // HostIDsToBlob setBit is idempotent.
 func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
 	result := make(map[string][]uint)
 
-	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+	if err := collectCVEHostPairs(ctx, ds.reader(ctx), `
 		SELECT sc.cve, hs.host_id
 		FROM software_cve sc
 		JOIN host_software hs ON hs.software_id = sc.software_id`, result); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
+		return nil, ctxerr.Wrap(ctx, err, "collect software CVE host pairs")
 	}
 
-	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+	if err := collectCVEHostPairs(ctx, ds.reader(ctx), `
 		SELECT osv.cve, hos.host_id
 		FROM operating_system_vulnerabilities osv
 		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`, result); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream OS CVE host pairs")
+		return nil, ctxerr.Wrap(ctx, err, "collect OS CVE host pairs")
 	}
 
 	return result, nil
@@ -203,7 +203,7 @@ func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) 
 	}
 	expanded = ds.rebind(expanded)
 	if err := collectCVEStrings(ctx, ds.reader(ctx), expanded, expandedArgs, set); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream tracked-CVE software results")
+		return nil, ctxerr.Wrap(ctx, err, "collect tracked-CVE software results")
 	}
 
 	// OS-side: all OS vulnerabilities at or above the critical threshold.
@@ -214,7 +214,7 @@ func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) 
 		JOIN cve_meta cm ON cm.cve = osv.cve
 		WHERE cm.cvss_score >= ?`
 	if err := collectCVEStrings(ctx, ds.reader(ctx), osQuery, []any{criticalCVSS}, set); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream tracked-CVE OS results")
+		return nil, ctxerr.Wrap(ctx, err, "collect tracked-CVE OS results")
 	}
 
 	out := make([]string, 0, len(set))
@@ -225,42 +225,38 @@ func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) 
 }
 
 // collectCVEStrings runs a single-column SELECT of CVE IDs and inserts each
-// into the provided set. Helper for TrackedCriticalCVEs.
+// into the provided set. Helper for TrackedCriticalCVEs. Uses SelectContext
+// rather than manual rows iteration so sqlx owns the Rows lifecycle (the
+// linter can't prove Close through the QueryerContext interface otherwise).
 func collectCVEStrings(ctx context.Context, q sqlx.QueryerContext, query string, args []any, out map[string]struct{}) error {
-	rows, err := q.QueryxContext(ctx, query, args...)
-	if err != nil {
+	var cves []string
+	if err := sqlx.SelectContext(ctx, q, &cves, query, args...); err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	var cve string
-	for rows.Next() {
-		if err := rows.Scan(&cve); err != nil {
-			return err
-		}
+	for _, cve := range cves {
 		out[cve] = struct{}{}
 	}
-	return rows.Err()
+	return nil
 }
 
-// streamCVEHostPairs runs a query yielding (cve, host_id) pairs and appends
-// host IDs into out under each CVE key.
-func streamCVEHostPairs(ctx context.Context, q sqlx.QueryerContext, query string, out map[string][]uint) error {
-	rows, err := q.QueryxContext(ctx, query)
-	if err != nil {
+// cveHostPair is the row shape for collectCVEHostPairs.
+type cveHostPair struct {
+	CVE    string `db:"cve"`
+	HostID uint   `db:"host_id"`
+}
+
+// collectCVEHostPairs runs a query yielding (cve, host_id) pairs and appends
+// host IDs into out under each CVE key. Uses SelectContext (see
+// collectCVEStrings for the rationale).
+func collectCVEHostPairs(ctx context.Context, q sqlx.QueryerContext, query string, out map[string][]uint) error {
+	var pairs []cveHostPair
+	if err := sqlx.SelectContext(ctx, q, &pairs, query); err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	var cve string
-	var hostID uint
-	for rows.Next() {
-		if err := rows.Scan(&cve, &hostID); err != nil {
-			return err
-		}
-		out[cve] = append(out[cve], hostID)
+	for _, p := range pairs {
+		out[p.CVE] = append(out[p.CVE], p.HostID)
 	}
-	return rows.Err()
+	return nil
 }
 
 // buildHostFilterClauses translates a HostFilter into SQL WHERE clauses for

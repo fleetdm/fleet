@@ -40,11 +40,10 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// DefaultResolutionHours returns the default display granularity in hours
-	// (1 for uptime, 24 for CVE). Used when the caller doesn't specify
-	// RequestOpts.Resolution. Unrelated to write-side granularity — all
-	// collectors write at 1h regardless of display resolution; see
-	// SampleStrategy for details.
+	// DefaultResolutionHours returns the default display granularity in hours.
+	// Used when the caller doesn't specify RequestOpts.Resolution. Unrelated
+	// to write-side granularity — all collectors write at 1h regardless of
+	// display resolution; see SampleStrategy for details.
 	DefaultResolutionHours() int
 
 	// SampleStrategy returns how samples combine within and across buckets.

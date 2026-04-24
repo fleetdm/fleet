@@ -36,15 +36,23 @@ func (ds *Datastore) RecordBucketData(
 	strategy api.SampleStrategy,
 	entityBitmaps map[string][]byte,
 ) error {
-	if len(entityBitmaps) == 0 {
-		return nil
-	}
 	bucketStart = bucketStart.UTC()
 
 	switch strategy {
 	case api.SampleStrategyAccumulate:
+		// Accumulate with an empty map has nothing to OR-merge and no prior
+		// state to reconcile — skip the round trip.
+		if len(entityBitmaps) == 0 {
+			return nil
+		}
 		return ds.recordAccumulate(ctx, dataset, bucketStart, bucketSize, entityBitmaps)
 	case api.SampleStrategySnapshot:
+		// Do NOT short-circuit on empty: empty means "no entities are
+		// currently in the tracked state." For snapshot semantics this is a
+		// meaningful write because any previously-open rows for this dataset
+		// need to be closed at bucketStart. recordSnapshot handles empty
+		// input correctly (the "absent entities" branch closes every open
+		// row).
 		return ds.recordSnapshot(ctx, dataset, bucketStart, entityBitmaps)
 	default:
 		return ctxerr.Errorf(ctx, "unknown sample strategy: %s", strategy)
