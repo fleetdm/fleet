@@ -439,6 +439,145 @@ func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, or
 	}
 }
 
+// hostCacheInvalidateBatchSize caps the number of keys per pipelined MGET /
+// DEL call. Keeps individual Redis commands bounded regardless of input size.
+const hostCacheInvalidateBatchSize = 500
+
+// invalidateHostIDs efficiently invalidates both cache families for a batch
+// of host IDs. Equivalent to calling hostCacheDeleteByID in a loop but uses
+// pipelined MGET + variadic DEL to collapse what would otherwise be ~8
+// sequential round-trips per host into O(slots × chunks) round-trips for
+// the whole batch — at 10k hosts on a loaded Redis, that's the difference
+// between ~80 seconds and ~200 milliseconds. Records one invalidation
+// counter bump per input ID. Errors are recorded on the errors counter and
+// logged; TTL is the safety net for any keys that survived a transient
+// Redis failure.
+func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason string) {
+	if !d.hostCacheEnabled || len(ids) == 0 {
+		return
+	}
+
+	// Phase 1: batch-GET every id2nk and id2onk to discover which payloads
+	// to clear. Interleaved (id2nk, id2onk, id2nk, id2onk, ...) so the
+	// result[2*i] / result[2*i+1] pairing is unambiguous below.
+	idxKeys := make([]string, 0, 2*len(ids))
+	for _, id := range ids {
+		idxKeys = append(idxKeys, hostCacheIndexByID(id))
+		idxKeys = append(idxKeys, hostCacheOrbitIndexByID(id))
+	}
+	resolved := d.pipelinedMGET(ctx, idxKeys)
+
+	// Phase 2: build the full DEL key list (payload + negative + reverse
+	// index for whichever side was populated) and issue pipelined DELs.
+	delKeys := make([]string, 0, 6*len(ids))
+	for i, id := range ids {
+		if nk := resolved[2*i]; nk != "" {
+			delKeys = append(delKeys, hostCacheKeyByNodeKey(nk), hostCacheKeyMiss(nk))
+		}
+		if onk := resolved[2*i+1]; onk != "" {
+			delKeys = append(delKeys, hostCacheKeyByOrbitNodeKey(onk), hostCacheKeyOrbitMiss(onk))
+		}
+		delKeys = append(delKeys, hostCacheIndexByID(id), hostCacheOrbitIndexByID(id))
+	}
+	d.pipelinedDEL(ctx, delKeys)
+
+	// Phase 3: one invalidation counter bump per id, matching the
+	// per-host-invalidation semantics of the non-batched path.
+	for range ids {
+		d.recordHostCacheInvalidation(ctx, reason)
+	}
+}
+
+// pipelinedMGET returns the string value for each key in input order. Empty
+// string for missing keys or if an error prevented retrieval. In Redis
+// cluster mode, keys are grouped by slot (CROSSSLOT-safe) and one MGET is
+// issued per slot group; each group is further chunked to bound individual
+// command size.
+func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
+	result := make([]string, len(keys))
+	if len(keys) == 0 {
+		return result
+	}
+
+	// Slot grouping rearranges keys; this map restores input order.
+	indexOf := make(map[string]int, len(keys))
+	for i, k := range keys {
+		indexOf[k] = i
+	}
+
+	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
+		for len(group) > 0 {
+			n := len(group)
+			if n > hostCacheInvalidateBatchSize {
+				n = hostCacheInvalidateBatchSize
+			}
+			chunk := group[:n]
+			group = group[n:]
+			d.mgetChunk(ctx, chunk, indexOf, result)
+		}
+	}
+	return result
+}
+
+func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) {
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
+		d.recordHostCacheErr(ctx, "get", err)
+		return
+	}
+	args := redigo.Args{}.AddFlat(chunk)
+	values, err := redigo.Values(conn.Do("MGET", args...))
+	if err != nil {
+		d.recordHostCacheErr(ctx, "get", err)
+		return
+	}
+	for i, v := range values {
+		if i >= len(chunk) {
+			break
+		}
+		if v == nil {
+			continue // missing key — leave out[] zero value
+		}
+		if b, ok := v.([]byte); ok {
+			out[indexOf[chunk[i]]] = string(b)
+		}
+	}
+}
+
+// pipelinedDEL issues variadic DEL across all keys, slot-grouped and chunked.
+// All errors are recorded and treated as best-effort; TTL is the backstop
+// for any keys we failed to DEL.
+func (d *Datastore) pipelinedDEL(ctx context.Context, keys []string) {
+	if len(keys) == 0 {
+		return
+	}
+	for _, group := range redis.SplitKeysBySlot(d.pool, keys...) {
+		for len(group) > 0 {
+			n := len(group)
+			if n > hostCacheInvalidateBatchSize {
+				n = hostCacheInvalidateBatchSize
+			}
+			chunk := group[:n]
+			group = group[n:]
+			d.delChunk(ctx, chunk)
+		}
+	}
+}
+
+func (d *Datastore) delChunk(ctx context.Context, chunk []string) {
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
+		d.recordHostCacheErr(ctx, "del", err)
+		return
+	}
+	args := redigo.Args{}.AddFlat(chunk)
+	if _, err := conn.Do("DEL", args...); err != nil {
+		d.recordHostCacheErr(ctx, "del", err)
+	}
+}
+
 // recordHostCacheErr attaches the error to context-based logging (surfaced on
 // the surrounding HTTP response log line via middleware) and increments the
 // errors counter. Cache errors are always best-effort; the DB path still

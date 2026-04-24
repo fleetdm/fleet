@@ -88,20 +88,17 @@ func (d *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnro
 }
 
 // AddHostsToTeam invalidates every host in the batch after a successful team
-// reassignment. The invalidation is intentionally synchronous so test harnesses
-// observe a stable cache state on return; operators running very large batches
-// (> ~1000 hosts) will see proportionally longer write latency today. A later
-// optimization could pipeline the Redis invalidations to reduce that latency
-// without changing the synchronous semantics of this method.
+// reassignment. Uses the pipelined batch invalidator (one MGET + one DEL per
+// Redis slot, chunked) rather than calling hostCacheDeleteByID in a loop —
+// that naive approach takes ~8 sequential Redis round-trips per host and at
+// 10k hosts × ~1 ms RTT adds ~80 s to the API call. The batched version is
+// O(slots × chunks) and stays synchronous on return.
 func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	if err := d.Datastore.AddHostsToTeam(ctx, params); err != nil {
 		return err
 	}
-	if !d.hostCacheEnabled || params == nil {
-		return nil
-	}
-	for _, id := range params.HostIDs {
-		d.hostCacheDeleteByID(ctx, id, "team")
+	if params != nil {
+		d.invalidateHostIDs(ctx, params.HostIDs, "team")
 	}
 	return nil
 }

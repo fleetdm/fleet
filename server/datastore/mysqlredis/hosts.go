@@ -185,9 +185,8 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 			logging.WithErr(ctx, err)
 		}
 	}
-	for _, id := range ids {
-		d.hostCacheDeleteByID(ctx, id, "delete")
-	}
+	// Batched pipelined invalidation — see invalidateHostIDs for why.
+	d.invalidateHostIDs(ctx, ids, "delete")
 	return nil
 }
 
@@ -205,9 +204,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHos
 			logging.WithErr(ctx, err)
 		}
 	}
-	for _, id := range ids {
-		d.hostCacheDeleteByID(ctx, id, "delete")
-	}
+	d.invalidateHostIDs(ctx, ids, "delete")
 	return details, nil
 }
 
@@ -221,9 +218,7 @@ func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]
 			logging.WithErr(ctx, err)
 		}
 	}
-	for _, id := range ids {
-		d.hostCacheDeleteByID(ctx, id, "delete")
-	}
+	d.invalidateHostIDs(ctx, ids, "delete")
 	return ids, nil
 }
 
