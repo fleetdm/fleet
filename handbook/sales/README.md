@@ -103,19 +103,9 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a reseller subscription quote
+### Send a quote
 
-Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
-1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
-2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
-3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote.
-4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
-5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
-
-
-### Send an order form
-
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will:
+In order to be transparent, Fleet sends quotes within 30 days of opportunity creation in most cases. Often, Sales will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription quote, the Fleet owner of the opportunity (usually AE or CSM) will:
 
 1. Follow the process to [create a quote](https://fleetdm.com/handbook/company/go-to-market-operations#create-a-quote) in Salesforce. The quote is automatically routed to the appropriate approver.
 
