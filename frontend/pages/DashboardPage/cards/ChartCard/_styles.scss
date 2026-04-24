@@ -172,6 +172,18 @@
     position: absolute;
     transform: translate(-50%, -100%);
     pointer-events: none;
+    white-space: nowrap;
+
+    // Near the right edge, anchor the tooltip's right side to the cell center
+    // so it grows leftward into the grid instead of overflowing the card.
+    &--align-right {
+      transform: translate(-100%, -100%);
+    }
+
+    // Mirror for the left edge.
+    &--align-left {
+      transform: translate(0, -100%);
+    }
   }
 
   &__x-axis {

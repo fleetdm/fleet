@@ -69,6 +69,9 @@ const CheckerboardViz = ({
   const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
+    "center"
+  );
 
   useEffect(() => {
     const node = containerRef.current;
@@ -201,10 +204,21 @@ const CheckerboardViz = ({
     const rect = (e.target as SVGElement).getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (containerRect) {
+      const cellCenterX = rect.left - containerRect.left + cellW / 2;
       setTooltipPos({
-        x: rect.left - containerRect.left + cellW / 2,
+        x: cellCenterX,
         y: rect.top - containerRect.top - 8,
       });
+      // Near either edge, the default centered tooltip would overflow or
+      // word-wrap. Flip the anchor so the tooltip grows inward instead.
+      const EDGE_ZONE = 100;
+      if (cellCenterX > containerRect.width - EDGE_ZONE) {
+        setTooltipAlign("right");
+      } else if (cellCenterX < EDGE_ZONE) {
+        setTooltipAlign("left");
+      } else {
+        setTooltipAlign("center");
+      }
     }
   };
 
@@ -303,7 +317,7 @@ const CheckerboardViz = ({
 
       {hoveredCell && (
         <div
-          className={`chart-card__tooltip ${baseClass}__floating-tooltip`}
+          className={`chart-card__tooltip ${baseClass}__floating-tooltip ${baseClass}__floating-tooltip--align-${tooltipAlign}`}
           style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="chart-card__tooltip-label">
