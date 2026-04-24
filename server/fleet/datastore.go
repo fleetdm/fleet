@@ -2043,6 +2043,15 @@ type Datastore interface {
 	// profiles requested.
 	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
 
+	// GetExistingMDMWindowsProfileUUIDs returns the subset of the given
+	// profile UUIDs that still exist in mdm_windows_configuration_profiles.
+	// Callers use this to detect profiles deleted by a concurrent admin
+	// action between listing and a downstream upsert (e.g. the
+	// mdm_windows_profile_manager cron's reconciliation loop); installing a
+	// profile that has since been deleted would create an unremovable zombie
+	// row because the <Delete> builder needs the now-missing SyncML.
+	GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error)
+
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error

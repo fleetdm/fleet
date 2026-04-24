@@ -2718,7 +2718,31 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
+	// Guard against a race where an admin deletes a profile between the
+	// initial ListMDMWindowsProfilesToInstall/GetMDMWindowsProfilesContents
+	// calls above and the per-profile upsert below. If we missed the
+	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
+	// command) for a profile that no longer exists in
+	// mdm_windows_configuration_profiles. The remove path couldn't clean
+	// that row up later — <Delete> command generation needs the original
+	// SyncML, which is gone — and the host would be stuck with an
+	// un-removable install. Re-query existence right before the upsert
+	// loops to shrink the race window to just the loop body.
+	installProfileUUIDs := make([]string, 0, len(installTargets))
+	for profUUID := range installTargets {
+		installProfileUUIDs = append(installProfileUUIDs, profUUID)
+	}
+	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
+	}
+
 	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
+		}
 		p, ok := profileContents[profUUID]
 		if !ok {
 			// this should never happen
