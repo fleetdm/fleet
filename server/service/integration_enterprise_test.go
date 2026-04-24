@@ -18317,6 +18317,281 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Nil(t, hostVanillaOsquery5Team1LastInstall)
 }
 
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallersScriptsDisabled() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a fleetd host with scripts enabled.
+	hostScriptsOn, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "scriptsOn"),
+		NodeKey:         ptr.String(t.Name() + "scriptsOn"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("scriptsOn.%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKeyOn := setOrbitEnrollment(t, hostScriptsOn, s.ds)
+	hostScriptsOn.OrbitNodeKey = &orbitKeyOn
+
+	// Create a fleetd host with scripts disabled at the host level.
+	hostScriptsOff, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "scriptsOff"),
+		NodeKey:         ptr.String(t.Name() + "scriptsOff"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("scriptsOff.%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKeyOff := uuid.New().String()
+	_, err = s.ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   *hostScriptsOff.OsqueryHostID,
+			HardwareSerial: hostScriptsOff.HardwareSerial,
+		}),
+		fleet.WithEnrollOrbitNodeKey(orbitKeyOff),
+		fleet.WithEnrollOrbitTeamID(hostScriptsOff.TeamID),
+	)
+	require.NoError(t, err)
+	// Set scripts_enabled to false for this host.
+	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, hostScriptsOff.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: false, Valid: true})
+	require.NoError(t, err)
+	hostScriptsOff.OrbitNodeKey = &orbitKeyOff
+
+	// Upload an installer to the team.
+	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo install",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
+
+	// Get the installer's software title ID.
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{}, http.StatusOK, &resp,
+		"query", "DummyApp",
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	titleID := resp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg",
+		)
+	})
+	require.NotZero(t, installerID)
+
+	// Create a policy and associate the installer.
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "testPolicy",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+	mtplr := fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	// Host with scripts disabled fails the policy — no install should be queued.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOff,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	lastInstall, err := s.ds.GetHostLastInstallData(ctx, hostScriptsOff.ID, installerID)
+	require.NoError(t, err)
+	require.Nil(t, lastInstall, "no install should be queued when host scripts are disabled")
+
+	// Host with scripts enabled fails the policy — install should be queued.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	lastInstall, err = s.ds.GetHostLastInstallData(ctx, hostScriptsOn.ID, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, lastInstall, "install should be queued when host scripts are enabled")
+
+	// Now test global scripts_disabled: disable scripts globally.
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.ServerSettings.ScriptsDisabled = true
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		appConf.ServerSettings.ScriptsDisabled = false
+		_ = s.ds.SaveAppConfig(ctx, appConf)
+	})
+
+	// Pass then fail again so the policy flips to newly-failing for hostScriptsOn.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(true)},
+	), http.StatusOK, &distributedResp)
+
+	prevExecID := lastInstall.ExecutionID
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	lastInstall, err = s.ds.GetHostLastInstallData(ctx, hostScriptsOn.ID, installerID)
+	require.NoError(t, err)
+	require.NotNil(t, lastInstall)
+	require.Equal(t, prevExecID, lastInstall.ExecutionID, "no new install should be queued when scripts are globally disabled")
+}
+
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptsScriptsDisabled() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Create a fleetd host with scripts enabled.
+	hostScriptsOn, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "scriptsOn"),
+		NodeKey:         ptr.String(t.Name() + "scriptsOn"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("scriptsOn.%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKeyOn := setOrbitEnrollment(t, hostScriptsOn, s.ds)
+	hostScriptsOn.OrbitNodeKey = &orbitKeyOn
+
+	// Create a fleetd host with scripts disabled at the host level.
+	hostScriptsOff, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "scriptsOff"),
+		NodeKey:         ptr.String(t.Name() + "scriptsOff"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("scriptsOff.%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKeyOff := uuid.New().String()
+	_, err = s.ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   *hostScriptsOff.OsqueryHostID,
+			HardwareSerial: hostScriptsOff.HardwareSerial,
+		}),
+		fleet.WithEnrollOrbitNodeKey(orbitKeyOff),
+		fleet.WithEnrollOrbitTeamID(hostScriptsOff.TeamID),
+	)
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, hostScriptsOff.ID, "1.22.0", sql.NullString{String: "42", Valid: true}, sql.NullBool{Bool: false, Valid: true})
+	require.NoError(t, err)
+	hostScriptsOff.OrbitNodeKey = &orbitKeyOff
+
+	// Upload a script to the team.
+	scriptObj, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "test-script.sh",
+		ScriptContents: "echo 'hello'",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Create a policy and associate the script.
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "testPolicy",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+	mtplr := fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: scriptObj.ID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	// Host with scripts disabled fails the policy — no script should be queued.
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOff,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	pendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostScriptsOff.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pendingScripts, 0, "no script should be queued when host scripts are disabled")
+
+	// Host with scripts enabled fails the policy — script should be queued.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	pendingScripts, err = s.ds.ListPendingHostScriptExecutions(ctx, hostScriptsOn.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pendingScripts, 1, "script should be queued when host scripts are enabled")
+
+	// Now test global scripts_disabled.
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.ServerSettings.ScriptsDisabled = true
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		appConf.ServerSettings.ScriptsDisabled = false
+		_ = s.ds.SaveAppConfig(ctx, appConf)
+	})
+
+	// Pass then fail again so the policy flips to newly-failing for hostScriptsOn.
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(true)},
+	), http.StatusOK, &distributedResp)
+
+	distributedResp = submitDistributedQueryResultsResponse{}
+	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		hostScriptsOn,
+		map[uint]*bool{policy.ID: ptr.Bool(false)},
+	), http.StatusOK, &distributedResp)
+
+	// The only pending script should still be the one from before — no new one queued.
+	pendingScripts, err = s.ds.ListPendingHostScriptExecutions(ctx, hostScriptsOn.ID, false)
+	require.NoError(t, err)
+	require.Len(t, pendingScripts, 1, "no new script should be queued when scripts are globally disabled")
+}
+
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetries() {
 	t := s.T()
 	ctx := context.Background()
