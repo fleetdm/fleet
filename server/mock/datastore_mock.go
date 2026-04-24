@@ -9175,15 +9175,6 @@ func (s *DataStore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profi
 	s.mu.Lock()
 	s.GetExistingMDMWindowsProfileUUIDsFuncInvoked = true
 	s.mu.Unlock()
-	if s.GetExistingMDMWindowsProfileUUIDsFunc == nil {
-		// Default to treating all provided UUIDs as existing. Tests that
-		// care about the deletion-race code path can set their own Func.
-		out := make(map[string]struct{}, len(profileUUIDs))
-		for _, u := range profileUUIDs {
-			out[u] = struct{}{}
-		}
-		return out, nil
-	}
 	return s.GetExistingMDMWindowsProfileUUIDsFunc(ctx, profileUUIDs)
 }
 

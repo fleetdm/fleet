@@ -27,16 +27,35 @@ type Datastore struct {
 	logger  *slog.Logger
 }
 
+// errActivityDatastoreNotConfigured is returned by every public method when
+// the datastore was constructed without a DB connection. Callers (e.g. test
+// harnesses with mocked top-level datastores) may want the activity routes
+// registered on the HTTP mux so apiendpoints.Init passes, even if they have
+// no real DB to back them. If a request actually reaches one of these routes,
+// the handler gets a clean error instead of a nil-pointer panic taking down
+// the test server.
+var errActivityDatastoreNotConfigured = errors.New("activity datastore is not configured (no DB connection)")
+
 // NewDatastore creates a new MySQL datastore for activities. A nil conns is
-// allowed: callers (e.g. test harnesses with mocked top-level datastores) may
-// want the activity routes registered on the HTTP mux without a real DB
-// connection. Any call that actually reaches the DB on such a datastore will
-// nil-panic; tests that register these routes but never hit them are fine.
+// allowed for test harnesses that register routes without a backing DB;
+// every method on the resulting datastore fails closed with
+// errActivityDatastoreNotConfigured.
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
 	if conns == nil {
 		return &Datastore{logger: logger}
 	}
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
+}
+
+// ensureConfigured reports whether the datastore has the DB handles it needs.
+// Every public method that reaches the DB calls this first so a stubbed
+// (nil-DBConns) datastore fails closed with a clear error instead of
+// nil-dereferencing.
+func (ds *Datastore) ensureConfigured() error {
+	if ds.primary == nil || ds.replica == nil {
+		return errActivityDatastoreNotConfigured
+	}
+	return nil
 }
 
 func (ds *Datastore) reader(ctx context.Context) *sqlx.DB {
@@ -48,6 +67,9 @@ var _ types.Datastore = (*Datastore)(nil)
 
 // ListActivities returns a slice of activities performed across the organization.
 func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	if err := ds.ensureConfigured(); err != nil {
+		return nil, nil, err
+	}
 	ctx, span := tracer.Start(ctx, "activity.mysql.ListActivities")
 	defer span.End()
 
@@ -144,6 +166,9 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 	if len(activityIDs) == 0 {
 		return nil
 	}
+	if err := ds.ensureConfigured(); err != nil {
+		return err
+	}
 
 	ctx, span := tracer.Start(ctx, "activity.mysql.MarkActivitiesAsStreamed")
 	defer span.End()
@@ -161,6 +186,9 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 
 // ListHostPastActivities returns past activities for a specific host.
 func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt types.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	if err := ds.ensureConfigured(); err != nil {
+		return nil, nil, err
+	}
 	ctx, span := tracer.Start(ctx, "activity.mysql.ListHostPastActivities")
 	defer span.End()
 
@@ -205,6 +233,9 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 // CleanupExpiredActivities deletes up to maxCount activities older than expiryWindowDays
 // that are not linked to any host. Host-linked activities are preserved.
 func (ds *Datastore) CleanupExpiredActivities(ctx context.Context, maxCount int, expiryWindowDays int) error {
+	if err := ds.ensureConfigured(); err != nil {
+		return err
+	}
 	ctx, span := tracer.Start(ctx, "activity.mysql.CleanupExpiredActivities")
 	defer span.End()
 
@@ -240,6 +271,9 @@ func (ds *Datastore) CleanupHostActivities(ctx context.Context, hostIDs []uint) 
 
 	if len(hostIDs) == 0 {
 		return nil
+	}
+	if err := ds.ensureConfigured(); err != nil {
+		return err
 	}
 
 	stmt, args, err := sqlx.In(`DELETE FROM activity_host_past WHERE host_id IN (?)`, hostIDs)

@@ -481,55 +481,60 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fleet.Datastore, svc fleet.Service,
 	opts ...*TestServerOpts,
 ) (map[string]fleet.User, *httptest.Server) {
+	// Normalize opts so all feature-route wiring below runs regardless of
+	// whether the caller supplied TestServerOpts. Zero-opts callers would
+	// otherwise skip activity (and android) route registration, which makes
+	// apiendpoints.Init fail because the YAML catalog expects those routes
+	// on the mux.
+	if len(opts) == 0 {
+		opts = []*TestServerOpts{{}}
+	}
+
 	var cfg config.FleetConfig
-	if len(opts) > 0 && opts[0].FleetConfig != nil {
+	if opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
 	} else {
 		cfg = config.TestConfig()
 	}
 	users := map[string]fleet.User{}
-	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
+	if !opts[0].SkipCreateTestUsers {
 		users = createTestUsers(t, ds)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	if len(opts) > 0 && opts[0].Logger != nil {
+	if opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
 
-	if len(opts) > 0 {
-		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
-	}
+	opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 
 	// Always register activity routes. apiendpoints.Init validates that
 	// every endpoint in the YAML catalog is registered on the router, and
 	// the catalog includes /api/{version}/fleet/activities and
 	// /api/{version}/fleet/hosts/:id/activities. Tests that don't pass
 	// DBConns (e.g. mocked-DS harnesses) still need the routes on the mux
-	// so Init doesn't fail; the activity datastore tolerates nil DBConns for
-	// that case. However, do NOT swap in the activity bounded-context
-	// service on the main service when DBConns is nil — the main service's
-	// activity-write path would then hit a nil DB and panic under writes.
-	// Mocked-DS tests should keep using the legacy in-service activity
-	// writes.
-	if len(opts) > 0 {
-		legacyAuthorizer, err := authz.NewAuthorizer()
-		require.NoError(t, err)
-		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
-		activitySvc, activityRoutesFn := activity_bootstrap.New(
-			opts[0].DBConns,
-			activityAuthorizer,
-			activityACLAdapter,
-			logger,
-		)
-		if opts[0].DBConns != nil {
-			svc.SetActivityService(activitySvc)
-		}
-		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-			return auth.AuthenticatedUser(svc, next)
-		}
-		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+	// so Init doesn't fail; the activity datastore fails closed with a
+	// clear error for that case instead of nil-dereferencing. Do NOT swap
+	// in the activity bounded-context service on the main service when
+	// DBConns is nil — the main service's activity-write path would then
+	// hit a nil DB. Mocked-DS tests keep using the legacy in-service
+	// activity writes.
+	legacyAuthorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+	activitySvc, activityRoutesFn := activity_bootstrap.New(
+		opts[0].DBConns,
+		activityAuthorizer,
+		activityACLAdapter,
+		logger,
+	)
+	if opts[0].DBConns != nil {
+		svc.SetActivityService(activitySvc)
 	}
+	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return auth.AuthenticatedUser(svc, next)
+	}
+	opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 
 	var mdmPusher nanomdm_push.Pusher
 	if len(opts) > 0 && opts[0].MDMPusher != nil {

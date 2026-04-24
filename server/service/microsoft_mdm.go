@@ -2745,8 +2745,11 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// this should never happen
-			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
+			// Should be unreachable now that the existence pre-check above
+			// is in place: if the profile exists it's in profileContents.
+			// Use a non-wrapping constructor — ctxerr.Wrapf(nil, ...) returns
+			// nil, which would silently skip the rest of reconciliation.
+			return ctxerr.Errorf(ctx, "missing profile content for profile %s", profUUID)
 		}
 
 		if !variables.ContainsBytes(p.SyncML) {
