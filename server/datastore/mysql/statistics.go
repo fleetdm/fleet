@@ -83,9 +83,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
-		if err == sql.ErrNoRows {
-			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
-		} else if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
