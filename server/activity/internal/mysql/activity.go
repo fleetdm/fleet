@@ -27,8 +27,15 @@ type Datastore struct {
 	logger  *slog.Logger
 }
 
-// NewDatastore creates a new MySQL datastore for activities.
+// NewDatastore creates a new MySQL datastore for activities. A nil conns is
+// allowed: callers (e.g. test harnesses with mocked top-level datastores) may
+// want the activity routes registered on the HTTP mux without a real DB
+// connection. Any call that actually reaches the DB on such a datastore will
+// nil-panic; tests that register these routes but never hit them are fine.
 func NewDatastore(conns *platform_mysql.DBConnections, logger *slog.Logger) *Datastore {
+	if conns == nil {
+		return &Datastore{logger: logger}
+	}
 	return &Datastore{primary: conns.Primary, replica: conns.Replica, logger: logger}
 }
 

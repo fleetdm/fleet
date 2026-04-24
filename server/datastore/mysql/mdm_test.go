@@ -56,6 +56,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
+		{"TestBulkSetPendingDefersWindowsReconciliation", testBulkSetPendingDefersWindowsReconciliation},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
@@ -8565,6 +8566,50 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 
 	_, err := ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, hostUUIDs, nil)
 	require.NoError(t, err)
+}
+
+// testBulkSetPendingDefersWindowsReconciliation verifies the production behavior
+// of BulkSetPendingMDMHostProfiles: when the test-only
+// testEagerWindowsProfileReconciliation flag is disabled (its production value),
+// the call must not touch host_mdm_windows_profiles. In production the
+// mdm_windows_profile_manager cron handles that reconciliation asynchronously.
+func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Force production behavior for this test.
+	prev := ds.testEagerWindowsProfileReconciliation
+	ds.testEagerWindowsProfileReconciliation = false
+	t.Cleanup(func() { ds.testEagerWindowsProfileReconciliation = prev })
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
+	require.NoError(t, err)
+
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "DW1", "DW1"),
+	}
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", time.Now())
+	host.Platform = "windows"
+	host.TeamID = &team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+	windowsEnroll(t, ds, host)
+
+	// Sanity: host_mdm_windows_profiles starts empty for this host.
+	before, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, before)
+
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	// Windows reconciliation should be deferred to the cron; no rows written,
+	// no update signal.
+	assert.False(t, updates.WindowsConfigProfile, "WindowsConfigProfile must stay false when eager reconciliation is disabled")
+
+	after, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, after, "host_mdm_windows_profiles must not be written when eager reconciliation is disabled")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {

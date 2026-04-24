@@ -500,8 +500,18 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 	}
 
-	// Add activity routes if DBConns is provided
-	if len(opts) > 0 && opts[0].DBConns != nil {
+	// Always register activity routes. apiendpoints.Init validates that
+	// every endpoint in the YAML catalog is registered on the router, and
+	// the catalog includes /api/{version}/fleet/activities and
+	// /api/{version}/fleet/hosts/:id/activities. Tests that don't pass
+	// DBConns (e.g. mocked-DS harnesses) still need the routes on the mux
+	// so Init doesn't fail; the activity datastore tolerates nil DBConns for
+	// that case. However, do NOT swap in the activity bounded-context
+	// service on the main service when DBConns is nil — the main service's
+	// activity-write path would then hit a nil DB and panic under writes.
+	// Mocked-DS tests should keep using the legacy in-service activity
+	// writes.
+	if len(opts) > 0 {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
@@ -512,7 +522,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			activityACLAdapter,
 			logger,
 		)
-		svc.SetActivityService(activitySvc)
+		if opts[0].DBConns != nil {
+			svc.SetActivityService(activitySvc)
+		}
 		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 			return auth.AuthenticatedUser(svc, next)
 		}
