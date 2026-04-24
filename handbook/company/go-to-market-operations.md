@@ -262,7 +262,7 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 9. Navigate to the approved quote record and click **"Start Sync"**. Confirm the prompt. Syncing is required before the opportunity can advance past **"Justification"**.
 
-10. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then click **"Save and Email Quote"**.
+10. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
 
    | Template | When to use |
    | -------- | ----------- |
