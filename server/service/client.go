@@ -1898,22 +1898,24 @@ func (c *Client) DoGitOps(
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
 	// Check GitOps exception enforcement. When an entity type is excepted:
-	// - If the key is present in the YAML, fail with an error.
+	// - If the key is present in the YAML, fail with an error (premium tier only)
 	// - If the key is absent, it's a no-op (existing entities preserved).
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
-		serverUrl := appConfig.ServerSettings.ServerURL
-		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, fmt.Errorf("Starting in 4.84, labels management in GitOps is turned off by default.  Either remove `labels:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
-		}
-		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, fmt.Errorf("Starting in 4.84, secrets management in GitOps is turned off by default.  Either remove `secrets:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
-		}
-		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-			return nil, fmt.Errorf("Software is excepted from GitOps management. Either remove `software:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
+		if appConfig.License.IsPremium() {
+			serverUrl := appConfig.ServerSettings.ServerURL
+			if exceptions.Labels && incoming.LabelsPresent {
+				return nil, fmt.Errorf("Starting in 4.84, labels management in GitOps is turned off by default.  Either remove `labels:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
+			}
+			if exceptions.Secrets && incoming.SecretsPresent {
+				return nil, fmt.Errorf("Starting in 4.84, secrets management in GitOps is turned off by default.  Either remove `secrets:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
+			}
+			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+				return nil, fmt.Errorf("Software is excepted from GitOps management. Either remove `software:` from your GitOps file or disable the exception in the UI: %s/settings/integrations/change-management", serverUrl)
+			}
 		}
 	}
 
