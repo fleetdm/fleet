@@ -672,10 +672,8 @@ func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string,
 //
 // The difference with lastActivityMatches is that the asserted activity does
 // not need to be the very last one, it will look for the last one of this
-// specified type (and details, if non-empty) which must be in one of the last
-// 10 activities otherwise the test is failed. When details is non-empty, it is
-// used as both a filter (to find the right activity among several of the same
-// type) and as an assertion on the matched activity's details.
+// specified type, which must be in one of the last 10 activities otherwise the
+// test is failed.
 func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) uint {
 	t := ts.s.T()
 
@@ -687,20 +685,8 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 	for _, act := range listActivities.Activities {
 		if act.Type == name {
 			if details != "" {
-				if act.Details == nil {
-					continue
-				}
-				// Use details as a filter: skip activities whose details don't match.
-				var wantDetails, gotDetails any
-				require.NoError(t, json.Unmarshal([]byte(details), &wantDetails))
-				if err := json.Unmarshal([]byte(*act.Details), &gotDetails); err != nil {
-					continue
-				}
-				wantJSON, _ := json.Marshal(wantDetails)
-				gotJSON, _ := json.Marshal(gotDetails)
-				if string(wantJSON) != string(gotJSON) {
-					continue
-				}
+				require.NotNil(t, act.Details)
+				assert.JSONEq(t, details, string(*act.Details))
 			}
 			if id > 0 {
 				assert.Equal(t, id, act.ID)
@@ -709,7 +695,7 @@ func (ts *withServer) lastActivityOfTypeMatches(name, details string, id uint) u
 		}
 	}
 
-	t.Fatalf("no activity of type %s (details: %q) found in the last %d activities", name, details, len(listActivities.Activities))
+	t.Fatalf("no activity of type %s found in the last %d activities", name, len(listActivities.Activities))
 	return 0
 }
 
