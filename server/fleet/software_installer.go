@@ -108,6 +108,9 @@ type SoftwareInstaller struct {
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
 	SoftwareTitle string `json:"-" db:"software_title"`
+	// FromHomebrew is the homebrew cask token this installer was imported from
+	// (empty when the installer did not come from homebrew).
+	FromHomebrew string `json:"-" db:"from_homebrew"`
 	// SelfService indicates that the software can be installed by the
 	// end user without admin intervention
 	SelfService bool `json:"self_service" db:"self_service"`

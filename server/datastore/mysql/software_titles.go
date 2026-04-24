@@ -598,7 +598,7 @@ SELECT
 		,si.url AS package_url
 		,si.install_during_setup as package_install_during_setup
 		,si.storage_id as package_storage_id
-		,si.from_homebrew as package_from_homebrew
+		,(si.from_homebrew <> '') as package_from_homebrew
 		,si.fleet_maintained_app_id
 		,vat.self_service as vpp_app_self_service
 		,vat.adam_id as vpp_app_adam_id
@@ -888,7 +888,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) st
 			si.url AS package_url,
 			si.install_during_setup AS package_install_during_setup,
 			si.storage_id AS package_storage_id,
-			si.from_homebrew AS package_from_homebrew,
+			(si.from_homebrew <> '') AS package_from_homebrew,
 			si.fleet_maintained_app_id,
 			vat.self_service AS vpp_app_self_service,
 			vat.adam_id AS vpp_app_adam_id,

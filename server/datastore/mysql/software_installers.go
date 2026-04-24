@@ -351,7 +351,7 @@ INSERT INTO software_installers (
 			payload.UpgradeCode,
 			true,
 			payload.PatchQuery,
-			payload.FromHomebrew != "",
+			payload.FromHomebrew,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -3780,12 +3780,13 @@ SELECT
 	si.team_id,
 	si.storage_id,
 	si.version,
+	si.from_homebrew,
 	COALESCE(st.name, '') AS software_title
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
 WHERE
-	si.from_homebrew = 1`
+	si.from_homebrew <> ''`
 
 	var installers []fleet.SoftwareInstaller
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installers, query); err != nil {

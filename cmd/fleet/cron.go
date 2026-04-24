@@ -2051,15 +2051,14 @@ func newHomebrewUpdatesSchedule(
 					teamID = *si.TeamID
 				}
 
-				var input homebrew.InputApp
-				input.Token = strings.ToLower(si.SoftwareTitle)
+				input := homebrew.InputApp{Token: si.FromHomebrew}
 
 				fma, err := ingester.IngestOne(ctx, input)
 				if err != nil {
-					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "team", teamID, "current", si.Version, "err", err)
+					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "token", si.FromHomebrew, "team", teamID, "current", si.Version, "err", err)
 					continue
 				}
-				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "team", teamID, "current", si.Version, "latest", fma.Version)
+				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "token", si.FromHomebrew, "team", teamID, "current", si.Version, "latest", fma.Version)
 			}
 			logger.InfoContext(ctx, "--------------------------------------------------------------")
 			return nil
