@@ -129,7 +129,7 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 
 Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_SCEP_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
-**Important:** Fleet automatically renews this certificate when `$FLEET_VAR_SCEP_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_SCEP_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
 -- Returns 1 if all Okta certs are valid for >30 days (PASSING)
