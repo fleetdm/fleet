@@ -135,7 +135,7 @@ go run ./orbit/tools/build/build.go
 ./tools/tuf/test/push_target.sh macos orbit orbit-macos $ORBIT_VERSION
 ```
 
-E.g. to add a new version of `osqueryd` for macOS:
+E.g. to add a new released version of `osqueryd` for macOS:
 ```sh
 # Generate osqueryd app bundle.
 make osqueryd-app-tar-gz version=5.5.1 out-path=.
@@ -149,6 +149,15 @@ E.g. to add a custom `osqueryd` version from a osquery PR for macOS:
 ```sh
 # Generate osqueryd app bundle from pull request https://github.com/osquery/osquery/pull/8815.
 make osqueryd-app-tar-gz pr=8815 out-path=.
+
+# Push the osqueryd target as a new version.
+./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
+```
+
+E.g. to add a custom `osqueryd` version built locally for macOS:
+```sh
+# Generate osqueryd app bundle from a locally built osqueryd executable.
+make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
 
 # Push the osqueryd target as a new version.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0

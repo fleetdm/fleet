@@ -252,7 +252,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		fleetAdminFullName  = "Fleet Admin"
 	)
 
-	if ssoEnabled || managedAdminAccountEnabled {
+	// Only send AccountConfiguration for macOS devices.
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
