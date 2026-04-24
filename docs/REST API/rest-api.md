@@ -12359,7 +12359,7 @@ _Available in Fleet Premium_
 
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
-| name | string | body | **Required.** The fleet's name. |
+| name | string | body | **Required.** The fleet's name. Fleet names must differ by more than letter case. |
 
 #### Example
 
@@ -12370,6 +12370,24 @@ _Available in Fleet Premium_
 ```json
 {
   "name": "workstations"
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from an existing fleet's name by letter case.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 
@@ -12428,7 +12446,7 @@ _Available in Fleet Premium_
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
-| name                                                    | string  | body | The fleet's name.                                                                                                                                                                                          |
+| name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -12445,6 +12463,24 @@ _Available in Fleet Premium_
 ```json
 {
   "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
+}
+```
+
+##### Name conflict response
+
+`Status: 409`
+
+Returned when the requested name only differs from another fleet's name by letter case. Renaming a fleet to a case variant of its own current name (e.g., `ABC` → `abc`) succeeds.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A fleet named \"Workstations\" already exists. Fleet names must differ by more than letter case."
+    }
+  ]
 }
 ```
 

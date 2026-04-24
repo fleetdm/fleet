@@ -6,12 +6,14 @@ import (
 	"database/sql"
 	"encoding/xml"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -45,6 +47,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestSetOrReplaceMDMWindowsConfigProfile", testSetOrReplaceMDMWindowsConfigProfile},
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
+		{"TestMDMWindowsProfilesSummaryEnumeration", testMDMWindowsProfilesSummaryEnumeration},
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
@@ -4745,4 +4748,216 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 	winProfs, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, winProfs)
+}
+
+// testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every
+// possible (status, operation_type, reserved) shape a host_mdm_windows_profiles
+// row can take and exercises every 0-, 1-, and 2-profile host configuration
+// through GetMDMWindowsProfilesSummary.
+//
+// The input universe is finite and small: status is FK-constrained to
+// {NULL, failed, pending, verifying, verified} (5 values) and operation_type
+// is FK-constrained to {NULL, install, remove} (3 values); a profile is either
+// reserved or non-reserved (2). Per row that is 30 shapes; for 2-profile hosts
+// we enumerate all 30x30 = 900 ordered pairs, plus 30 single-profile cases,
+// plus one zero-profile case.
+func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Keep us on the profiles-only summary path (no BitLocker branches).
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	type profileShape struct {
+		status        *fleet.MDMDeliveryStatus
+		operationType *fleet.MDMOperationType
+		reserved      bool
+	}
+
+	var shapes []profileShape
+	statuses := []*fleet.MDMDeliveryStatus{
+		nil,
+		&fleet.MDMDeliveryFailed,
+		&fleet.MDMDeliveryPending,
+		&fleet.MDMDeliveryVerifying,
+		&fleet.MDMDeliveryVerified,
+	}
+	// MDMOperationType constants are untyped until bound to a local var, so we
+	// materialize pointers here.
+	opInstall := fleet.MDMOperationTypeInstall
+	opRemove := fleet.MDMOperationTypeRemove
+	opTypes := []*fleet.MDMOperationType{
+		nil,
+		&opInstall,
+		&opRemove,
+	}
+	for _, s := range statuses {
+		for _, o := range opTypes {
+			for _, r := range []bool{false, true} {
+				shapes = append(shapes, profileShape{status: s, operationType: o, reserved: r})
+			}
+		}
+	}
+	require.Len(t, shapes, len(statuses)*len(opTypes)*2)
+
+	// expectedFinalStatus implements the pre-refactor EXISTS/NOT-EXISTS logic
+	// literally so we can validate the new aggregation-based query against it.
+	expectedFinalStatus := func(profiles []profileShape) string {
+		isNonReserved := func(p profileShape) bool { return !p.reserved }
+		isNonReservedInstall := func(p profileShape) bool {
+			return !p.reserved && p.operationType != nil && *p.operationType == fleet.MDMOperationTypeInstall
+		}
+
+		// EXISTS(non-reserved row with status='failed')
+		if slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReserved(p) && p.status != nil && *p.status == fleet.MDMDeliveryFailed
+		}) {
+			return "failed"
+		}
+		// EXISTS(non-reserved row with status IS NULL OR status='pending')
+		if slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReserved(p) && (p.status == nil || *p.status == fleet.MDMDeliveryPending)
+		}) {
+			return "pending"
+		}
+		// EXISTS(non-reserved install row with status='verifying')
+		// AND NOT EXISTS(non-reserved install row with status NULL or status NOT IN (verifying, verified))
+		hasVerifying := slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReservedInstall(p) && p.status != nil && *p.status == fleet.MDMDeliveryVerifying
+		})
+		verifyingBlocker := slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReservedInstall(p) && (p.status == nil ||
+				(*p.status != fleet.MDMDeliveryVerifying && *p.status != fleet.MDMDeliveryVerified))
+		})
+		if hasVerifying && !verifyingBlocker {
+			return "verifying"
+		}
+		// EXISTS(non-reserved install row with status='verified')
+		// AND NOT EXISTS(non-reserved install row with status NULL or status != 'verified')
+		hasVerified := slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReservedInstall(p) && p.status != nil && *p.status == fleet.MDMDeliveryVerified
+		})
+		verifiedBlocker := slices.ContainsFunc(profiles, func(p profileShape) bool {
+			return isNonReservedInstall(p) && (p.status == nil || *p.status != fleet.MDMDeliveryVerified)
+		})
+		if hasVerified && !verifiedBlocker {
+			return "verified"
+		}
+		return ""
+	}
+
+	// Build every configuration: 0-, 1-, and 2-profile.
+	var cases [][]profileShape
+	cases = append(cases, nil)
+	for _, a := range shapes {
+		cases = append(cases, []profileShape{a})
+	}
+	for _, a := range shapes {
+		for _, b := range shapes {
+			cases = append(cases, []profileShape{a, b})
+		}
+	}
+	require.Len(t, cases, 1+len(shapes)+len(shapes)*len(shapes))
+
+	// Map "<bucket>" -> OSSettingsFilter for the per-host membership check.
+	bucketFilter := map[string]fleet.OSSettingsStatus{
+		"failed":    fleet.OSSettingsFailed,
+		"pending":   fleet.OSSettingsPending,
+		"verifying": fleet.OSSettingsVerifying,
+		"verified":  fleet.OSSettingsVerified,
+	}
+
+	// Tally expected bucket counts (for the summary assertion) and expected
+	// host membership per bucket (for the filter assertion). The membership
+	// check defends against regressions that swap two configurations between
+	// buckets while preserving aggregate counts.
+	var expected fleet.MDMProfilesSummary
+	expectedHostsByBucket := map[fleet.OSSettingsStatus][]uint{}
+	expectedBucketByCase := make([]string, len(cases))
+	for i, c := range cases {
+		bucket := expectedFinalStatus(c)
+		expectedBucketByCase[i] = bucket
+		switch bucket {
+		case "failed":
+			expected.Failed++
+		case "pending":
+			expected.Pending++
+		case "verifying":
+			expected.Verifying++
+		case "verified":
+			expected.Verified++
+		}
+	}
+
+	// Insert one Windows host per case (all on the global "no team" scope so
+	// the summary query's `h.team_id IS NULL` branch covers them), then insert
+	// its profile rows. Track each host's expected bucket by ID for the
+	// per-host membership assertion below.
+	const nonReservedName = "enum-test-profile"
+	reservedName := mdm.FleetWindowsOSUpdatesProfileName
+	now := time.Now()
+	for caseIdx, c := range cases {
+		hostUUID := fmt.Sprintf("enum-host-%04d", caseIdx)
+		h := test.NewHost(t, ds, hostUUID, "1.1.1.1", hostUUID, hostUUID, now, test.WithPlatform("windows"))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		windowsEnroll(t, ds, h)
+
+		if filter, ok := bucketFilter[expectedBucketByCase[caseIdx]]; ok {
+			expectedHostsByBucket[filter] = append(expectedHostsByBucket[filter], h.ID)
+		}
+
+		for i, p := range c {
+			profUUID := fmt.Sprintf("%s-p%d", hostUUID, i)
+			commandUUID := fmt.Sprintf("cmd-%s", profUUID)
+			name := nonReservedName
+			if p.reserved {
+				name = reservedName
+			}
+			var statusArg any
+			if p.status != nil {
+				statusArg = string(*p.status)
+			}
+			var opTypeArg any
+			if p.operationType != nil {
+				opTypeArg = string(*p.operationType)
+			}
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx,
+					`INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, command_uuid) VALUES (?, ?, ?, ?, ?, ?)`,
+					hostUUID, profUUID, name, statusArg, opTypeArg, commandUUID)
+				return err
+			})
+		}
+	}
+
+	// 1) Aggregate bucket counts via GetMDMWindowsProfilesSummary.
+	got, err := ds.GetMDMWindowsProfilesSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equalf(t, expected, *got,
+		"aggregate bucket counts diverged from reference implementation over %d enumerated configurations", len(cases))
+
+	// 2) Per-host membership via ListHosts with OSSettingsFilter. This
+	//    catches regressions that preserve aggregate counts but swap two
+	//    hosts between buckets, and also exercises filterHostsByOSSettingsStatus
+	//    (the host-list path uses the same windowsHostProfileStatusSubquery
+	//    helper but a different outer query).
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, filter := range []fleet.OSSettingsStatus{
+		fleet.OSSettingsFailed,
+		fleet.OSSettingsPending,
+		fleet.OSSettingsVerifying,
+		fleet.OSSettingsVerified,
+	} {
+		gotHosts, err := ds.ListHosts(ctx, teamFilter, fleet.HostListOptions{OSSettingsFilter: filter})
+		require.NoError(t, err)
+		gotIDs := make([]uint, 0, len(gotHosts))
+		for _, h := range gotHosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		require.ElementsMatchf(t, expectedHostsByBucket[filter], gotIDs,
+			"per-host membership mismatch for OSSettingsFilter=%s", filter)
+	}
 }
