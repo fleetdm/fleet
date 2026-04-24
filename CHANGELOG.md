@@ -1,3 +1,101 @@
+## Fleet 4.84.0 (Apr 06, 2026)
+
+### Bug fixes
+
+- Fixed a server panic when uploading a Windows MDM profile to a fleet on a free license.
+* Fixed MSRC vulnerability scanning to differentiate between Windows Server Core and full desktop installations, preventing false positive/negative CVEs caused by non-deterministic product matching.
+* Updated ingestion/CVE logic to support JetBrains software with 2 version numbers, like WebStorm 2025.1
+- Fixed GitOps policy software resolution failing when URL lookup doesn't match, by falling back to hash-based lookup.
+* Fixed GitOps failing to delete a certificate authority when certificate templates still reference it in fleet configs.
+- Added `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT` server config option to throttle the number of CA certificate profile installations per reconciler cycle, preventing CA server overload in large deployments.
+- Fixed duplicate text in error message when script validation fails when adding a custom package
+- Fixed issue where the `include_available_for_install` query param wasn't being applied correctly
+to the `GET /api/latest/fleet/hosts/{id}/software` endpoint.
+* Fixed disk encryption key modal to not show stale key when switching between hosts.
+Added banner to Add software page to inform users that Android web apps require Google Chrome.
+* Fixed false positive vulnerabilities (CVE-2019-17201, CVE-2019-17202) reported for Admin By Request on macOS and Linux hosts. These CVEs are Windows-specific.
+* Fixed SCIM user not associating with host when IdP username was set before the SCIM user was created.
+- Added ability to pin Fleet-maintained apps to a specific major version in GitOps.
+* Added support for Entra conditional access to Windows devices.
+- Fix Google Drive version not matching upstream
+* Enabled Windows MDM in `fleetctl preview` by auto-generating WSTEP certificates on startup.
+*  Added GET /api/v1/fleet/hosts/{id}/reports endpoint (also accessible as /hosts/{id}/queries) that lists the query reports associated with a specific host.
+Increased the default SSO session validity period from 5 to 15 minutes.
+* Allow OTEL service name to be overridden with standard OTEL_SERVICE_NAME env var.
+- Added support for `labels_include_all` conditional scoping for software installers and apps.
+* Revised which versions Fleet tests MySQL against to remove 8.0.39 and add 8.0.42.
+- Added validation for software install, uninstall, and post-install scripts.
+* Fixed bug that cleared the MDM lock state if an "idle" message was received right after the lock ACK.
+- Fixed a crash on the "My device" page for Fleet Free instances. The page returned a 402 error when the host was assigned to a team because the device endpoint called a premium-only API, and also crashed when accessing undefined policies data.
+- Improved performance of distributed read endpoint by reducing mutex contention in shouldUpdate using sync.RWMutex instead of sync.Mutex.
+* Fixed team maintainers, admins, and GitOps users being unable to add certificate templates due to missing read access to certificate authorities.
+* Updated iOS/iPadOS refetch logic to slowly clear out old/stale results
+* Use OSV data source for Ubuntu vulnerability scanning.
+* Fixed fleetd installation failure on macOS when installing it through Host details page > Software > Library as a Custom package.
+- Fixed a bug where SQL queries using table aliases (e.g., `FROM mounts m`) incorrectly reported no compatible platforms.
+- Fixed `fleetctl gitops` failing with "No available VPP Token" when assigning VPP apps alongside a new team.
+* Fixed a bug where OS versions were not populated in vulnerability details for OS-only vulnerabilities (e.g., macOS CVEs).
+* Allow typing whitespace on Settings > Integrations > SSO > End users form.
+* Fixed a TOCTOU related issue when checking before deleting last admin.
+- Added ability to specify custom patch policy query in an FMA manifest
+- Generate correct CPE from malformed ipswitch whatsup CPE, ensuring applicable CVEs are matched.
+- Use the same templates for `fleetctl new` and new instance initialization
+- Updated ordering of setup experience software to take display names into account.
+- Removed incorrect `report` key from get/create/modify API responses.
+* Improved database query performance for the Host Details > Reports page by adding a `has_data` virtual generated column to `query_results`.
+* Added `(query_id, has_data, host_id, last_fetched)` index on query_results.
+* Made sure that fleet names are trimmed and validate to prevent whitespace-only or padded names across API, gitops, frontend, and existing data.
+* Added "API time" to GitOps output on API errors.
+- Fleet UI: Hide host details > reports from platforms that do not support scheduled reporting
+- Upped the default limit for the software batch endpoint, from 1MiB to 25MiB
+- Updated GitOps label functionality to allow omitting the `hosts:` key under a manual label to mean "preserve existing host membership", rather than removing all hosts.
+* Fixed database locking issues on the policy_membership table by batching cleanup DELETE operations and moving them outside the primary GitOps apply transaction.
+* Added Flatcar Container Linux and CoreOS to the list of recognized Linux platforms, fixing host detail queries (IP address, disk space, etc.) not being sent to hosts running these distributions.
+- Updated the default fleet selected when navigating to the dashboard and to Controls
+- Added ability to re-send Android certificates to a specific host
+* Implemented ACME for MDM protocol communication, and hardware device attestation.
+- Allow specifying a Fleet-Maintained App (FMA) as a policy software automation in GitOps
+* Fixed success message on Android software configuration to reference software display name when applicable.
+- Added support for running python scripts on macOS and Linux
+- Reduced redundant database queries during policy result submission by computing flipping policies once per host check-in instead of multiple times.
+- Allowed clearing Windows OS update deadline and grace period fields to remove enforcement.
+- Fixed a bug where Android host certificate template records were not cleared when a device unenrolled, causing stale certificate statuses after re-enrollment.
+- Added automatic rotation of Mac recovery lock passwords 1 hour after the password is viewed via the API.
+* Fixed a bug where the organization logo URL entered during setup was only saved for dark backgrounds and not for light backgrounds.
+- Activated warnings for deprecated API parameters, API URLs, fleetctl commands and fleetctl command options.
+* Reduced redundant database calls in the osquery distributed query results hot path by pre-loading configuration (AppConfig, HostFeatures, TeamMDMConfig, conditional access) once per request instead of once per detail query result.
+* Updated the Request Certificate API to return the proper PEM header for PKCS #7 certificates returned by EST CAs
+- Added "Learn more" link on End User Authentication section.
+- Fixed an issue where setup experience items (software to install) were not enqueued for Linux distributions that did not report a "platform-like" value, e.g. Arch Linux and Omarchy.
+- Moved Apple MDM worker to a faster cron, and started sending profiles on Post DEP enrollment job, to speed up initial macOS setup.
+- Updated frontend to use new multiplatform API keys
+- Added automatic retry (up to 3 times) when the Android agent reports a certificate install failure.
+- Added activity logging when a certificate is installed or fails to install on an Android host.
+- Enabled the host activity card on the Android host details page.
+* Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If you limit outbound Fleet server traffic, make sure it can access the new FMA manifests location.
+- Add backend to resend Android certificates
+- Fixed a bug where filtering hosts by software version for a software version not present on the selected team returned nil software instead of a lightweight report of the software
+- Fixed the UI bug the above caused
+- Increased automatic retry limit for failed Apple (macOS, iOS, iPadOS) configuration profiles from 1 to 3. Windows profiles remain at 1 retry.
+* Added vulnerability detection for Microsoft 365 Apps and Office products on Windows.
+* Added a new `disk_space` fleetd table for macOS that reports available disk space including purgeable storage, matching the value shown in Finder's "Get Info" dialog and System Settings → General → Storage.
+* Updated go to 1.26.1
+* Optimized `PolicyQueriesForHost` and `ListPoliciesForHost` SQL queries by replacing correlated subqueries with a single aggregated LEFT JOIN for label-based policy scoping, reducing query time by ~77% at scale.
+- Improved VPP install failure messaging to explain verification timeouts in Host details and My device install details.
+- Fixed Fleet's usage of the incorrectly spelled 'vulnerabities' in favor of 'vulnerabilities' in MSRC bulletins
+* Refactored large anonymous functions into named functions to improve nil-safety static analysis coverage.
+* Fixed nondeterministic CPE matching when multiple CPE candidates share the same product name.
+* Fixed a bug where Windows hosts with an empty `display_version` in the database would get 0 CVEs from MSRC vulnerability scanning.
+- Fixed a bug where `fleetctl generate-gitops` failed if a Fleet-maintained app was associated to a software title with a different name (e.g. names with different versions).
+Renamed "Custom settings" to "Configuration profiles" in Fleet UI.
+* Added Reports tab to Host details page.
+- Fixed `fleetctl generate-gitops` failing to include VPP fleet assignments.
+* When a Windows configuration profile is deleted or a host moves teams, Fleet now sends SyncML `<Delete>` commands to remove the settings from the device, bringing Windows profile removal to parity with macOS.
+* Added software source to ecosystem matching to help prevent non-deterministic CPE selection when multiple vendors exist for the same product.
+- Fleet UI: Added description to help users understand which fleet a policy belongs during add/edit
+- Updated Fleet-maintained apps to overwrite software title names on sync and when adding an FMA installer.
+- Support outputting VPP policy automations in `fleetctl generate-gitops`
+
 ## Fleet 4.83.0 (Apr 1, 2026)
 
 ### IT Admins
