@@ -30,7 +30,7 @@ How to connect Fleet to APNs:
 2. Under **Apple Business Manager** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
-6. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
+5. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
 7. Upload your CSR and download new APNs certificate.
 8. Upload APNs certificate (.pem file) in Fleet.
 
