@@ -96,7 +96,7 @@ Security teams that operate from a single, unified endpoint platform report fast
 
 ## The counter argument and why it doesn't hold up
 
-The most common objection to consolidation is capability: "Tool X does macOS better than any unified platform can."
+The most common objection to consolidation is capability. "Tool X does macOS better than any unified platform can."
 
 This objection deserves to be taken seriously - and in some edge cases, for highly specific workflows, it may even be true. But it's increasingly less true as unified platforms mature. And it completely ignores the operational reality of running multiple tools.
 
