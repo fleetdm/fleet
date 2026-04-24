@@ -2033,8 +2033,7 @@ func newHomebrewUpdatesSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("homebrew_updates", func(ctx context.Context) error {
-			teamID := uint(17)
-			installers, err := ds.GetHomebrewInstallers(ctx, teamID) // TODO(JK): hardcoded
+			installers, err := ds.GetHomebrewInstallers(ctx)
 			if err != nil {
 				return err
 			}
@@ -2045,17 +2044,22 @@ func newHomebrewUpdatesSchedule(
 				Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 			}
 
-			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers), "team", teamID)
+			logger.InfoContext(ctx, "------------------ homebrew installers -----------------------", "count", len(installers))
 			for _, si := range installers {
+				var teamID uint
+				if si.TeamID != nil {
+					teamID = *si.TeamID
+				}
+
 				var input homebrew.InputApp
 				input.Token = strings.ToLower(si.SoftwareTitle)
 
 				fma, err := ingester.IngestOne(ctx, input)
 				if err != nil {
-					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "current", si.Version, "err", err)
+					logger.ErrorContext(ctx, "failed to ingest homebrew app", "name", si.SoftwareTitle, "team", teamID, "current", si.Version, "err", err)
 					continue
 				}
-				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "current", si.Version, "latest", fma.Version)
+				logger.InfoContext(ctx, "homebrew installer status", "name", si.SoftwareTitle, "team", teamID, "current", si.Version, "latest", fma.Version)
 			}
 			logger.InfoContext(ctx, "--------------------------------------------------------------")
 			return nil

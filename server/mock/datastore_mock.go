@@ -1415,7 +1415,7 @@ type GetHostLastInstallDataFunc func(ctx context.Context, hostID uint, installer
 
 type MatchOrCreateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (installerID uint, titleID uint, err error)
 
-type GetHomebrewInstallersFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareInstaller, error)
+type GetHomebrewInstallersFunc func(ctx context.Context) ([]fleet.SoftwareInstaller, error)
 
 type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error)
 
@@ -9549,11 +9549,11 @@ func (s *DataStore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload 
 	return s.MatchOrCreateSoftwareInstallerFunc(ctx, payload)
 }
 
-func (s *DataStore) GetHomebrewInstallers(ctx context.Context, teamID uint) ([]fleet.SoftwareInstaller, error) {
+func (s *DataStore) GetHomebrewInstallers(ctx context.Context) ([]fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetHomebrewInstallersFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHomebrewInstallersFunc(ctx, teamID)
+	return s.GetHomebrewInstallersFunc(ctx)
 }
 
 func (s *DataStore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {

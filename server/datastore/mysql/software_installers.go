@@ -3773,10 +3773,11 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	return nil
 }
 
-func (ds *Datastore) GetHomebrewInstallers(ctx context.Context, teamID uint) ([]fleet.SoftwareInstaller, error) {
+func (ds *Datastore) GetHomebrewInstallers(ctx context.Context) ([]fleet.SoftwareInstaller, error) {
 	query := `
 SELECT
 	si.id,
+	si.team_id,
 	si.storage_id,
 	si.version,
 	COALESCE(st.name, '') AS software_title
@@ -3784,10 +3785,10 @@ FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
 WHERE
-	si.global_or_team_id = ? AND si.from_homebrew = 1`
+	si.from_homebrew = 1`
 
 	var installers []fleet.SoftwareInstaller
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installers, query, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installers, query); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get homebrew installers")
 	}
 	return installers, nil

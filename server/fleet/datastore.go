@@ -2243,8 +2243,8 @@ type Datastore interface {
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
 
-	// GetHomebrewInstallers returns all software installers for the given team that were added via Homebrew.
-	GetHomebrewInstallers(ctx context.Context, teamID uint) ([]SoftwareInstaller, error)
+	// GetHomebrewInstallers returns every software installer added via Homebrew, across all teams.
+	GetHomebrewInstallers(ctx context.Context) ([]SoftwareInstaller, error)
 
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
