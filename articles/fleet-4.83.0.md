@@ -15,7 +15,7 @@ Fleet 4.83.0 is now available. See the complete [changelog](https://github.com/f
 
 ### macOS Recovery Lock passwords
 
-Fleet now automatically escrows a unique Recovery Lock password for each macOS host and lets admins rotate it on demand. Learn [how to to enable](https://fleetdm.com/guides/recovery-lock-password).
+Fleet now automatically escrows a unique Recovery Lock password for each macOS host and lets admins rotate it on demand. Learn [how to enable this](https://fleetdm.com/guides/recovery-lock-password).
 
 The Recovery Lock passwords prevents unauthorized access to macOS Recovery Mode. When needed, admins can look up and share the password with an end user and then rotate it afterward so it can't be reused. Automatic rotation after view is [coming soon](https://github.com/fleetdm/fleet/issues/41003).
 
@@ -85,7 +85,7 @@ GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 - Reordered the columns on the Hosts page.
 - Updated Fleet desktop to surface custom transparency links to the device user.
 - Changed `PostJSONWithTimeout` to log response body in error case.
-- Removedd unused and confusingly-named --mdm_apple_scep_signer_allow_renewal_days config.
+- Removed unused and confusingly-named `--mdm_apple_scep_signer_allow_renewal_days` config.
 - Refactored `NewActivity` functionality by moving it to the new activity bounded context.
 - Modified Android certificate renewal logic to make it easier to test.
 - Optimized `api/latest/fleet/software/titles` endpoint.
@@ -104,11 +104,11 @@ GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 - Improved rate-limiting on conditional access endpoints.
 - Finished migrating code from go-kit/log to slog.
 - Updated UI for disabling stored report results for clarity.
-- Revised which versions Fleet tests MySQL against to 9.5.0 (unchanged), 8.4.8, 8.0.44, and 8.0.39, 8.0.44.
+- Revised which versions Fleet tests MySQL against to 9.5.0 (unchanged), 8.4.8, 8.0.44, and 8.0.39.
 - Deprecated several configuration keys in favor of new names: `custom_settings` -> `configuration_profiles`, `macos_settings` -> `apple_settings`, `macos_setup` -> `setup_experience` and `macos_setup_assistant` -> `apple_setup_assistant`.
 - Deprecated `setup_experience.bootstrap_package` in favor of `setup_experience.macos_bootstrap_package`.
 - Deprecated `setup_experience.manual_agent_install` in favor of `setup_experience.macos_manual_agent_install`.
-- Deprecated `setup_experience.enable_release_device_manually ` in favor of `setup_experience.apple_enable_release_device_manually`.
+- Deprecated `setup_experience.enable_release_device_manually` in favor of `setup_experience.apple_enable_release_device_manually`.
 - Deprecated `setup_experience.script` in favor of `setup_experience.macos_script`.
 - Fixed an issue where the MDM section on the integration page did not update correctly when Apple MDM is turned off.
 - Fixed an issue where iOS/iPadOS hosts couldn't add app store apps from the host library page.
@@ -122,7 +122,7 @@ GitHub issue: [#40496](https://github.com/fleetdm/fleet/issues/40496)
 - Fixed dropdown rendering center of a row and from pushing down save button below open dropdown options.
 - Fixed end user authentication form to allow saving cleared IdP settings.
 - Fixed inconsistent link styling in UI. 
-- Fixed the error resend button overflowing over the edge of the os settings modal table.
+- Fixed the error resend button overflowing over the edge of the OS settings modal table.
 - Fixed CPE matching failing for software names that sanitize to FTS5 reserved keywords (AND, OR, NOT).
 - Fixed table shifting left when clicking the copy hash icon in host software inventory.
 - Fixed a bug where vulnerability counts increased over time due to orphaned entries remaining in the database after hosts were removed.
