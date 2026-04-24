@@ -156,6 +156,170 @@ describe("PolicyForm - component", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
+    // Regression test for #38348: clicking Save with an empty query body must
+    // not submit, even before the debounced SQL validator has populated
+    // errors.query. The synchronous guard in promptSavePolicy enforces this.
+    it("does not call onUpdate when Save is clicked with an empty query body", async () => {
+      const onUpdate = jest.fn();
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: "", // empty query body
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
+          policyIdForEdit={mockPolicy.id}
+          showOpenSchemaActionText={false}
+          storedPolicy={createMockPolicy({ query: "" })}
+          isStoredPolicyLoading={false}
+          isTeamObserver={false}
+          isUpdatingPolicy={false}
+          onCreatePolicy={jest.fn()}
+          onOsqueryTableSelect={jest.fn()}
+          goToSelectTargets={jest.fn()}
+          onUpdate={onUpdate}
+          onOpenSchemaSidebar={jest.fn()}
+          renderLiveQueryWarning={jest.fn()}
+          backendValidators={{}}
+          onClickAutofillDescription={jest.fn()}
+          onClickAutofillResolution={jest.fn()}
+          isFetchingAutofillDescription={false}
+          isFetchingAutofillResolution={false}
+          resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      // On initial render `errors.query` is not yet set (the SQL validator is
+      // debounced 500ms), so Save is enabled. This reproduces the race the
+      // synchronous guard exists to handle: the user can click Save before
+      // the debounce fires.
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(onUpdate).not.toHaveBeenCalled();
+      // The synchronous guard sets errors.query = EMPTY_QUERY_ERR, which
+      // SQLEditor surfaces as its label text.
+      expect(
+        screen.getByText("Query text must be present")
+      ).toBeInTheDocument();
+    });
+
+    // Regression test for #38348: a policy with a non-empty but syntactically
+    // invalid query must be savable. Only empty queries block Save.
+    it("allows saving a policy whose query has a SQL syntax error", async () => {
+      const onUpdate = jest.fn();
+      const invalidSQL = "SELEKT * FROM bogus";
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: invalidSQL,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
+          policyIdForEdit={mockPolicy.id}
+          showOpenSchemaActionText={false}
+          storedPolicy={createMockPolicy({ query: invalidSQL })}
+          isStoredPolicyLoading={false}
+          isTeamObserver={false}
+          isUpdatingPolicy={false}
+          onCreatePolicy={jest.fn()}
+          onOsqueryTableSelect={jest.fn()}
+          goToSelectTargets={jest.fn()}
+          onUpdate={onUpdate}
+          onOpenSchemaSidebar={jest.fn()}
+          renderLiveQueryWarning={jest.fn()}
+          backendValidators={{}}
+          onClickAutofillDescription={jest.fn()}
+          onClickAutofillResolution={jest.fn()}
+          isFetchingAutofillDescription={false}
+          isFetchingAutofillResolution={false}
+          resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      // Wait past the 500ms debounce so the SQL validator runs and flags the
+      // syntax error. The error surfaces as SQLEditor's label text.
+      await waitFor(() => {
+        expect(
+          screen.getByText("Syntax error. Please review before saving.")
+        ).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      expect(onUpdate.mock.calls[0][0].query).toBe(invalidSQL);
+    });
+
     it("disables save and run button with tooltip for missing policy platforms", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -583,8 +747,6 @@ describe("PolicyForm - component", () => {
       });
     });
   });
-  // TODO: Consider testing save button is disabled for a sql error
-  // Trickiness is in modifying react-ace using react-testing library
 
   describe("renderPolicyFleetName", () => {
     it("does not render anything on free tier", () => {

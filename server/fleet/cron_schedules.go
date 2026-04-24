@@ -54,6 +54,7 @@ const (
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
 	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
 	CronHelloWorld               CronScheduleName = "hello_world"
+	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
 )
 
 type CronSchedulesService interface {
