@@ -1908,19 +1908,21 @@ func (c *Client) DoGitOps(
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
-	if appConfig != nil && appConfig.License.IsPremium() {
+	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
-		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, errors.New(
-				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, errors.New(
-				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-			return nil, errors.New(
-				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+		if appConfig.License.IsPremium() {
+			if exceptions.Labels && incoming.LabelsPresent {
+				return nil, errors.New(
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Secrets && incoming.SecretsPresent {
+				return nil, errors.New(
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+				return nil, errors.New(
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
 		}
 	}
 
