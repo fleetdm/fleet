@@ -79,6 +79,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 #### API
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
+- [ ] Verify any new API endpoints appear correctly in the list when adding an API-only user
 - [ ] Verify error handling for invalid inputs where applicable
 
 #### GitOps (generate + run)
