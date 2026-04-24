@@ -828,8 +828,8 @@ endif
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi && \
-		cp "$$OSQUERYD" $(out-path)/osqueryd && \
-		chmod +x $(out-path)/osqueryd && \
+		cp "$$OSQUERYD" "$(out-path)/osqueryd" && \
+		chmod +x "$(out-path)/osqueryd" && \
 		echo "Extracted osqueryd to $(out-path)/osqueryd"
 	rm -rf $(TMP_DIR)
 

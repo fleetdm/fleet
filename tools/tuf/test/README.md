@@ -145,7 +145,7 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 ```
 NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://updates.fleetdm.com/).
 
-E.g. to add a custom `osqueryd` version from a osquery PR for macOS:
+E.g. to add a custom `osqueryd` version from an osquery PR for macOS:
 ```sh
 # Generate osqueryd app bundle from pull request https://github.com/osquery/osquery/pull/8815.
 make osqueryd-app-tar-gz pr=8815 out-path=.
@@ -163,7 +163,7 @@ make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
 ```
 
-E.g. to add a custom `osqueryd` version from a osquery PR for Linux (amd64 and arm64):
+E.g. to add a custom `osqueryd` version from an osquery PR for Linux (amd64 and arm64):
 ```sh
 # Grab osqueryd linux amd64 executable from pull request https://github.com/osquery/osquery/pull/8844.
 make osqueryd-linux pr=8844 arch=amd64 out-path=.
