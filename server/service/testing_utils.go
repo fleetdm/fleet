@@ -500,7 +500,13 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 	}
 
-	// Add activity routes if DBConns is provided
+	// Add activity routes. When DBConns is available, wire the real implementation;
+	// otherwise register stub routes so that apiendpoints.Init can validate the yaml
+	// even in unit tests that don't exercise activity endpoints.
+	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return auth.AuthenticatedUser(svc, next)
+	}
+	activityRoutesRegistered := false
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -513,10 +519,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			logger,
 		)
 		svc.SetActivityService(activitySvc)
-		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-			return auth.AuthenticatedUser(svc, next)
-		}
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+		activityRoutesRegistered = true
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -610,6 +614,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	var featureRoutes []endpointer.HandlerRoutesFunc
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
+	}
+	if !activityRoutesRegistered {
+		featureRoutes = append(featureRoutes, activity_bootstrap.StubRoutes(activityAuthMiddleware))
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
