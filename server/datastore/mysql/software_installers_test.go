@@ -61,6 +61,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
+		{"GetHomebrewInstallers", testGetHomebrewInstallers},
 	}
 
 	for _, c := range cases {
@@ -5047,4 +5048,60 @@ func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
 		`, v2ID)
 	})
 	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
+}
+
+func testGetHomebrewInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "homebrew-team-" + uuid.NewString()})
+	require.NoError(t, err)
+
+	newPayload := func(title, storage, token string, teamID *uint) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			InstallerFile:   tfr,
+			StorageID:       storage,
+			Filename:        title + ".zip",
+			Title:           title,
+			Version:         "1.0",
+			Source:          "apps",
+			Platform:        "darwin",
+			TeamID:          teamID,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			FromHomebrew:    token,
+		}
+	}
+
+	// Two homebrew installers (one team-scoped, one global) and one non-homebrew installer.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, newPayload("Firefox", "sid-firefox", "firefox", &team.ID))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, newPayload("Slack", "sid-slack", "slack", nil))
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, newPayload("Custom", "sid-custom", "", &team.ID))
+	require.NoError(t, err)
+
+	got, err := ds.GetHomebrewInstallers(ctx)
+	require.NoError(t, err)
+	require.Len(t, got, 2, "only the two homebrew installers should be returned")
+
+	byToken := map[string]fleet.SoftwareInstaller{}
+	for _, si := range got {
+		byToken[si.FromHomebrew] = si
+	}
+
+	firefox, ok := byToken["firefox"]
+	require.True(t, ok)
+	assert.Equal(t, "Firefox", firefox.SoftwareTitle)
+	assert.Equal(t, "1.0", firefox.Version)
+	require.NotNil(t, firefox.TeamID)
+	assert.Equal(t, team.ID, *firefox.TeamID)
+
+	slack, ok := byToken["slack"]
+	require.True(t, ok)
+	assert.Equal(t, "Slack", slack.SoftwareTitle)
+	assert.Nil(t, slack.TeamID, "global installer should have nil TeamID")
 }
