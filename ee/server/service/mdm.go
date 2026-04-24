@@ -961,15 +961,38 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		appConfig.MDMUrl(),
 		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 	}
+
+	// When a custom Apple MDM URL is configured, the IdP's ACS URL points to
+	// the main Fleet server URL, not the MDM URL. The SAML library validates
+	// the Destination against both the requestURL and sp.AcsURL, but validates
+	// SubjectConfirmation Recipient against sp.AcsURL only. So when the IdP
+	// sends the response to the Fleet URL, we must set sp.AcsURL to the Fleet
+	// URL (which the IdP uses as ACS/Recipient) and pass the Fleet URL as
+	// requestURL too. All other SAML validation (signatures, RequestID, etc.)
+	// stays intact.
+	providerAcsURL := acsURL
+	if appConfig.MDM.AppleServerURL != "" &&
+		appConfig.MDM.AppleServerURL != appConfig.ServerSettings.ServerURL {
+		expectedAudiences = append(expectedAudiences,
+			appConfig.ServerSettings.ServerURL,
+			appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
+		)
+		fleetCallbackURL, err := url.Parse(appConfig.ServerSettings.ServerURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback")
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse Fleet server callback URL")
+		}
+		providerAcsURL = fleetCallbackURL
+	}
+
 	samlProvider, requestID, originalURL, ssoRequestData, err := sso.SAMLProviderFromSession(
-		ctx, sessionID, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+		ctx, sessionID, svc.ssoSessionStore, providerAcsURL, mdmSSOSettings.EntityID, expectedAudiences,
 	)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
 	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
-	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, providerAcsURL)
 	if err != nil {
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.

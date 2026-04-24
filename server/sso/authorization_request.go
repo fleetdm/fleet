@@ -3,12 +3,13 @@ package sso
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
 
 	"github.com/crewjam/saml"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -83,8 +84,13 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	relayState := "" // Fleet currently doesn't use/set RelayState
-	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
+	// Pass the session ID as RelayState so the callback can retrieve it even
+	// when the SSO cookie is not available (e.g. when a custom Apple MDM URL
+	// causes the IdP to send the callback to a different domain than the one
+	// that set the cookie). The session ID is an opaque, random, single-use
+	// token that references server-side state — it does not grant access by
+	// itself.
+	idpRedirectURL, err := samlAuthRequest.Redirect(sessionID, samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}
@@ -92,10 +98,16 @@ func CreateAuthorizationRequest(
 }
 
 func generateSessionID() (string, error) {
+	// Use 24 random bytes hex-encoded (48 chars). Hex encoding produces only
+	// [0-9a-f] which is safe for URLs, cookies, and form-encoded POST bodies
+	// without any escaping. This avoids issues with base64's +, / and =
+	// characters being corrupted during SAML RelayState round-trips through
+	// IdPs (where the value travels as a URL query parameter and is echoed
+	// back in an application/x-www-form-urlencoded POST).
 	const sessionIDLength = 24
-	sessionID, err := server.GenerateRandomText(sessionIDLength)
-	if err != nil {
+	key := make([]byte, sessionIDLength)
+	if _, err := rand.Read(key); err != nil {
 		return "", fmt.Errorf("create random session ID: %w", err)
 	}
-	return sessionID, nil
+	return hex.EncodeToString(key), nil
 }

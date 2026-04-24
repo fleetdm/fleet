@@ -84,7 +84,10 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -6777,6 +6780,70 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.False(t, q.Has("profile_token"))
 	require.False(t, q.Has("enrollment_reference"))
 	require.True(t, q.Has("error"))
+
+	// When the SSO session cookie is missing (e.g. because the IdP sent the
+	// callback to a different domain than the one that set the cookie), the
+	// session ID should be recovered from the RelayState form parameter.
+	//
+	// Test 1: bogus session ID in RelayState — session lookup fails but the
+	// RelayState fallback path is exercised (without RelayState, an empty
+	// session ID would be used instead).
+	samlResponse = base64.StdEncoding.EncodeToString([]byte(rawSSOResp))
+	res = s.DoRawNoAuth(
+		"POST",
+		"/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse)+"&RelayState="+url.QueryEscape("bogus-session-id-from-relay"),
+		nil,
+		http.StatusSeeOther,
+	)
+	require.NotEmpty(t, res.Header.Get("Location"))
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	// Should get an error (invalid session), not a crash or different behavior.
+	require.True(t, u.Query().Has("error"))
+
+	// Test 2: valid session ID in RelayState — the session is found and
+	// consumed from Redis (proving the RelayState was used to look it up).
+	// The SAML response validation will fail because the metadata is minimal,
+	// but the important thing is that the error is NOT "session not found".
+	relaySessionID := "aabbccdd11223344aabbccdd11223344aabbccdd11223344"
+	ssoSession := sso.Session{
+		RequestID:   "_test-request-id",
+		OriginalURL: "/test-original-url",
+		Metadata:    `<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp.test.com"></md:EntityDescriptor>`,
+	}
+	sessionJSON, err := json.Marshal(ssoSession)
+	require.NoError(t, err)
+	conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
+	_, err = conn.Do("SETEX", relaySessionID, 300, string(sessionJSON))
+	conn.Close()
+	require.NoError(t, err)
+
+	// Verify the session exists in Redis.
+	conn = redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
+	val, err := redigo.String(conn.Do("GET", relaySessionID))
+	conn.Close()
+	require.NoError(t, err)
+	require.Contains(t, val, "_test-request-id")
+
+	samlResponse = base64.StdEncoding.EncodeToString([]byte(rawSSOResp))
+	res = s.DoRawNoAuth(
+		"POST",
+		"/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(samlResponse)+"&RelayState="+url.QueryEscape(relaySessionID),
+		nil,
+		http.StatusSeeOther,
+	)
+	require.NotEmpty(t, res.Header.Get("Location"))
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	// We expect an error (SAML validation fails), but it should NOT be
+	// "session not found" — the session was found via RelayState.
+	require.True(t, u.Query().Has("error"))
+
+	// The session should have been consumed (Fullfill does GET + DELETE).
+	conn = redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
+	_, err = redigo.String(conn.Do("GET", relaySessionID))
+	conn.Close()
+	require.ErrorIs(t, err, redigo.ErrNil, "session should have been consumed by the callback")
 }
 
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {

@@ -585,6 +585,15 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 		}, "parse form in SSO callback")
 	}
 
+	// If the cookie is not available (e.g. when a custom Apple MDM URL
+	// causes the IdP to send the callback to a different domain), fall back
+	// to the RelayState parameter which the IdP echoes back from the
+	// AuthnRequest. The session ID uses hex encoding so it survives the
+	// round-trip without corruption.
+	if sessionID == "" {
+		sessionID = r.FormValue("RelayState")
+	}
+
 	samlResponseValue := r.FormValue("SAMLResponse")
 	if samlResponseValue == "" {
 		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
