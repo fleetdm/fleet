@@ -762,10 +762,6 @@ ifndef out-path
 	@echo "Error: out-path argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
 	@exit 1
 endif
-ifndef arch
-	@echo "Error: arch argument is required (must be 'amd64' or 'arm64')"
-	@exit 1
-endif
 ifeq ($(arch),amd64)
 	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz)
 else ifeq ($(arch),arm64)
