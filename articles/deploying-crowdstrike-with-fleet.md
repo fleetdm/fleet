@@ -137,6 +137,20 @@ Exit $installProcess.ExitCode
 }
 ```
 
+If you are using the .exe package, you will need to use the following post-install script:
+
+```
+$logFile = "${env:TEMP}\fleet-install-software.log"
+try {
+    $installProcess = Start-Process -FilePath "${env:INSTALLER_PATH}" -ArgumentList "/quiet /norestart /install CID=<YOUR-CUSTOMER-ID-HERE>"
+    Get-Content $logFile -Tail 500
+    Exit $installProcess.ExitCode
+} catch {
+    Write-Host "Error: $_"
+    Exit 1
+}
+```
+
 >CrowdStrike provides [documentation for additional flags](https://github.com/crowdstrike/falcon-scripts/tree/main/powershell/install) here.
 
 ### 2. Add the Falcon Sensor to your software library

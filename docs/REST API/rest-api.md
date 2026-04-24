@@ -4792,8 +4792,6 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 
 ### Get host's software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 `GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
@@ -10251,8 +10249,6 @@ Get a list of all software.
 
 `GET /api/v1/fleet/software/titles`
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 #### Parameters
 
 | Name                    | Type    | In    | Description                                                                                                                                                                |
@@ -10610,8 +10606,6 @@ Returns a list of all operating systems.
 Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 

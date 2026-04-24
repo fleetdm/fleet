@@ -1304,20 +1304,6 @@ WITH cached_groups AS (select * from groups)
 SELECT uid, username, email FROM users
 ```
 
-## windows_update_history
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history'
-```
-
-- Query:
-```sql
-SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
-```
-
 <br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">
