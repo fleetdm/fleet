@@ -629,6 +629,93 @@ software:
 	assert.Contains(t, err.Error(), "remove `labels:` from your GitOps file")
 }
 
+// TestGitOpsExceptionEnforcementFreeTier verifies that GitOps exception enforcement is
+// skipped on free-tier instances, since free tier can't toggle the exception flags in
+// the UI. A free-tier instance with stale exception flags set should not block applying
+// a GitOps file that includes excepted keys.
+func TestGitOpsExceptionEnforcementFreeTier(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	setupEmptyGitOpsMocks(ds)
+
+	// All exceptions set ON in the saved config — but the instance is free tier,
+	// so these should be ignored and the gitops apply should succeed.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				// UI gitops mode off — enabling it is premium-only, but the stored
+				// Exceptions flags can still be non-zero from a prior premium state.
+				GitopsModeEnabled: false,
+				Exceptions:        fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+
+	// Labels excepted + present: should NOT error on free tier.
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.NoError(t, err)
+
+	// Secrets excepted + present: should NOT error on free tier.
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.NoError(t, err)
+
+	// Software excepted + present (team file): should NOT error on free tier.
+	// (software exceptions only apply to team files.)
+	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile3.WriteString(`
+name: test
+controls:
+policies:
+agent_options:
+software:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
+	// Free tier may reject team files for other reasons, but it must NOT be the exception error.
+	if err != nil {
+		assert.NotContains(t, err.Error(), `"software" is excepted from GitOps management`)
+	}
+}
+
 // TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
 // omitting the excepted keys from YAML preserves existing data.
 func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
