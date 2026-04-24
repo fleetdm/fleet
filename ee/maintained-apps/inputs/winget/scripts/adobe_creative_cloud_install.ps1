@@ -1,19 +1,9 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# Adobe Creative Cloud is distributed as a small "stub" executable. Running it
-# with --mode=stub lays down the Creative Cloud Desktop app silently, then
-# continues downloading the full suite in the background. We cannot -Wait on
-# the stub for the whole run (validator script timeout).
-#
-# Strategy:
-# 1. Launch the stub without waiting.
-# 2. Poll until the ARP entry for "Adobe Creative Cloud" exists with a
-#    DisplayVersion that matches the stub EXE version the same way Fleet's
-#    FMA validator does (exact, extended build suffix, or shorter reported
-#    version).
-# 3. Stop the stub process if it is still running so the temp installer file
-#    can be deleted (otherwise ACCC_Set-Up.exe stays locked).
+# Runs the Adobe Creative Cloud stub with silent flags, waits until the app is
+# registered in Programs and Features with a matching version, then stops the
+# stub process so the installer file can be removed from disk.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -30,7 +20,6 @@ function Get-ExpectedVersionFromStub {
     $v = $vi.ProductVersion
     if ([string]::IsNullOrWhiteSpace($v)) { $v = $vi.FileVersion }
     if ([string]::IsNullOrWhiteSpace($v)) { return $null }
-    # e.g. "6.9.1.1" or "6.9.1.1 (win32 ...)" — keep leading semver-like token
     $v = $v.Trim()
     if ($v -match '^([\d.]+)') { return $Matches[1] }
     return ($v -split '\s+')[0]
@@ -49,7 +38,7 @@ function Get-CreativeCloudUninstallProps {
     }
 }
 
-function Test-VersionMatchForValidator {
+function Test-VersionCompatible {
     param(
         [string]$Found,
         [string]$Expected
@@ -63,7 +52,7 @@ function Test-VersionMatchForValidator {
     return $false
 }
 
-function Test-CreativeCloudReadyForInventory {
+function Test-CreativeCloudReady {
     param([string]$ExpectedVersion)
 
     $props = Get-CreativeCloudUninstallProps
@@ -72,7 +61,7 @@ function Test-CreativeCloudReadyForInventory {
     $displayVersion = [string]$props.DisplayVersion
     if ([string]::IsNullOrWhiteSpace($displayVersion)) { return $false }
 
-    return (Test-VersionMatchForValidator -Found $displayVersion.Trim() -Expected $ExpectedVersion)
+    return (Test-VersionCompatible -Found $displayVersion.Trim() -Expected $ExpectedVersion)
 }
 
 try {
@@ -94,7 +83,7 @@ try {
 
     $elapsed = 0
     while ($elapsed -lt $pollTimeoutSeconds) {
-        if (Test-CreativeCloudReadyForInventory -ExpectedVersion $expectedVersion) {
+        if (Test-CreativeCloudReady -ExpectedVersion $expectedVersion) {
             Write-Host "Adobe Creative Cloud registered with matching version after ${elapsed}s"
             if (-not $process.HasExited) {
                 Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
@@ -106,7 +95,7 @@ try {
         if ($process.HasExited) {
             $exitCode = $process.ExitCode
             Write-Host "Stub installer exited with code $exitCode after ${elapsed}s"
-            if (Test-CreativeCloudReadyForInventory -ExpectedVersion $expectedVersion) {
+            if (Test-CreativeCloudReady -ExpectedVersion $expectedVersion) {
                 Exit 0
             }
             Exit $exitCode
@@ -116,14 +105,14 @@ try {
         $elapsed += $pollIntervalSeconds
     }
 
-    if (Test-CreativeCloudReadyForInventory -ExpectedVersion $expectedVersion) {
+    if (Test-CreativeCloudReady -ExpectedVersion $expectedVersion) {
         if (-not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         }
         Exit 0
     }
 
-    Write-Host "Timed out after ${pollTimeoutSeconds}s waiting for versioned Adobe Creative Cloud ARP entry"
+    Write-Host "Timed out after ${pollTimeoutSeconds}s waiting for Adobe Creative Cloud to appear in Programs and Features with a matching version"
     Exit 1
 
 } catch {
