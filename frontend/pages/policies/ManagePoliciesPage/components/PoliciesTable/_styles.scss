@@ -24,6 +24,13 @@
     display: flex;
     justify-content: center;
   }
+
+  &__filter-dropdowns {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: $pad-medium;
+  }
 }
 
 .automations-cell {

@@ -192,10 +192,10 @@ const PoliciesTable = ({
 
   const combinedCustomControl = () => {
     return (
-      <>
+      <div className={`${baseClass}__filter-dropdowns`}>
         {customControl?.()}
         {renderPlatformDropdown()}
-      </>
+      </div>
     );
   };
 
