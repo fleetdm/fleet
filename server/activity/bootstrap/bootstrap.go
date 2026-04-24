@@ -3,7 +3,6 @@
 package bootstrap
 
 import (
-	"context"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/activity"
@@ -32,39 +31,3 @@ func New(
 
 	return svc, routesFn
 }
-
-// StubRoutes returns a HandlerRoutesFunc that registers activity HTTP routes
-// using a no-op stub service. Intended for tests that need the routes present
-// for apiendpoints.Init validation but do not exercise activity endpoints.
-func StubRoutes(authMiddleware endpoint.Middleware) eu.HandlerRoutesFunc {
-	return service.GetRoutes(&stubActivityService{}, authMiddleware)
-}
-
-type stubActivityService struct{}
-
-func (*stubActivityService) ListActivities(_ context.Context, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	return nil, nil, nil
-}
-
-func (*stubActivityService) ListHostPastActivities(_ context.Context, _ uint, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
-	return nil, nil, nil
-}
-
-func (*stubActivityService) StreamActivities(_ context.Context, _ api.JSONLogger) error {
-	return nil
-}
-
-func (*stubActivityService) NewActivity(_ context.Context, _ *api.User, _ api.ActivityDetails) error {
-	return nil
-}
-
-func (*stubActivityService) CleanupExpiredActivities(_ context.Context, _ int, _ int) error {
-	return nil
-}
-
-func (*stubActivityService) CleanupHostActivities(_ context.Context, _ []uint) error {
-	return nil
-}
-
-// Ensure stubActivityService satisfies the api.Service interface at compile time.
-var _ api.Service = (*stubActivityService)(nil)
