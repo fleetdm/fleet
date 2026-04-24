@@ -151,9 +151,9 @@ In the Google Admin console:
 
 3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
+4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling it. This prevents pending activity (like scripts or software installs) from running on the re-enrolled host and avoids showing the original host’s vitals.
+> Delete the host from Fleet before re-enrolling it. This removes labels, prevents pending activity (like scripts or software installs) from running on the re-enrolled host, and avoids showing the original host’s vitals.
 
 ## Debugging
 

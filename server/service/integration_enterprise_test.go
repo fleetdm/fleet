@@ -29047,7 +29047,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
 	// Paths not registered in the API endpoint catalog are always rejected for
@@ -29073,7 +29073,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		// These are in the catalog but not in the user's allow list.
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusForbidden)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
 	})
 
 	// Non-api-only users must not be affected by the middleware at all.
@@ -29082,6 +29082,6 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 }
