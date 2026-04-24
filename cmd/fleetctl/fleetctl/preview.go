@@ -97,9 +97,9 @@ func newDockerCompose() (dockerCompose, error) {
 
 func previewCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "preview",
-		Aliases: []string{"sandbox"},
-		Usage:   "Start a sandbox deployment of the Fleet server",
+		Name:        "preview",
+		Aliases:     []string{"sandbox"},
+		Usage:       "Start a sandbox deployment of the Fleet server",
 		Description: `The quickest way to try Fleet. For a long-lived instance, deploy Fleet: https://fleetdm.com/learn-more-about/deploy-fleet`,
 		Subcommands: []*cli.Command{
 			previewStopCommand(),
