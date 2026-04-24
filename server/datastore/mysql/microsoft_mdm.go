@@ -21,10 +21,21 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// windowsMDMProfileDeleteBatchSize is the number of hosts to process per
-// batch when enqueuing <Delete> commands and updating host profile rows
-// during profile deletion.
-const windowsMDMProfileDeleteBatchSize = 5000
+// windowsMDMProfileDeleteBatchSize is the number of rows to process per batch
+// when enqueuing <Delete> commands, resolving enrollment IDs, and updating
+// host profile rows during profile deletion.
+//
+// 10,000 stays under MySQL's 65,535 placeholder limit on every caller. The
+// densest caller is the batched UPDATE with tuple IN + CASE per profile in
+// cancelWindowsHostInstallsForDeletedMDMProfiles, whose placeholder count is
+//
+//	2 (constants) + 2*distinctProfilesInBatch (CASE arms) + 2*rowsInBatch (IN)
+//
+// At batchSize=10,000 the realistic case (tens of profiles × many hosts each)
+// is ~20,000 placeholders, and the worst case (up to 10,000 distinct profiles
+// sharing a 10,000-row batch) is 40,002, still well under 65,535. The value
+// also matches the batch sizes used elsewhere in Fleet for host-table bulk ops.
+const windowsMDMProfileDeleteBatchSize = 10000
 
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var unused string
@@ -1474,25 +1485,83 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// Update host-profile rows only for profiles that had delete commands enqueued.
 	// This covers both install rows (being flipped to remove) and remove+NULL rows
 	// (being given a command_uuid and set to pending).
-	for profUUID, target := range enqueuedTargets {
-		if err := common_mysql.BatchProcessSimple(target.hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
-			upStmt, upArgs, err := sqlx.In(
-				`UPDATE host_mdm_windows_profiles
-				SET operation_type = ?, status = ?, command_uuid = ?, detail = ''
-				WHERE profile_uuid = ? AND host_uuid IN (?)`,
-				fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, target.cmdUUID,
-				profUUID, batch,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "building IN for phase 2 update")
-			}
-			if _, err := tx.ExecContext(ctx, upStmt, upArgs...); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host profiles to remove")
-			}
-			return nil
-		}); err != nil {
-			return err
+	//
+	// Flatten (host_uuid, profile_uuid, cmd_uuid) triples across all profiles and
+	// batch them into a single UPDATE per batch. Each batch can span multiple
+	// profiles, with a CASE mapping each row's profile_uuid to its command_uuid.
+	// The WHERE clause uses a tuple IN on (host_uuid, profile_uuid), which matches
+	// the PK and lets the optimizer perform direct PK point lookups. This avoids
+	// the previous per-profile loop, which under-utilized batches when profiles
+	// affected fewer than batchSize hosts.
+	//
+	// Profile UUIDs are iterated in sorted order so that the generated SQL text
+	// (IN-tuple order within a batch and CASE-arm order) is deterministic across
+	// runs; that keeps MySQL plan-cache entries and observability query digests
+	// stable.
+	type pendingRemoveRow struct {
+		hostUUID    string
+		profileUUID string
+		cmdUUID     string
+	}
+	sortedProfUUIDs := slices.Sorted(maps.Keys(enqueuedTargets))
+	totalRows := 0
+	for _, profUUID := range sortedProfUUIDs {
+		totalRows += len(enqueuedTargets[profUUID].hostUUIDs)
+	}
+	rows := make([]pendingRemoveRow, 0, totalRows)
+	for _, profUUID := range sortedProfUUIDs {
+		target := enqueuedTargets[profUUID]
+		for _, hostUUID := range target.hostUUIDs {
+			rows = append(rows, pendingRemoveRow{
+				hostUUID:    hostUUID,
+				profileUUID: profUUID,
+				cmdUUID:     target.cmdUUID,
+			})
 		}
+	}
+
+	if err := common_mysql.BatchProcessSimple(rows, windowsMDMProfileDeleteBatchSize, func(batch []pendingRemoveRow) error {
+		// Collect the profile_uuid -> cmd_uuid mapping needed by this batch. Most
+		// batches span 1 to N profiles; we only need one CASE arm per distinct
+		// profile in the batch.
+		profileCmds := make(map[string]string)
+		for _, r := range batch {
+			profileCmds[r.profileUUID] = r.cmdUUID
+		}
+		sortedBatchProfUUIDs := slices.Sorted(maps.Keys(profileCmds))
+
+		var sb strings.Builder
+		sb.WriteString(`UPDATE host_mdm_windows_profiles
+			SET operation_type = ?,
+			    status = ?,
+			    detail = '',
+			    command_uuid = CASE profile_uuid`)
+		args := make([]any, 0, 2+2*len(profileCmds)+2*len(batch))
+		args = append(args, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+		for _, profUUID := range sortedBatchProfUUIDs {
+			sb.WriteString(" WHEN ? THEN ?")
+			args = append(args, profUUID, profileCmds[profUUID])
+		}
+		// ELSE command_uuid is defensive: WHERE restricts the update to rows
+		// whose profile_uuid is present in profileCmds, so in practice every
+		// updated row matches a WHEN arm.
+		sb.WriteString(` ELSE command_uuid END
+			WHERE (host_uuid, profile_uuid) IN (`)
+		for i, r := range batch {
+			if i > 0 {
+				sb.WriteByte(',')
+			}
+			sb.WriteString("(?,?)")
+			args = append(args, r.hostUUID, r.profileUUID)
+		}
+		sb.WriteByte(')')
+
+		if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profiles to remove")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	return nil
