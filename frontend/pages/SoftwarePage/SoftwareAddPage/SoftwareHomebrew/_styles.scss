@@ -11,48 +11,6 @@
     gap: 24px;
   }
 
-  &__field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-
-    label {
-      font-size: 14px;
-      font-weight: 700;
-      color: $core-fleet-black;
-    }
-  }
-
-  &__help-text {
-    font-size: 12px;
-    color: $ui-fleet-black-75;
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  &__input {
-    width: 100%;
-    padding: 10px 16px;
-    font-size: 14px;
-    border: 1px solid $ui-fleet-black-25;
-    border-radius: 4px;
-    outline: none;
-
-    &:focus {
-      border-color: $core-vibrant-blue;
-      box-shadow: 0 0 0 1px $core-vibrant-blue;
-    }
-
-    &::placeholder {
-      color: $ui-fleet-black-50;
-    }
-  }
-
-  &__error {
-    color: $ui-error;
-    font-size: 14px;
-  }
-
   &__submit {
     align-self: flex-start;
   }
