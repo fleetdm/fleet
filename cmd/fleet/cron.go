@@ -2018,21 +2018,21 @@ func cronBatchActivityCompletionChecker(
 	return nil
 }
 
-func newHelloWorldSchedule(
+func newHomebrewUpdatesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronHelloWorld)
+		name            = string(fleet.CronHomebrewUpdates)
 		defaultInterval = 30 * time.Second
 	)
 	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("hello_world", func(ctx context.Context) error {
+		schedule.WithJob("homebrew_updates", func(ctx context.Context) error {
 			teamID := uint(17)
 			installers, err := ds.GetHomebrewInstallers(ctx, teamID) // TODO(JK): hardcoded
 			if err != nil {

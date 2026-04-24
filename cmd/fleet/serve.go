@@ -1227,9 +1227,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-		return newHelloWorldSchedule(ctx, instanceID, ds, logger)
+		return newHomebrewUpdatesSchedule(ctx, instanceID, ds, logger)
 	}); err != nil {
-		initFatal(err, "failed to register hello_world schedule")
+		initFatal(err, "failed to register homebrew_updates schedule")
 	}
 
 	vulnerabilityScheduleDisabled := false
