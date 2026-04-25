@@ -767,13 +767,24 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		}
 
 	case len(winHosts) > 0:
+		// The main transaction has already committed; failures of these
+		// post-commit listing reads must NOT fail the whole call (the state
+		// change already succeeded). Treat listing errors as non-fatal: log
+		// a warning and leave WindowsConfigProfile = false. The cron will
+		// still pick up the pending work on the next tick; the only
+		// observable consequence is a missed "edited Windows profile"
+		// activity entry for this single call.
 		toInstall, lerr := ds.listMDMWindowsProfilesToInstallDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
 		if lerr != nil {
-			return updates, ctxerr.Wrap(ctx, lerr, "list windows profiles to install for activity signal")
+			ds.logger.WarnContext(ctx, "list windows profiles to install for activity signal failed; activity may be skipped",
+				"err", lerr)
+			return updates, nil
 		}
 		toRemove, lerr := ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
 		if lerr != nil {
-			return updates, ctxerr.Wrap(ctx, lerr, "list windows profiles to remove for activity signal")
+			ds.logger.WarnContext(ctx, "list windows profiles to remove for activity signal failed; activity may be skipped",
+				"err", lerr)
+			return updates, nil
 		}
 		updates.WindowsConfigProfile = len(toInstall) > 0 || len(toRemove) > 0
 	}

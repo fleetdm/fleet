@@ -8593,10 +8593,12 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
 	require.NoError(t, err)
 
-	host := test.NewHost(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", time.Now())
-	host.Platform = "windows"
-	host.TeamID = &team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
+	// Insert the host with Platform=windows and the team set up front. The
+	// alternative pattern (test.NewHost defaults to darwin, then UpdateHost
+	// to flip platform/team) is flaky on CI: the desired-state JOIN that
+	// requires hosts.platform='windows' AND hosts.team_id = profile.team_id
+	// can miss the row.
+	host := newWindowsHostInTeam(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", &team.ID)
 	windowsEnroll(t, ds, host)
 
 	// Sanity: host_mdm_windows_profiles starts empty for this host.
@@ -8647,17 +8649,13 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	fixtures := make([]hostFixture, numHosts)
 	for i := range numHosts {
 		uuid := fmt.Sprintf("host-uuid-%d", i)
-		h := test.NewHost(t,
-			ds,
+		h := newWindowsHostInTeam(t, ds,
 			fmt.Sprintf("recon-cursor-host-%d", i),
 			fmt.Sprintf("1.1.1.%d", i),
 			fmt.Sprintf("recon-cursor-key-%d", i),
 			uuid,
-			time.Now(),
+			&team.ID,
 		)
-		h.Platform = "windows"
-		h.TeamID = &team.ID
-		require.NoError(t, ds.UpdateHost(ctx, h))
 		windowsEnroll(t, ds, h)
 		fixtures[i] = hostFixture{host: h, uuid: uuid}
 	}

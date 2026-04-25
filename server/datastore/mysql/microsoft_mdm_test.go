@@ -1973,6 +1973,34 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	return d1.MDMDeviceID
 }
 
+// newWindowsHostInTeam inserts a host with Platform=windows and the given
+// team set up front. The alternative pattern (test.NewHost defaults to
+// darwin, then UpdateHost to flip platform/team) is flaky on CI: the
+// desired-state JOIN that requires hosts.platform='windows' AND
+// hosts.team_id = profile.team_id can miss the row if UpdateHost's
+// effects are not visible by the time the listing runs.
+func newWindowsHostInTeam(t *testing.T, ds *Datastore, name, ip, key, hostUUID string, teamID *uint) *fleet.Host {
+	now := time.Now()
+	osqueryHostID := uuid.NewString()
+	h, err := ds.NewHost(context.Background(), &fleet.Host{
+		Hostname:        name,
+		OsqueryHostID:   &osqueryHostID,
+		NodeKey:         &key,
+		UUID:            hostUUID,
+		Platform:        "windows",
+		TeamID:          teamID,
+		PrimaryIP:       ip,
+		PublicIP:        ip,
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkHostsSeen(context.Background(), []uint{h.ID}, now))
+	return h
+}
+
 func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 

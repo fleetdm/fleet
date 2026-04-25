@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1048,10 +1048,31 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	require.NoError(t, err)
 	profileUUID := mysql.InsertWindowsProfileForTest(t, ds, team.ID)
 
-	host := test.NewHost(t, ds, "deferred-recon-host", "1.1.1.1", "deferred-recon-key", "deferred-recon-host-uuid", time.Now())
-	host.Platform = "windows"
-	host.TeamID = &team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
+	// Insert the host with Platform=windows and the team set up front. The
+	// alternative pattern (test.NewHost defaults to darwin, then UpdateHost
+	// to flip platform/team) was observed to be flaky on CI: if UpdateHost
+	// is reordered relative to enrollment insertion or the listing read,
+	// the desired-state JOIN that requires hosts.platform='windows' AND
+	// hosts.team_id = profile.team_id can miss the row.
+	osqueryHostID, _ := server.GenerateRandomText(10)
+	nodeKey := "deferred-recon-key"
+	now := time.Now()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "deferred-recon-host",
+		OsqueryHostID:   &osqueryHostID,
+		NodeKey:         &nodeKey,
+		UUID:            "deferred-recon-host-uuid",
+		Platform:        "windows",
+		TeamID:          &team.ID,
+		PrimaryIP:       "1.1.1.1",
+		PublicIP:        "1.1.1.1",
+		DetailUpdatedAt: now,
+		LabelUpdatedAt:  now,
+		PolicyUpdatedAt: now,
+		SeenTime:        now,
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkHostsSeen(ctx, []uint{host.ID}, now))
 
 	dev := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
