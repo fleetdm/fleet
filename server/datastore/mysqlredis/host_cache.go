@@ -12,7 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	json "github.com/go-json-experiment/json/v1"
+	"github.com/go-json-experiment/json/v1"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -361,7 +361,7 @@ func (d *Datastore) hostCachePutNotFoundByOrbitNodeKey(ctx context.Context, orbi
 // hostCacheDeleteByID invalidates both the osquery and orbit caches when only
 // the host ID is known. It reads both reverse indices (id2nk, id2onk) and
 // deletes whichever entries it finds. Either or both may be missing (host
-// enrolled only one agent, TTL expiry, never populated) — missing entries
+// enrolled only one agent, TTL expiry, never populated). Missing entries
 // mean there's nothing more to do on that side, and the invalidation is still
 // counted so the metrics line up with write-path activity.
 func (d *Datastore) hostCacheDeleteByID(ctx context.Context, hostID uint, reason string) {
@@ -425,7 +425,7 @@ func (d *Datastore) clearOrbitNodeKeyEntriesByID(ctx context.Context, conn redig
 // for whichever of (nodeKey, orbitNodeKey) the caller supplies, without
 // touching the reverse indices. Used alongside hostCacheDeleteByID to cover
 // the case where a stale NotFound was negatively-cached under a key before
-// the host row existed — the reverse-index path can't find those entries
+// the host row existed. The reverse-index path can't find those entries
 // (no id2 mapping is populated for a negative hit), so they must be cleared
 // by key. Does NOT record an invalidation; the caller already did.
 func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, orbitNodeKey string) {
@@ -451,8 +451,15 @@ func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, or
 	}
 }
 
-// hostCacheInvalidateBatchSize caps the number of keys per pipelined MGET /
-// DEL call. Keeps individual Redis commands bounded regardless of input size.
+// hostCacheInvalidateBatchSize caps the number of keys per pipelined MGET / DEL call. Keeps individual Redis
+// commands bounded regardless of input size.
+//
+// Why 500: Redis is single-threaded, so each command blocks all other clients for its duration. The chosen value
+// targets ~3ms of server time per chunk, the rough community threshold for "noticeable but not problematic." Each
+// MGET response carries ~1.7KB of JSON envelope per key, so 500 keys = ~850KB per chunk, comparable in wire-bytes
+// to redisSetMembersBatchSize=10000 in hosts.go (whose elements are ~10-byte host IDs). Common practice for
+// pipelined batches is 100-1000; 500 is a defensible middle. Lower if metrics show invalidation causing Redis CPU
+// spikes during bulk team moves; raise if round-trip latency dominates.
 const hostCacheInvalidateBatchSize = 500
 
 // invalidateHostIDs efficiently invalidates both cache families for a batch
