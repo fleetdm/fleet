@@ -200,7 +200,6 @@ const EndUserAuthSection = ({
           />
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent="Complete all required fields to save end user authentication."

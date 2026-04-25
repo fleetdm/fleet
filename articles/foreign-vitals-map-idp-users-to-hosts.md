@@ -9,8 +9,8 @@ Fleet can map an end user's IdP username, groups, and department to their host(s
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
 Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
-- Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
-- Manual enrollment for personal (BYOD) iOS, iPadOS, Android, and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
+- Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
+- Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 
 You can also manually add/update a host's IdP username on the Host details page. Fleet will then automatically map the username to other IdP vitals.
 
@@ -29,7 +29,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
 5. On the **SAML Settings** page, add any fully-qualified URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
-> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g "https://example.fleetdm.com".
+> Okta requires setting up SAML to set up SCIM. Since we don't need SAML right now, you can set the URL to something arbitrary, e.g `https://example.fleetdm.com`.
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
@@ -49,7 +49,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Delete the rest of the attributes.
+11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Remove the mapping for the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 #### Step 3: Map Okta users and groups to hosts in Fleet
@@ -288,11 +288,3 @@ To verify that user information is added to a host, go to the host that has an I
 <meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
 <meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png">
 <meta name="category" value="guides">
-
-## Syncing users
-
-When SCIM is configured with your IdP, Fleet automatically deletes a user’s Fleet account when the user is deleted or deactivated in the IdP.
-
-If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled
-
-No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.

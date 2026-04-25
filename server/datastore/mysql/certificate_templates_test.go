@@ -994,9 +994,8 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
 	require.NoError(t, err)
 
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
 	h2.TeamID = &team.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
 
 	// Create a test certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1100,14 +1099,12 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 
 	// Create hosts
 	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h1)
-	require.NoError(t, err)
 
 	h2 := test.NewHost(t, ds, "host_2", "127.0.0.2", "2", "2", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{h2.ID})))
 	h2.TeamID = &team2.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
 
 	// Create certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1226,9 +1223,8 @@ func testGetHostCertificateTemplateRecord(t *testing.T, ds *Datastore) {
 
 	// Create host
 	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h1)
-	require.NoError(t, err)
 
 	// Create certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1337,9 +1333,8 @@ func testResendHostCertificateTemplate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h1)
-	require.NoError(t, err)
 
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),

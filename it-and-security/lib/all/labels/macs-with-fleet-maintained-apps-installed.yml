@@ -13,19 +13,9 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Microsoft Edge installed
-  description: macOS hosts with Microsoft Edge installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Visual Studio Code installed
   description: macOS hosts with Visual Studio Code installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';
-  label_membership_type: dynamic
-  platform: darwin
-- name: Macs with Microsoft Teams installed
-  description: macOS hosts with Microsoft Teams installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';
   label_membership_type: dynamic
   platform: darwin
 - name: Macs with Slack installed
@@ -123,11 +113,6 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Suspicious Package installed
-  description: macOS hosts with Suspicious Package installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.SuspiciousPackage';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Figma installed
   description: macOS hosts with Figma installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';
@@ -161,5 +146,10 @@
 - name: Macs with Cursor installed
   description: macOS hosts with Cursor installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Nudge installed
+  description: macOS hosts with Nudge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';
   label_membership_type: dynamic
   platform: darwin

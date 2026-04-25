@@ -425,6 +425,12 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		t.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
 	}
+	if !t.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		t.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 	return json.Marshal(t)
 }
 

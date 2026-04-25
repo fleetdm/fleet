@@ -10,6 +10,7 @@ import BetterDisplay from "./BetterDisplay";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import DruvaInSync from "./DruvaInSync";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
@@ -245,6 +246,7 @@ import WrikeForMac from "./WrikeForMac";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
@@ -316,6 +318,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   crashplan: CrashPlan,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
+  insyncclient: DruvaInSync,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
@@ -381,6 +384,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,
@@ -507,6 +511,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zen: Zen,
   zeplin: Zeplin,
   zotero: Zotero,
 } as const;

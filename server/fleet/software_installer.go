@@ -542,7 +542,13 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
-	PatchQuery                  string
+	// AlwaysDownload disables conditional HTTP downloads using ETag. When false
+	// (the default), the download request includes If-None-Match with the stored ETag.
+	AlwaysDownload bool
+	// HTTPETag stores the ETag from the last download response, used for
+	// conditional GET requests when AlwaysDownload is false.
+	HTTPETag   *string
+	PatchQuery string
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -587,6 +593,8 @@ type ExistingSoftwareInstaller struct {
 	Title            string  `db:"title"`
 	PackageIDList    string  `db:"package_ids"`
 	PackageIDs       []string
+	StorageID        string  `db:"storage_id"`
+	HTTPETag         *string `db:"http_etag"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -817,6 +825,11 @@ type SoftwarePackageSpec struct {
 	SHA256             string   `json:"hash_sha256"`
 	Categories         []string `json:"categories"`
 	DisplayName        string   `json:"display_name,omitempty"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	// When false (the default), Fleet sends If-None-Match with the stored ETag
+	// on subsequent downloads. If the server returns 304 Not Modified, the
+	// download is skipped entirely.
+	AlwaysDownload bool `json:"always_download"`
 }
 
 func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {

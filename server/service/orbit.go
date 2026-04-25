@@ -496,6 +496,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
+		// Fall back to the global app config's script execution timeout when the
+		// team has no explicit override. Other agent-options fields are intentionally
+		// not inherited from the global config.
+		if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
+			var globalOpts fleet.AgentOptions
+			if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+			}
+			opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
+		}
+
 		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
@@ -952,7 +963,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			HostUUID:    host.UUID,
 			ExecutionID: result.ExecutionID,
 			ExitCode:    result.ExitCode,
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx, "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
@@ -1415,7 +1426,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,
 			InstallerStatus: result.Status(),
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx,

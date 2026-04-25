@@ -129,6 +129,10 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 
@@ -255,6 +259,15 @@ export interface IHostRecoveryLockPasswordResponse {
     updated_at: string;
     password: string;
     auto_rotate_at?: string;
+  };
+}
+
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    username: string;
+    password: string;
+    updated_at: string;
   };
 }
 

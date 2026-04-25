@@ -316,6 +316,9 @@ func (m *manager) GetSTSAuthTokenUPNClaim(tokenStr string) (string, error) {
 
 	// Since we used the private key to sign the tokens, we use the public counterpart to verify the signature
 	token, err := jwt.ParseWithClaims(tokenStr, &STSClaims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
 		return m.identityCert.PublicKey, nil
 	})
 	if err != nil {
