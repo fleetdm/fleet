@@ -14,12 +14,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	json "github.com/go-json-experiment/json/v1"
+	"github.com/go-json-experiment/json/v1"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
 )
 
 // hostCacheTestCleanupPrefix is the key-prefix passed to redistest.SetupRedis so
@@ -672,4 +673,189 @@ func cleanupHostCacheKeys(t *testing.T, pool fleet.RedisPool) {
 			require.NoError(t, err, "del %q", k)
 		}
 	}
+}
+
+// hostFieldsGen produces *fleet.Host values that exercise every field
+// LoadHostByNodeKey or LoadHostByOrbitNodeKey populates from the database.
+// Pointer fields randomly choose between nil and a generated value so the
+// generator covers both omitempty-skipped and present cases.
+//
+// Fields the generator deliberately leaves at zero:
+//   - NetworkInterfaces and DiskEncryptionKeyEscrowed are tagged json:"-" on
+//     fleet.Host and are NOT shadowed by hostCacheEnvelope. They round-trip
+//     to zero by design; varying them would make the round-trip test fail
+//     for a non-bug reason.
+//   - HostSoftware (embedded) is not loaded by the cache's SQL queries; we
+//     leave it at its zero value to mirror real behavior.
+//
+// Time values are always UTC with no monotonic component, since RFC3339Nano
+// JSON encoding does not preserve time.Location names or the monotonic clock
+// reading. Testing those would conflate JSON's known representation choice
+// with cache-specific bugs.
+func hostFieldsGen() *rapid.Generator[*fleet.Host] {
+	return rapid.Custom(func(t *rapid.T) *fleet.Host {
+		// Bound to year-1970 through ~year-2096 to stay safely within RFC3339's
+		// 4-digit-year encoding range.
+		drawTime := func(label string) time.Time {
+			sec := rapid.Int64Range(0, 4_000_000_000).Draw(t, label+"_sec")
+			nsec := rapid.Int64Range(0, 999_999_999).Draw(t, label+"_nsec")
+			return time.Unix(sec, nsec).UTC()
+		}
+
+		drawPtrString := func(label string) *string {
+			if !rapid.Bool().Draw(t, label+"_set") {
+				return nil
+			}
+			v := rapid.String().Draw(t, label+"_v")
+			return &v
+		}
+
+		drawPtrBool := func(label string) *bool {
+			if !rapid.Bool().Draw(t, label+"_set") {
+				return nil
+			}
+			v := rapid.Bool().Draw(t, label+"_v")
+			return &v
+		}
+
+		drawPtrUint := func(label string) *uint {
+			if !rapid.Bool().Draw(t, label+"_set") {
+				return nil
+			}
+			v := uint(rapid.Uint64Range(0, 1<<32).Draw(t, label+"_v"))
+			return &v
+		}
+
+		drawPtrTime := func(label string) *time.Time {
+			if !rapid.Bool().Draw(t, label+"_set") {
+				return nil
+			}
+			v := drawTime(label + "_v")
+			return &v
+		}
+
+		// Bound floats to a realistic disk-space range. Excludes NaN/Inf,
+		// which JSON cannot encode at all (would error rather than mismatch).
+		boundedFloat := rapid.Float64Range(0, 1_000_000)
+
+		h := &fleet.Host{
+			ID:                          uint(rapid.Uint64Range(0, 1<<32).Draw(t, "id")),
+			OsqueryHostID:               drawPtrString("osquery_host_id"),
+			DetailUpdatedAt:             drawTime("detail_updated"),
+			NodeKey:                     drawPtrString("node_key"),
+			Hostname:                    rapid.String().Draw(t, "hostname"),
+			UUID:                        rapid.String().Draw(t, "uuid"),
+			Platform:                    rapid.String().Draw(t, "platform"),
+			OsqueryVersion:              rapid.String().Draw(t, "osquery_version"),
+			OSVersion:                   rapid.String().Draw(t, "os_version"),
+			Build:                       rapid.String().Draw(t, "build"),
+			PlatformLike:                rapid.String().Draw(t, "platform_like"),
+			CodeName:                    rapid.String().Draw(t, "code_name"),
+			Uptime:                      time.Duration(rapid.Int64Range(0, int64(30*24*time.Hour)).Draw(t, "uptime")),
+			Memory:                      rapid.Int64Range(0, 1<<40).Draw(t, "memory"),
+			CPUType:                     rapid.String().Draw(t, "cpu_type"),
+			CPUSubtype:                  rapid.String().Draw(t, "cpu_subtype"),
+			CPUBrand:                    rapid.String().Draw(t, "cpu_brand"),
+			CPUPhysicalCores:            rapid.IntRange(0, 256).Draw(t, "cpu_physical_cores"),
+			CPULogicalCores:             rapid.IntRange(0, 256).Draw(t, "cpu_logical_cores"),
+			HardwareVendor:              rapid.String().Draw(t, "hw_vendor"),
+			HardwareModel:               rapid.String().Draw(t, "hw_model"),
+			HardwareVersion:             rapid.String().Draw(t, "hw_version"),
+			HardwareSerial:              rapid.String().Draw(t, "hw_serial"),
+			ComputerName:                rapid.String().Draw(t, "computer_name"),
+			TimeZone:                    drawPtrString("timezone"),
+			PrimaryNetworkInterfaceID:   drawPtrUint("primary_ip_id"),
+			PublicIP:                    rapid.String().Draw(t, "public_ip"),
+			PrimaryIP:                   rapid.String().Draw(t, "primary_ip"),
+			PrimaryMac:                  rapid.String().Draw(t, "primary_mac"),
+			DistributedInterval:         uint(rapid.Uint64Range(0, 86400).Draw(t, "distributed_interval")),
+			ConfigTLSRefresh:            uint(rapid.Uint64Range(0, 86400).Draw(t, "config_tls_refresh")),
+			LoggerTLSPeriod:             uint(rapid.Uint64Range(0, 86400).Draw(t, "logger_tls_period")),
+			LabelUpdatedAt:              drawTime("label_updated"),
+			LastEnrolledAt:              drawTime("last_enrolled"),
+			RefetchRequested:            rapid.Bool().Draw(t, "refetch_requested"),
+			RefetchCriticalQueriesUntil: drawPtrTime("refetch_critical"),
+			TeamID:                      drawPtrUint("team_id"),
+			PolicyUpdatedAt:             drawTime("policy_updated"),
+			OrbitNodeKey:                drawPtrString("orbit_node_key"),
+			LastRestartedAt:             drawTime("last_restarted"),
+			GigsDiskSpaceAvailable:      boundedFloat.Draw(t, "gigs_avail"),
+			GigsTotalDiskSpace:          boundedFloat.Draw(t, "gigs_total"),
+			PercentDiskSpaceAvailable:   boundedFloat.Draw(t, "pct_avail"),
+			HasHostIdentityCert:         drawPtrBool("has_cert"),
+			// Orbit-specific fields. LoadHostByOrbitNodeKey populates these;
+			// LoadHostByNodeKey leaves them nil. Either is a valid input.
+			DEPAssignedToFleet:    drawPtrBool("dep"),
+			DiskEncryptionEnabled: drawPtrBool("enc"),
+			TeamName:              drawPtrString("team_name"),
+			MDM:                   fleet.MDMHostData{EncryptionKeyAvailable: rapid.Bool().Draw(t, "mdm_eka")},
+		}
+		h.CreatedAt = drawTime("created_at")
+		h.UpdatedAt = drawTime("updated_at")
+		return h
+	})
+}
+
+// TestPBT_HostCacheEnvelopeRoundTrip is the property-test version of the
+// example-based round-trip test. It is the schema-drift tripwire's stronger
+// form: rapid generates millions of host shapes (varying nil/non-nil for
+// every pointer, varying time values, varying string contents), and the
+// envelope must round-trip every one of them.
+//
+// Catches regressions that an example test cannot: a new fleet.Host field
+// added without omitempty whose JSON shape we did not anticipate, a field
+// type change that breaks the JSON encoder for some inputs (e.g. the
+// time.Duration trap that v2 surfaced), or a hidden interaction between
+// embedded-struct shadowing and pointer nil-versus-empty cases.
+func TestPBT_HostCacheEnvelopeRoundTrip(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		orig := hostFieldsGen().Draw(t, "host")
+
+		raw, err := json.Marshal(envelopeFromHost(orig))
+		require.NoError(t, err, "marshal must not fail for any generated *fleet.Host")
+
+		envelope := new(hostCacheEnvelope)
+		require.NoError(t, json.Unmarshal(raw, envelope), "unmarshal must accept any output of marshal")
+		got := envelope.toHost()
+
+		ignoreUnexported := cmpopts.IgnoreUnexported(fleet.Host{}, fleet.MDMHostData{})
+		if diff := cmp.Diff(orig, got, ignoreUnexported); diff != "" {
+			t.Fatalf("round-trip mismatch (-orig +got):\n%s", diff)
+		}
+
+		// Belt-and-braces on the four security-critical shadow fields. A
+		// cmp.Diff failure could in principle be obscured by reporting a
+		// different field; an explicit assertion fails loudly with a clear
+		// message when these specifically drop. require.Equal on pointers
+		// handles all three cases correctly: both-nil, one-nil, and
+		// both-set-with-equal-pointee.
+		require.Equal(t, orig.NodeKey, got.NodeKey, "NodeKey shadow field")
+		require.Equal(t, orig.OrbitNodeKey, got.OrbitNodeKey, "OrbitNodeKey shadow field")
+		require.Equal(t, orig.OsqueryHostID, got.OsqueryHostID, "OsqueryHostID shadow field")
+		require.Equal(t, orig.HasHostIdentityCert, got.HasHostIdentityCert, "HasHostIdentityCert shadow field")
+	})
+}
+
+// TestPBT_JitteredHostCacheTTLBounds asserts the jitter bounds across the
+// full legal range of base TTLs, not just the single 30s value the example
+// test uses. Every positive base must yield a strictly-positive output
+// within ±(hostCacheTTLJitterFraction/2) of the base. Catches potential
+// underflow or sign-flip bugs at extreme magnitudes that a single fixed
+// base cannot.
+func TestPBT_JitteredHostCacheTTLBounds(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		baseNanos := rapid.Int64Range(int64(time.Nanosecond), int64(time.Hour)).Draw(t, "base")
+		ds := &Datastore{hostCacheEnabled: true, hostCacheTTL: time.Duration(baseNanos)}
+
+		got := ds.jitteredHostCacheTTL()
+
+		base := float64(ds.hostCacheTTL)
+		halfJitter := base * hostCacheTTLJitterFraction / 2
+		minAllowed := time.Duration(base - halfJitter)
+		maxAllowed := time.Duration(base + halfJitter)
+
+		require.GreaterOrEqualf(t, got, minAllowed, "below jitter floor for base=%v: got %v", ds.hostCacheTTL, got)
+		require.LessOrEqualf(t, got, maxAllowed, "above jitter ceiling for base=%v: got %v", ds.hostCacheTTL, got)
+		require.Greaterf(t, got, time.Duration(0), "non-positive jitter result for base=%v", ds.hostCacheTTL)
+	})
 }
