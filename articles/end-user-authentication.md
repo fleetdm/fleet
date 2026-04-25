@@ -6,17 +6,17 @@ Fleet MDM server simplifies the macOS setup experience. With Fleet, organization
 
 ## Prerequisites
 
-To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business Manager (ABM)](https://business.apple.com/) linked to our Fleet MDM server.
+To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business (AB)](https://business.apple.com/) linked to our Fleet MDM server.
 
-### What is Apple Business Manager?
+### What is Apple Business?
 
-Apple Business Manager (ABM) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
+Apple Business (AB) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
 
 ![Mac mini in ABM](../website/assets/images/articles/end-user-authentication-mac-in-abm-1354x920@2x.png "Mac mini in ABM")
 
 ### Apple's ADE vs DEP
 
-Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business Manager, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
+Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
 
 ## Setting up end-user authentication
 

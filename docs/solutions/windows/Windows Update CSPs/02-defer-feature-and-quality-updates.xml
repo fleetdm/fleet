@@ -1,0 +1,14 @@
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/DeferFeatureUpdatesPeriodInDays</LocURI></Target>
+    <Data>30</Data>
+  </Item>
+</Replace>
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/DeferQualityUpdatesPeriodInDays</LocURI></Target>
+    <Data>7</Data>
+  </Item>
+</Replace>

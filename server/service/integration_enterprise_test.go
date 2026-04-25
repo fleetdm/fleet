@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -294,6 +295,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -424,6 +427,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -465,6 +470,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -508,6 +515,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -1779,6 +1788,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/teams", team2, http.StatusConflict, &tmResp)
 
+	// create a team whose name only differs by case — must also 409 with the
+	// canonical "must differ" message.
+	teamCaseVariant := &fleet.Team{
+		Name:        strings.ToLower(name),
+		Description: "case variant",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "CASEVAR"}},
+	}
+	r := s.Do("POST", "/api/latest/fleet/teams", teamCaseVariant, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
+
 	// create a team with reserved team names; should be case-insensitive
 	teamReserved := &fleet.Team{
 		Name:        "no TeAm",
@@ -1786,7 +1805,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Secrets:     []*fleet.EnrollSecret{{Secret: "foobar"}},
 	}
 
-	r := s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
+	r = s.Do("POST", "/api/latest/fleet/teams", teamReserved, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	teamReserved.Name = "AlL TeaMS"
@@ -1815,6 +1834,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// rename with leading/trailing whitespace — name should be trimmed
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
 	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
+
+	// case-only self-rename is allowed (the team's own id is excluded from
+	// the conflict check).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new("RENAMED PADDED")}, http.StatusOK, &tmResp)
+	require.Equal(t, "RENAMED PADDED", tmResp.Team.Name)
+
+	// renaming into another team's name (the original team created above)
+	// using only case differences must return 409 with the canonical message.
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new(strings.ToUpper(name))}, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(r.Body), "must differ by more than letter case")
 
 	// clean up
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), nil, http.StatusOK)
@@ -3165,6 +3194,8 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 			ManualAgentInstall:          optjson.Bool{Set: true},
 			LockEndUserInfo:             optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3341,15 +3372,24 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	t := s.T()
 
-	// Enable GitOps mode first
+	// Start from a known state: GitOps mode on, all exceptions disabled.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+		"gitops": {
+			"gitops_mode_enabled": true,
+			"repository_url": "https://example.com/repo",
+			"exceptions": { "labels": false, "software": false, "secrets": false }
+		}
 	}`), http.StatusOK)
 
-	// Set exceptions
+	// Enable two exceptions (labels and software); secrets stays false.
+	// Two enabled_gitops_exception activities expected — one per flipped field.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
 	}`), http.StatusOK)
+	enabledExceptions := s.listRecentExceptionActivities(fleet.ActivityTypeEnabledGitOpsException{}.ActivityName())
+	assert.Contains(t, enabledExceptions, "labels", "expected activity for enabled labels exception")
+	assert.Contains(t, enabledExceptions, "software", "expected activity for enabled software exception")
+	assert.NotContains(t, enabledExceptions, "secrets", "no activity expected for unchanged secrets exception")
 
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3359,10 +3399,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
 
-	// Partial update — only change one exception, others should persist
+	// Partial update — only change one exception, others should persist.
+	// Capture the last activity id before the update so we can verify no
+	// activity is recorded for the fields that did not change.
+	lastIDBefore := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "software": false } }
 	}`), http.StatusOK)
+	lastID := s.lastActivityMatches(
+		fleet.ActivityTypeDisabledGitOpsException{}.ActivityName(),
+		`{"exception": "software"}`, 0)
+	assert.Greater(t, lastID, lastIDBefore, "a new activity should have been recorded")
+
+	// Save app config with no exception changes — no new exception activity should be recorded.
+	lastIDBefore = s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": false, "secrets": false } }
+	}`), http.StatusOK)
+	lastIDAfter := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastIDBefore, lastIDAfter, "no activity should have been recorded when exceptions are unchanged")
 
 	config, err = s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3380,6 +3435,29 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.False(t, getResp.GitOpsConfig.Exceptions.Secrets)
 	assert.True(t, getResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", getResp.GitOpsConfig.RepositoryURL)
+}
+
+// listRecentExceptionActivities returns the set of exception names found among
+// the recent activities of the given type (enabled_gitops_exception or
+// disabled_gitops_exception). Used to assert on exception activities without
+// depending on ordering when multiple are emitted by a single PATCH.
+func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityType string) map[string]struct{} {
+	t := s.T()
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	found := map[string]struct{}{}
+	for _, act := range listActivities.Activities {
+		if act.Type != activityType || act.Details == nil {
+			continue
+		}
+		var d struct {
+			Exception string `json:"exception"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(*act.Details), &d))
+		found[d.Exception] = struct{}{}
+	}
+	return found
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -28533,4 +28611,524 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	require.NotEmpty(t, resp.APIEndpoints[0].Method)
 	require.NotEmpty(t, resp.APIEndpoints[0].Path)
 	require.NotEmpty(t, resp.APIEndpoints[0].DisplayName)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
+	t := s.T()
+
+	// Create a team to use for fleet-scoped assignments.
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team"})
+	require.NoError(t, err)
+
+	type apiEndpoint struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+	}
+	type teamEntry struct {
+		ID   uint   `json:"id"`
+		Role string `json:"role"`
+	}
+	type createAPIOnlyUserResponse struct {
+		User struct {
+			ID           uint          `json:"id"`
+			Name         string        `json:"name"`
+			Email        string        `json:"email"`
+			APIOnly      bool          `json:"api_only"`
+			GlobalRole   *string       `json:"global_role"`
+			APIEndpoints []apiEndpoint `json:"api_endpoints"`
+			Teams        []teamEntry   `json:"teams"`
+		} `json:"user"`
+		Token  string              `json:"token"`
+		Err    string              `json:"error,omitempty"`
+		Errors []map[string]string `json:"errors,omitempty"`
+	}
+
+	cases := []struct {
+		name       string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp createAPIOnlyUserResponse)
+	}{
+		// --- Validation still enforced under premium ---
+		{
+			name: "missing name",
+			body: map[string]any{
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:       "neither global_role nor fleets",
+			body:       map[string]any{"name": "Premium User"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "global_role and fleets together",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "invalid api_endpoint not in catalog",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.Len(t, resp.Errors, 1)
+				require.Contains(t, resp.Errors[0]["reason"], "|GET|/api/v1/fleet/nonexistent/endpoint|")
+			},
+		},
+		{
+			name: "wildcard mixed with other entries",
+			body: map[string]any{
+				"name":        "Premium User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "allow only a limited number of api_endpoints",
+			body: func() map[string]any {
+				// One more than the catalog size to trigger the limit.
+				eps := make([]map[string]any, len(apiendpoints.GetAPIEndpoints())+1)
+				for i := range eps {
+					eps[i] = map[string]any{"method": "GET", "path": fmt.Sprintf("/api/v1/fleet/path/%d", i)}
+				}
+				return map[string]any{
+					"name":          "Premium User",
+					"global_role":   "observer",
+					"api_endpoints": eps,
+				}
+			}(),
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "nil api_endpoints grants full access",
+			body: map[string]any{
+				"name":        "Full Access API User",
+				"global_role": "observer",
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.True(t, resp.User.APIOnly)
+				require.Empty(t, resp.User.APIEndpoints)
+			},
+		},
+		{
+			name: "global_role with specific api_endpoints",
+			body: map[string]any{
+				"name":        "Global API User",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.Equal(t, "Global API User", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly)
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "observer", *resp.User.GlobalRole)
+				require.Len(t, resp.User.APIEndpoints, 2)
+			},
+		},
+		{
+			name: "fleet-scoped assignment without api_endpoints grants full access",
+			body: map[string]any{
+				"name":   "Team API User",
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token)
+				require.NotZero(t, resp.User.ID)
+				require.Equal(t, "Team API User", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly)
+				require.Len(t, resp.User.Teams, 1)
+				require.Equal(t, team.ID, resp.User.Teams[0].ID)
+				require.Equal(t, "observer", resp.User.Teams[0].Role)
+				require.Empty(t, resp.User.APIEndpoints) // nil = full access
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp createAPIOnlyUserResponse
+			s.DoJSON("POST", "/api/latest/fleet/users/api_only", tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name() + "_team"})
+	require.NoError(t, err)
+
+	nonAPIUser := &fleet.User{
+		Name:       "Non API User",
+		Email:      "non-api-patch@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, nonAPIUser.SetPassword(test.GoodPassword, 10, 10))
+	nonAPIUser, err = s.ds.NewUser(context.Background(), nonAPIUser)
+	require.NoError(t, err)
+
+	type patchResp struct {
+		User struct {
+			ID           uint    `json:"id"`
+			Name         string  `json:"name"`
+			Email        string  `json:"email"`
+			APIOnly      bool    `json:"api_only"`
+			GlobalRole   *string `json:"global_role"`
+			APIEndpoints []struct {
+				Method string `json:"method"`
+				Path   string `json:"path"`
+			} `json:"api_endpoints"`
+			Teams []struct {
+				ID   uint   `json:"id"`
+				Role string `json:"role"`
+			} `json:"teams"`
+		} `json:"user"`
+		Err string `json:"error,omitempty"`
+	}
+
+	var createResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "Patch Target",
+		"global_role": "observer",
+		"api_endpoints": []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		},
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	uid := createResp.User.ID
+	patchURL := fmt.Sprintf("/api/latest/fleet/users/api_only/%d", uid)
+	nonAPIURL := fmt.Sprintf("/api/latest/fleet/users/api_only/%d", nonAPIUser.ID)
+
+	// Cases are order-dependent: success cases mutate the same user sequentially.
+	cases := []struct {
+		name       string
+		url        string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp patchResp)
+	}{
+		// --- Validation errors ---
+		{
+			name:       "nonexistent user",
+			url:        "/api/latest/fleet/users/api_only/999999",
+			body:       map[string]any{"name": "Ghost"},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "non-API-only user",
+			url:        nonAPIURL,
+			body:       map[string]any{"name": "New Name"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "invalid api_endpoint not in catalog",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/nonexistent/endpoint"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "wildcard mixed with other entries",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "*", "path": "*"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "more than 100 api_endpoints",
+			url:  patchURL,
+			body: func() map[string]any {
+				eps := make([]map[string]any, 101)
+				for i := range eps {
+					eps[i] = map[string]any{"method": "GET", "path": fmt.Sprintf("/api/v1/fleet/path/%d", i)}
+				}
+				return map[string]any{"api_endpoints": eps}
+			}(),
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:       "empty api_endpoints",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": []map[string]any{}},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		// --- Successful mutations (order matters — each one builds on prior state) ---
+		{
+			name:       "update name",
+			url:        patchURL,
+			body:       map[string]any{"name": "Patched Name"},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Equal(t, "Patched Name", resp.User.Name)
+				require.True(t, resp.User.APIOnly)
+			},
+		},
+		{
+			name:       "update global_role",
+			url:        patchURL,
+			body:       map[string]any{"global_role": "admin"},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "admin", *resp.User.GlobalRole)
+			},
+		},
+		{
+			name: "global_role and fleets together",
+			url:  patchURL,
+			body: map[string]any{
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "assign to fleet clears global_role",
+			url:  patchURL,
+			body: map[string]any{
+				"fleets": []map[string]any{{"id": team.ID, "role": "observer"}},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Len(t, resp.User.Teams, 1)
+				require.Equal(t, team.ID, resp.User.Teams[0].ID)
+				require.Equal(t, "observer", resp.User.Teams[0].Role)
+				require.Nil(t, resp.User.GlobalRole, "global_role should be cleared when switching to fleet role")
+			},
+		},
+		{
+			name: "update api_endpoints to specific endpoints",
+			url:  patchURL,
+			body: map[string]any{
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/config"},
+					{"method": "GET", "path": "/api/v1/fleet/version"},
+				},
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Len(t, resp.User.APIEndpoints, 2)
+			},
+		},
+		{
+			name:       "null api_endpoints resets to full access",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": nil},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp patchResp) {
+				require.Empty(t, resp.User.APIEndpoints)
+			},
+		},
+		{
+			name:       "empty array is invalid",
+			url:        patchURL,
+			body:       map[string]any{"api_endpoints": []map[string]any{}},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp patchResp
+			s.DoJSON("PATCH", tc.url, tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
+	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
+	t := s.T()
+
+	// Shared response type for GET /users/:id and items in GET /users.
+	type userJSON struct {
+		ID           uint `json:"id"`
+		APIOnly      bool `json:"api_only"`
+		APIEndpoints []struct {
+			Method string `json:"method"`
+			Path   string `json:"path"`
+		} `json:"api_endpoints"`
+	}
+	type getUserResp struct {
+		User userJSON `json:"user"`
+		Err  string   `json:"error,omitempty"`
+	}
+	type listUsersResp struct {
+		Users []userJSON `json:"users"`
+		Err   string     `json:"error,omitempty"`
+	}
+
+	// Create an API-only user with specific catalog endpoints.
+	var createResp getUserResp
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "GET Endpoint User",
+		"global_role": "observer",
+		"api_endpoints": []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/config"},
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		},
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	apiUserID := createResp.User.ID
+
+	// GET /users/:id should include api_endpoints.
+	var getResp getUserResp
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", apiUserID), nil, http.StatusOK, &getResp)
+	require.True(t, getResp.User.APIOnly)
+	require.Len(t, getResp.User.APIEndpoints, 2)
+
+	// GET /users should include api_endpoints for the API-only user.
+	var listResp listUsersResp
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &listResp)
+	var found *userJSON
+	for i := range listResp.Users {
+		if listResp.Users[i].ID == apiUserID {
+			found = &listResp.Users[i]
+			break
+		}
+	}
+	require.NotNil(t, found, "API-only user should appear in list")
+	require.Len(t, found.APIEndpoints, 2)
+
+	// A regular (non-API-only) user should have no api_endpoints in either response.
+	// Create a fresh regular user rather than relying on seed data.
+	var regularUserResp getUserResp
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("Regular User"),
+		Email:      ptr.String("regular-user-get-test@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &regularUserResp)
+	require.NotZero(t, regularUserResp.User.ID)
+
+	var getAdminResp getUserResp
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", regularUserResp.User.ID), nil, http.StatusOK, &getAdminResp)
+	require.False(t, getAdminResp.User.APIOnly)
+	require.Empty(t, getAdminResp.User.APIEndpoints)
+
+	var getUsersResp listUsersResp
+	s.DoJSON("GET", "/api/latest/fleet/users", nil, http.StatusOK, &getUsersResp)
+	var foundRegular *userJSON
+	for i := range getUsersResp.Users {
+		if getUsersResp.Users[i].ID == regularUserResp.User.ID {
+			foundRegular = &getUsersResp.Users[i]
+			break
+		}
+	}
+	require.NotNil(t, foundRegular, "regular user should appear in list")
+	require.False(t, foundRegular.APIOnly)
+	require.Empty(t, foundRegular.APIEndpoints)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
+	t := s.T()
+
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	createAPIOnlyUser := func(name string, endpoints []map[string]any) string {
+		prev := s.token
+		s.token = s.getTestAdminToken()
+		defer func() { s.token = prev }()
+
+		body := map[string]any{
+			"name":        name,
+			"global_role": "observer",
+		}
+		if endpoints != nil {
+			body["api_endpoints"] = endpoints
+		}
+		var createResp struct {
+			Token string `json:"token"`
+		}
+		s.DoJSON("POST", "/api/latest/fleet/users/api_only", body, http.StatusOK, &createResp)
+		require.NotEmpty(t, createResp.Token)
+		return createResp.Token
+	}
+
+	// With no endpoint restrictions the user can reach any endpoint in the catalog.
+	t.Run("no restrictions allows all catalog endpoints", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-no-restrictions", nil)
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
+	})
+
+	// Paths not registered in the API endpoint catalog are always rejected for
+	// api-only users, regardless of whether they have endpoint restrictions.
+	t.Run("non-catalog path is rejected", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-unrestricted", nil)
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+
+		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
+	})
+
+	// With endpoint restrictions, only explicitly allowed endpoints are reachable.
+	t.Run("endpoint restrictions limit access to the allowed list", func(t *testing.T) {
+		s.token = createAPIOnlyUser("api-only-mw-restricted", []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/version"},
+		})
+
+		// The only allowed endpoint returns 200.
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+
+		// These are in the catalog but not in the user's allow list.
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
+	})
+
+	// Non-api-only users must not be affected by the middleware at all.
+	t.Run("non-api-only user is unaffected", func(t *testing.T) {
+		s.token = s.getTestAdminToken()
+
+		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
+	})
 }
