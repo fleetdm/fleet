@@ -194,6 +194,30 @@ $max-width: 2560px;
   max-width: $max-width;
 }
 
+@mixin bordered-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius;
+  background-color: $core-fleet-white;
+  cursor: pointer;
+  padding: 0;
+  color: $core-fleet-black;
+  transition: border-color 100ms;
+
+  &:hover:not(:disabled) {
+    border-color: $ui-fleet-black-75-over;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $ui-fleet-black-75-down;
+    outline-offset: 1px;
+  }
+}
+
 @mixin copy-message {
   font-weight: $regular;
   font-size: $x-small;

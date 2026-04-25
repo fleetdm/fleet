@@ -67,6 +67,10 @@ export interface ITeam extends ITeamSummary {
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
       lock_end_user_info: boolean | null;
+      enable_create_local_admin_account?: boolean;
+    };
+    macos_setup?: {
+      enable_managed_local_account?: boolean;
     };
     windows_updates: {
       deadline_days: number | null;

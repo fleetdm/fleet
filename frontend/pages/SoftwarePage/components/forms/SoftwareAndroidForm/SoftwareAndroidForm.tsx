@@ -45,7 +45,6 @@ interface ISoftwareAndroidFormProps {
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
-  onClickPreviewEndUserExperience: () => void;
 }
 
 const SoftwareAndroidForm = ({
@@ -53,7 +52,6 @@ const SoftwareAndroidForm = ({
   onSubmit,
   isLoading = false,
   onCancel,
-  onClickPreviewEndUserExperience,
 }: ISoftwareAndroidFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 

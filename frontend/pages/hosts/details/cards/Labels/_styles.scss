@@ -1,14 +1,18 @@
 .host-labels-card {
   @include vertical-card-layout;
 
-  .list {
+  &__list {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     gap: $pad-small;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
 
-    .list__item {
-      margin-bottom: 0;
-    }
+  &__list-item {
+    margin-bottom: 0;
   }
 
   .button,
