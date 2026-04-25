@@ -999,10 +999,9 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 	// Force the production async path. The test datastore constructor
-	// installs an eager hook by default (so legacy tests observe state
-	// synchronously); we want the cron-driven flow here.
-	restore := ds.DisableTestWindowsEagerHook()
-	t.Cleanup(restore)
+	// installs an eager-reconciliation hook by default; we want the
+	// cron-driven flow here.
+	t.Cleanup(ds.DisableTestWindowsEagerHook())
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))

@@ -88,19 +88,16 @@ type Datastore struct {
 
 	// testWindowsEagerHook, when non-nil, is called by
 	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
-	// commits to synchronously reconcile Windows profile state for the
-	// resolved hosts. Production sets nothing: Windows reconciliation runs
-	// asynchronously via the mdm_windows_profile_manager cron. Test
-	// infrastructure (initializeDatabase) installs the hook so existing
-	// tests that observe host_mdm_windows_profiles state immediately after
-	// BulkSetPendingMDMHostProfiles continue to pass without rewriting
-	// every assertion to drive the cron explicitly.
+	// commits. It returns whether any host_mdm_windows_profiles rows
+	// changed; that bool is surfaced as updates.WindowsConfigProfile,
+	// matching Apple's semantics (idempotent second calls return false).
 	//
-	// The hook returns whether any rows were actually written; that bool is
-	// surfaced as updates.WindowsConfigProfile, matching Apple's semantics
-	// for the same field. With the hook absent (production), the equivalent
-	// signal is computed by a cheap listing-only diff in
-	// BulkSetPendingMDMHostProfiles itself.
+	// Production binaries never set this. Test code installs it via
+	// installWindowsEagerHook (only compiled in *_test.go); the factory is
+	// nil in production. Without the hook, BulkSetPendingMDMHostProfiles
+	// uses a coarser listing-based "would there be work" approximation
+	// that over-fires on idempotent re-applies but is always at least as
+	// generous as the tight check.
 	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in
@@ -120,14 +117,32 @@ func (ds *Datastore) WithPusher(p nano_push.Pusher) {
 	ds.pusher = p
 }
 
-// DisableTestWindowsEagerHook removes the synchronous Windows profile
-// reconciliation hook installed by the test datastore constructor and
-// returns a restore function. Use this in tests that need to exercise the
-// production async path (where Windows reconciliation runs via the
-// mdm_windows_profile_manager cron rather than inline). Calling the
-// returned function reinstalls the previous hook.
+// installWindowsEagerHook is set by an init() in microsoft_mdm_eager_test.go
+// (a *_test.go file, so production binaries do not compile that init()).
+// initializeDatabase calls it to install the eager-reconciliation hook on
+// every test datastore. In production builds the package var is nil and
+// initializeDatabase is a no-op for this concern.
 //
-// Test-only. Production code does not install or use this hook.
+// Why this indirection: the test-only eager helper lives in
+// microsoft_mdm_eager_test.go, so production-compiled code (including
+// testing_utils.go) cannot reference it by name. The init() in *_test.go
+// captures the helper into this function-pointer var, which production
+// code then reads generically.
+var installWindowsEagerHook func(*Datastore)
+
+// DisableTestWindowsEagerHook removes the eager-reconciliation hook
+// installed by initializeDatabase and returns a restore function. Tests
+// that exercise the production async path (where Windows reconciliation
+// runs via the mdm_windows_profile_manager cron rather than inline)
+// call this. Production code never installs the hook in the first
+// place, so calling this in production is a no-op.
+//
+// This method is part of the production-compiled API because tests in
+// other packages (e.g. server/service) need to disable the hook, and
+// Go's *_test.go scoping does not allow cross-package access to test-
+// only symbols. The actual helper this hook points at, however, lives
+// in microsoft_mdm_eager_test.go and is excluded from production
+// binaries.
 func (ds *Datastore) DisableTestWindowsEagerHook() (restore func()) {
 	saved := ds.testWindowsEagerHook
 	ds.testWindowsEagerHook = nil

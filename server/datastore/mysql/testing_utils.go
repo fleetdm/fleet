@@ -371,16 +371,14 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	testing_utils.LoadDefaultSchema(t, testName, opts)
 	ds := connectMySQL(t, testName, opts)
-	// Production runs Windows profile reconciliation via the
-	// mdm_windows_profile_manager cron, which doesn't run in unit tests.
-	// Install the eager-reconciliation hook so existing tests that observe
-	// host_mdm_windows_profiles state immediately after
-	// BulkSetPendingMDMHostProfiles continue to pass without rewriting
-	// every assertion to drive the cron explicitly. Tests that need to
-	// exercise the production async path call DisableTestWindowsEagerHook.
-	// Set here (rather than in createMySQLDSWithOptions) so every test
-	// constructor path, including CreateNamedMySQLDSWithConns, gets it.
-	ds.testWindowsEagerHook = ds.bulkSetPendingMDMWindowsHostProfilesForTests
+	// Install the eager-reconciliation hook for tests that observe
+	// host_mdm_windows_profiles state synchronously after
+	// BulkSetPendingMDMHostProfiles. The factory is nil in production
+	// binaries (see installWindowsEagerHook in mysql.go), so this is a
+	// no-op outside test builds.
+	if installWindowsEagerHook != nil {
+		installWindowsEagerHook(ds)
+	}
 	return ds
 }
 
