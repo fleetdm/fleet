@@ -72,6 +72,14 @@
   install_software: false
   labels_include_any:
     - Macs with Okta Verify installed
+- name: macOS - Santa up to date
+  description: The host may have an outdated version of Santa, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Santa is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: santa/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Santa installed
 - name: macOS - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
