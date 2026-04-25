@@ -57,6 +57,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
 		{"TestBulkSetPendingDefersWindowsReconciliation", testBulkSetPendingDefersWindowsReconciliation},
+		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
@@ -8618,6 +8619,90 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	assert.Empty(t, after,
 		"BulkSetPendingMDMHostProfiles must not write host_mdm_windows_profiles synchronously")
+}
+
+// testListNextPendingMDMWindowsHostUUIDsCursor exercises the host-window
+// query that drives the cron's batched reconciliation. With multiple
+// Windows hosts that all need a team profile installed, repeated calls
+// with the previous batch's last UUID as the cursor must return the
+// remaining hosts in lexicographic order, then return empty.
+func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Production async path so the listing actually has work to find for
+	// our hosts after BulkSet.
+	t.Cleanup(ds.DisableTestWindowsEagerHook())
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-test"})
+	require.NoError(t, err)
+	InsertWindowsProfileForTest(t, ds, team.ID)
+
+	// Five Windows hosts. Use sortable UUIDs so the test can predict
+	// ordering. lexicographic ordering: "host-uuid-1" < "host-uuid-2" < ...
+	type hostFixture struct {
+		host *fleet.Host
+		uuid string
+	}
+	const numHosts = 5
+	fixtures := make([]hostFixture, numHosts)
+	for i := range numHosts {
+		uuid := fmt.Sprintf("host-uuid-%d", i)
+		h := test.NewHost(t,
+			ds,
+			fmt.Sprintf("recon-cursor-host-%d", i),
+			fmt.Sprintf("1.1.1.%d", i),
+			fmt.Sprintf("recon-cursor-key-%d", i),
+			uuid,
+			time.Now(),
+		)
+		h.Platform = "windows"
+		h.TeamID = &team.ID
+		require.NoError(t, ds.UpdateHost(ctx, h))
+		windowsEnroll(t, ds, h)
+		fixtures[i] = hostFixture{host: h, uuid: uuid}
+	}
+
+	// Trigger the listing's "needs work" predicate by running BulkSet so
+	// the team-profile -> host pairs become candidates.
+	hostIDs := make([]uint, numHosts)
+	for i, f := range fixtures {
+		hostIDs[i] = f.host.ID
+	}
+	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// First batch: 3 of 5 hosts, sorted ascending.
+	batch1, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 3)
+	require.NoError(t, err)
+	require.Len(t, batch1, 3)
+	for i := 1; i < len(batch1); i++ {
+		require.Less(t, batch1[i-1], batch1[i], "result must be sorted ascending")
+	}
+
+	// Second batch: starts after the previous batch's last UUID, returns
+	// the remaining 2 hosts.
+	batch2, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch1[len(batch1)-1], 3)
+	require.NoError(t, err)
+	require.Len(t, batch2, 2)
+	for i := 1; i < len(batch2); i++ {
+		require.Less(t, batch2[i-1], batch2[i], "result must be sorted ascending")
+	}
+
+	// The two batches together cover every host exactly once.
+	covered := make(map[string]bool, numHosts)
+	for _, u := range batch1 {
+		covered[u] = true
+	}
+	for _, u := range batch2 {
+		require.False(t, covered[u], "host %s appeared in both batches", u)
+		covered[u] = true
+	}
+	require.Len(t, covered, numHosts)
+
+	// Third call past the last host: empty (cursor has reached the end).
+	batch3, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch2[len(batch2)-1], 3)
+	require.NoError(t, err)
+	require.Empty(t, batch3, "no more hosts after the end of the universe")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {

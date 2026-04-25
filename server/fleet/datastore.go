@@ -2039,6 +2039,36 @@ type Datastore interface {
 	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
+	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
+	// (sorted ascending) where host_uuid > afterHostUUID and the host has
+	// any pending Windows MDM profile reconciliation work. Used by the
+	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
+	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+
+	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
+	// used by the Windows MDM reconciliation cron to bound per-tick work.
+	// Returns "" if no cursor is set or if the implementation does not
+	// support cursor persistence (the bare mysql.Datastore returns "" here;
+	// the mysqlredis wrapper backs it with Redis). See
+	// ReconcileWindowsProfiles.
+	GetMDMWindowsReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMWindowsReconcileCursor persists the host_uuid cursor used by
+	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
+	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error

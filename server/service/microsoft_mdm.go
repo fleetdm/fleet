@@ -2592,6 +2592,15 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
+// reconcileWindowsProfilesBatchSize bounds how many distinct hosts the
+// Windows MDM reconciliation cron processes per tick. The cron uses a
+// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
+// page through the pending-work universe in batches, smoothing the
+// writer pressure that an unbounded reconciliation generates during
+// bulk events like team transfers. See
+// claude/perf/windows-mdm-reconciler-batching.md.
+const reconcileWindowsProfilesBatchSize = 2000
+
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -2601,15 +2610,65 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return nil
 	}
 
-	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	// Read the cursor; on error, treat as start-of-pass and continue. A
+	// stale or missing cursor is harmless because the listing predicates
+	// filter out hosts whose state already matches desired state.
+	cursor, err := ds.GetMDMWindowsReconcileCursor(ctx)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning",
+			"err", err)
+		cursor = ""
+	}
+
+	// Pick up to reconcileWindowsProfilesBatchSize distinct hosts (sorted
+	// ascending by host_uuid) that have any pending Windows MDM work after
+	// the cursor.
+	hostUUIDs, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, cursor, reconcileWindowsProfilesBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing next pending Windows MDM hosts")
+	}
+
+	if len(hostUUIDs) == 0 {
+		// Either no work, or we've reached the end of the cursor pass. Reset
+		// to "" so the next tick starts from the beginning. Cursor write
+		// errors are non-fatal: at worst the next tick re-reads the same
+		// (now stale) cursor and finds nothing, which resets again.
+		if cursor != "" {
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
+				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+		return nil
+	}
+
+	// Compute the next cursor before processing so we can advance after a
+	// successful pass. If we got fewer than the batch size, the next tick
+	// should restart from the beginning.
+	var nextCursor string
+	if len(hostUUIDs) >= reconcileWindowsProfilesBatchSize {
+		nextCursor = hostUUIDs[len(hostUUIDs)-1]
+	}
+
+	toInstall, err := ds.ListMDMWindowsProfilesToInstallForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
-	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
 	}
+
+	// On any error during the body below, leave the cursor where it was.
+	// The next tick will retry the same host window. The body's writes
+	// flip status from NULL to 'pending' on success, which removes those
+	// rows from the listing on retry, so a partial failure converges.
+	defer func() {
+		if err == nil {
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, nextCursor); cerr != nil {
+				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+	}()
 
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
