@@ -32,6 +32,11 @@ fi
 set -x
 
 for (( c=$START_INDEX; c<=$END_INDEX; c+=$INCREMENT )); do
-        terraform apply -var git_tag_branch=$BRANCH_NAME -var task_size="$TASK_SIZE" -var loadtest_containers=$c -auto-approve
+    terraform apply -var git_tag_branch=$BRANCH_NAME -var task_size="$TASK_SIZE" -var loadtest_containers=$c -auto-approve
 	sleep $SLEEP_TIME_SECONDS
 done
+
+# Apply the remainder if the loop didn't land exactly on END_INDEX.
+if (( $c - $INCREMENT != $END_INDEX )); then
+	terraform apply -var git_tag_branch=$BRANCH_NAME -var task_size="$TASK_SIZE" -var loadtest_containers=$END_INDEX -auto-approve
+fi

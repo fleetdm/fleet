@@ -59,7 +59,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
 
 ## Outline of departmental page structure
 
-Departmental pages outline intake, people, departmental philosophy, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+Departmental pages outline intake, people, departmental philosophy, responsibilities, and recurring rituals. They always follow the structure below. Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
 > For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
@@ -83,7 +83,7 @@ We structure handbook pages based on audience.
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://github.com/orgs/fleetdm/projects/{PROJECT_ID})` for this department, including pending tasks and the status of new requests."
 
-  - `## Philisophical heading that matter to all roles in your department`
+  - `## Philosophical heading that matter to all roles in your department`
   - Department leaders can add sections to their own README.md pages between "contact us" and "responsibilities".  e.g. P0,P1 levels for CS.
 
   - `## Responsibilities`
@@ -457,6 +457,7 @@ Certain members of the executive team are asked for press involvement from time 
 | Person               | Headshot     | Bio   |
 |:---------------------|:-------------|:------|
 | Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
+| Ashish Kuthiala          | <img width="800" height="800" alt="AshishBIoPic" src="https://github.com/user-attachments/assets/19498baf-e96c-48af-876a-3d9ec20e5f21" /> | Chief Marketing Officer at Fleet Device Management. Before Fleet, Ashish served as CMO at BlinkOps and Traceable AI (acquired by Harness IO). As Senior Director of strategic marketing at GitLab, he helped GitLab establish brand leadership in the DevOps automation category and contributed to growing the company's valuation from $200M to over $6B in three years. Earlier in his career, Ashish held leadership roles in marketing, product, and R&D at Hewlett Packard Enterprise, Electric Cloud (acquired by CloudBees), and AccelOps (acquired by Fortinet). |
 
 
 

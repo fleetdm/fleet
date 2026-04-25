@@ -1,2 +1,0 @@
-* Added logging of profile names alongside MDM commands installing or removing them
-* Added indication in the UI when a profile command was deferred ("NotNow" status)

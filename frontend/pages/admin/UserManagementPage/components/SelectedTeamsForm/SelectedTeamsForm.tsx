@@ -116,11 +116,12 @@ const SelectedTeamsForm = ({
   );
 
   return (
-    <div className={`${baseClass} form`}>
+    <ul className={`${baseClass}__list`}>
+      <li className={`${baseClass}__header`}>Fleets</li>
       {teamsFormList.map((teamItem) => {
         const { isChecked, name, role, id } = teamItem;
         return (
-          <div key={id} className={`${baseClass}__team-item`}>
+          <li key={id} className={`${baseClass}__team-item`}>
             <Checkbox
               value={isChecked}
               name={name}
@@ -130,21 +131,23 @@ const SelectedTeamsForm = ({
             >
               {name}
             </Checkbox>
-            <DropdownWrapper
-              name={name}
-              value={role}
-              className={`${baseClass}__role-dropdown`}
-              options={roleOptions({ isPremiumTier: true, isApiOnly })}
-              isSearchable={false}
-              onChange={(newValue: SingleValue<CustomOptionType>) =>
-                updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
-              }
-              onMenuOpen={onMenuOpen}
-            />
-          </div>
+            {isChecked && (
+              <DropdownWrapper
+                name={name}
+                value={role}
+                className={`${baseClass}__role-dropdown`}
+                options={roleOptions({ isPremiumTier: true, isApiOnly })}
+                isSearchable={false}
+                onChange={(newValue: SingleValue<CustomOptionType>) =>
+                  updateSelectedTeams(teamItem.id, newValue as CustomOptionType)
+                }
+                onMenuOpen={onMenuOpen}
+              />
+            )}
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
 

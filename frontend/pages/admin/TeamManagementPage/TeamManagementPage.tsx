@@ -119,8 +119,11 @@ const TeamManagementPage = (): JSX.Element => {
           refetchTeams();
         })
         .catch((createError: { data: IApiError }) => {
-          const errMsg = createError.data.errors[0].reason.toLowerCase();
-          if (errMsg.includes("duplicate")) {
+          const rawReason = createError.data.errors[0].reason;
+          const errMsg = rawReason.toLowerCase();
+          if (errMsg.includes("must differ")) {
+            setBackendValidators({ name: rawReason });
+          } else if (errMsg.includes("duplicate")) {
             setBackendValidators({
               name: "A fleet with this name already exists",
             });
@@ -198,17 +201,25 @@ const TeamManagementPage = (): JSX.Element => {
           })
           .catch((updateError: { data: IApiError }) => {
             console.error(updateError);
-            if (updateError.data.errors[0].reason.includes("Duplicate")) {
+            const rawReason = updateError.data.errors[0].reason;
+            const errMsg = rawReason.toLowerCase();
+            if (errMsg.includes("must differ")) {
+              setBackendValidators({ name: rawReason });
+            } else if (errMsg.includes("duplicate")) {
               setBackendValidators({
                 name: "A fleet with this name already exists",
               });
             } else if (
-              updateError.data.errors[0].reason.includes("all teams")
+              errMsg.includes("all teams") ||
+              errMsg.includes("all fleets")
             ) {
               setBackendValidators({
                 name: `"All fleets" is a reserved fleet name.`,
               });
-            } else if (updateError.data.errors[0].reason.includes("no team")) {
+            } else if (
+              errMsg.includes("no team") ||
+              errMsg.includes("unassigned")
+            ) {
               setBackendValidators({
                 name: `"Unassigned" is a reserved fleet name. Please try another name.`,
               });

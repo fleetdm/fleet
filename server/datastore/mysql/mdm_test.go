@@ -101,6 +101,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	windowsEnrollment.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, windowsEnrollment.MDMHardwareID)
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
@@ -190,7 +191,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+	_, err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
 		SyncML: &fleet.SyncML{
 			Raw: []byte("<xml></xml>"),
 		},
@@ -9208,6 +9209,29 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
+
+	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining profile rows when MDM is
+	// toggled off globally. At this point hosts still have pending remove profiles.
+
+	// Windows hosts have pending removes; cleanup should wipe them.
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host3.UUID)
+	assertHostProfileOpStatus(t, ds, host4.UUID)
+
+	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost1)
+
+	appleProfsHost2, err := ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost2)
+
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID)
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is
@@ -9240,16 +9264,18 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	// Create Windows hosts enrolled in MDM and assigned to the team.
 	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
 	host1.Platform = "windows"
-	host1.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID})))
+	host1.TeamID = &team.ID
 	windowsEnroll(t, ds, host1)
 
 	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
 	host2.Platform = "windows"
-	host2.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host2)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+	host2.TeamID = &team.ID
 	windowsEnroll(t, ds, host2)
 
 	// Simulate profiles delivered to both hosts (install + verified).

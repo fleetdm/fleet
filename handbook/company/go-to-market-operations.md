@@ -179,7 +179,7 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
 ## Processing intent signals
 
 Intent signals help measure an individual's/organization's current level of engagement with the Fleet brand and help us:  
-- Created/update contact and/or accounts in Fleet's CRM. 
+- Create/update contact and/or accounts in Fleet's CRM. 
 - Prioritize accounts for [research](https://fleetdm.com/handbook/marketing#research-an-account).
 - Identify accounts/contacts that would benefit from a POV conversation.
 
@@ -220,6 +220,54 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 #### Deploy an NFR instance
 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
+
+
+## Quoting
+
+
+### Create a quote
+
+Navigate to the opportunity you are creating a quote for, then follow the steps below.
+
+1. Advance through each pipeline stage sequentially using the stage progression bar. Salesforce enforces sequential progression — skipping a stage will trigger an error.
+
+2. When you attempt to advance to the **"Justification"** stage, Salesforce will block the move with an error indicating an approved quote is required. Scroll down to the **"Quotes"** section and click **"New Quote"**.
+
+3. Enter a proxy name for the quote (the system auto-generates the final name). Review the pre-populated defaults — Billing Frequency is Annual and Payment Terms are Net 30 — and update if needed. Click **"Save"**, then open the newly created quote record.
+
+4. Scroll to **"Related Lists"** and locate **"Quote Line Items"**. Click **"Add Products"** to open the Fleet Price Book, select all products to include, and click **"Next"**.
+
+5. For each line item, set the following fields:
+   - **"Unit Price"**: update if applying a discount from list price
+   - **"Quantity"**: number of endpoints or units
+   - **"Contract Start Date"**: effective date of the contract
+   - **"Contract Term in Months"**: duration (e.g., 12 for one year, 24 for two years)
+
+   The **"Discount Percentage"** field is locked and updates automatically based on the difference between list price and unit price. Click **"Save"**. MRR, ARR, Total Price, and Grand Total will update automatically.
+
+6. Click **"Submit for Approval"**. Complete any remaining required fields:
+   - Billing address
+   - Contact name (selected from associated Salesforce contact records)
+   - Quote expiration date
+   - Contract term in months
+   - Billing frequency and payment terms
+
+   Add any relevant notes in the submission comments field and click **"Submit"**.
+
+   > Chaz is the approver for new business opportunities. Zay is the approver for renewals and upsells.
+
+7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
+
+8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
+
+   | Template | When to use |
+   | -------- | ----------- |
+   | Direct | Renewing an existing non-channel customer with no partner involved |
+   | Promises or custom terms | Selling directly to the customer with special commitments included |
+   | Authorized partner | Selling through an authorized channel partner |
+   | Unauthorized partner | Selling through a channel partner pending authorization |
+   | 3eye distributorship | Selling through the 3EYE distributor |
+
 
 
 ## Signatures
@@ -265,7 +313,10 @@ Occasionally, prospective customers will ask us to complete a questionnaire. In 
 
 ## Slide decks
 
-The goal of a slide deck is not necessarily walk every customer through it. It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization. Even if you never show these decks on a screenshare use them to keep the conversation on track. 
+The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
+
+Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
+
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
 - [Fleet for CISOs](https://docs.google.com/presentation/d/17PUAqa63jTb5yFT3hGg3F5mgGyPtUmg8OlTGyxS6vLI/edit?slide=id.g3d28ee536a1_2_0#slide=id.g3d28ee536a1_2_0)

@@ -629,6 +629,93 @@ software:
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
 }
 
+// TestGitOpsExceptionEnforcementFreeTier verifies that GitOps exception enforcement is
+// skipped on free-tier instances, since free tier can't toggle the exception flags in
+// the UI. A free-tier instance with stale exception flags set should not block applying
+// a GitOps file that includes excepted keys.
+func TestGitOpsExceptionEnforcementFreeTier(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	setupEmptyGitOpsMocks(ds)
+
+	// All exceptions set ON in the saved config — but the instance is free tier,
+	// so these should be ignored and the gitops apply should succeed.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				// UI gitops mode off — enabling it is premium-only, but the stored
+				// Exceptions flags can still be non-zero from a prior premium state.
+				GitopsModeEnabled: false,
+				Exceptions:        fleet.GitOpsExceptions{Labels: true, Secrets: true, Software: true},
+			},
+		}, nil
+	}
+
+	// Labels excepted + present: should NOT error on free tier.
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: test-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.NoError(t, err)
+
+	// Secrets excepted + present: should NOT error on free tier.
+	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile2.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: mysecret
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	require.NoError(t, err)
+
+	// Software excepted + present (team file): should NOT error on free tier.
+	// (software exceptions only apply to team files.)
+	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile3.WriteString(`
+name: test
+controls:
+policies:
+agent_options:
+software:
+`)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
+	// Free tier may reject team files for other reasons, but it must NOT be the exception error.
+	if err != nil {
+		assert.NotContains(t, err.Error(), `"software" is excepted from GitOps management`)
+	}
+}
+
 // TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
 // omitting the excepted keys from YAML preserves existing data.
 func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
@@ -1637,13 +1724,13 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &profile, nil
 	}
-	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return declaration, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -1660,6 +1747,15 @@ func TestGitOpsFullTeam(t *testing.T) {
 			return savedTeam, nil
 		}
 		return nil, &notFoundError{}
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		// Simulate a pre-existing "Conflict" team so renaming into it
+		// triggers the 409 path. excludeID is the current team's id and
+		// wouldn't match the Conflict team anyway.
+		if strings.EqualFold(name, "Conflict") {
+			return &fleet.Team{ID: 999, Name: "Conflict"}, nil
+		}
+		return nil, nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		if savedTeam != nil && *savedTeam.Filename == filename {
@@ -1903,9 +1999,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
 			_, err := RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
-			require.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
 			_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
-			require.ErrorContains(t, err, "team name already exists")
+			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
 
 			// Now clear the settings
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
@@ -2849,7 +2945,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
-	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
@@ -5869,7 +5965,7 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
@@ -6154,7 +6250,7 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
 

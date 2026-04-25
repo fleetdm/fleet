@@ -59,6 +59,7 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
             - `comparison` - Articles that present a comparison between Fleet and a competing product. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
             - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
             - `whitepaper` - Articles that offer a downloadable PDF that is gated behind the user filling out a form. Articles in this category are available at [fleetdm.com/whitepapers](/whitepapers)
+            - `webinar` - Articles that offer a recording of a webinar hosted by Fleet that is gated behind the user filling out a form.
     - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
 - Optional meta tags:
     - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
@@ -162,6 +163,8 @@ Whitepaper articles use a separate article template that requires additional `<m
   - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
 - Optional `<meta>` tags:
   - `introductionTextBlockTwo` - A optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+  - `formHeadline` - Put in a short phrase that will show immediately above the form fields. If not used, a default generic phrase will be use ("Get the white paper to learn more")
+
 
 **Example whitepaper article meta tag section**
 
@@ -176,7 +179,14 @@ Whitepaper articles use a separate article template that requires additional `<m
 <meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
 <meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
 <meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">
+<meta name="formHeadline" value="Learn more about modern IT device management">
 ```
+
+
+### Webinar article meta tags
+
+Webinar articles use a separate article template and require one additional meta tag:
+- `webinarEmbeddedVideoUrl` : The URL of the webinar video. This will be embedded on a page that users are taken to after filling out the form to watch a webinar.
 
 
 ## Linking to a location on GitHub

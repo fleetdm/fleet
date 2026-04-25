@@ -6,6 +6,15 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Slack installed
+- name: Windows - 1Password up to date
+  description: This device may have an outdated version of 1Password, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  type: patch
+  fleet_maintained_app_slug: 1password/windows
+  install_software: false
+  calendar_events_enabled: true
+  labels_include_any:
+    - x86 Windows hosts with 1Password installed
 - name: Windows - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also uninstall Claude if you are no longer using it."
@@ -38,14 +47,6 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Zoom installed
-- name: Windows - Brave Browser up to date
-  description: The host may have an outdated version of Brave Browser, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Brave Browser's built-in update functionality. You can also uninstall Brave Browser if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: brave-browser/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Brave Browser installed
 - name: Windows - Visual Studio Code up to date
   description: The host may have an outdated version of Visual Studio Code, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Visual Studio Code's built-in update functionality. You can also uninstall Visual Studio Code if you are no longer using it."
@@ -54,67 +55,3 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Visual Studio Code installed
-- name: Windows - Docker Desktop up to date
-  description: The host may have an outdated version of Docker Desktop, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Docker Desktop's built-in update functionality. You can also uninstall Docker Desktop if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: docker/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Docker Desktop installed
-- name: Windows - GitHub Desktop up to date
-  description: The host may have an outdated version of GitHub Desktop, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using GitHub Desktop's built-in update functionality. You can also uninstall GitHub Desktop if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: github-desktop/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with GitHub Desktop installed
-- name: Windows - Postman up to date
-  description: The host may have an outdated version of Postman, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Postman's built-in update functionality. You can also uninstall Postman if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: postman/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Postman installed
-- name: Windows - Sublime Text up to date
-  description: The host may have an outdated version of Sublime Text, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Sublime Text's built-in update functionality. You can also uninstall Sublime Text if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: sublime-text/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Sublime Text installed
-- name: Windows - Spotify up to date
-  description: The host may have an outdated version of Spotify, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Spotify's built-in update functionality. You can also uninstall Spotify if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: spotify/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Spotify installed
-- name: Windows - Figma up to date
-  description: The host may have an outdated version of Figma, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Figma's built-in update functionality. You can also uninstall Figma if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: figma/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Figma installed
-- name: Windows - Google Drive up to date
-  description: The host may have an outdated version of Google Drive, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Google Drive's built-in update functionality. You can also uninstall Google Drive if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: google-drive/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Google Drive installed
-- name: Windows - Cursor up to date
-  description: The host may have an outdated version of Cursor, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Cursor's built-in update functionality. You can also uninstall Cursor if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: cursor/windows
-  install_software: false
-  labels_include_any:
-    - x86 Windows hosts with Cursor installed

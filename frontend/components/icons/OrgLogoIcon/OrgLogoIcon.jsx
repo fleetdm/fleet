@@ -10,12 +10,10 @@ class OrgLogoIcon extends Component {
   static propTypes = {
     className: PropTypes.string,
     src: PropTypes.string.isRequired,
-    invertDark: PropTypes.bool,
   };
 
   static defaultProps = {
     src: fleetAvatar,
-    invertDark: false,
   };
 
   constructor(props) {
@@ -70,16 +68,14 @@ class OrgLogoIcon extends Component {
   };
 
   render() {
-    const { className, invertDark } = this.props;
+    const { className } = this.props;
     const { imageSrc } = this.state;
     const { onError } = this;
 
     const classNames =
       imageSrc === fleetAvatar
         ? classnames(baseClass, className, "default-fleet-logo")
-        : classnames(baseClass, className, {
-            [`${baseClass}--invert-dark`]: invertDark,
-          });
+        : classnames(baseClass, className);
 
     return (
       <img

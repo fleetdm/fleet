@@ -88,6 +88,8 @@ type ResetPasswordFunc func(ctx context.Context, token string, password string) 
 
 type ModifyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
 
+type ModifyAPIOnlyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
+
 type DeleteUserFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
 type ChangeUserEmailFunc func(ctx context.Context, token string) (string, error)
@@ -816,6 +818,8 @@ type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnq
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
+type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -1012,6 +1016,9 @@ type Service struct {
 
 	ModifyUserFunc        ModifyUserFunc
 	ModifyUserFuncInvoked bool
+
+	ModifyAPIOnlyUserFunc        ModifyAPIOnlyUserFunc
+	ModifyAPIOnlyUserFuncInvoked bool
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
@@ -2105,6 +2112,9 @@ type Service struct {
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
 
+	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
+	GetHostManagedAccountPasswordFuncInvoked bool
+
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
 
@@ -2485,6 +2495,13 @@ func (s *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPaylo
 	s.ModifyUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyUserFunc(ctx, userID, p)
+}
+
+func (s *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error) {
+	s.mu.Lock()
+	s.ModifyAPIOnlyUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ModifyAPIOnlyUserFunc(ctx, userID, p)
 }
 
 func (s *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
@@ -5033,6 +5050,13 @@ func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) e
 	s.RotateRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
+func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	s.mu.Lock()
+	s.GetHostManagedAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAccountPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

@@ -528,7 +528,9 @@ const TeamDetailsWrapper = ({
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {children}
+        <div key={location.pathname} className="tab-nav-routed-content">
+          {children}
+        </div>
       </>
     </MainContent>
   );
