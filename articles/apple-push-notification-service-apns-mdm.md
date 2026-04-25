@@ -14,8 +14,8 @@ If you're managing Apple devices, APNs isn't optional. Most of what you do on-de
 
 The following MDM functions depend on APNs communication:
 
-* Apps and Books management: Installations, updates, and removals from Apple Business Manager typically flow through the APNs-triggered check-in process.  
-* Automated Device Enrollment: After a new device activates and enrolls through Apple Business Manager, ongoing on-demand management depends on APNs.  
+* Apps and Books management: Installations, updates, and removals from Apple Business typically flow through the APNs-triggered check-in process.  
+* Automated Device Enrollment: After a new device activates and enrolls through Apple Business, ongoing on-demand management depends on APNs.  
 * Configuration profiles: New security settings, VPN settings, and restrictions need an APNs notification to trigger the check-in that downloads them.  
 * MDM commands: Lock, wipe, and restart actions only reach devices after APNs delivers the wake-up signal. If that path is blocked, these commands can sit in the queue with no visible error in your console.  
 * OS updates: Pushing operating system updates to managed devices uses the same APNs channel to prompt check-ins.
@@ -78,7 +78,7 @@ The certificate lifecycle and network requirements above apply regardless of whi
 
 Fleet handles APNs certificate configuration as part of its [MDM setup](https://fleetdm.com/guides/macos-mdm-setup) process, covering certificate generation, upload, and renewal tracking for macOS, iOS, and iPadOS devices. Fleet also encrypts APNs-related configuration values and outlines renewal procedures within its guides.
 
-Fleet integrates with Apple Business Manager for Automated Device Enrollment and can support multiple Apple Business Manager tokens within a single Fleet instance for managed service providers and larger enterprises.
+Fleet integrates with Apple Business for Automated Device Enrollment and can support multiple Apple Business tokens within a single Fleet instance for managed service providers and larger enterprises.
 
 Fleet has many options for migration from your current device management service. Fleet is fully compatible with Apple’s [Managed Device Migration](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) features and has its own [end user enabled migration workflow](https://fleetdm.com/guides/mdm-migration#end-user-workflow) built in. Fleet also supports [MDM migration](https://fleetdm.com/guides/seamless-mdm-migration) workflows that can preserve APNs and SCEP certificates. Certificate-preserving migration is not the preferred migration option for most customers. In supported scenarios, migration involves copying certificates from the existing server and retaining the same ServerURL, CheckinURL, and PushTopic values so devices typically don't need to re-enroll. In practice, this process often involves database configuration changes and load balancer redirects. Fleet's Customer Success team must assist with certificate-preserving migrations that require database manipulation for both cloud and self-hosted instances.
 

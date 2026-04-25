@@ -21,7 +21,7 @@ failed profiles to affected hosts.
 
 ## How to use
 
-1. Navigate to **Controls > OSSettings > Custom Settings** in the Fleet UI.
+1. Navigate to **Controls > OS Settings > Configuration profiles** in the Fleet UI.
 2. Each cofiguration profile row now includes an info icon that when clicked will show you the
    aggregate status for that profile:
     - **Verified**: The profile was installed on the host and was this has been verified by Fleet

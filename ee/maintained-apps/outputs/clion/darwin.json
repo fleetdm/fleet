@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1",
+      "version": "2026.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion' AND version_compare(bundle_short_version, '2026.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.CLion' AND version_compare(bundle_short_version, '2026.1.1') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.1-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.1.1-aarch64.dmg",
       "install_script_ref": "c03a64cb",
       "uninstall_script_ref": "43624c60",
-      "sha256": "0abc7ade315b25b097d7f5c8660db63b177b1f1156981de25e52687f3bf4def0",
+      "sha256": "f26e926e9915750f5067291596c7bd70af0acac5e53e7fcd03d5b2b0b1e1f239",
       "default_categories": [
         "Developer tools"
       ]
