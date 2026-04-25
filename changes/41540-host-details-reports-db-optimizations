@@ -1,2 +1,0 @@
-* Improved database query performance for the Host Details > Reports page by adding a `has_data` virtual generated column to `query_results`.
-* Added `(query_id, has_data, host_id, last_fetched)` index on query_results.

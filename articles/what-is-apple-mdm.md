@@ -1,6 +1,6 @@
 # Apple MDM: A complete guide
 
-Managing Apple devices across an enterprise organization requires more than just deploying hardware. Configuration settings, security policies, and app distribution must reach hundreds or thousands of macOS, iOS, and iPadOS devices without manual intervention. Apple's Mobile Device Management (MDM) protocol provides the foundation for managing large device fleets, but the protocol itself is just one piece of the puzzle. This guide covers how Apple MDM works, integration with Apple Business Manager (ABM).
+Managing Apple devices across an enterprise organization requires more than just deploying hardware. Configuration settings, security policies, and app distribution must reach hundreds or thousands of macOS, iOS, and iPadOS devices without manual intervention. Apple's Mobile Device Management (MDM) protocol provides the foundation for managing large device fleets, but the protocol itself is just one piece of the puzzle. This guide covers how Apple MDM works, integration with Apple Business (AB).
 
 ## What is Apple MDM and how does it work?
 
@@ -10,19 +10,19 @@ The architecture relies on two core components working together. A check-in prot
 
 When administrators push a configuration change, the MDM server doesn't communicate directly with the device. Instead, it sends a push notification through APNs, which triggers the device to check in with the MDM server and retrieve any queued commands. This communication depends on valid certificates, including an APNs certificate that requires annual renewal to keep your fleet connected.
 
-## Managing enrollment and apps through Apple Business Manager
+## Managing enrollment and apps through Apple Business
 
-Without Apple Business Manager (ABM), enrollment is typically manual or user-initiated, often via profile installation or account-driven enrollment flows. These approaches work but are harder to scale than zero-touch deployment.
+Without Apple Business (AB), enrollment is typically manual or user-initiated, often via profile installation or account-driven enrollment flows. These approaches work but are harder to scale than zero-touch deployment.
 
-ABM connects Apple's activation servers to your MDM server. When you purchase devices through Apple or authorized resellers, they automatically appear in your ABM account. From there, you assign devices to your MDM server so they enroll automatically when employees power them on for the first time.
+AB connects Apple's activation servers to your MDM server. When you purchase devices through Apple or authorized resellers, they automatically appear in your AB account. From there, you assign devices to your MDM server so they enroll automatically when employees power them on for the first time.
 
-ABM also centralizes app purchasing through Apps and Books, letting you buy apps in bulk and distribute them to devices without requiring individual Apple IDs. Apple School Manager (ASM) provides the same capabilities for educational institutions.
+AB also centralizes app purchasing through Apps and Books, letting you buy apps in bulk and distribute them to devices without requiring individual Apple IDs. Apple School Manager (ASM) provides the same capabilities for educational institutions.
 
 ### Zero-touch deployment through automated device enrollment
 
 Automated Device Enrollment (ADE) lets employees power on a new Mac or iPhone and start working without IT touching the device. The device automatically enrolls in your MDM server during Setup Assistant, receives its configuration profiles, and installs required apps.
 
-Here's how it works: when an employee powers on a new device, it contacts Apple's activation servers, which recognize the device belongs to your organization through ABM. Apple redirects the device to your MDM server, and enrollment happens automatically. Depending on configuration (for example, Auto Advance on supported Macs), setup can be largely hands-off.
+Here's how it works: when an employee powers on a new device, it contacts Apple's activation servers, which recognize the device belongs to your organization through AB. Apple redirects the device to your MDM server, and enrollment happens automatically. Depending on configuration (for example, Auto Advance on supported Macs), setup can be largely hands-off.
 
 ADE provides capabilities that manual enrollment can't match:
 
@@ -64,7 +64,7 @@ DDM coexists with traditional MDM commands and profiles, so you can adopt it gra
 
 Most enterprises manage more than just Apple devices. IT teams typically oversee fleets spanning macOS, Windows, and Linux and more. This historically has meant running separate management tools for each platform. Multi-platform MDM tools address this fragmentation by managing all devices through a single console.
 
-The best multi-platform tools don't sacrifice Apple-specific capabilities for multi-platform coverage. They implement Apple's MDM protocol natively, including full support for ABM integration, ADE, Apps and Books, and declarative device management, while extending the same depth of management to Windows and Linux devices.
+The best multi-platform tools don't sacrifice Apple-specific capabilities for multi-platform coverage. They implement Apple's MDM protocol natively, including full support for AB integration, ADE, Apps and Books, and declarative device management, while extending the same depth of management to Windows and Linux devices.
 
 ### When Apple-only MDM falls short
 
@@ -78,7 +78,7 @@ Linux typically uses configuration management tools like Ansible or Puppet with 
 
 When evaluating tools that manage Apple devices alongside other platforms, certain capabilities separate tools that genuinely simplify management from those that just add another layer of abstraction:
 
-* **Native Apple MDM support:** The tool should implement Apple's MDM protocol properly, including ABM integration, ADE, Apps and Books, and configuration profiles.  
+* **Native Apple MDM support:** The tool should implement Apple's MDM protocol properly, including AB integration, ADE, Apps and Books, and configuration profiles.  
 * **Declarative device management:** Support for DDM helps ensure you can take advantage of Apple's modern management architecture.  
 * [**GitOps workflows:**](https://fleetdm.com/gitops-workshop) Infrastructure-as-code approaches let you version control configurations and maintain audit trails.  
 * **API-first architecture:** Robust APIs enable [automation workflows](https://fleetdm.com/guides/automations) and integration with your existing security and IT tools.  
@@ -88,15 +88,15 @@ Open-source options add transparency to the equation. Organizations can inspect 
 
 ## Manage Apple devices across your fleet
 
-Apple MDM provides the protocol foundation for enterprise device management, while ABM and automated device enrollment enable zero-touch deployment workflows. Declarative device management points toward Apple's intended direction for modern management.
+Apple MDM provides the protocol foundation for enterprise device management, while AB and automated device enrollment enable zero-touch deployment workflows. Declarative device management points toward Apple's intended direction for modern management.
 
-For comprehensive device management across Mac, iPhone, iPad, Windows, and Linux, Fleet provides open-core MDM that integrates with ABM. Fleet manages your devices with an API-first architecture that supports GitOps workflows and configuration as code. [Try Fleet](https://fleetdm.com/try-fleet) to see how unified device management works across your entire fleet.
+For comprehensive device management across Mac, iPhone, iPad, Windows, and Linux, Fleet provides open-core MDM that integrates with AB. Fleet manages your devices with an API-first architecture that supports GitOps workflows and configuration as code. [Try Fleet](https://fleetdm.com/try-fleet) to see how unified device management works across your entire fleet.
 
 ## Frequently asked questions
 
-### What's the difference between MDM and ABM?
+### What's the difference between MDM and AB?
 
-MDM is the protocol and server infrastructure that actually manages devices, pushing configurations, enforcing policies, and executing commands. ABM is Apple's web portal for device enrollment and app purchasing. ABM connects to your MDM server and tells Apple's activation servers which MDM server should manage each device. You need both working together for automated enrollment and zero-touch deployment.
+MDM is the protocol and server infrastructure that actually manages devices, pushing configurations, enforcing policies, and executing commands. AB is Apple's web portal for device enrollment and app purchasing. AB connects to your MDM server and tells Apple's activation servers which MDM server should manage each device. You need both working together for automated enrollment and zero-touch deployment.
 
 ### Can users remove MDM profiles from their devices?
 
@@ -104,7 +104,7 @@ It depends on the enrollment method. Devices enrolled through Automated Device E
 
 ### How long does it take to set up Apple MDM for an organization?
 
-Initial setup often takes anywhere from a few days to a couple of weeks, depending on your existing infrastructure. You'll need to establish an ABM account, obtain APNs certificates, connect your MDM server, and configure enrollment profiles. Fleet's [MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup) walks through the specific steps for connecting ABM.
+Initial setup often takes anywhere from a few days to a couple of weeks, depending on your existing infrastructure. You'll need to establish an AB account, obtain APNs certificates, connect your MDM server, and configure enrollment profiles. Fleet's [MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup) walks through the specific steps for connecting AB.
 
 ### Does Apple MDM work for BYOD scenarios?
 

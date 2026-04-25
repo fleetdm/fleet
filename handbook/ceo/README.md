@@ -149,7 +149,7 @@ The CEO's calendar should reflect the following schedule for travel:
  - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
  - 30 minutes
  - Calendar event: Check-in at hotel
- - Calednar event for CEO to try and check-in: Try to check-in
+ - Calendar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview

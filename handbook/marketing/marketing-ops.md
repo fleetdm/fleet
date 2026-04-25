@@ -126,12 +126,12 @@ For all in-person or virtual events, sponsored or hosted.
 
 | Source detail | Code | Campaign examples (discreet) |
 | :---- | :---- | :---- |
-| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat\_booth\_scans |
+| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
 | Local event / meetup | LE | 2026\_02-LE-osquery\_meetup\_nyc |
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (workshop, hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
-| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent |
 | Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
@@ -187,8 +187,8 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 - **Structure:** YYYY\_MM-\[Code\]-\[Name\]  
   - **YYYY\_MM:** The start month. (e.g., 2026\_02)  
   - **\[Code\]:** The 2-4 letter code from the table above. (e.g., MC, PS, WH)  
-  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat\_booth, google\_brand)  
-- **Full example:** 2026\_08-MC-blackhat\_booth\_scans
+  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat, google\_brand)  
+- **Full example:** 2026\_08-MC-blackhat
 
 
 #### Always-on campaigns
