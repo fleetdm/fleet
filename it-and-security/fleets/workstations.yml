@@ -107,7 +107,6 @@ controls:
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
@@ -119,7 +118,8 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-nudge.yml
+  - path: ../lib/macos/policies/nudge-installed.yml
+  - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
@@ -161,10 +161,6 @@ software:
         - "Keynote 14 installed"
       categories:
         - Productivity
-    - path: ../lib/macos/software/nudge.yml # Nudge for macOS
-      self_service: false
-      categories:
-        - Utilities
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
       categories:
@@ -364,6 +360,11 @@ software:
         - Macs with Loom installed
       categories:
         - Productivity
+    - slug: nudge/darwin # Nudge for macOS
+      self_service: false
+      setup_experience: true
+      categories:
+        - Utilities
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
       labels_include_any:
