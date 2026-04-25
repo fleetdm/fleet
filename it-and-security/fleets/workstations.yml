@@ -244,11 +244,11 @@ software:
         - Productivity
   fleet_maintained_apps:
     # macOS apps
-    - slug: 1password/darwin # 1Password for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
+    # - slug: 1password/darwin # 1Password for macOS
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Security
     - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
       self_service: true
       labels_include_any:
@@ -419,11 +419,11 @@ software:
       categories:
         - Developer tools
     # Windows apps
-    - slug: 1password/windows # 1Password for Windows
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
+    # - slug: 1password/windows # 1Password for Windows
+    #   self_service: true
+    #   setup_experience: true
+    #   categories:
+    #     - Security
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
