@@ -447,7 +447,8 @@ module.exports.custom = {
   // For contact form submissions.
   // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
   bannedEmailDomainsForContactFormSubmissions: [
-    'example.com'
+    'email.tst',
+    'example.com',
   ],
 
   /***************************************************************************

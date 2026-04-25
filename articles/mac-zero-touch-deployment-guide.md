@@ -6,7 +6,7 @@ Shipping Mac devices to remote employees typically means either extensive IT han
 
 Zero-touch deployment lets organizations ship Macs directly from vendors to end users without IT intervention. When a user opens their box and powers on their new Mac it walks them though a setup assistant, automatically queries Apple's servers, receives its MDM assignment, enrolls itself, and applies the organization's security policies and configuration profiles. 
 
-The workflow is enabled by Apple's Automated Device Enrollment (formerly DEP), which links a device's serial number to an MDM server through Apple Business Manager (ABM). When powered on, devices query Apple's activation servers to determine their assigned MDM service and automatically enroll. For macOS 14 and later, if devices don't enroll during first setup, they display a full-screen setup experience that enforces enrollment, preventing users from bypassing organizational control.
+The workflow is enabled by Apple's Automated Device Enrollment (formerly DEP), which links a device's serial number to an MDM server through Apple Business (AB). When powered on, devices query Apple's activation servers to determine their assigned MDM service and automatically enroll. For macOS 14 and later, if devices don't enroll during first setup, they display a full-screen setup experience that enforces enrollment, preventing users from bypassing organizational control.
 
 This automation eliminates the traditional imaging workflow where IT teams receive shipments, unbox devices, connect them to imaging stations, install base configurations, and then ship them to users. Instead, devices go directly from the vendor to employees, arriving ready for automated configuration and immediate use.
 
@@ -26,13 +26,13 @@ These provisioning, security, and efficiency improvements compound when managing
 
 ## How zero-touch deployment works
 
-Mac zero-touch deployment operates through a three-tier architecture: Apple Business Manager as the enrollment authority, the MDM server as the policy distributor, and the Mac itself as an active participant in provisioning.
+Mac zero-touch deployment operates through a three-tier architecture: Apple Business as the enrollment authority, the MDM server as the policy distributor, and the Mac itself as an active participant in provisioning.
 
 ### Device registration and assignment
 
-Devices must be purchased from Apple or participating Apple Authorized Resellers to be automatically registered in Apple Business Manager. The vendor registers devices to your organization's Apple Business Manager account during purchase, linking each serial number to that organization.
+Devices must be purchased from Apple or participating Apple Authorized Resellers to be automatically registered in Apple Business. The vendor registers devices to your organization's Apple Business account during purchase, linking each serial number to that organization.
 
-After devices appear in Apple Business Manager, you assign them to the MDM server through the ABM web portal. This assignment links serial numbers with the MDM instance through a "virtual MDM server" configuration, establishing the trust relationship for automatic enrollment.
+After devices appear in Apple Business, you assign them to the MDM server through the ABM web portal. This assignment links serial numbers with the MDM instance through a "virtual MDM server" configuration, establishing the trust relationship for automatic enrollment.
 
 ## Prerequisites and setup considerations
 
@@ -40,9 +40,9 @@ Successfully implementing zero-touch deployment depends on having the right infr
 
 ### Required infrastructure
 
-You need an Apple Business Manager account with organizational verification. Your organization must complete Apple's verification process before devices can enroll through ADE. This process requires a valid D-U-N-S number (an organization's business tax identification) and verification of organizational details by Apple representatives. Verification is separate from ABM account creation and typically takes 24-48 hours to complete. Missing this step is a common cause of ADE enrollment failures, as devices won't appear in your ABM account until verification is approved.
+You need an Apple Business account with organizational verification. Your organization must complete Apple's verification process before devices can enroll through ADE. This process requires a valid D-U-N-S number (an organization's business tax identification) and verification of organizational details by Apple representatives. Verification is separate from ABM account creation and typically takes 24-48 hours to complete. Missing this step is a common cause of ADE enrollment failures, as devices won't appear in your ABM account until verification is approved.
 
-Your MDM server must be added to Apple Business Manager as a virtual MDM server, establishing the trust relationship for device assignments. Your MDM tool must support Automated Device Enrollment with mandatory, non-removable enrollment profiles and the Auto Advance key for Setup Assistant customization.
+Your MDM server must be added to Apple Business as a virtual MDM server, establishing the trust relationship for device assignments. Your MDM tool must support Automated Device Enrollment with mandatory, non-removable enrollment profiles and the Auto Advance key for Setup Assistant customization.
 
 Network connectivity requires internet access to contact Apple's activation servers and MDM endpoints during first boot. Fully automated deployment without any user interaction requires Ethernet connectivity during Auto Advance. Wi-Fi-only deployments typically require users to select the network during Setup Assistant, though Wi-Fi profiles can be pre-configured in enrollment settings.
 
@@ -66,9 +66,9 @@ Apple announced that macOS 26 will expand DDM capabilities to include package de
 
 Platform SSO allows identity-first provisioning where authentication happens during enrollment rather than after. Platform SSO can now be activated during automated device enrollment, allowing employees to immediately access managed apps and company services without additional sign-ins. This addresses a common friction point where users complete device enrollment but then face repeated authentication prompts when accessing corporate resources.
 
-### Apple Business Manager API capabilities
+### Apple Business API capabilities
 
-Apple Business Manager has received significant API enhancements that allow programmatic device management. New endpoints let administrators retrieve device management service information, list all devices assigned to a specific MDM server, and programmatically assign or unassign devices from management services. 
+Apple Business has received significant API enhancements that allow programmatic device management. New endpoints let administrators retrieve device management service information, list all devices assigned to a specific MDM server, and programmatically assign or unassign devices from management services. 
 
 These new APIs support infrastructure-as-code patterns where device assignments and MDM configurations are version-controlled and deployed through automated pipelines, aligning with emerging GitOps-based management approaches for enterprise Mac fleet management.
 
@@ -84,7 +84,7 @@ Autopilot depends on specific features available in Windows client, cloud identi
 
 | Platform | Zero-Touch Approach | Key Requirements | Enrollment Method |
 | ----- | ----- | ----- | ----- |
-| macOS | Automated Device Enrollment (ADE) | Apple Business Manager, participating vendors | Cloud-based automatic enrollment via Setup Assistant |
+| macOS | Automated Device Enrollment (ADE) | Apple Business, participating vendors | Cloud-based automatic enrollment via Setup Assistant |
 | Windows | Windows Autopilot | Cloud identity services, Windows MDM, participating OEMs | Cloud-based device registration and provisioning |
 | Linux | Custom automation | Configuration management tools, IT infrastructure | No standardized vendor-provided protocol |
 
@@ -92,7 +92,7 @@ While Linux supports automated provisioning through tools like cloud-init, Ansib
 
 ### Post-enrollment management convergence
 
-Though each operating system platform requires separate enrollment infrastructure (Apple Business Manager for macOS, Windows Autopilot for Windows, and custom automation for Linux) modern MDM solutions can provide unified management after enrollment completes. Administrators can configure management once and deploy across platforms, with MDM translating intent into platform-specific implementations.
+Though each operating system platform requires separate enrollment infrastructure (Apple Business for macOS, Windows Autopilot for Windows, and custom automation for Linux) modern MDM solutions can provide unified management after enrollment completes. Administrators can configure management once and deploy across platforms, with MDM translating intent into platform-specific implementations.
 
 With single-platform device management solutions, IT teams must architect separate enrollment strategies per platform while seeking unified visibility and control post-enrollment. A practical approach involves accepting platform-specific enrollment workflows while standardizing on security baselines and compliance monitoring that work across operating systems.
 
@@ -108,17 +108,17 @@ With Fleet GitOps, organizations define configuration through YAML files that sp
 
 Implementing zero-touch deployment gives your team consistent device provisioning while reducing manual workload. The right tool makes the difference between automation that works and automation that creates new problems. This is where Fleet comes in.
 
-Fleet integrates with Apple Business Manager for automated device enrollment and provides the multi-platform visibility you need when managing mixed Mac, Windows, and Linux fleets. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet simplifies Mac fleet management.
+Fleet integrates with Apple Business for automated device enrollment and provides the multi-platform visibility you need when managing mixed Mac, Windows, and Linux fleets. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet simplifies Mac fleet management.
 
 ## Frequently asked questions
 
-### Can we implement zero-touch deployment without Apple Business Manager?
+### Can we implement zero-touch deployment without Apple Business?
 
-Automated Device Enrollment requires devices registered in Apple Business Manager or Apple School Manager, which is only possible when purchased from Apple or participating Apple Authorized Resellers. Alternative methods like user-initiated enrollment or Apple Configurator require manual steps and don't provide the same capabilities. Devices acquired through unauthorized channels can't use Automated Device Enrollment.
+Automated Device Enrollment requires devices registered in Apple Business or Apple School Manager, which is only possible when purchased from Apple or participating Apple Authorized Resellers. Alternative methods like user-initiated enrollment or Apple Configurator require manual steps and don't provide the same capabilities. Devices acquired through unauthorized channels can't use Automated Device Enrollment.
 
 ### What happens if a device fails to enroll during first boot?
 
-Common failure causes include network connectivity issues, MDM server configuration errors, or device assignment problems. Troubleshooting involves checking MDM synchronization status, verifying device assignment in Apple Business Manager, and ensuring access to Apple's activation servers and MDM endpoints.
+Common failure causes include network connectivity issues, MDM server configuration errors, or device assignment problems. Troubleshooting involves checking MDM synchronization status, verifying device assignment in Apple Business, and ensuring access to Apple's activation servers and MDM endpoints.
 
 ### How does zero-touch deployment affect device security and compliance?
 
@@ -133,5 +133,5 @@ Yes. Replacement devices enroll automatically through the same workflow as new d
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-26">
-<meta name="description" value="Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. Learn setup and best practices for remote Mac fleet management.">
+<meta name="description" value="Complete guide to Mac zero-touch deployment using Apple Business and MDM. Learn setup and best practices for remote Mac fleet management.">
 

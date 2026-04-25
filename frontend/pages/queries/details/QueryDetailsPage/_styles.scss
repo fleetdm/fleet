@@ -1,6 +1,10 @@
 .query-details-page {
   @include vertical-page-layout;
 
+  &__query-description {
+    overflow-wrap: anywhere;
+  }
+
   &__title-bar {
     display: flex;
     justify-content: space-between;

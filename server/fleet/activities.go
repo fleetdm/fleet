@@ -129,6 +129,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
+	ActivityTypeEnabledGitOpsException{},
+	ActivityTypeDisabledGitOpsException{},
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
@@ -156,6 +158,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeWipeFailedHost{},
 	ActivityTypeRotatedHostRecoveryLockPassword{},
 
 	ActivityTypeCreatedDeclarationProfile{},
@@ -824,7 +827,7 @@ type ActivityTypeViewedManagedLocalAccount struct {
 }
 
 func (a ActivityTypeViewedManagedLocalAccount) ActivityName() string {
-	return "viewed_managed_local_account"
+	return "read_managed_local_account"
 }
 
 func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
@@ -859,6 +862,22 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeEnabledGitOpsException) ActivityName() string {
+	return "enabled_gitops_exception"
+}
+
+type ActivityTypeDisabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeDisabledGitOpsException) ActivityName() string {
+	return "disabled_gitops_exception"
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
@@ -1058,6 +1077,23 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeWipeFailedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipeFailedHost) ActivityName() string {
+	return "failed_wipe"
+}
+
+func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeWipeFailedHost) WasFromAutomation() bool {
+	return true
 }
 
 // ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.

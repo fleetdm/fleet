@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>CIS 2.6.3.2 - Siri data sharing</string>
+			<key>PayloadType</key>
+			<string>com.apple.assistant.support</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.3.2.siri-opt-in</string>
+			<key>PayloadUUID</key>
+			<string>33062252-8F54-427F-8064-1334194BEB84</string>
+			<key>Siri Data Sharing Opt-In Status</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>CIS 2.6.3.1 - Share Mac Analytics (AutoSubmit)</string>
+			<key>PayloadType</key>
+			<string>com.apple.SubmitDiagInfo</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.3.2.autosubmit</string>
+			<key>PayloadUUID</key>
+			<string>3832AE34-B669-4920-97B9-B6EEEF0FA589</string>
+			<key>AutoSubmit</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>CIS 2.6.3.4 - allowDiagnosticSubmission</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.3.2.diag-submission</string>
+			<key>PayloadUUID</key>
+			<string>FE1CFE38-152C-4540-A6D1-A88B452716AE</string>
+			<key>allowDiagnosticSubmission</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>CIS 2.6.3.3 - Assistive voice donation</string>
+			<key>PayloadType</key>
+			<string>com.apple.Accessibility</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.3.2.assistive-voice</string>
+			<key>PayloadUUID</key>
+			<string>A583F8D8-B330-4C4F-BE7F-7CB2C14777AC</string>
+			<key>AXSAudioDonationSiriImprovementEnabled</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>CIS 2.6.3.x - Disable diagnostic and Siri data sharing to Apple. Covers the four managed_policies keys required by Fleet's combined 'Ensure Sending Diagnostic and Usage Data to Apple Is Disabled' policy.</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Sending Diagnostic and Usage Data to Apple Is Disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.6.3.2</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>1E5C9607-4C07-4785-91D4-35713386C645</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

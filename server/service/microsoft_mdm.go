@@ -1706,8 +1706,25 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	saveResponse := func(topLevelExists []string) error {
 		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
 		if enrichedSyncML.HasCommands() {
-			if err := svc.ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enrichedSyncML, topLevelExists); err != nil {
+			result, err := svc.ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enrichedSyncML, topLevelExists)
+			if err != nil {
 				return fmt.Errorf("store incoming msgs: %w", err)
+			}
+
+			if result != nil && result.WipeFailed != nil {
+				host, err := svc.ds.HostByIdentifier(ctx, result.WipeFailed.HostUUID)
+				if err != nil {
+					svc.logger.WarnContext(ctx, "failed to look up host for wipe_failed_host activity",
+						"host_uuid", result.WipeFailed.HostUUID, "err", err)
+				} else {
+					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
+						HostID:          host.ID,
+						HostDisplayName: host.DisplayName(),
+					}); err != nil {
+						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
+							"host_id", host.ID, "err", err)
+					}
+				}
 			}
 		}
 		return nil

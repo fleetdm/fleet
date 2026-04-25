@@ -620,6 +620,10 @@ type Datastore interface {
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
 	TeamByFilename(ctx context.Context, filename string) (*Team, error)
+	// TeamConflictsWithName returns a team whose collation-equal name conflicts
+	// with the provided name and whose id != excludeID, or (nil, nil) when
+	// no such team exists. Pass excludeID=0 to check against all teams.
+	TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
 	// TeamsSummary lists id, name and description for all teams.
@@ -1247,10 +1251,6 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
-	// WindowsUpdates Store
-	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
-	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
-
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
@@ -1628,6 +1628,14 @@ type Datastore interface {
 	// Limited to 100 hosts per batch.
 	GetHostsForAutoRotation(ctx context.Context) ([]HostAutoRotationInfo, error)
 
+	// SoftDeleteRecoveryLockPasswordsForUnenrolledHosts soft-deletes any live
+	// recovery lock password rows whose host currently reports host_mdm.enrolled=0.
+	// Apple wipes the device-side recovery lock whenever the MDM profile is removed,
+	// so a row remaining for an unenrolled host is stale. Nulls rotation/view state
+	// to prevent leakage into the re-animated row on re-enroll. Returns the number
+	// of rows soft-deleted.
+	SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Managed local account
 
@@ -1927,7 +1935,7 @@ type Datastore interface {
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
 	// MDMWindowsSaveResponse saves a full response for the given enrollment.
-	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) error
+	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) (*MDMWindowsSaveResponseResult, error)
 
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)

@@ -226,33 +226,33 @@
     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Customer Success Manager
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: "$120,000 - $160,000"
-  responsibilities: |
-    - ⏫ Own post-sales relationships with a portfolio of customers and be responsible for advocating for their desired outcomes.
-    - 📣 Manage multiple customer deployments and escalations simultaneously.
-    - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
-    - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
-    - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
-    - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
-    - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
-    - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives are top of mind.
-    - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
-  experience: |
-    - 💭 Customer success management background supporting IT/MDM solutions like Fleet, Intune, Workspace One, etc.
-    - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-    - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-    - 🧑‍🔬 Experience working with customers to coordinate resolution of complex technical issues and project manage deployment initiatives.
-    - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
-    - 🦉 3+ years of work experience managing relationships with customers in the device management space. Experience with executing and tracking results tied to customer escalations, renewals, and expansion opportunities.
-    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
+# - jobTitle: 🐋 Customer Success Manager
+#   department: Customers
+#   hiringManagerName: Zay Hanlon
+#   hiringManagerGithubUsername: zayhanlon
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#   onTargetEarnings: "$120,000 - $160,000"
+#   responsibilities: |
+#     - ⏫ Own post-sales relationships with a portfolio of customers and be responsible for advocating for their desired outcomes.
+#     - 📣 Manage multiple customer deployments and escalations simultaneously.
+#     - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+#     - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+#     - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
+#     - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
+#     - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
+#     - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives are top of mind.
+#     - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+#   experience: |
+#     - 💭 Customer success management background supporting IT/MDM solutions like Fleet, Intune, Workspace One, etc.
+#     - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
+#     - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
+#     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+#     - 🧑‍🔬 Experience working with customers to coordinate resolution of complex technical issues and project manage deployment initiatives.
+#     - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
+#     - 🦉 3+ years of work experience managing relationships with customers in the device management space. Experience with executing and tracking results tied to customer escalations, renewals, and expansion opportunities.
+#     - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
 
 - jobTitle: 🦢 Product Designer
   department: Product Design
@@ -439,7 +439,7 @@
 # experience: |
 #    - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
 #    - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
-#    - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+#    - 🍎 Experience with Apple Business (AB) and Apple Device Enrollment (ADE) for device procurement and management.
 #    - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
 #    - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
 #    - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.

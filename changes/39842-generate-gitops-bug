@@ -1,1 +1,0 @@
-- Fixed a bug where `fleetctl generate-gitops` failed if a Fleet-maintained app was associated to a software title with a different name (e.g. names with different versions).
