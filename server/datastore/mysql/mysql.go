@@ -85,12 +85,23 @@ type Datastore struct {
 	testUpsertMDMDesiredProfilesBatchSize int
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
-	// testEagerWindowsProfileReconciliation controls whether
-	// BulkSetPendingMDMHostProfiles reconciles Windows profiles inline. In
-	// production it stays false — the mdm_windows_profile_manager cron picks up
-	// the diff globally every 30s. Tests set it to true to observe
-	// host_mdm_windows_profiles state without running the cron.
-	testEagerWindowsProfileReconciliation bool
+
+	// testWindowsEagerHook, when non-nil, is called by
+	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
+	// commits to synchronously reconcile Windows profile state for the
+	// resolved hosts. Production sets nothing: Windows reconciliation runs
+	// asynchronously via the mdm_windows_profile_manager cron. Test
+	// infrastructure (initializeDatabase) installs the hook so existing
+	// tests that observe host_mdm_windows_profiles state immediately after
+	// BulkSetPendingMDMHostProfiles continue to pass without rewriting
+	// every assertion to drive the cron explicitly.
+	//
+	// The hook returns whether any rows were actually written; that bool is
+	// surfaced as updates.WindowsConfigProfile, matching Apple's semantics
+	// for the same field. With the hook absent (production), the equivalent
+	// signal is computed by a cheap listing-only diff in
+	// BulkSetPendingMDMHostProfiles itself.
+	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
@@ -107,6 +118,20 @@ type Datastore struct {
 // next activities that require MDM commands.
 func (ds *Datastore) WithPusher(p nano_push.Pusher) {
 	ds.pusher = p
+}
+
+// DisableTestWindowsEagerHook removes the synchronous Windows profile
+// reconciliation hook installed by the test datastore constructor and
+// returns a restore function. Use this in tests that need to exercise the
+// production async path (where Windows reconciliation runs via the
+// mdm_windows_profile_manager cron rather than inline). Calling the
+// returned function reinstalls the previous hook.
+//
+// Test-only. Production code does not install or use this hook.
+func (ds *Datastore) DisableTestWindowsEagerHook() (restore func()) {
+	saved := ds.testWindowsEagerHook
+	ds.testWindowsEagerHook = nil
+	return func() { ds.testWindowsEagerHook = saved }
 }
 
 // reader returns the DB instance to use for read-only statements, which is the

@@ -14,10 +14,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -972,6 +975,113 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked, "existence pre-check must run")
 	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
 		"no zombie row should be written when the profile is gone")
+}
+
+// TestReconcileWindowsProfilesAfterTeamAddDeferred is the end-to-end seam
+// test for the production async path: with the test eager hook disabled
+// (matching production), a team-add via BulkSetPendingMDMHostProfiles must
+// NOT write host_mdm_windows_profiles synchronously, but the activity
+// signal must flip true (Apple-parity), and a subsequent
+// ReconcileWindowsProfiles call (mimicking the cron tick) must produce the
+// install row.
+//
+// Existing coverage stops short of this seam:
+//   - testBulkSetPendingDefersWindowsReconciliation proves the deferral but
+//     does not drive the cron.
+//   - The mock-based TestReconcileWindowsProfiles* tests prove the cron's
+//     handling given a pre-populated listing, but stub out the listing.
+//   - The real-DB testListMDMWindowsProfilesToInstall* tests prove the
+//     listing query is correct after team changes, but do not connect to
+//     the cron upsert.
+//
+// This test runs all three layers (deferral, listing, cron upsert) against
+// a real MySQL.
+func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
+	ds := mysql.CreateMySQLDS(t)
+	// Force the production async path. The test datastore constructor
+	// installs an eager hook by default (so legacy tests observe state
+	// synchronously); we want the cron-driven flow here.
+	restore := ds.DisableTestWindowsEagerHook()
+	t.Cleanup(restore)
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	// ReconcileWindowsProfiles short-circuits to no-op when Windows MDM is
+	// not enabled in app config. Flip it on so the rest of the cron runs.
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.WindowsEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appCfg))
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "deferred-recon-after-team-add"})
+	require.NoError(t, err)
+	profileUUID := mysql.InsertWindowsProfileForTest(t, ds, team.ID)
+
+	host := test.NewHost(t, ds, "deferred-recon-host", "1.1.1.1", "deferred-recon-key", "deferred-recon-host-uuid", time.Now())
+	host.Platform = "windows"
+	host.TeamID = &team.ID
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	dev := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "TestDeviceName",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host.UUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+
+	// Step 1: bulk-set pending must NOT write host_mdm_windows_profiles
+	// rows synchronously, but the activity signal must be true (Apple-parity).
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	assert.True(t, updates.WindowsConfigProfile,
+		"Apple-parity: WindowsConfigProfile must be true when there is pending Windows work")
+
+	rowsBefore, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, rowsBefore,
+		"deferral broke: host_mdm_windows_profiles must be untouched until the cron runs")
+
+	// Sanity: the listing function must see this host as needing the profile,
+	// otherwise the cron has nothing to dispatch.
+	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	require.NoError(t, err)
+	var matched bool
+	for _, p := range toInstall {
+		if p.HostUUID == host.UUID && p.ProfileUUID == profileUUID {
+			matched = true
+			break
+		}
+	}
+	require.True(t, matched,
+		"desired-state listing did not surface our host+profile pair; got %d entries", len(toInstall))
+
+	// Step 2: drive the cron. This is what mdm_windows_profile_manager
+	// does on every 30s tick.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+
+	// Step 3: the install row should now exist.
+	rowsAfter, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, rowsAfter, 1, "cron must enqueue the team's Windows profile for the new host")
+	assert.Equal(t, profileUUID, rowsAfter[0].ProfileUUID)
+	assert.Equal(t, fleet.MDMOperationTypeInstall, rowsAfter[0].OperationType)
+}
+
+// testWriter adapts *testing.T to io.Writer for slog's TextHandler so test
+// log lines flow through t.Log and respect -v.
+type testWriter struct{ t *testing.T }
+
+func (w testWriter) Write(p []byte) (int, error) {
+	w.t.Log(strings.TrimSuffix(string(p), "\n"))
+	return len(p), nil
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {
