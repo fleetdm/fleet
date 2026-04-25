@@ -38,8 +38,8 @@ agent_options:
     desktop: stable
 controls:
   enable_disk_encryption: true
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
@@ -80,17 +80,17 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
-  macos_setup:
-    bootstrap_package: ""
+  setup_experience:
+    macos_bootstrap_package: ""
     enable_end_user_authentication: true
     lock_end_user_info: false
-    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
     minimum_version:
     update_new_hosts: true
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
       - path: ../lib/windows/configuration-profiles/Password settings.xml
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
