@@ -1,2 +1,0 @@
-- Fixed a bug where filtering hosts by software version for a software version not present on the selected team returned nil software instead of a lightweight report of the software
-- Fixed the UI bug the above caused

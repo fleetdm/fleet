@@ -1,1 +1,0 @@
-- Fixed `fleetctl gitops` failing with "No available VPP Token" when assigning VPP apps alongside a new team.

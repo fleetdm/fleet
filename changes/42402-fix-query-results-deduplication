@@ -1,1 +1,0 @@
-* Fixed query results table deduplicating rows when query data contains an `id` column, and fixed `id` column header and cell styling.
