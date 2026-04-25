@@ -414,11 +414,13 @@ module.exports.custom = {
     'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
     'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
     'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
-    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl',
+    'email.tst',
   ],
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'email.tst',
     'example.com',
     'gmail.com',
     'hotmail.ca',
@@ -439,13 +441,14 @@ module.exports.custom = {
     'yahoo.com',
     'yahoo.co.uk',
     'yandex.ru',
-    'ymail.com'
+    'ymail.com',
   ],
 
   // For contact form submissions.
   // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
   bannedEmailDomainsForContactFormSubmissions: [
-    'example.com'
+    'email.tst',
+    'example.com',
   ],
 
   /***************************************************************************
