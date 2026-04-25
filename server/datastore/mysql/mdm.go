@@ -726,15 +726,10 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// eagerly inside one transaction here. Windows profile reconciliation is
 	// intentionally NOT performed synchronously in production: the
 	// mdm_windows_profile_manager cron computes the full desired-vs-actual
-	// diff globally every 30s (see ReconcileWindowsProfiles,
-	// windowsProfilesToInstallQuery, windowsProfilesToRemoveQuery). Doing it
+	// diff globally every 30s (see ReconcileWindowsProfiles). Doing it
 	// synchronously on top of large team transfers ties up the writer for
-	// minutes and starves ambient MDM / osquery checkins of row locks on
+	// minutes and starves ambient MDM/osquery checkins of row locks on
 	// host_mdm_windows_profiles.
-	//
-	// Tests set ds.testEagerWindowsProfileReconciliation = true so that they
-	// can observe post-call host_mdm_windows_profiles state without running
-	// the cron.
 	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var innerErr error
@@ -745,11 +740,32 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		return updates, err
 	}
 
-	if ds.testEagerWindowsProfileReconciliation {
-		updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, winHosts, profileUUIDs)
+	switch {
+	case ds.testWindowsEagerHook != nil:
+		// Test path: the hook performs synchronous reconciliation so test
+		// assertions can observe host_mdm_windows_profiles state immediately
+		// after this call. Production never installs the hook.
+		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
 		}
+
+	case len(winHosts) > 0:
+		// Production path: Apple's bulkSetPendingMDMAppleHostProfilesDB
+		// returns true when the host pending state actually changed. We
+		// match that semantic for Windows by computing the would-write diff
+		// without applying it; the cron writes asynchronously. Callers
+		// (BatchSetMDMProfiles, see service/mdm.go) read this bool to
+		// decide whether to log an "edited Windows profile" activity.
+		toInstall, lerr := ds.listMDMWindowsProfilesToInstallDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
+		if lerr != nil {
+			return updates, ctxerr.Wrap(ctx, lerr, "list windows profiles to install for activity signal")
+		}
+		toRemove, lerr := ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
+		if lerr != nil {
+			return updates, ctxerr.Wrap(ctx, lerr, "list windows profiles to remove for activity signal")
+		}
+		updates.WindowsConfigProfile = len(toInstall) > 0 || len(toRemove) > 0
 	}
 	return updates, nil
 }
@@ -928,18 +944,17 @@ OR
 
 	var appleHosts []string
 	var androidHosts []string
-	// winHosts is only consumed by the test-only eager Windows reconciliation
-	// path. In production we leave it nil so large host sets don't pay the
-	// allocation + per-row append cost.
-	collectWinHosts := ds.testEagerWindowsProfileReconciliation
+	// winHosts is consumed both by the test-only eager hook (when
+	// installed) and by the production listing-based activity-logging
+	// signal in BulkSetPendingMDMHostProfiles, so we always populate it.
+	// The per-host append cost is trivial relative to the host-load query
+	// above.
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
-			if collectWinHosts {
-				winHosts = append(winHosts, h.UUID)
-			}
+			winHosts = append(winHosts, h.UUID)
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:

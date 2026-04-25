@@ -8564,22 +8564,23 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 		hostUUIDs = append(hostUUIDs, uuid.NewString())
 	}
 
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesBatched(ctx, hostUUIDs, nil)
+	_, err := ds.bulkSetPendingMDMWindowsHostProfilesForTests(ctx, hostUUIDs, nil)
 	require.NoError(t, err)
 }
 
-// testBulkSetPendingDefersWindowsReconciliation verifies the production behavior
-// of BulkSetPendingMDMHostProfiles: when the test-only
-// testEagerWindowsProfileReconciliation flag is disabled (its production value),
-// the call must not touch host_mdm_windows_profiles. In production the
-// mdm_windows_profile_manager cron handles that reconciliation asynchronously.
+// testBulkSetPendingDefersWindowsReconciliation verifies the production
+// behavior of BulkSetPendingMDMHostProfiles. With the test eager-hook
+// disabled (matching production), the call must not write
+// host_mdm_windows_profiles synchronously, but the activity-logging signal
+// updates.WindowsConfigProfile must still be true so callers
+// (BatchSetMDMProfiles) know to log "edited Windows profile" activities.
+// This matches Apple's bulkSetPendingMDMAppleHostProfilesDB bool semantics.
 func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Force production behavior for this test.
-	prev := ds.testEagerWindowsProfileReconciliation
-	ds.testEagerWindowsProfileReconciliation = false
-	t.Cleanup(func() { ds.testEagerWindowsProfileReconciliation = prev })
+	// Force production behavior for this test: no eager hook installed.
+	restore := ds.DisableTestWindowsEagerHook()
+	t.Cleanup(restore)
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
 	require.NoError(t, err)
@@ -8603,13 +8604,18 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
 	require.NoError(t, err)
-	// Windows reconciliation should be deferred to the cron; no rows written,
-	// no update signal.
-	assert.False(t, updates.WindowsConfigProfile, "WindowsConfigProfile must stay false when eager reconciliation is disabled")
+	// Apple-parity activity signal: there is pending Windows work for this
+	// host (the team's profile needs to be installed), so the bool flips
+	// true even though the actual write is deferred to the cron.
+	assert.True(t, updates.WindowsConfigProfile,
+		"Apple-parity: WindowsConfigProfile must be true when there is pending Windows work")
 
+	// The actual host_mdm_windows_profiles write does NOT happen here; the
+	// cron handles it on its next tick.
 	after, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	assert.Empty(t, after, "host_mdm_windows_profiles must not be written when eager reconciliation is disabled")
+	assert.Empty(t, after,
+		"host_mdm_windows_profiles must not be written synchronously when the eager hook is disabled")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
