@@ -176,6 +176,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-04-22">
+<meta name="publishedOn" value="2026-04-24">
 <meta name="articleTitle" value="Fleet 4.84.0 | Python scripts, Entra for Windows, auto-rotate Recovery Lock, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.84.0-1600x900@2x.png">
