@@ -1430,10 +1430,9 @@ func testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer(t *tes
 	}})
 	require.NoError(t, err)
 
-	// Simulate team transfer: move host to Team B using UpdateHost
+	// Simulate team transfer: move host to Team B.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	err = ds.UpdateHost(ctx, host)
-	require.NoError(t, err)
 
 	// Mark Team A template for removal using the datastore method
 	err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID)
@@ -1612,8 +1611,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEmpty(t, initialUUID, "initial UUID should not be empty")
 
 	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
 	require.NoError(t, err)
@@ -1632,8 +1631,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEqual(t, initialUUID, uuidAfterRemove, "UUID should change when marked for removal")
 
 	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupA.team.ID, []uint{host.ID})))
 	host.TeamID = &setupA.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
 	require.NoError(t, err)
