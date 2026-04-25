@@ -14,7 +14,7 @@ Automatic Device Enrollment, often called DEP, empowers sysadmins to seamlessly 
 
 Bring Your Own Device enrollment is intended to allow users to enroll their personal devices into corporate management systems. While BYOD fosters user convenience and productivity, it introduces potential security vulnerabilities. Notably, the ability for users to unenroll their devices poses a significant challenge for sysadmins, as it compromises centralized device management and security measures.
 
-Our examination of BYOD enrollment underscores the importance of vigilance and proactive measures. As sysadmins, it is crucial to verify that all devices are appropriately registered within the Apple Business Manager (ABM) account. Devices not present in ABM should be [manually added](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web) to ensure comprehensive device oversight and security.
+Our examination of BYOD enrollment underscores the importance of vigilance and proactive measures. As sysadmins, it is crucial to verify that all devices are appropriately registered within the Apple Business (AB) account. Devices not present in AB should be [manually added](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web) to ensure comprehensive device oversight and security.
 
 
 ## Differences and considerations

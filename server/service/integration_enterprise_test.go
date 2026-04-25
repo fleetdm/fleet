@@ -3372,15 +3372,24 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	t := s.T()
 
-	// Enable GitOps mode first
+	// Start from a known state: GitOps mode on, all exceptions disabled.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+		"gitops": {
+			"gitops_mode_enabled": true,
+			"repository_url": "https://example.com/repo",
+			"exceptions": { "labels": false, "software": false, "secrets": false }
+		}
 	}`), http.StatusOK)
 
-	// Set exceptions
+	// Enable two exceptions (labels and software); secrets stays false.
+	// Two enabled_gitops_exception activities expected — one per flipped field.
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "labels": true, "software": true, "secrets": false } }
 	}`), http.StatusOK)
+	enabledExceptions := s.listRecentExceptionActivities(fleet.ActivityTypeEnabledGitOpsException{}.ActivityName())
+	assert.Contains(t, enabledExceptions, "labels", "expected activity for enabled labels exception")
+	assert.Contains(t, enabledExceptions, "software", "expected activity for enabled software exception")
+	assert.NotContains(t, enabledExceptions, "secrets", "no activity expected for unchanged secrets exception")
 
 	config, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3390,10 +3399,25 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.True(t, config.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", config.GitOpsConfig.RepositoryURL)
 
-	// Partial update — only change one exception, others should persist
+	// Partial update — only change one exception, others should persist.
+	// Capture the last activity id before the update so we can verify no
+	// activity is recorded for the fields that did not change.
+	lastIDBefore := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"gitops": { "exceptions": { "software": false } }
 	}`), http.StatusOK)
+	lastID := s.lastActivityMatches(
+		fleet.ActivityTypeDisabledGitOpsException{}.ActivityName(),
+		`{"exception": "software"}`, 0)
+	assert.Greater(t, lastID, lastIDBefore, "a new activity should have been recorded")
+
+	// Save app config with no exception changes — no new exception activity should be recorded.
+	lastIDBefore = s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "exceptions": { "labels": true, "software": false, "secrets": false } }
+	}`), http.StatusOK)
+	lastIDAfter := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastIDBefore, lastIDAfter, "no activity should have been recorded when exceptions are unchanged")
 
 	config, err = s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -3411,6 +3435,29 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsExceptionsConfig() {
 	assert.False(t, getResp.GitOpsConfig.Exceptions.Secrets)
 	assert.True(t, getResp.GitOpsConfig.GitopsModeEnabled)
 	assert.Equal(t, "https://example.com/repo", getResp.GitOpsConfig.RepositoryURL)
+}
+
+// listRecentExceptionActivities returns the set of exception names found among
+// the recent activities of the given type (enabled_gitops_exception or
+// disabled_gitops_exception). Used to assert on exception activities without
+// depending on ordering when multiple are emitted by a single PATCH.
+func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityType string) map[string]struct{} {
+	t := s.T()
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	found := map[string]struct{}{}
+	for _, act := range listActivities.Activities {
+		if act.Type != activityType || act.Details == nil {
+			continue
+		}
+		var d struct {
+			Exception string `json:"exception"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(*act.Details), &d))
+		found[d.Exception] = struct{}{}
+	}
+	return found
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -29047,7 +29094,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
 	// Paths not registered in the API endpoint catalog are always rejected for
@@ -29073,7 +29120,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		// These are in the catalog but not in the user's allow list.
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusForbidden)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusForbidden)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden)
 	})
 
 	// Non-api-only users must not be affected by the middleware at all.
@@ -29082,6 +29129,6 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
-		s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 }
