@@ -1,0 +1,8 @@
+{
+  "name": "Zen Browser",
+  "unique_identifier": "app.zen-browser.zen",
+  "token": "zen",
+  "installer_format": "dmg",
+  "slug": "zen/darwin",
+  "default_categories": ["Browsers"]
+}

@@ -1,0 +1,1 @@
+- Automatically escape JSON special characters in GitOps variables used in `.json` configuration profiles (Apple DDM declarations and Android profiles).

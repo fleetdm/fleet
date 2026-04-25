@@ -50,6 +50,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show managed account",
+    value: "managedAccount",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -108,6 +113,8 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  isManagedLocalAccountEnabled: boolean;
+  managedAccountStatus: string | null | undefined;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -317,6 +324,28 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   return isRecoveryLockPasswordEnabled;
 };
 
+const canShowManagedAccount = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    hostPlatform,
+    hostMdmEnrollmentStatus,
+    isManagedLocalAccountEnabled,
+  } = config;
+  if (!isPremiumTier) return false;
+  if (hostPlatform !== "darwin") return false;
+  if (!isConnectedToFleetMdm) return false;
+  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
+  if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
+    return false;
+  }
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+};
+
 const canClearPasscode = (config: IHostActionConfigOptions) => {
   if (!config.isPremiumTier) {
     return false;
@@ -396,6 +425,10 @@ const removeUnavailableOptions = (
     options = options.filter(
       (option) => option.value !== "recoveryLockPassword"
     );
+  }
+
+  if (!canShowManagedAccount(config)) {
+    options = options.filter((option) => option.value !== "managedAccount");
   }
 
   if (!canClearPasscode(config)) {
@@ -489,6 +522,7 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    managedAccountStatus,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -595,6 +629,43 @@ const modifyOptions = (
           while pending or has failed.
         </>
       );
+    }
+  }
+
+  if (managedAccountStatus !== "verified") {
+    const managedAccountOption = options.find(
+      (option) => option.value === "managedAccount"
+    );
+    if (managedAccountOption) {
+      managedAccountOption.disabled = true;
+      if (managedAccountStatus === "pending") {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account is still being
+            <br />
+            created.
+          </>
+        );
+      } else if (managedAccountStatus === "failed") {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account failed to be
+            <br />
+            created. It will retry at the next enrollment.
+          </>
+        );
+      } else {
+        // status is null/undefined — no record exists for this host
+        managedAccountOption.tooltipContent = (
+          <>
+            This host will receive a managed account
+            <br />
+            at the next enrollment. Already enrolled
+            <br />
+            hosts don&apos;t get a managed account.
+          </>
+        );
+      }
     }
   }
 

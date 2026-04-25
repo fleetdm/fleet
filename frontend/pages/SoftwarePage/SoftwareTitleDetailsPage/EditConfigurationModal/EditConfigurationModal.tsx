@@ -107,10 +107,7 @@ const EditConfigurationModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      renderFlash("error", getErrorMessage(e));
     }
     setIsUpdatingConfiguration(false);
   };

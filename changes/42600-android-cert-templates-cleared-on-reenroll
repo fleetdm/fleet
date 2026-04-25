@@ -1,1 +1,0 @@
-- Fixed a bug where Android host certificate template records were not cleared when a device unenrolled, causing stale certificate statuses after re-enrollment.

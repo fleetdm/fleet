@@ -495,9 +495,8 @@
 
 
   [purpose='three-column-features'] {
-    display: flex;
-    flex-direction: row;
-    gap: 64px;
+    .three-column-features();
+    max-width: unset;
     [purpose='feature'] {
       text-align: center;
       display: flex;
@@ -823,9 +822,6 @@
     [purpose='banner-container'] {
       padding: 48px;
     }
-    [purpose='three-column-features'] {
-      gap: 48px;
-    }
     [purpose='feature-list-with-image'] {
       flex-direction: column;
       gap: @inner-gap-l;
@@ -904,10 +900,6 @@
       flex-direction: column;
       align-items: flex-start;
       flex: 1 0 0;
-    }
-    [purpose='three-column-features'] {
-      flex-direction: column;
-      gap: @inner-gap-m;
     }
     [purpose='testimonial-cards'] {
       display: flex;

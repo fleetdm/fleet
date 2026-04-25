@@ -71,6 +71,9 @@ func TestTeamAuth(t *testing.T) {
 			return &fleet.Team{ID: 2}, nil
 		}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
@@ -218,6 +221,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, opts)
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	baseFeatures := fleet.Features{
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
@@ -371,7 +377,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		for _, tt := range cases {
 			t.Run(tt.name, func(t *testing.T) {
 				ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-					return &fleet.Team{ID: 123, Config: fleet.TeamConfig{Features: tt.old}}, nil
+					return &fleet.Team{ID: 123, Name: name, Config: fleet.TeamConfig{Features: tt.old}}, nil
 				}
 
 				ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

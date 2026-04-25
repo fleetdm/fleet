@@ -70,7 +70,9 @@ describe("AddCertModal", () => {
     });
 
     expect(screen.getByText("Add certificate")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("VPN certificate")).toBeInTheDocument();
+    expect(
+      await screen.findByPlaceholderText("VPN certificate")
+    ).toBeInTheDocument();
     expect(screen.getByText("Certificate authority (CA)")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText(
@@ -124,7 +126,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Invalid@Name#");
 
     await waitFor(() => {
@@ -151,7 +153,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Existing Certificate");
 
     await waitFor(() => {
@@ -178,7 +180,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
 
     const longName = "a".repeat(256);
     await user.type(nameInput, longName);
@@ -206,7 +208,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
@@ -234,7 +236,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
     const caDropdown = screen.getByText("Select certificate authority");
@@ -269,7 +271,7 @@ describe("AddCertModal", () => {
     });
 
     // Fill in all fields with valid data
-    const nameInput = screen.getByPlaceholderText("VPN certificate");
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
@@ -310,7 +312,7 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const cancelButton = screen.getByText("Cancel");
+    const cancelButton = await screen.findByText("Cancel");
     await user.click(cancelButton);
 
     expect(mockOnExit).toHaveBeenCalledTimes(1);
