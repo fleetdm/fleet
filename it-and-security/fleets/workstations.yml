@@ -116,7 +116,7 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
-  - path: ../lib/macos/policies/1password-installed.yml
+  # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
   - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
