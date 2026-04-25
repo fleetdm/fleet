@@ -107,7 +107,7 @@ controls:
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/install-nudge.sh
+    - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
@@ -150,10 +150,6 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
       self_service: true
       setup_experience: true
-      categories:
-        - Security
-    - path: ../lib/macos/software/santa.yml # Santa for macOS
-      self_service: true
       categories:
         - Security
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
