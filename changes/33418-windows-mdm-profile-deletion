@@ -1,1 +1,0 @@
-* When a Windows configuration profile is deleted or a host moves teams, Fleet now sends SyncML `<Delete>` commands to remove the settings from the device, bringing Windows profile removal to parity with macOS.
