@@ -2302,6 +2302,105 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fle
 	return result, err
 }
 
+// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
+// ListMDMWindowsProfilesToInstall: it returns only rows for the given host
+// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
+// work; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+	var result []*fleet.MDMWindowsProfilePayload
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, nil)
+		return err
+	})
+	return result, err
+}
+
+// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
+// ListMDMWindowsProfilesToRemove: it returns only rows for the given host
+// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
+// work; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+	var result []*fleet.MDMWindowsProfilePayload
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, nil)
+		return err
+	})
+	return result, err
+}
+
+// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
+// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
+// the host has any pending Windows MDM profile reconciliation work
+// (install or remove). If afterHostUUID is empty, scanning starts from
+// the beginning. The cron uses this to slice its per-tick work into a
+// bounded host window; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	if batchSize <= 0 {
+		return nil, nil
+	}
+
+	// Reuse the same desired-state predicates as the global listings, with
+	// "TRUE" substituted for the host-filter slots (both queries already
+	// support that mode for the existing global callers). The outer wrapper
+	// dedups, applies the cursor, and bounds the host count.
+	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE")
+
+	stmt := fmt.Sprintf(`
+		SELECT host_uuid FROM (
+			SELECT host_uuid FROM (%s) AS install_set
+			UNION
+			SELECT host_uuid FROM (%s) AS remove_set
+		) AS combined
+		WHERE host_uuid > ?
+		ORDER BY host_uuid
+		LIMIT %d
+	`, toInstall, toRemove, batchSize)
+
+	var hostUUIDs []string
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// toInstall has 2 placeholders (the install/remove operation types in
+		// its WHERE conditions). toRemove has 0 placeholders (all "TRUE"
+		// substitutions yield literal-true predicates). The outer WHERE adds
+		// 1 placeholder for the cursor.
+		return sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt,
+			fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
+			afterHostUUID,
+		)
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
+	}
+	return hostUUIDs, nil
+}
+
+// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
+// used by the Windows MDM reconciliation cron to bound per-tick work.
+// Returns "" if no cursor is set or if the underlying datastore does not
+// support cursor persistence (the bare mysql.Datastore in unit tests
+// returns "" here; the mysqlredis wrapper backs it with Redis).
+//
+// See ReconcileWindowsProfiles.
+func (ds *Datastore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {
+	return "", nil
+}
+
+// SetMDMWindowsReconcileCursor persists the host_uuid cursor used by the
+// Windows MDM reconciliation cron. The bare mysql.Datastore is a no-op
+// here; the mysqlredis wrapper writes to Redis. See
+// GetMDMWindowsReconcileCursor.
+func (ds *Datastore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error {
+	return nil
+}
+
 // The query below is a set difference between:
 //
 // - Set A (ds), the desired state, can be obtained from a JOIN between

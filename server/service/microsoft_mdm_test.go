@@ -644,8 +644,28 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
-	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// Cursor stubs: tests don't care about cursor state, just need the
+	// reconciler not to panic on the calls.
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+		return "", nil
+	}
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+		return nil
+	}
+
+	// The cron's batched path picks a host window first, then calls the
+	// scoped listings for that window. For the mock, return all host UUIDs
+	// from hostToProfile so the rest of the reconciler runs against the
+	// same set the test wants.
+	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		hostUUIDs := make([]string, 0, len(hostToProfile))
+		for hostUUID := range hostToProfile {
+			hostUUIDs = append(hostUUIDs, hostUUID)
+		}
+		return hostUUIDs, nil
+	}
+
+	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
 		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
 		for hostUUID, profile := range hostToProfile {
 			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
@@ -658,8 +678,19 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		}
 		return profilesToInstall, nil
 	}
+	// Mock both the legacy global listing (kept for tests still using it
+	// directly) and the new scoped listing the cron now calls.
+	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
+	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
 
 	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
+	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
 		return nil, nil
 	}
 
