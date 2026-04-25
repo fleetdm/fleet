@@ -507,34 +507,42 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 
-	// Always register activity routes. apiendpoints.Init validates that
-	// every endpoint in the YAML catalog is registered on the router, and
-	// the catalog includes /api/{version}/fleet/activities and
-	// /api/{version}/fleet/hosts/:id/activities. Tests that don't pass
-	// DBConns (e.g. mocked-DS harnesses) still need the routes on the mux
-	// so Init doesn't fail; the activity datastore fails closed with a
-	// clear error for that case instead of nil-dereferencing. Do NOT swap
-	// in the activity bounded-context service on the main service when
-	// DBConns is nil — the main service's activity-write path would then
-	// hit a nil DB. Mocked-DS tests keep using the legacy in-service
-	// activity writes.
-	legacyAuthorizer, err := authz.NewAuthorizer()
-	require.NoError(t, err)
-	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
-	activitySvc, activityRoutesFn := activity_bootstrap.New(
-		opts[0].DBConns,
-		activityAuthorizer,
-		activityACLAdapter,
-		logger,
-	)
-	if opts[0].DBConns != nil {
+	// Activity routes. If DBConns is provided, wire the real bounded context into
+	// the main handler. Otherwise, build a path-only stub from the same registration
+	// code and surface it to apiendpoints.Init for catalog validation only. Do NOT
+	// swap in the activity bounded-context service on the main service when DBConns
+	// is nil — the main service's activity-write path would then hit a nil DB. Mocked-DS
+	// tests keep using the legacy in-service activity writes.
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
+	if len(opts) > 0 && opts[0].DBConns != nil {
+		legacyAuthorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+		activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+		activitySvc, activityRoutesFn := activity_bootstrap.New(
+			opts[0].DBConns,
+			activityAuthorizer,
+			activityACLAdapter,
+			logger,
+		)
 		svc.SetActivityService(activitySvc)
+		activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+			return auth.AuthenticatedUser(svc, next)
+		}
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+	} else {
+		// DBConns is not available (e.g. mock-backed tests). The activity bounded context
+		// only dereferences its dependencies when an endpoint is actually served, so we
+		// can pass empty conns + nil deps just to extract the route declarations.
+		_, activityRoutesFn := activity_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
-	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
-	}
-	opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
 
 	var mdmPusher nanomdm_push.Pusher
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
@@ -646,7 +654,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
-	if err := apiendpoints.Init(apiHandler); err != nil {
+	if err := apiendpoints.Init(apiHandler, extraInitFeatureRoutes...); err != nil {
 		t.Fatalf("error initializing API endpoints: %v", err)
 	}
 	rootMux.Handle("/api/", apiHandler)

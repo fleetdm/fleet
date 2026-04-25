@@ -48,8 +48,8 @@ org_settings:
   server_settings:
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    discard_reports_data: false
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:

@@ -467,6 +467,8 @@ type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
 type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
 
+type TeamConflictsWithNameFunc func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error)
+
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
 type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
@@ -884,10 +886,6 @@ type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
-
-type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
-
-type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
@@ -2548,6 +2546,9 @@ type DataStore struct {
 	TeamByFilenameFunc        TeamByFilenameFunc
 	TeamByFilenameFuncInvoked bool
 
+	TeamConflictsWithNameFunc        TeamConflictsWithNameFunc
+	TeamConflictsWithNameFuncInvoked bool
+
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
 
@@ -3174,12 +3175,6 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
-
-	ListWindowsUpdatesByHostIDFunc        ListWindowsUpdatesByHostIDFunc
-	ListWindowsUpdatesByHostIDFuncInvoked bool
-
-	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
-	InsertWindowsUpdatesFuncInvoked bool
 
 	ListOSVulnerabilitiesByOSFunc        ListOSVulnerabilitiesByOSFunc
 	ListOSVulnerabilitiesByOSFuncInvoked bool
@@ -6226,6 +6221,13 @@ func (s *DataStore) TeamByFilename(ctx context.Context, filename string) (*fleet
 	return s.TeamByFilenameFunc(ctx, filename)
 }
 
+func (s *DataStore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamConflictsWithNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamConflictsWithNameFunc(ctx, name, excludeID)
+}
+
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	s.mu.Lock()
 	s.ListTeamsFuncInvoked = true
@@ -7687,20 +7689,6 @@ func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, erro
 	s.ProcessListFuncInvoked = true
 	s.mu.Unlock()
 	return s.ProcessListFunc(ctx)
-}
-
-func (s *DataStore) ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
-	s.mu.Lock()
-	s.ListWindowsUpdatesByHostIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListWindowsUpdatesByHostIDFunc(ctx, hostID)
-}
-
-func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
-	s.mu.Lock()
-	s.InsertWindowsUpdatesFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
 }
 
 func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error) {

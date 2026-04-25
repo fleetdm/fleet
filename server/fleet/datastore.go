@@ -620,6 +620,10 @@ type Datastore interface {
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// TeamByFilename retrieves the Team by GitOps filename.
 	TeamByFilename(ctx context.Context, filename string) (*Team, error)
+	// TeamConflictsWithName returns a team whose collation-equal name conflicts
+	// with the provided name and whose id != excludeID, or (nil, nil) when
+	// no such team exists. Pass excludeID=0 to check against all teams.
+	TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
 	// TeamsSummary lists id, name and description for all teams.
@@ -1246,10 +1250,6 @@ type Datastore interface {
 
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
-
-	// WindowsUpdates Store
-	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
-	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store

@@ -1,1 +1,1 @@
-- Fixed a race where a host could silently revert to its previous team after an admin team transfer.
+- Fixed a race condition where a host could silently revert to its previous team after an admin team transfer.
