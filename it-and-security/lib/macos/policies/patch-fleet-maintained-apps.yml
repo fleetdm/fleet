@@ -237,6 +237,6 @@
   resolution: "Nudge is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
   type: patch
   fleet_maintained_app_slug: nudge/darwin
-  install_software: false
+  install_software: true
   labels_include_any:
     - Macs with Nudge installed
