@@ -583,7 +583,6 @@ var hostRefs = []string{
 	"host_orbit_info",
 	"host_munki_issues",
 	"host_display_names",
-	"windows_updates",
 	"host_disks",
 	"host_updates",
 	"host_disk_encryption_keys",
@@ -5484,8 +5483,15 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 	return nil
 }
 
-// UpdateHost updates all columns of the `hosts` table.
-// It only updates `hosts` table, other additional host information is ignored.
+// UpdateHost updates most columns of the `hosts` table.
+// It also updates host display-name information in `host_display_names`;
+// other additional host information is ignored.
+//
+// UpdateHost deliberately does NOT write `team_id`. Team membership is an administrative
+// assignment managed by AddHostsToTeam / AddHostsToTeamByFilter / GitOps / the
+// enroll-secret path (EnrollOsquery / EnrollOrbit). Writing team_id here would
+// re-open a lost-update race where a stale in-memory host struct (loaded before a
+// concurrent transfer) silently clobbers the admin's assignment. See #44071.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
 		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
@@ -5524,7 +5530,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
 			public_ip = ?,
@@ -5572,7 +5577,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.DistributedInterval,
 				host.ConfigTLSRefresh,
 				host.LoggerTLSPeriod,
-				host.TeamID,
 				host.PrimaryIP,
 				host.PrimaryMac,
 				host.PublicIP,

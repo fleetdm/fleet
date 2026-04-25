@@ -291,6 +291,34 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	assert.Nil(t, host.DesktopVersion)
 	assert.Nil(t, host.ScriptsEnabled)
 
+	// Regression for #44071: UpdateHost must not write team_id, so a stale
+	// in-memory struct cannot clobber a concurrent admin team transfer.
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%s-team-%d", t.Name(), time.Now().UnixNano())})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(),
+		fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	// The in-memory host still has TeamID=nil (loaded before the transfer).
+	host.TeamID = nil
+	require.NoError(t, updateHostFunc(context.Background(), host))
+
+	reloaded, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.TeamID, "UpdateHost must not clobber team_id set by a concurrent transfer")
+	assert.Equal(t, team.ID, *reloaded.TeamID)
+
+	// And the reverse: if the host is transferred off the team while the stale
+	// struct still carries the old team_id, UpdateHost must not resurrect it.
+	require.NoError(t, ds.AddHostsToTeam(context.Background(),
+		fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+	host.TeamID = &team.ID
+	require.NoError(t, updateHostFunc(context.Background(), host))
+
+	reloaded, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	assert.Nil(t, reloaded.TeamID, "UpdateHost must not resurrect a team_id that was cleared by a concurrent transfer")
+
 	p, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    t.Name(),
 		HostIDs: []uint{host.ID},
@@ -8984,10 +9012,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// Update host_operating_system
 	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
-	require.NoError(t, err)
-	// Insert a windows update for the host
-	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
-	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0, nil)

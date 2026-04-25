@@ -317,7 +317,7 @@ Save as `okta-security-restrictions.mobileconfig`.
 Now deploy all the configuration profiles to your Fleet hosts:
 
 1. On your Fleet server, select the fleet you want to deploy Platform SSO to
-2. Navigate to **Controls** → **OS Settings** → **Custom settings**
+2. Navigate to **Controls > OS Settings > Configuration profiles**
 3. Upload each profile in this order:
    - `okta-device-access-scep.mobileconfig` (macOS 14+ only)
    - `okta-associated-domains.mobileconfig`

@@ -3,15 +3,15 @@
 * macOS et Windows disposent d’écosystèmes MDM matures. Linux n’a pas d’équivalent.
 * La plupart des équipes gèrent leurs postes Linux avec des scripts, Ansible ou Puppet. Cela couvre le déploiement, mais laisse des lacunes en matière de conformité et de visibilité en temps réel.
 * Les cadres de conformité n’accordent pas d’exemptions selon le système d’exploitation. Les audits de sécurité n’ignorent pas les postes de travail Linux.
-* C’est le fossé Linux : un écart entre l’adoption du système et la capacité à le gérer de manière structurée.
+* C’est le fossé de la gestion Linux : l’adoption du système progresse plus vite que la capacité à le gérer de manière structurée.
 
 ### Pourquoi ce guide existe
 
-Ce guide aide les responsables IT à comprendre le fossé de la gestion Linux et à le combler en vous aidant à trouver la bonne plateforme.
+Ce guide vous aide, en tant que responsable IT, à comprendre le fossé de la gestion Linux et à le combler en trouvant la bonne plateforme.
 
 ### Ce que vous apprendrez
 
-Vous découvrirez un modèle de maturité pour planifier votre parcours d’adoption, un cadre pour définir vos exigences, et une grille d’évaluation pour comparer les plateformes de gestion. Que vous gériez 50 postes Linux ou 5,000, ce guide vous donne la structure nécessaire pour prendre une décision de plateforme défendable et l’expliquer à votre équipe.
+Vous découvrirez un modèle de maturité pour planifier votre démarche d’adoption, un cadre pour définir vos exigences, et une grille d’évaluation pour comparer les plateformes de gestion. Que vous gériez 50 postes Linux ou 5 000, ce guide vous donne la structure nécessaire pour faire un choix de plateforme argumenté et l’expliquer à votre équipe.
 
 ### Liste des chapitres
 
@@ -27,10 +27,10 @@ Vous découvrirez un modèle de maturité pour planifier votre parcours d’adop
     * Pourquoi les référentiels sont essentiels, ce qu’il faut appliquer et comment lutter contre la dérive de configuration.
 - **Gestion des applications et des certificats pour Linux**
     * Les défis de la distribution logicielle, le fossé de la notarisation, la rapidité des correctifs et la réduction des durées de vie des certificats.
-- **Protéger l’appareil Linux**
+- **Protéger les appareils Linux**
     * Les menaces USB et Bluetooth, le problème du sudo, et le verrouillage et l’effacement à distance.
 - **Garder le contrôle de vos logiciels et de vos données**
-    * Souveraineté logicielle, souveraineté des données, et pourquoi vos outils de gestion devraient refléter les valeurs qui ont rendu Linux digne d’être adopté.
+    * Souveraineté logicielle, souveraineté des données, et pourquoi vos outils de gestion devraient refléter les valeurs qui ont fait le succès de Linux.
 - **Choisir la bonne solution**
     * Exigences métier et techniques, un tableau de critères d’évaluation et une méthode structurée pour comparer les plateformes.
 
@@ -48,5 +48,5 @@ Vous découvrirez un modèle de maturité pour planifier votre parcours d’adop
 <meta name="whitepaperFilename" value="IT-leaders-guide-to-Linux-device-management.pdf"> 
 <meta name="formHeadline" value="Combler le fossé de la gestion Linux avec Fleet">
 
-<meta name="introductionTextBlockOne" value="Linux dépasse désormais 5 % de parts de marché sur le poste de travail. L’enquête Stack Overflow publiée en 2025 auprès des développeurs, montre que près de 30 % d’entre eux utilisent Linux comme système d’exploitation principal au travail.">
-<meta name="introductionTextBlockTwo" value="Parmi les contributeurs les plus importants — développeurs, ingénieurs et professionnels de la sécurité — choisissent Linux. Dans la plupart des organisations, ces appareils sont gérés par des scripts maison et des outils de gestion de configuration comme Ansible, Puppet ou Chef. Ces approches fonctionnent, mais elles ne remplacent pas une plateforme de gestion dédiée pour la conformité, la visibilité et les audits.">
+<meta name="introductionTextBlockOne" value="Linux dépasse désormais 5 % de part de marché sur le poste de travail. L’enquête Stack Overflow publiée en 2025 auprès des développeurs montre que près de 30 % d’entre eux utilisent Linux comme système d’exploitation principal au travail.">
+<meta name="introductionTextBlockTwo" value="Les contributeurs les plus importants — développeurs, ingénieurs et professionnels de la sécurité — choisissent Linux. Dans la plupart des organisations, ces appareils sont gérés par des scripts maison et des outils de gestion de configuration comme Ansible, Puppet ou Chef. Ces approches fonctionnent, mais elles ne remplacent pas une plateforme de gestion dédiée pour la conformité, la visibilité et les audits.">

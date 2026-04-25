@@ -18,11 +18,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 
-import {
-  addGravatarUrlToResource,
-  getCustomDropdownOptions,
-  secondsToDhms,
-} from "utilities/helpers";
+import { getCustomDropdownOptions, secondsToDhms } from "utilities/helpers";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -47,7 +43,6 @@ import labelsAPI, {
   ILabelsSummaryResponse,
 } from "services/entities/labels";
 
-import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 import {
   validateQuery,
@@ -58,7 +53,6 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import DataSet from "components/DataSet";
 import Slider from "components/forms/fields/Slider";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
@@ -179,7 +173,6 @@ const EditQueryForm = ({
     setEditingExistingQuery,
   } = useContext(QueryContext);
   const {
-    currentUser,
     isOnlyObserver,
     isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
@@ -191,7 +184,6 @@ const EditQueryForm = ({
     config,
     isPremiumTier,
     isFreeTier,
-    currentTeam,
   } = useContext(AppContext);
 
   const isExistingQuery = !!queryIdForEdit;
