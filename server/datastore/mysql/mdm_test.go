@@ -8569,18 +8569,19 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 }
 
 // testBulkSetPendingDefersWindowsReconciliation verifies the production
-// behavior of BulkSetPendingMDMHostProfiles. With the test eager-hook
-// disabled (matching production), the call must not write
-// host_mdm_windows_profiles synchronously, but the activity-logging signal
+// behavior of BulkSetPendingMDMHostProfiles: it must not synchronously
+// write host_mdm_windows_profiles (the mdm_windows_profile_manager cron
+// handles that on its next 30s tick), but the activity-logging signal
 // updates.WindowsConfigProfile must still be true so callers
-// (BatchSetMDMProfiles) know to log "edited Windows profile" activities.
-// This matches Apple's bulkSetPendingMDMAppleHostProfilesDB bool semantics.
+// (BatchSetMDMProfiles in service/mdm.go) log the "edited Windows
+// profile" activity. This matches Apple's bulkSetPendingMDMAppleHostProfilesDB
+// bool semantics.
 func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Force production behavior for this test: no eager hook installed.
-	restore := ds.DisableTestWindowsEagerHook()
-	t.Cleanup(restore)
+	// Force the production async path: with the eager hook disabled,
+	// BulkSetPendingMDMHostProfiles must NOT write host_mdm_windows_profiles.
+	t.Cleanup(ds.DisableTestWindowsEagerHook())
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
 	require.NoError(t, err)
@@ -8610,12 +8611,13 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 	assert.True(t, updates.WindowsConfigProfile,
 		"Apple-parity: WindowsConfigProfile must be true when there is pending Windows work")
 
-	// The actual host_mdm_windows_profiles write does NOT happen here; the
-	// cron handles it on its next tick.
+	// host_mdm_windows_profiles must not have been written synchronously.
+	// In production the cron will write it on the next tick; in this test
+	// nothing else runs and we go straight to the assertion.
 	after, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	assert.Empty(t, after,
-		"host_mdm_windows_profiles must not be written synchronously when the eager hook is disabled")
+		"BulkSetPendingMDMHostProfiles must not write host_mdm_windows_profiles synchronously")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {

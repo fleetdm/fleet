@@ -740,23 +740,33 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		return updates, err
 	}
 
+	// Apple-parity activity signal for Windows.
+	// bulkSetPendingMDMAppleHostProfilesDB returns true when host pending
+	// state actually changed (idempotent second calls return false). We
+	// match those semantics two ways:
+	//
+	//   1. Test path (hook installed by *_test.go init): the hook performs
+	//      synchronous reconciliation and returns true only if rows
+	//      actually changed. This is exact Apple-parity and lets tests
+	//      that pair BulkSet with assertions on host_mdm_windows_profiles
+	//      see the right state.
+	//
+	//   2. Production path (no hook): we use the same listing functions
+	//      the cron uses, scoped to just the resolved hosts and profiles.
+	//      This is a coarser approximation; it returns true whenever the
+	//      cron has any pending Windows work for these hosts, which
+	//      includes idempotent re-applies of the same profile. The
+	//      consequence is slightly over-firing the "edited Windows
+	//      profile" activity. The cron itself does the actual writes
+	//      asynchronously.
 	switch {
 	case ds.testWindowsEagerHook != nil:
-		// Test path: the hook performs synchronous reconciliation so test
-		// assertions can observe host_mdm_windows_profiles state immediately
-		// after this call. Production never installs the hook.
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
 			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
 		}
 
 	case len(winHosts) > 0:
-		// Production path: Apple's bulkSetPendingMDMAppleHostProfilesDB
-		// returns true when the host pending state actually changed. We
-		// match that semantic for Windows by computing the would-write diff
-		// without applying it; the cron writes asynchronously. Callers
-		// (BatchSetMDMProfiles, see service/mdm.go) read this bool to
-		// decide whether to log an "edited Windows profile" activity.
 		toInstall, lerr := ds.listMDMWindowsProfilesToInstallDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
 		if lerr != nil {
 			return updates, ctxerr.Wrap(ctx, lerr, "list windows profiles to install for activity signal")
