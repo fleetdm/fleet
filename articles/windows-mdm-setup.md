@@ -242,27 +242,22 @@ You can [track migration progress in Fleet](https://fleetdm.com/guides/mdm-migra
 
 ## Repurposing or re-enrolling a Windows device via Autopilot
 
-When resetting a device that was previously enrolled in Fleet via Autopilot, 
-follow these steps to avoid enrollment conflicts:
+When resetting a device that was previously enrolled in Fleet via Autopilot, follow these steps to avoid enrollment conflicts:
 
 1. In **Fleet > Host details > Actions**, select **Delete** to delete the host record for the device.
 
 2. In **Entra ID > Devices > All devices**, find and delete the stale device object.
 
-3. In **Intune > Devices > Enrollment > Windows Autopilot > Devices**, confirm the 
-   hardware hash is still registered and the correct profile is assigned. 
-   Do NOT delete the Autopilot registration.
+3. In **Intune > Devices > Enrollment > Windows Autopilot > Devices**, confirm the hardware hash is still registered, and the correct profile is assigned. Do NOT delete the Autopilot registration.
 
 4. Click **Sync** on the Autopilot devices page and wait for the sync to complete.
 
 5. Reset the device (**Settings > System > Recovery > Reset this PC**, or **wipe/reimage**).
 
-6. Boot into OOBE. The device should display company branding and begin the 
-   Autopilot enrollment flow.
+6. Boot into OOBE. The device should display company branding and begin the Autopilot enrollment flow.
 
 If the device skips Autopilot on the first boot, restart it and try again. 
-The Autopilot service may need a few minutes to sync after the device record 
-cleanup.
+The Autopilot service may need a few minutes to sync after the device record cleanup.
 
 ## Turn off Windows MDM
 
