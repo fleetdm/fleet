@@ -1506,9 +1506,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// patch_software_title_id is only for type=patch. Dynamic policies may still
 				// carry fleet_maintained_app_slug (e.g. install_software); they must not
 				// reuse the same title id or they collide on idx_team_id_patch_software_title_id.
-				var patchSoftwareTitleIDArg any
+				var patchSoftwareTitleIDArg *uint
 				if spec.Type == fleet.PolicyTypePatch {
-					patchSoftwareTitleIDArg = *fmaTitleID
+					patchSoftwareTitleIDArg = fmaTitleID
 				}
 
 				res, err := tx.ExecContext(
