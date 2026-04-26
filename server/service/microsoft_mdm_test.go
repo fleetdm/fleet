@@ -1008,6 +1008,65 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 		"no zombie row should be written when the profile is gone")
 }
 
+// TestReconcileWindowsProfilesEmptyPopulation covers the cron's two
+// terminating branches when there is no pending Windows MDM work.
+// A fresh ("") cursor stays empty and writes nothing. A non-empty cursor
+// (left over from a prior partial pass) is reset to "" exactly once. In
+// both cases the cron returns nil and the per-host / per-profile mocks
+// are never reached, so leaving them nil on the mock store is itself an
+// implicit assertion.
+func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
+	cases := []struct {
+		name            string
+		initialCursor   string
+		wantSetCalls    int
+		wantFinalCursor string
+	}{
+		{
+			name:            "fresh cursor and no work is a no-op",
+			initialCursor:   "",
+			wantSetCalls:    0,
+			wantFinalCursor: "",
+		},
+		{
+			name:            "non-empty cursor is reset to empty once",
+			initialCursor:   "left-over-host-uuid",
+			wantSetCalls:    1,
+			wantFinalCursor: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ds := new(mock.Store)
+			logger := slog.New(slog.DiscardHandler)
+			cursor := tc.initialCursor
+			var setCalls int
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.WindowsEnabledAndConfigured = true
+				return cfg, nil
+			}
+			ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+				return cursor, nil
+			}
+			ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+				cursor = c
+				setCalls++
+				return nil
+			}
+			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
+				return nil, nil
+			}
+
+			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+			require.Equal(t, tc.wantSetCalls, setCalls)
+			require.Equal(t, tc.wantFinalCursor, cursor)
+		})
+	}
+}
+
 // TestReconcileWindowsProfilesAfterTeamAddDeferred is the end-to-end seam
 // test for the production async path: with the test eager hook disabled
 // (matching production), a team-add via BulkSetPendingMDMHostProfiles must

@@ -2599,9 +2599,21 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 // writer pressure that an unbounded reconciliation generates during
 // bulk events like team transfers. See
 // claude/perf/windows-mdm-reconciler-batching.md.
-const reconcileWindowsProfilesBatchSize = 2000
+//
+// var rather than const so property-based tests can shrink the batch
+// size to make cursor-paging behavior tractable to exercise. Production
+// never reassigns it.
+var reconcileWindowsProfilesBatchSize = 2000
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+// Named return so the deferred SetCursor block below sees the actual
+// function exit error. Several late-body calls use `if err := ...;
+// err != nil { return ctxerr.Wrap(ctx, err, ...) }`, which shadows in
+// the if scope; without a named return the deferred `if err == nil`
+// would observe the outer err from the last successful call and
+// advance the cursor anyway. With a named return, every `return X`
+// assigns X to the named err before the defer fires, so any failure
+// path correctly skips the cursor write.
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
