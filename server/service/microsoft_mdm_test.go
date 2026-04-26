@@ -1008,6 +1008,51 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 		"no zombie row should be written when the profile is gone")
 }
 
+// TestReconcileWindowsProfilesSkipsInsertLag covers the asymmetric race
+// where a profile was just inserted on the primary but the replica
+// hasn't caught up: GetMDMWindowsProfilesContents (replica) misses the
+// row even though GetExistingMDMWindowsProfileUUIDs (primary) sees it.
+// Without the skip-and-continue, the cron would error out with
+// "missing profile content", leave the cursor unchanged, and re-fire the
+// same race every 30s until the replica converges. The fix: log + skip
+// + advance the cursor; the hosts stay in the listing universe and the
+// next tick picks them up after replication catches up.
+func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	freshProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "fresh-profile-uuid",
+		Name:        "Just-Inserted-On-Primary",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+	}
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		"host-a": freshProfile,
+		"host-b": freshProfile,
+	}
+	setupReconcilerTest(ds, hostToProfile)
+
+	// Simulate insert-lag: the existence pre-check (primary) finds the
+	// profile, but the content fetch (replica) returns nothing because
+	// replication hasn't caught up to the just-committed insert.
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{}, nil
+	}
+
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		t.Fatalf("upsert must be skipped when profile content is not yet visible on replica; got call with %d hosts", len(hostUUIDs))
+		return nil
+	}
+
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err, "insert-lag must not fail the tick; the cursor must advance so the next tick can retry")
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
+		"existence pre-check still runs (it confirms the profile exists on primary)")
+	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
+		"no install command should be enqueued when content is not yet visible")
+}
+
 // TestReconcileWindowsProfilesEmptyPopulation covers the cron's two
 // terminating branches when there is no pending Windows MDM work.
 // A fresh ("") cursor stays empty and writes nothing. A non-empty cursor

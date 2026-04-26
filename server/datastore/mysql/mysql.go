@@ -95,9 +95,13 @@ type Datastore struct {
 	// Production binaries never set this. Test code installs it via
 	// installWindowsEagerHook (only compiled in *_test.go); the factory is
 	// nil in production. Without the hook, BulkSetPendingMDMHostProfiles
-	// uses a coarser listing-based "would there be work" approximation
-	// that over-fires on idempotent re-applies but is always at least as
-	// generous as the tight check.
+	// leaves updates.WindowsConfigProfile at its zero value (false): the
+	// only consumer of the field (service/mdm.go's BatchSetMDMProfiles
+	// flow) ORs it with profUpdates.WindowsConfigProfile from
+	// BatchSetMDMProfiles, which is the accurate transactional signal. An
+	// earlier revision had a coarser listing-based fallback here; it was
+	// removed because it over-fired on idempotent re-applies and added no
+	// information beyond what profUpdates already provided.
 	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in

@@ -2839,11 +2839,24 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// Should be unreachable now that the existence pre-check above
-			// is in place: if the profile exists it's in profileContents.
-			// Use a non-wrapping constructor — ctxerr.Wrapf(nil, ...) returns
-			// nil, which would silently skip the rest of reconciliation.
-			return ctxerr.Errorf(ctx, "missing profile content for profile %s", profUUID)
+			// Insert-lag race: GetMDMWindowsProfilesContents earlier in
+			// this function reads from the replica, while
+			// GetExistingMDMWindowsProfileUUIDs above reads from the
+			// primary (it has to, to defeat the delete-race). For a
+			// profile that was inserted on primary just before this tick
+			// fired, the existence check sees it but profileContents
+			// (replica) misses it until replication catches up.
+			//
+			// Skip the install this tick and let the next tick (~30s
+			// later, by which time the replica will normally have caught
+			// up) pick it up. The hosts stay in the listing's pending
+			// universe because no host_mdm_windows_profiles row was
+			// written for them, so no state is lost. The bounded ~30s
+			// additional reconciliation delay for fresh profiles is the
+			// better trade-off than writer load.
+			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry next tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
 		}
 
 		if !variables.ContainsBytes(p.SyncML) {
