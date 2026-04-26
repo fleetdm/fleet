@@ -2641,10 +2641,33 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	}
 
 	if len(hostUUIDs) == 0 {
-		// Either no work, or we've reached the end of the cursor pass. Reset
-		// to "" so the next tick starts from the beginning. Cursor write
-		// errors are non-fatal: at worst the next tick re-reads the same
-		// (now stale) cursor and finds nothing, which resets again.
+		// Either no work, or we've reached the end of the cursor pass.
+		// Reset to "" so the next tick starts from the beginning.
+		//
+		// Decision: cursor write failures here (and in the deferred
+		// advance below) are logged-and-swallowed rather than returned
+		// as tick failures. The trade-off:
+		//
+		//   - Fail-the-tick (what reviewers suggested): a transient
+		//     Redis blip becomes a per-tick error log every 30s. Most
+		//     tick failures recover on the next tick anyway because
+		//     Redis recovers, so the noise doesn't translate into
+		//     actionable signal.
+		//   - Log-and-continue (current behavior): if the failure is
+		//     transient, the next tick re-runs the same listing, finds
+		//     work or doesn't, and writes the cursor again. If the
+		//     failure is *persistent* (Redis is down for an extended
+		//     window), the cron is still mostly correct: ticks where
+		//     hostUUIDs > stale_cursor still process those hosts; only
+		//     hosts whose UUIDs sort *before* the stale cursor are
+		//     skipped, and they resume the next time a tick succeeds
+		//     in resetting. A persistent Redis outage breaks much more
+		//     than this cron, so loud failure here doesn't add real
+		//     observability.
+		//
+		// Revisit if monitoring shows the bounded skip window is
+		// biting in practice (e.g., specific hosts repeatedly
+		// failing reconciliation around Redis incidents).
 		if cursor != "" {
 			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
 				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)

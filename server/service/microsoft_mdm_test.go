@@ -1091,6 +1091,16 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	// Force the production async path. The test datastore constructor
 	// installs an eager-reconciliation hook by default; we want the
 	// cron-driven flow here.
+	//
+	// The eager hook is registered via an init() in
+	// server/datastore/mysql/microsoft_mdm_eager_test.go. Go does not
+	// compile dependency *_test.go files when an external package
+	// imports it for testing, so when this test (in package service)
+	// runs, that init() does not fire and ds.testWindowsEagerHook
+	// stays nil. DisableTestWindowsEagerHook() handles that case
+	// gracefully: it saves the (nil) current value, sets it to nil,
+	// and the cleanup restores nil to nil. Either way we end this
+	// test on the production async path.
 	t.Cleanup(ds.DisableTestWindowsEagerHook())
 
 	ctx := context.Background()
@@ -1148,11 +1158,17 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
 
 	// Step 1: bulk-set pending must NOT write host_mdm_windows_profiles
-	// rows synchronously, but the activity signal must be true (Apple-parity).
+	// rows synchronously, and on the production path it must NOT compute
+	// updates.WindowsConfigProfile either. The lone consumer of that field
+	// (service/mdm.go's BatchSetMDMProfiles flow) ORs it with profUpdates
+	// from BatchSetMDMProfiles, which is the accurate transactional signal,
+	// so leaving it false here is correct. The eager hook is not installed
+	// in this external-package test (see the t.Cleanup above), so we
+	// observe the production behavior here.
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, updates.WindowsConfigProfile,
-		"Apple-parity: WindowsConfigProfile must be true when there is pending Windows work")
+	assert.False(t, updates.WindowsConfigProfile,
+		"production path leaves WindowsConfigProfile false; activity is logged by BatchSetMDMProfiles")
 
 	rowsBefore, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)

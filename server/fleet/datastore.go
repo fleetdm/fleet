@@ -1511,11 +1511,12 @@ type Datastore interface {
 	// assume host_mdm_windows_profiles rows are written by the time this
 	// function returns; if a caller needs immediate Windows state (e.g. a
 	// test, or a synchronous UX flow), it must trigger reconciliation
-	// explicitly. MDMProfilesUpdates.WindowsConfigProfile is an Apple-parity
-	// activity-logging signal: in production it is true whenever the listings
-	// the cron uses report any pending Windows install/remove for these
-	// hosts (which over-fires on idempotent re-applies); under the
-	// _test.go-installed eager hook it reflects whether rows actually changed.
+	// explicitly. MDMProfilesUpdates.WindowsConfigProfile is always false in
+	// production: the BatchSetMDMProfiles flow that consumes this field
+	// already gets an accurate transactional signal from BatchSetMDMProfiles
+	// itself, and no other caller reads the field. Under the
+	// _test.go-installed eager hook the field reflects whether rows actually
+	// changed (Apple-parity).
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)

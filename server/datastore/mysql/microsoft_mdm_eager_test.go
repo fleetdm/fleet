@@ -122,8 +122,17 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesForTests(
 					args = append(args, p.HostUUID, p.ProfileUUID)
 				}
 				sb.WriteByte(')')
-				if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
+				// Use RowsAffected to keep Apple-parity: idempotent re-applies
+				// (rows already at op=remove,status=NULL) flip nothing, so
+				// updatedDB must stay false in that case. MySQL's
+				// CLIENT_FOUND_ROWS is not enabled for our connections, so
+				// RowsAffected reflects rows actually changed.
+				res, err := tx.ExecContext(ctx, sb.String(), args...)
+				if err != nil {
 					return ctxerr.Wrap(ctx, err, "marking profiles for removal")
+				}
+				if rows, _ := res.RowsAffected(); rows > 0 {
+					updatedDB = true
 				}
 				return nil
 			})
@@ -131,7 +140,6 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesForTests(
 		if err != nil {
 			return updatedDB, err
 		}
-		updatedDB = true
 	}
 
 	if len(profilesToInstall) == 0 {

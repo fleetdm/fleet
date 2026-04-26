@@ -1494,10 +1494,12 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// the previous per-profile loop, which under-utilized batches when profiles
 	// affected fewer than batchSize hosts.
 	//
-	// Profile UUIDs are iterated in sorted order so that the generated SQL text
-	// (IN-tuple order within a batch and CASE-arm order) is deterministic across
-	// runs; that keeps MySQL plan-cache entries and observability query digests
-	// stable.
+	// Profile UUIDs are iterated in sorted order so concurrent callers
+	// acquire InnoDB row locks on host_mdm_windows_profiles in the same
+	// order, reducing the deadlock surface on this path. The SQL text
+	// itself is placeholder-only and already deterministic for a given
+	// batch size, so iteration order does not affect plan-cache / query
+	// digest stability.
 	type pendingRemoveRow struct {
 		hostUUID    string
 		profileUUID string

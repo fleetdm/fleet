@@ -8686,7 +8686,9 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 		require.Less(t, batch2[i-1], batch2[i], "result must be sorted ascending")
 	}
 
-	// The two batches together cover every host exactly once.
+	// The two batches together cover every host exactly once. Compare
+	// against the fixture UUIDs so the test fails on over-broad or
+	// mis-scoped results, not just on the count.
 	covered := make(map[string]bool, numHosts)
 	for _, u := range batch1 {
 		covered[u] = true
@@ -8695,7 +8697,11 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 		require.False(t, covered[u], "host %s appeared in both batches", u)
 		covered[u] = true
 	}
-	require.Len(t, covered, numHosts)
+	expected := make(map[string]bool, numHosts)
+	for _, f := range fixtures {
+		expected[f.uuid] = true
+	}
+	require.Equal(t, expected, covered)
 
 	// Third call past the last host: empty (cursor has reached the end).
 	batch3, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch2[len(batch2)-1], 3)

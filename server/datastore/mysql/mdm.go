@@ -740,53 +740,33 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		return updates, err
 	}
 
-	// Apple-parity activity signal for Windows.
-	// bulkSetPendingMDMAppleHostProfilesDB returns true when host pending
-	// state actually changed (idempotent second calls return false). We
-	// match those semantics two ways:
+	// Activity signal for Windows.
 	//
-	//   1. Test path (hook installed by *_test.go init): the hook performs
-	//      synchronous reconciliation and returns true only if rows
-	//      actually changed. This is exact Apple-parity and lets tests
-	//      that pair BulkSet with assertions on host_mdm_windows_profiles
-	//      see the right state.
+	// In production this stays false: the only consumer of
+	// updates.WindowsConfigProfile is service/mdm.go's BatchSetMDMProfiles
+	// flow, which ORs this with profUpdates.WindowsConfigProfile from
+	// BatchSetMDMProfiles. profUpdates is computed inside the
+	// BatchSetMDMProfiles transaction by batchSetMDMWindowsProfilesDB and
+	// is the source of truth for "did the YAML/UI batch actually change a
+	// Windows profile row?" An earlier revision of this method ran a
+	// post-commit listing here to approximate the same signal, but that
+	// approximation (a) over-fired on idempotent re-applies whenever
+	// hosts had latent pending work and (b) had a small race against
+	// ReconcileWindowsProfiles between the outer commit and the listing.
+	// Since profUpdates already covers the only consumer, this approximation
+	// added noise without adding signal, so it was removed.
 	//
-	//   2. Production path (no hook): we use the same listing functions
-	//      the cron uses, scoped to just the resolved hosts and profiles.
-	//      This is a coarser approximation; it returns true whenever the
-	//      cron has any pending Windows work for these hosts, which
-	//      includes idempotent re-applies of the same profile. The
-	//      consequence is slightly over-firing the "edited Windows
-	//      profile" activity. The cron itself does the actual writes
-	//      asynchronously.
-	switch {
-	case ds.testWindowsEagerHook != nil:
+	// In tests, the eager hook installed by microsoft_mdm_eager_test.go's
+	// init() performs synchronous reconciliation and returns true iff rows
+	// actually changed (Apple-parity). External-package tests where the
+	// init() does not compile in observe the production behavior:
+	// WindowsConfigProfile stays false here. Those tests should drive the
+	// cron explicitly to observe Windows pending state.
+	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
 			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
 		}
-
-	case len(winHosts) > 0:
-		// The main transaction has already committed; failures of these
-		// post-commit listing reads must NOT fail the whole call (the state
-		// change already succeeded). Treat listing errors as non-fatal: log
-		// a warning and leave WindowsConfigProfile = false. The cron will
-		// still pick up the pending work on the next tick; the only
-		// observable consequence is a missed "edited Windows profile"
-		// activity entry for this single call.
-		toInstall, lerr := ds.listMDMWindowsProfilesToInstallDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
-		if lerr != nil {
-			ds.logger.WarnContext(ctx, "list windows profiles to install for activity signal failed; activity may be skipped",
-				"err", lerr)
-			return updates, nil
-		}
-		toRemove, lerr := ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.writer(ctx), winHosts, profileUUIDs)
-		if lerr != nil {
-			ds.logger.WarnContext(ctx, "list windows profiles to remove for activity signal failed; activity may be skipped",
-				"err", lerr)
-			return updates, nil
-		}
-		updates.WindowsConfigProfile = len(toInstall) > 0 || len(toRemove) > 0
 	}
 	return updates, nil
 }
@@ -965,11 +945,12 @@ OR
 
 	var appleHosts []string
 	var androidHosts []string
-	// winHosts is consumed both by the test-only eager hook (when
-	// installed) and by the production listing-based activity-logging
-	// signal in BulkSetPendingMDMHostProfiles, so we always populate it.
-	// The per-host append cost is trivial relative to the host-load query
-	// above.
+	// winHosts is consumed by the test-only eager hook in
+	// BulkSetPendingMDMHostProfiles when one is installed; in production
+	// the slice is built and discarded. We populate it unconditionally
+	// because the per-host append cost is trivial relative to the
+	// host-load query above and gating it on a test-only field would
+	// blur the production / test boundary in this hot path.
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":

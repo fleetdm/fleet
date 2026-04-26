@@ -18,6 +18,9 @@ import (
 func (ds *Datastore) NewActivity(
 	ctx context.Context, user *api.User, activity api.ActivityDetails, details []byte, createdAt time.Time,
 ) error {
+	if err := ds.ensureConfigured(); err != nil {
+		return err
+	}
 	ctx, span := tracer.Start(ctx, "activity.mysql.NewActivity")
 	defer span.End()
 
