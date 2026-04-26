@@ -8608,11 +8608,14 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
 	require.NoError(t, err)
-	// Apple-parity activity signal: there is pending Windows work for this
-	// host (the team's profile needs to be installed), so the bool flips
-	// true even though the actual write is deferred to the cron.
-	assert.True(t, updates.WindowsConfigProfile,
-		"Apple-parity: WindowsConfigProfile must be true when there is pending Windows work")
+	// Production path leaves WindowsConfigProfile false: the lone consumer
+	// of this field (service/mdm.go's BatchSetMDMProfiles flow) ORs it with
+	// profUpdates.WindowsConfigProfile from BatchSetMDMProfiles, which is
+	// the accurate transactional signal. With the eager hook disabled here
+	// to match production, this method does not compute the activity
+	// signal itself.
+	assert.False(t, updates.WindowsConfigProfile,
+		"production path leaves WindowsConfigProfile false; activity is logged by BatchSetMDMProfiles")
 
 	// host_mdm_windows_profiles must not have been written synchronously.
 	// In production the cron will write it on the next tick; in this test
