@@ -31,7 +31,7 @@ function useActionCallback(
   callbackFn: (targetIds: number[]) => void | undefined
 ) {
   return useCallback(
-    (targetIds: any) => {
+    (targetIds: number[]) => {
       callbackFn(targetIds);
     },
     [callbackFn]
@@ -53,6 +53,8 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     isDisabled,
     tooltipContent,
   } = buttonProps;
+  const resolvedButtonText =
+    typeof buttonText === "function" ? buttonText(targetIds) : buttonText;
   const onButtonClick = useActionCallback(onClick || noop);
 
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
@@ -88,7 +90,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
           {iconPosition === "left" && iconSvg && (
             <Icon name={iconSvg} color={iconColor} />
           )}
-          {buttonText}
+          {resolvedButtonText}
           {iconPosition !== "left" && iconSvg && (
             <Icon name={iconSvg} color={iconColor} />
           )}

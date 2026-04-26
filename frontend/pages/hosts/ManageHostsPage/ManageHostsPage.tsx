@@ -873,6 +873,8 @@ const ManageHostsPage = ({
   const handleStatusDropdownChange = (
     statusName: SingleValue<CustomOptionType>
   ) => {
+    const value = statusName?.value;
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -880,7 +882,14 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName?.value,
+          ...(value !== "pending" && {
+            status: value,
+            mdm_enrollment_status: undefined,
+          }),
+          ...(value === "pending" && {
+            mdm_enrollment_status: value,
+            status: undefined,
+          }),
           page: 0, // resets page index
         },
       })
@@ -1411,9 +1420,7 @@ const ManageHostsPage = ({
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
-      const successMessage = `${
-        selectedHostIds.length === 1 ? "Host" : "Hosts"
-      } successfully deleted.`;
+      const successMessage = "Hosts successfully deleted.";
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1423,12 +1430,7 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      renderFlash(
-        "error",
-        `Could not delete ${
-          selectedHostIds.length === 1 ? "host" : "hosts"
-        }. Please try again.`
-      );
+      renderFlash("error", "Could not delete hosts. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -1681,9 +1683,9 @@ const ManageHostsPage = ({
       <div className={`${baseClass}__filter-dropdowns`}>
         <DropdownWrapper
           name="status-filter"
-          value={status || ""}
+          value={status || mdmEnrollmentStatus || ""}
           className={`${baseClass}__status-filter`}
-          options={hostSelectStatuses}
+          options={hostSelectStatuses(isPremiumTier || false)}
           onChange={handleStatusDropdownChange}
           variant="table-filter"
         />
@@ -1932,8 +1934,15 @@ const ManageHostsPage = ({
         >
           <div>
             <span>
-              You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
+              You have no enroll secrets.{" "}
+              <Button
+                variant="link"
+                onClick={() => setShowEnrollSecretModal(true)}
+              >
+                Manage enroll secrets
+              </Button>{" "}
+              to enroll hosts to{" "}
+              <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
         </InfoBanner>

@@ -86,7 +86,8 @@ module.exports = {
         lastName: this.req.me.lastName,
         contactSource: 'Website - Contact forms',
         description: descriptionForContactUpdate,
-        marketingAttributionCookie: attributionCookieOrUndefined
+        marketingAttributionCookie: attributionCookieOrUndefined,
+        numberOfHostsDetails: inputs,
       }).intercept((err)=>{
         return new Error(`Could not create/update a contact or account. Full error: ${require('util').inspect(err)}`);
       });

@@ -47,7 +47,9 @@ Next, download Okta Verify for macOS from the Admin Console (**Settings** → **
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-Okta supports two SCEP challenge types: **dynamic** and **static**. Both require you to redeploy the certificate profile before it expires — Okta doesn't support automatic certificate renewal for either option. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
+Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_SCEP_RENEWAL_ID` is included in the OU field of your certificate profile. 
+
+Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
 
 The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic challenge. Fleet fetches a unique, short-lived challenge from Okta for each host at enrollment, so no static secret is shared across devices or embedded in your profile. See [Okta's guide to configuring Okta as a CA with a dynamic SCEP challenge](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm) for more details on how dynamic challenges work.
 
@@ -76,7 +78,9 @@ In Fleet, go to **Settings** → **Integrations** → **Certificate authorities*
 Alternatively, configure via GitOps in your `org_settings`:
 
 ```yaml
-integrations:
+org_settings:
+  integrations:
+    ...
   certificate_authorities:
     ndes_scep_proxy:
       url: https://your-okta-org.okta.com/scep
@@ -98,25 +102,44 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - **Subject:** `CN=managementAttestation %HardwareUUID%`
+- **Subject Alt Names:** Add an OU field with value `$FLEET_VAR_SCEP_RENEWAL_ID`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
-- **Certificate Expiration Notification:** Set to 14 days before expiration
+- **Certificate Expiration Notification:** Set to 30 days before expiration
 
-Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL` and `$FLEET_VAR_NDES_SCEP_CHALLENGE` with fresh values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
+**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_SCEP_RENEWAL_ID`. In raw XML, the Subject array should look like this:
 
-**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it. Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+```xml
+<key>Subject</key>
+<array>
+    <array>
+        <array>
+            <string>CN</string>
+            <string>managementAttestation %HardwareUUID%</string>
+        </array>
+        <array>
+            <string>OU</string>
+            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+        </array>
+    </array>
+</array>
+```
+
+Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_SCEP_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
+
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_SCEP_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
--- Returns 1 if all Okta certs are valid for >14 days (PASSING)
--- Returns 0 if any Okta certs expire within 14 days (FAILING)
+-- Returns 1 if all Okta certs are valid for >30 days (PASSING)
+-- Returns 0 if any Okta certs expire within 30 days (FAILING)
 SELECT 1
 WHERE NOT EXISTS (
   SELECT 1
   FROM certificates
   WHERE issuer LIKE '%/DC=com/DC=okta%'
-    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
+    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 30
     AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
 );
 ```
@@ -162,13 +185,14 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
-**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it.
+> **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_SCEP_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+
+```sql
 SELECT 1
 FROM certificates
 WHERE issuer LIKE '%/DC=com/DC=okta%'
   AND ca=0
   AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 14;
-);
 ```
 
 **[View example static SCEP profile →](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
@@ -293,7 +317,7 @@ Save as `okta-security-restrictions.mobileconfig`.
 Now deploy all the configuration profiles to your Fleet hosts:
 
 1. On your Fleet server, select the fleet you want to deploy Platform SSO to
-2. Navigate to **Controls** → **OS Settings** → **Custom settings**
+2. Navigate to **Controls > OS Settings > Configuration profiles**
 3. Upload each profile in this order:
    - `okta-device-access-scep.mobileconfig` (macOS 14+ only)
    - `okta-associated-domains.mobileconfig`
@@ -353,4 +377,3 @@ For Device Access SCEP certificate configuration details, see [Use Okta as a CA 
 <meta name="publishedOn" value="2026-03-08">
 <meta name="articleTitle" value="Deploying Platform SSO with Okta Device Access">
 <meta name="description" value="Learn how to use Fleet to deploy the Okta Platform SSO Extension">
-

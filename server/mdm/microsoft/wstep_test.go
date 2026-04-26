@@ -9,9 +9,11 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,6 +99,116 @@ func TestSTSTokenSigningAndVerification(t *testing.T) {
 	// New invalid STS Auth token
 	_, err = cm.NewSTSAuthToken("")
 	require.ErrorContains(t, err, "invalid upn field")
+}
+
+func TestSTSTokenWithDeviceID(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	upn := "user@example.com"
+	deviceID := "test-device-id-123"
+
+	// Generate token with device ID
+	token, err := cm.NewEUAToken(upn, deviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	// Validate and extract both claims
+	claims, err := cm.GetEUATokenClaims(token)
+	require.NoError(t, err)
+	require.Equal(t, upn, claims.UPN)
+	require.Equal(t, deviceID, claims.DeviceID)
+
+	// Empty UPN is rejected
+	_, err = cm.NewEUAToken("", deviceID)
+	require.ErrorContains(t, err, "invalid upn field")
+
+	// Empty device ID is rejected
+	_, err = cm.NewEUAToken(upn, "")
+	require.ErrorContains(t, err, "invalid device_id field")
+
+	// Token signed by NewSTSAuthToken (no device_id) is rejected — device_id is required
+	oldToken, err := cm.NewSTSAuthToken(upn)
+	require.NoError(t, err)
+	_, err = cm.GetEUATokenClaims(oldToken)
+	require.ErrorContains(t, err, "issue with device_id token claim")
+
+	// Tampered token is rejected
+	_, err = cm.GetEUATokenClaims(token + "tampered")
+	require.Error(t, err)
+}
+
+func TestTokenRejectsNonRSAAlgorithms(t *testing.T) {
+	var store CertStore
+	cm, err := NewCertManager(store, testCert, testKey)
+	require.NoError(t, err)
+
+	m := cm.(*manager)
+	// Marshal the RSA public key to use as the HS256 "secret" — this mirrors
+	// the classic RSA-to-HMAC algorithm confusion attack shape.
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(m.identityCert.PublicKey)
+	require.NoError(t, err)
+
+	stsClaims := func() STSClaims {
+		return STSClaims{
+			UPN: "attacker@example.com",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(10 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "STSAuthToken",
+			},
+		}
+	}
+	euaClaims := func() euaJWTClaims {
+		return euaJWTClaims{
+			UPN:      "attacker@example.com",
+			DeviceID: "device-123",
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				NotBefore: jwt.NewNumericDate(time.Now()),
+				Subject:   "EUAToken",
+			},
+		}
+	}
+
+	t.Run("STS rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, stsClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("STS rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, stsClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetSTSAuthTokenUPNClaim(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects HS256", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, euaClaims()).SignedString(pubKeyBytes)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
+
+	t.Run("EUA rejects none", func(t *testing.T) {
+		signed, err := jwt.NewWithClaims(jwt.SigningMethodNone, euaClaims()).SignedString(jwt.UnsafeAllowNoneSignatureType)
+		require.NoError(t, err)
+
+		_, err = cm.GetEUATokenClaims(signed)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected signing method")
+	})
 }
 
 func TestCertFingerprintHexStr(t *testing.T) {

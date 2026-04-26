@@ -131,7 +131,7 @@
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "unique_identifier": "com.amazon.Amazon-Chime",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
@@ -257,7 +257,7 @@
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.scootersoftware.BeyondCompare",
+      "unique_identifier": "com.ScooterSoftware.BeyondCompare",
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
@@ -632,6 +632,13 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Druva inSync",
+      "slug": "druva-insync/windows",
+      "platform": "windows",
+      "unique_identifier": "Druva inSync",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
@@ -650,14 +657,14 @@
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
       "unique_identifier": "com.corsair.ControlCenter",
-      "description": "Elgate Control Center is an app to control your Elgato key lights."
+      "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
       "name": "Elgato Stream Deck",
       "slug": "elgato-stream-deck/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elgato.StreamDeck",
-      "description": "Elgateo Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+      "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
       "name": "Evernote",
@@ -824,7 +831,7 @@
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gpgtools.gpgkeychain",
+      "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {
@@ -839,6 +846,13 @@
       "slug": "granola/darwin",
       "platform": "darwin",
       "unique_identifier": "com.granola.app",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
+      "name": "Granola",
+      "slug": "granola/windows",
+      "platform": "windows",
+      "unique_identifier": "Granola",
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
@@ -861,6 +875,13 @@
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "iMazing",
+      "slug": "imazing/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazing3Mac",
+      "description": "iMazing is an iPhone management application."
     },
     {
       "name": "Inkscape",
@@ -1003,6 +1024,13 @@
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
+      "name": "Linear",
+      "slug": "linear/windows",
+      "platform": "windows",
+      "unique_identifier": "Linear",
+      "description": "Linear is an app to manage software development and track bugs."
+    },
+    {
       "name": "Little Snitch",
       "slug": "little-snitch/darwin",
       "platform": "darwin",
@@ -1036,6 +1064,13 @@
       "platform": "darwin",
       "unique_identifier": "org.p0deje.Maccy",
       "description": "Maccy is a clipboard manager."
+    },
+    {
+      "name": "Marvel",
+      "slug": "marvel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.marvelprototyping.marvelmacos",
+      "description": "Marvel is a design and prototyping platform for creating interactive app and web mockups."
     },
     {
       "name": "Mattermost",
@@ -1703,6 +1738,13 @@
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
+      "name": "Thunderbird",
+      "slug": "thunderbird/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
+      "description": "Thunderbird is a free and open-source e-mail client."
+    },
+    {
       "name": "Todoist",
       "slug": "todoist-app/darwin",
       "platform": "darwin",
@@ -1911,6 +1953,13 @@
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
       "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zen Browser",
+      "slug": "zen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.zen-browser.zen",
+      "description": "Zen Browser is a Gecko based web browser."
     },
     {
       "name": "Zeplin",

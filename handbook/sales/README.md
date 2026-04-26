@@ -21,6 +21,11 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
+## Sales forecast
+
+To maintain an accurate picture of our performance and make sure our weekly forecast calls are as productive as possible, every Account Executive (AE) is required to update the AE weekly sales forecast spreadsheet (CONFIDENTIAL DOC - see agenda in calendar event) by **Thursday, 5:00 PM PT**. This data enables leadership to identify risks early and provide the support needed to close deals. Data is reviewed Friday mornings during the weekly **"☕️ Forecast call"**.
+
+
 ## Responsibilities
 
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
@@ -98,32 +103,18 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a reseller subscription quote
+### Send a quote
 
-Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
-1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
-2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
-3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote.
-4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
-5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
+In order to be transparent, Fleet sends quotes within 30 days of opportunity creation in most cases. Often, Sales will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription quote, the Fleet owner of the opportunity (usually AE or CSM) will:
 
+1. Follow the process to [create a quote](https://fleetdm.com/handbook/company/go-to-market-operations#create-a-quote) in Salesforce. The quote is automatically routed to the appropriate approver.
 
-### Send an order form
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
+3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.
 
-> Check out this example of an [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A)!
-
-1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
-2. Move the order form to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
-3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask IT & Enablement for help.
-
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
-
-4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the CRO (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
-5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
-
-> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
+> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager. For exceptions of more than one week, escalate to the CEO.
 
 
 ### Send an NDA

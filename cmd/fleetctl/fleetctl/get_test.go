@@ -2375,7 +2375,7 @@ func TestGetAppleBM(t *testing.T) {
 		}
 
 		out := RunAppForTest(t, []string{"get", "mdm_apple_bm"})
-		assert.Contains(t, out, "No Apple Business Manager server token found.")
+		assert.Contains(t, out, "No Apple Business server token found.")
 	})
 
 	t.Run("premium license, multiple tokens", func(t *testing.T) {
@@ -2610,7 +2610,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}

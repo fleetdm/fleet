@@ -15,7 +15,7 @@ You can specify configuration options in the following formats:
 
 ## MySQL
 
-This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). **Read replica configuration is fully independent from the primary — no values are inherited.** All required settings (address, region, TLS, authentication, etc.) must be explicitly set for the read replica using the `mysql_read_replica_` prefix. For example, if IAM authentication is used, both `FLEET_MYSQL_REGION` and `FLEET_MYSQL_READ_REPLICA_REGION` must be set. Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -119,7 +119,9 @@ The path to a PEM encoded private key used for TLS authentication.
 
 ### mysql_tls_config
 
-The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+The TLS value in a MySQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+
+When using IAM authentication with RDS, this setting is typically not needed — Fleet automatically uses `rdsmysql` as the TLS config, which includes bundled RDS CA certificates (including GovCloud regions). Setting this to `true` uses the system CA pool instead, which may not include RDS certificates in minimal container environments.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
@@ -204,6 +206,8 @@ AWS region to use for Identity and Access Management (IAM) authentication of an 
 
 - `mysql_password` is not set
 - `mysql_password_path` is not set
+
+If a read replica is configured, the read replica's region must also be set explicitly via `mysql_read_replica_region` — it is not inherited from this setting.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_REGION`
@@ -644,6 +648,21 @@ The max request body size, in a human readable format (size + unit), for endpoin
     default_max_request_body_size: 2MiB
   ```
 
+### server_endpoint_request_size_overrides
+
+Per-endpoint max request body size overrides using human-readable sizes (e.g. 50MiB). The highest value between default_max_request_body_size and a matching override is used.
+
+- Default value: None
+- Environment variable: `FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES`
+- Environment variable format: `[{"endpoint": "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", "max_request_size": "50MiB"}]`
+- Config file format:
+  ```yaml
+  server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+      max_request_size: "50MiB"
+  ```
+
 ### server_tls
 
 Whether or not the server should be served over TLS.
@@ -864,7 +883,7 @@ How long an SSO authentication process can take between initiation and callback.
 
 > Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
 
-- Default value: `5m` (5 minutes)
+- Default value: `15m` (15 minutes)
 - Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -1297,7 +1316,9 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_max_log_write_body_size
 
-Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+> `osquery_max_log_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+
+Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `10MiB`
 - Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
@@ -1309,7 +1330,9 @@ Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase 
 
 ### osquery_max_distributed_write_body_size
 
-Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+> `osquery_max_distributed_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+
+Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
 
 - Default value: `5MiB`
 - Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
@@ -3267,7 +3290,7 @@ You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and ABM token](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business (AB) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and AB token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -3283,7 +3306,7 @@ The number of days the signed SCEP client certificates will be valid.
 
 ### mdm.apple_dep_sync_periodicity
 
-The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
 
 - Default value: 1m
 - Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
@@ -3338,6 +3361,24 @@ The best practice is to set this to 3x the number of new employees (end users) t
     sso_rate_limit_per_minute: 200
   ```
 
+### mdm.certificate_profiles_limit
+
+If you're using Fleet to [deploy certificates](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) from a third-party certificate authority (CA), this is the maximum number of Apple (macOS, iOS, iPadOS), certificate configuration profiles Fleet installs (`InstallProfile` command) every 30 seconds. Each install also requests a certificate from your CA, so this limit also caps CA requests to the same number per 30 seconds.
+
+The profile reconciler runs approximately every 30 seconds. The best practice is to set this at a level that is half or less the number that can be handled by your certificate authority in one minute. If a profile for instance is uploaded that references a SCEP server which can handle 100 transactions per minute, best practice would be to set this to 50 or less. Lower values will mean that a profile potentially takes longer to be sent to all hosts targeted by it, with a tradeoff that it will result in lower Certificate Authority load.
+
+For a team with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
+
+Currently this limit only applies to the Apple profile reconciler. Windows and Android support will be added soon. Additionally, newly enrolling ADE hosts do not count toward and are not affected by this limit, so as not to delay onboarding.
+
+- Default value: 100
+- Environment variable: `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT`
+- Config file format:
+  ```yaml
+  mdm:
+    certificate_profiles_limit: 50
+  ```
+
 ### mdm.apple_vpp_app_metadata_api_bearer_token
 
 By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
@@ -3350,6 +3391,40 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
   ```yaml
   mdm:
     apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+
+### mdm.enable_custom_os_updates_and_filevault
+
+*Available in Fleet Premium.*
+
+Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+
+> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_os_updates_and_filevault: true
+  ```
+
+### mdm.allow_all_declarations
+
+Allows all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) to be sent, bypassing all safety checks. By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+Currently, Fleet only supports device-scoped declarations. User-scoped declarations are [coming soon](https://github.com/fleetdm/fleet/issues/38986).
+
+> Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Only enable this when you need to deploy declarations that Fleet would otherwise block.
+
+[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
   ```
 
 ### fleet_allow_bootstrap_package_during_migration

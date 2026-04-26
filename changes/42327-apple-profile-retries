@@ -1,1 +1,0 @@
-- Increased automatic retry limit for failed Apple (macOS, iOS, iPadOS) configuration profiles from 1 to 3. Windows profiles remain at 1 retry.

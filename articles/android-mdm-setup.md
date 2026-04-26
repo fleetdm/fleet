@@ -1,7 +1,5 @@
 # Android MDM setup
 
-> Experimental feature. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This guide provides instructions to turn on Android MDM features by connecting Fleet to Android Enterprise.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
@@ -13,6 +11,8 @@ To turn on Android MDM, connect Android Enterprise on **Settings > Integrations 
 When you select **Connect**, Fleet will open the Google signup page. The signup process varies depending on whether your organization uses [Google Workspace](#google-workspace), [Microsoft 365](#microsoft-365), or [another provider](#other). Organizations using Google Workspace and Microsoft don't need to verify domain ownership.
 
 ### Google Workspace
+
+> You must use a Google Workspace account with super administrator privileges. Privileges can be reduced after MDM is turned on.
 
 1. If your organization already uses Google Workspace, use your admin account to sign up for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
 2. Follow the steps in Google's signup flow.

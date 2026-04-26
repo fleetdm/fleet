@@ -85,9 +85,10 @@ export default (
     {
       name: "Reports",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/queries/`),
+        regex: new RegExp(`^${URL_PREFIX}/reports/`),
         pathname: PATHS.MANAGE_REPORTS,
       },
+      alwaysToPathname: true,
       withParams: { type: "query", names: ["fleet_id"] },
     },
     {

@@ -73,7 +73,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 		"query":       "select 1 from osquery;",
 		"fleet_id":    nil,
 	}
-	var createResp createQueryResponse
+	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)
 
 	records := s.handler.Records()

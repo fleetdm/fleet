@@ -12,9 +12,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
 | Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
 
@@ -26,6 +26,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+
+### Responsibilities when out of office
+
+When a CS team member is unable to attend a scheduled customer call, they should find backup coverage for their respective function or request a reschedule with the customer.
+
+If a CSM is having another team member cover their call, the CSM is responsible for preparing the customer agenda doc and debriefing their co-worker in advance of the meeting. If a CSA is having another technical resource cover their call, the CSA is responsible for debriefing that team member on the current status of the customer deployment.
+
+If you are working on issues that need follow-up while you're out, assign them to the Manager of Customer Support and Solutions Architecture in Unthread before you leave. Also create a thread in [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) with an overview of the current status and next steps for these.
 
 
 ### Respond to a "Contact us" job application submission
@@ -213,16 +221,16 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 
-#### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
 
-1. First, in all instances, review the athena logs for:
+1. First, in all instances, [review the athena logs](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md) for:
   - IP ingress patterns from problematic hosts
   - ELB errors and response times
   - For customers with WAF enabled, check for any traffic being blocked
   - 408 or 502 errors
   - Total number of requests by status code type
 
-2. Next, check Fleet server logs via Cloudwatch Log Insights. Follow the steps below:
+2. Next, check Fleet server logs via [Cloudwatch Log Insights](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md#aws-cloudwatch-logs-insights---check-fleet-server-logs). Follow the steps below:
   - Search for related endpoints via endpoint URL's
   - Check for errors during cron jobs using the query in the infra runbook
   - Use the Patterns tab to look for patterns in the logs which may provide more information
@@ -230,7 +238,7 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
 
 3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
 
-#### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+##### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
 
 1. Verify that the information we have stored about their Fleet architecture is correct
 2. Ask the following questions

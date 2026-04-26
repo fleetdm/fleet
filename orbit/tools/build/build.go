@@ -106,7 +106,7 @@ func buildOrbit(binaryPath, arch, version, commit, date string) error {
 	/* #nosec G204 -- arguments are actually well defined */
 	buildExec := exec.Command("go", "build",
 		"-o", binaryPath,
-		"-ldflags", fmt.Sprintf("-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=%s", version, commit, date),
+		"-ldflags", fmt.Sprintf("-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=%s -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date=%s", version, commit, date),
 		"./"+filepath.Join("orbit", "cmd", "orbit"),
 	)
 	buildExec.Env = append(os.Environ(), "GOOS=darwin", "GOARCH="+arch)

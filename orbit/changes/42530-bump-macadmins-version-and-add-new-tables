@@ -1,1 +1,0 @@
-* Added `macos_thermal_pressure` and `macos_soc_power` tables (from https://github.com/macadmins/osquery-extension).

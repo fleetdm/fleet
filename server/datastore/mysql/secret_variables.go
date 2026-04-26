@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -354,9 +356,11 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	// Check if document is XML
-	// We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+	// Detect document format so we can escape the secret value appropriately.
+	// XML detection is aggressive because Windows profiles do not begin with <?xml.
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
@@ -364,8 +368,10 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
 
-		if documentIsXML {
-			// Escape XML special characters
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
 			var b strings.Builder
 			err = xml.EscapeText(&b, []byte(val))
 			if err != nil {
@@ -378,6 +384,18 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 	})
 
 	return expanded, secrets, nil
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	return string(b[1 : len(b)-1])
 }
 
 func (ds *Datastore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
@@ -464,13 +482,30 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 				return "", ctxerr.Wrapf(ctx, err, "getting pending recovery lock password for host %s", enrollmentID)
 			}
 			secretValues[secretType] = password
+		case fleet.HostSecretMDMUnlockToken:
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting MDM enrollment details for host %s", enrollmentID)
+			}
+			if details == nil {
+				return "", ctxerr.Errorf(ctx, "no MDM enrollment details found for host %s", enrollmentID)
+			}
+			if details.UnlockToken == nil {
+				return "", ctxerr.Errorf(ctx, "%s", fleet.CantClearPasscodePersonalHostsMessage)
+			}
+
+			// We need to send base64 encoded data in the <data> field.
+			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
+			secretValues[secretType] = encoded
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
 	}
 
-	// Check if document is XML (same logic as expandEmbeddedSecrets)
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+	// Detect document format (same logic as expandEmbeddedSecrets)
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
 	// Expand the placeholders
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
@@ -483,8 +518,10 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 			return "", false
 		}
 
-		if documentIsXML {
-			// Escape XML special characters to prevent malformed output
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
 			var b strings.Builder
 			if err := xml.EscapeText(&b, []byte(val)); err != nil {
 				return "", false

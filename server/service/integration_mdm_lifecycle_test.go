@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -508,6 +509,7 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 
 	msgID, err := device.GetCurrentMsgID()
 	require.NoError(t, err)
+	euaTokenRe := regexp.MustCompile(`EUA_TOKEN="[^"]*"`)
 	for _, c := range cmds {
 		cmdID := c.Cmd.CmdID
 		status := syncml.CmdStatusOK
@@ -522,6 +524,12 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 		})
 		c.Cmd.CmdID.Value = ""
 		c.Cmd.CmdRef = nil
+		for i := range c.Cmd.Items {
+			if c.Cmd.Items[i].Data != nil {
+				c.Cmd.Items[i].Data.Content = euaTokenRe.ReplaceAllString(
+					c.Cmd.Items[i].Data.Content, `EUA_TOKEN="<redacted>"`)
+			}
+		}
 		recordedCmds = append(recordedCmds, c)
 	}
 
@@ -934,7 +942,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// run without expired certs, no command enqueued
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err := manualEnrolledDevice.Idle()
 	require.NoError(t, err)
@@ -971,7 +979,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	expireCerts()
 
 	// generate a new config here so we can manipulate the certs.
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string, wantManagedAppleID string) {
@@ -1024,12 +1032,12 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// set the env var, and run the cron
 	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	checkRenewCertCommand(migratedDevice, "", "<foo></foo>", "")
 
 	// another cron run shouldn't enqueue more commands
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	cmd, err = manualEnrolledDevice.Idle()
@@ -1096,7 +1104,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
@@ -1153,7 +1161,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.False(t, renewCmdUUID.Valid)
 
 	// running cron enqueues the renew command
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	// we now have a renew command uuid
@@ -1177,7 +1185,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd) // error doesn't trigger new command immediately
 
 	// running cron again doesn't change anything if the renew command failed
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err = iPadMdmDevice.Idle()
 	require.NoError(t, err)
@@ -1201,7 +1209,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
 
 	// running cron again doesn't change anything until refetch is done
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err = iPadMdmDevice.Idle()
 	require.NoError(t, err)
@@ -1250,7 +1258,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	})
 
 	// now run renewal cron to issue new command
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)

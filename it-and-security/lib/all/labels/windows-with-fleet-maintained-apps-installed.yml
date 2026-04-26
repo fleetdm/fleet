@@ -1,0 +1,35 @@
+- name: x86 Windows hosts with Slack installed
+  description: x86 Windows hosts with Slack installed
+  query: SELECT 1 FROM programs WHERE name = 'Slack' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with 1Password installed
+  description: x86 Windows hosts with 1Password installed
+  query: SELECT 1 FROM programs WHERE name = '1Password' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Claude installed
+  description: x86 Windows hosts with Claude installed
+  query: SELECT 1 FROM programs WHERE name = 'Claude' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Firefox installed
+  description: x86 Windows hosts with Firefox installed
+  query: SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox%' AND name NOT LIKE '%ESR%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Google Chrome installed
+  description: x86 Windows hosts with Google Chrome installed
+  query: SELECT 1 FROM programs WHERE name = 'Google Chrome' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Zoom installed
+  description: x86 Windows hosts with Zoom installed
+  query: SELECT 1 FROM programs WHERE name = 'Zoom Workplace (X64)' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Visual Studio Code installed
+  description: x86 Windows hosts with Visual Studio Code installed
+  query: SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual Studio Code%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows

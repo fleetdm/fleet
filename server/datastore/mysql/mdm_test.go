@@ -57,6 +57,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
+		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
 
 	for _, c := range cases {
@@ -100,6 +101,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	windowsEnrollment.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, windowsEnrollment.MDMHardwareID)
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
@@ -189,7 +191,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+	_, err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
 		SyncML: &fleet.SyncML{
 			Raw: []byte("<xml></xml>"),
 		},
@@ -9142,7 +9144,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	forceSetAppleHostProfileStatus(t, ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID := uuid.New().String()
-	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID)
+	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID, "")
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host2.UUID, profNameToProf["A2"].ProfileUUID)
@@ -9173,7 +9175,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID = uuid.New().String()
-	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID)
+	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID, "")
 	require.NoError(t, err)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host1.UUID, profNameToProf["A3"].ProfileUUID)
@@ -9207,6 +9209,29 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
+
+	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining profile rows when MDM is
+	// toggled off globally. At this point hosts still have pending remove profiles.
+
+	// Windows hosts have pending removes; cleanup should wipe them.
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host3.UUID)
+	assertHostProfileOpStatus(t, ds, host4.UUID)
+
+	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost1)
+
+	appleProfsHost2, err := ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
+	require.NoError(t, err)
+	require.NotEmpty(t, appleProfsHost2)
+
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin")
+	require.NoError(t, err)
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID)
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is
@@ -9239,16 +9264,18 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	// Create Windows hosts enrolled in MDM and assigned to the team.
 	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
 	host1.Platform = "windows"
-	host1.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID})))
+	host1.TeamID = &team.ID
 	windowsEnroll(t, ds, host1)
 
 	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
 	host2.Platform = "windows"
-	host2.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host2)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+	host2.TeamID = &team.ID
 	windowsEnroll(t, ds, host2)
 
 	// Simulate profiles delivered to both hosts (install + verified).
@@ -9392,6 +9419,155 @@ func forceSetAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID stri
 			hostUUID, actualStatus, operation, profile.Name, profile.ProfileUUID)
 		return err
 	})
+}
+
+func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	// Create and enroll a macOS host
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host-cmd-name",
+		OsqueryHostID:  new("osquery-macos-cmd-name"),
+		NodeKey:        new("node-key-macos-cmd-name"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "CMDNAME123",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, mdmStorage := createMDMAppleCommanderAndStorage(t, ds)
+
+	// Test 1: InstallProfile with a name
+	cmdUUID1 := uuid.New().String()
+	mc := mobileconfig.Mobileconfig(fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array/>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>%s</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>`, uuid.New().String()))
+	err = commander.InstallProfile(ctx, []string{macH.UUID}, mc, cmdUUID1, "Test Profile Name")
+	require.NoError(t, err)
+
+	// Verify name in DB
+	var storedName sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID1)
+	})
+	require.True(t, storedName.Valid)
+	require.Equal(t, "Test Profile Name", storedName.String)
+
+	// Also verify via ListMDMCommands
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.NotNil(t, cmds[0].Name)
+	require.Equal(t, "Test Profile Name", *cmds[0].Name)
+
+	// Test 2: EnqueueCommand without a name
+	cmdUUID2 := uuid.New().String()
+	rawCmd := createRawAppleCmd("ProfileList", cmdUUID2)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, rawCmd)
+	require.NoError(t, err)
+
+	// Verify name is NULL in DB
+	var storedName2 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName2, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID2)
+	})
+	require.False(t, storedName2.Valid)
+
+	// Verify name is null in the API
+	// Verify ListMDMCommands also exposes nil Name for unnamed commands
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+
+	gotByUUID := make(map[string]*fleet.MDMCommand, len(cmds))
+	for _, c := range cmds {
+		gotByUUID[c.CommandUUID] = c
+	}
+	require.Equal(t, "Test Profile Name", *gotByUUID[cmdUUID1].Name)
+	require.Nil(t, gotByUUID[cmdUUID2].Name)
+
+	// Test 3: Name exactly 255 characters — should NOT be truncated
+	cmdUUID3 := uuid.New().String()
+	name255 := strings.Repeat("a", 255)
+	rawXML3 := createRawAppleCmd("InstallProfile", cmdUUID3)
+	decodedCmd3, err := mdm.DecodeCommand([]byte(rawXML3))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd3,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    name255,
+	})
+	require.NoError(t, err)
+
+	var storedName3 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName3, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID3)
+	})
+	require.True(t, storedName3.Valid)
+	require.Equal(t, name255, storedName3.String)
+	require.Len(t, []rune(storedName3.String), 255)
+
+	// Test 4: Name longer than 255 ASCII characters — should be truncated to 255
+	cmdUUID4 := uuid.New().String()
+	name300 := strings.Repeat("b", 300)
+	rawXML4 := createRawAppleCmd("InstallProfile", cmdUUID4)
+	decodedCmd4, err := mdm.DecodeCommand([]byte(rawXML4))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd4,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    name300,
+	})
+	require.NoError(t, err)
+
+	var storedName4 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName4, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID4)
+	})
+	require.True(t, storedName4.Valid)
+	require.Equal(t, strings.Repeat("b", 255), storedName4.String)
+	require.Len(t, []rune(storedName4.String), 255)
+
+	// Test 5: Name with multi-byte utf8mb4 characters exceeding 255 — should truncate to 255 runes (not bytes)
+	cmdUUID5 := uuid.New().String()
+	// Each emoji is a single rune but 4 bytes in utf8mb4. Build a 300-rune string.
+	nameMultibyte := strings.Repeat("🍎", 300)
+	require.Len(t, []rune(nameMultibyte), 300)
+	rawXML5 := createRawAppleCmd("InstallProfile", cmdUUID5)
+	decodedCmd5, err := mdm.DecodeCommand([]byte(rawXML5))
+	require.NoError(t, err)
+	_, err = mdmStorage.EnqueueCommand(ctx, []string{macH.UUID}, &mdm.CommandWithSubtype{
+		Command: *decodedCmd5,
+		Subtype: mdm.CommandSubtypeNone,
+		Name:    nameMultibyte,
+	})
+	require.NoError(t, err)
+
+	var storedName5 sql.NullString
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedName5, `SELECT name FROM nano_commands WHERE command_uuid = ?`, cmdUUID5)
+	})
+	require.True(t, storedName5.Valid)
+	require.Equal(t, strings.Repeat("🍎", 255), storedName5.String)
+	require.Len(t, []rune(storedName5.String), 255)
 }
 
 func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {

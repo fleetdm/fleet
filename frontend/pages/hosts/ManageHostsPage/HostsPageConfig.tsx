@@ -62,44 +62,50 @@ export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
-export const hostSelectStatuses = [
-  {
-    disabled: false,
-    label: "All hosts",
-    value: "",
-    helpText: "All hosts added to Fleet.",
-  },
-  {
-    disabled: false,
-    label: "Online hosts",
-    value: "online",
-    helpText: "Hosts that will respond to a live report.",
-  },
-  {
-    disabled: false,
-    label: "Offline hosts",
-    value: "offline",
-    helpText: "Hosts that won't respond to a live report.",
-  },
-  {
-    disabled: false,
-    label: "Missing hosts",
-    value: "missing",
-    helpText: "Hosts that have been offline for 30 days or more.",
-  },
-  {
-    disabled: false,
-    label: "New hosts",
-    value: "new",
-    helpText: "Hosts added to Fleet in the last 24 hours.",
-  },
-  {
-    disabled: false,
-    label: "Pending",
-    value: "pending",
-    helpText: "Hosts pending enrollment.",
-  },
-];
+export const hostSelectStatuses = (isPremiumTier: boolean) => {
+  const baseStatuses = [
+    {
+      disabled: false,
+      label: "All hosts",
+      value: "",
+      helpText: "All hosts added to Fleet.",
+    },
+    {
+      disabled: false,
+      label: "Online hosts",
+      value: "online",
+      helpText: "Hosts that will respond to a live report.",
+    },
+    {
+      disabled: false,
+      label: "Offline hosts",
+      value: "offline",
+      helpText: "Hosts that won't respond to a live report.",
+    },
+    {
+      disabled: false,
+      label: "Missing hosts",
+      value: "missing",
+      helpText: "Hosts that have been offline for 30 days or more.",
+    },
+    {
+      disabled: false,
+      label: "New hosts",
+      value: "new",
+      helpText: "Hosts added to Fleet in the last 24 hours.",
+    },
+  ];
+
+  const premiumStatuses = [
+    {
+      disabled: false,
+      label: "Pending hosts",
+      value: "pending",
+      helpText: "Hosts pending enrollment.",
+    },
+  ];
+  return [...baseStatuses, ...(isPremiumTier ? premiumStatuses : [])];
+};
 
 export const OS_SETTINGS_FILTER_OPTIONS = [
   {

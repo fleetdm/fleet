@@ -24,7 +24,6 @@ import {
 } from "interfaces/team";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";

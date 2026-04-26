@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -12,8 +11,6 @@ import {
   ICustomSCEPFormValidation,
   validateFormData,
 } from "./helpers";
-
-const baseClass = "ndes-form";
 
 export interface ICustomSCEPFormData {
   name: string;

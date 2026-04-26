@@ -35,7 +35,9 @@ When a host fails the selected policy, this will trigger the software to be inst
 
 Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
-If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
+Policy automation software installs are automatically attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+
+If the software install still fails after all attempts, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
 ## How does it work?
 
@@ -46,7 +48,7 @@ If the software install fails, you can reset a software automation and trigger t
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*
 
-App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
 
 Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 

@@ -12,7 +12,7 @@ As the fleet grows, the team needs a more scalable way to manage devices using a
 
 * **Devices managed:** ~15,000 iPads plus corporate macOS devices
 
-* **Primary requirements:** GitOps workflows, API-first management, Apple Business Manager integration
+* **Primary requirements:** GitOps workflows, API-first management, Apple Business integration
 
 * **Previous challenge:** Manual enrollment processes and limited automation
 
@@ -33,7 +33,7 @@ Fleet must meet three key requirements:
 1. **GitOps workflows**  
     Integrate with GitHub Enterprise for version-controlled device management.
 
-2. **Apple Business Manager integration**  
+2. **Apple Business integration**  
     Seamlessly manage large numbers of iPads.
 
 3. **API-first management**  
@@ -47,7 +47,7 @@ Device configurations live in version-controlled repositories. Changes go throug
 
 Fleet’s API powers several automated workflows. For example, device names synchronize automatically with the company’s inventory system, ensuring records remain accurate without manual updates.
 
-Fleet also integrates with Apple Business Manager to automate provisioning of new devices.
+Fleet also integrates with Apple Business to automate provisioning of new devices.
 
 ### A flexible migration strategy
 
@@ -73,13 +73,6 @@ Their recommendation focuses on alignment with modern engineering practices.
 
 Organizations that already rely on version control and CI/CD workflows extend those same practices to device management with Fleet.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Technology platform manages 15,000 iPads with Fleet">
 <meta name="authorFullName" value="Irena Reedy">
