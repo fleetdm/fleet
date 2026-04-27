@@ -161,7 +161,7 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   waysToUse:
-    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+    - description: Enforce two-factor authentication when  in to Fleet for added security.
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
@@ -178,7 +178,7 @@
 #  ╔═╗╦ ╦╔╦╗╦╔╦╗  ╦  ╔═╗╔═╗╔═╗╦╔╗╔╔═╗
 #  ╠═╣║ ║ ║║║ ║   ║  ║ ║║ ╦║ ╦║║║║║ ╦
 #  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
-- industryName: Audit logging
+- industryName: Audit 
   description: Log all activity, including queries, scripts, access, etc.
   demos:
     - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
@@ -282,7 +282,7 @@
 - industryName: Debug logging during setup experience
   description: Enable debug logging for fleetd during device enrollment to troubleshoot setup issues.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#debug-logging-on-enroll
-  tier: Premium
+  tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
   productCategories: [Device management]
