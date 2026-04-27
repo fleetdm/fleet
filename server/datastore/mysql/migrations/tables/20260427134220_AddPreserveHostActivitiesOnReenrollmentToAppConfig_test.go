@@ -23,7 +23,9 @@ func TestUp_20260427134220_FreshInstall(t *testing.T) {
 
 	aes, ok := cfg["activity_expiry_settings"].(map[string]any)
 	require.True(t, ok)
-	require.False(t, aes["preserve_host_activities_on_reenrollment"].(bool))
+	v, ok := aes["preserve_host_activities_on_reenrollment"].(bool)
+	require.True(t, ok)
+	require.False(t, v)
 }
 
 func TestUp_20260427134220_UpgradedInstall(t *testing.T) {
@@ -45,5 +47,7 @@ func TestUp_20260427134220_UpgradedInstall(t *testing.T) {
 
 	aes, ok := cfg["activity_expiry_settings"].(map[string]any)
 	require.True(t, ok)
-	require.True(t, aes["preserve_host_activities_on_reenrollment"].(bool))
+	v, ok := aes["preserve_host_activities_on_reenrollment"].(bool)
+	require.True(t, ok)
+	require.True(t, v)
 }
