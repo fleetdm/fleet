@@ -5397,8 +5397,8 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 		hostID            = uint(42)
 		hostUUID          = "ABC-DEF-GHI"
 		existingHostname  = "Existing iPad"
-		existingModel     = "iPad12,2"          // differs from incoming ProductName so we can detect preservation
-		existingOSVersion = "iPadOS 16.7.10"    // differs from incoming OSVersion so we can detect preservation
+		existingModel     = "iPad12,2"       // differs from incoming ProductName so we can detect preservation
+		existingOSVersion = "iPadOS 16.7.10" // differs from incoming OSVersion so we can detect preservation
 	)
 	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "UUID"
 
@@ -5435,23 +5435,23 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 	}
 
 	type expectations struct {
-		expectComputerName     string
-		expectHostname         string
-		expectOSVersion        string
-		expectHardwareModel    string
-		expectGigsTotal        float64
-		expectGigsAvailable    float64
-		expectDiskUpdate       bool
-		expectOSUpdate         bool
-		expectOSName           string
-		expectOSVersionRow     string
-		expectOSPlatform       string
+		expectComputerName  string
+		expectHostname      string
+		expectOSVersion     string
+		expectHardwareModel string
+		expectGigsTotal     float64
+		expectGigsAvailable float64
+		expectDiskUpdate    bool
+		expectOSUpdate      bool
+		expectOSName        string
+		expectOSVersionRow  string
+		expectOSPlatform    string
 	}
 
 	cases := []struct {
-		name      string
-		mutate    func(map[string]string)
-		expect    expectations
+		name   string
+		mutate func(map[string]string)
+		expect expectations
 	}{
 		{
 			name:   "missing DeviceName preserves existing hostname",
@@ -5477,7 +5477,7 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				expectComputerName:  "Work iPad",
 				expectHostname:      "Work iPad",
 				expectOSVersion:     "iPadOS 17.5.1", // prefix from preserved host.Platform, version from new payload
-				expectHardwareModel: existingModel,    // preserved
+				expectHardwareModel: existingModel,   // preserved
 				expectGigsTotal:     64,
 				expectGigsAvailable: 51.26,
 				expectDiskUpdate:    true,
@@ -5610,15 +5610,15 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 				assert.Equal(t, tc.expect.expectHostname, host.Hostname, "Hostname")
 				assert.Equal(t, tc.expect.expectOSVersion, host.OSVersion, "OSVersion")
 				assert.Equal(t, tc.expect.expectHardwareModel, host.HardwareModel, "HardwareModel")
-				assert.Equal(t, tc.expect.expectGigsTotal, host.GigsTotalDiskSpace, "GigsTotalDiskSpace")
-				assert.Equal(t, tc.expect.expectGigsAvailable, host.GigsDiskSpaceAvailable, "GigsDiskSpaceAvailable")
+				assert.InDelta(t, tc.expect.expectGigsTotal, host.GigsTotalDiskSpace, 0.001, "GigsTotalDiskSpace")
+				assert.InDelta(t, tc.expect.expectGigsAvailable, host.GigsDiskSpaceAvailable, 0.001, "GigsDiskSpaceAvailable")
 				return nil
 			}
 
 			ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
 				assert.Equal(t, hostID, incomingHostID)
-				assert.Equal(t, tc.expect.expectGigsAvailable, gigsAvailable)
-				assert.Equal(t, tc.expect.expectGigsTotal, gigsTotal)
+				assert.InDelta(t, tc.expect.expectGigsAvailable, gigsAvailable, 0.001)
+				assert.InDelta(t, tc.expect.expectGigsTotal, gigsTotal, 0.001)
 				assert.False(t, math.IsNaN(percentAvailable), "percentAvailable should not be NaN")
 				assert.False(t, math.IsInf(percentAvailable, 0), "percentAvailable should not be Inf")
 				return nil
