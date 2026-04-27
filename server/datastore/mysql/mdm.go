@@ -725,11 +725,11 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// Apple profiles, Apple declarations, and Android profiles reconcile
 	// eagerly inside one transaction here. Windows profile reconciliation is
 	// intentionally NOT performed synchronously in production: the
-	// mdm_windows_profile_manager cron computes the full desired-vs-actual
-	// diff globally every 30s (see ReconcileWindowsProfiles). Doing it
-	// synchronously on top of large team transfers ties up the writer for
-	// minutes and starves ambient MDM/osquery checkins of row locks on
-	// host_mdm_windows_profiles.
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// (see ReconcileWindowsProfiles) so large populations converge across
+	// multiple 30s ticks. Doing it synchronously on top of large team
+	// transfers ties up the writer for minutes and starves ambient
+	// MDM/osquery checkins of row locks on host_mdm_windows_profiles.
 	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var innerErr error
@@ -931,17 +931,18 @@ OR
 	var appleHosts []string
 	var androidHosts []string
 	// winHosts is consumed by the test-only eager hook in
-	// BulkSetPendingMDMHostProfiles when one is installed; in production
-	// the slice is built and discarded. We populate it unconditionally
-	// because the per-host append cost is trivial relative to the
-	// host-load query above and gating it on a test-only field would
-	// blur the production / test boundary in this hot path.
+	// BulkSetPendingMDMHostProfiles. In production the hook is nil, so
+	// skip the per-host slice work for Windows hosts; the cron will
+	// reconcile them on its next tick.
+	collectWinHosts := ds.testWindowsEagerHook != nil
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
-			winHosts = append(winHosts, h.UUID)
+			if collectWinHosts {
+				winHosts = append(winHosts, h.UUID)
+			}
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:

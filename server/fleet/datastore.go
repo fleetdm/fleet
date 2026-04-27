@@ -1506,8 +1506,9 @@ type Datastore interface {
 	//
 	// This reconciles Apple profiles, Apple declarations, and Android profiles
 	// synchronously. Windows profile reconciliation is deferred: the
-	// mdm_windows_profile_manager cron computes the full desired-vs-actual
-	// diff globally every 30s (see ReconcileWindowsProfiles). Callers must not
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
+	// populations may require multiple 30s ticks to converge. Callers must not
 	// assume host_mdm_windows_profiles rows are written by the time this
 	// function returns; if a caller needs immediate Windows state (e.g. a
 	// test, or a synchronous UX flow), it must trigger reconciliation

@@ -2818,14 +2818,16 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			// fired, the existence check sees it but profileContents
 			// (replica) misses it until replication catches up.
 			//
-			// Skip the install this tick and let the next tick (~30s
-			// later, by which time the replica will normally have caught
-			// up) pick it up. The hosts stay in the listing's pending
-			// universe because no host_mdm_windows_profiles row was
-			// written for them, so no state is lost. The bounded ~30s
-			// additional reconciliation delay for fresh profiles is the
-			// better trade-off than writer load.
-			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry next tick",
+			// Skip the install for now and let a later tick pick it up
+			// after replication catches up. With the host cursor
+			// advancing past this batch, the affected hosts won't be
+			// revisited until the cursor cycles back to the start of
+			// the host space; for large host populations that can be
+			// many ticks rather than the next one. The hosts stay in
+			// the listing's pending universe because no
+			// host_mdm_windows_profiles row was written for them, so
+			// no state is lost.
+			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry on a later tick",
 				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
 			continue
 		}

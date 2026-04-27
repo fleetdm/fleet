@@ -232,6 +232,13 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 		reconcileWindowsProfilesBatchSize = batch
 
 		ds, state := newCursorFakeDS(hosts)
+		// Seed a non-empty cursor so "cursor untouched on failure" is a
+		// real assertion rather than trivially-true on the empty default.
+		// "0" sorts before any value hostGen can produce ([a-z]{1,8}), so
+		// the host listing still returns every host and the cron reaches
+		// the injected failure point.
+		const initialCursor = "0"
+		state.cursor = initialCursor
 		simErr := errors.New("simulated failure at " + failurePoint)
 		switch failurePoint {
 		case "ListNextPendingMDMWindowsHostUUIDs":
@@ -262,8 +269,8 @@ func TestPBT_ReconcileWindowsProfilesFailureNoAdvance(t *testing.T) {
 
 		err := ReconcileWindowsProfiles(t.Context(), ds, pbtLogger)
 		require.Errorf(rt, err, "failure at %q did not propagate", failurePoint)
-		require.Emptyf(rt, state.cursor,
-			"cursor advanced despite failure at %q; got %q", failurePoint, state.cursor)
+		require.Equalf(rt, initialCursor, state.cursor,
+			"cursor advanced despite failure at %q; got %q (expected %q)", failurePoint, state.cursor, initialCursor)
 		require.Equalf(rt, 0, state.cursorSet,
 			"SetMDMWindowsReconcileCursor was called %d times despite failure at %q",
 			state.cursorSet, failurePoint)

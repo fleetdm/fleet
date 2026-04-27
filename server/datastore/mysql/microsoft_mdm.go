@@ -2350,12 +2350,17 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 		return nil, nil
 	}
 
-	// Reuse the same desired-state predicates as the global listings, with
-	// "TRUE" substituted for the host-filter slots (both queries already
-	// support that mode for the existing global callers). The outer wrapper
-	// dedups, applies the cursor, and bounds the host count.
-	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE")
-	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE")
+	// Push the cursor predicate (host_uuid > ?) into each branch of the
+	// UNION so the optimizer applies it before deduplication. The install
+	// query has 4 host-filter slots, one per UNION branch in the
+	// desired-state subquery; each gets h.uuid > ?. The remove query
+	// inverts desired-state membership (it keeps rows where ds.host_uuid
+	// IS NULL), so its 4 desired-state slots stay TRUE; the cursor goes
+	// in the 5th slot, which filters hmwp.host_uuid after the RIGHT JOIN
+	// to host_mdm_windows_profiles. hmwp.host_uuid is the leading column
+	// of that table's PK, so this is a clean PK range scan.
+	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "hmwp.host_uuid > ?")
 
 	stmt := fmt.Sprintf(`
 		SELECT host_uuid FROM (
@@ -2363,18 +2368,17 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 			UNION
 			SELECT host_uuid FROM (%s) AS remove_set
 		) AS combined
-		WHERE host_uuid > ?
 		ORDER BY host_uuid
 		LIMIT %d
 	`, toInstall, toRemove, batchSize)
 
 	var hostUUIDs []string
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// toInstall has 2 placeholders (the install/remove operation types in
-		// its WHERE conditions). toRemove has 0 placeholders (all "TRUE"
-		// substitutions yield literal-true predicates). The outer WHERE adds
-		// 1 placeholder for the cursor.
+		// Placeholder order in stmt:
+		//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
+		//   remove branches:  1 cursor (hmwp.host_uuid > ?)
 		return sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt,
+			afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 			fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
 			afterHostUUID,
 		)
