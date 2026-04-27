@@ -54,6 +54,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
@@ -136,6 +139,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
+  - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml

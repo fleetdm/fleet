@@ -59,10 +59,10 @@ Follow the steps below to connect your Android hosts to enterprise Wi-Fi:
 | `Name` | Display label, can be anything. For human readability only. |
 | `GUID` | Unique identifier for the network. Use a different GUID for each network if you have multiple networks under `NetworkConfigurations`, or multiple configuration profiles with `openNetworkConfiguration` setting. |
 | `AutoConnect` | Determines if the network is automatically connected. This setting is independent of the auto-connect option per network available to end users in the host's Wi-Fi settings. |
-| `Identity` | Usually the user's email. |
+| `Identity` | The identity sent to the RADIUS server during EAP-TLS authentication. Check with your network team whether your RADIUS server requires this field, as some servers derive identity from the CN of the client certificate instead, in which case this field can be omitted. If your RADIUS server requires it, use a static value (e.g., a shared identifier). Support for Fleet [variables](https://fleetdm.com/docs/configuration/yaml-files#variables) (such as `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`) in Android profiles is [coming soon](https://github.com/fleetdm/fleet/issues/41968). |
 | `DomainSuffixMatch` | Domain suffix used to verify the RADIUS server's identity. The host checks that the server certificate's SAN DNS name (or CN if no SAN is present) ends with this suffix. |
 | `ClientCertKeyPairAlias` | Name of the certificate you added in Fleet under **Controls > OS settings > Certificates**. |
-| `X509` | Base64-encoded content of the root CA certificate that signed the server certificate. Exclude header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
+| `X509` | Base64-encoded content of the root CA certificate that signed the RADIUS server's certificate. Paste the base64 content from the `.pem` file directly, excluding the header and footer (`-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`). |
 
 ## See status
 

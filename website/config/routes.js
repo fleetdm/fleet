@@ -1277,6 +1277,7 @@ module.exports.routes = {
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
+  'GET /learn-more-about/psso-local-account': '/guides/setup-experience',
 
   // Sitemap
   // =============================================================================================================
@@ -1363,10 +1364,8 @@ module.exports.routes = {
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
   'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
-  'POST /api/v1/deliver-mdm-beta-signup': { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false },
-  'POST /api/v1/deliver-mdm-demo-email': { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },

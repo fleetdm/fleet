@@ -916,6 +916,36 @@ Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
+## enabled_gitops_exception
+
+Generated when a user enables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "labels"
+}
+```
+
+## disabled_gitops_exception
+
+Generated when a user disables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "software"
+}
+```
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
@@ -1234,6 +1264,23 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_wipe
+
+Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
 }
 ```
 

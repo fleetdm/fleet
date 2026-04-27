@@ -139,12 +139,14 @@ const SoftwareAddPage = ({
               </TabList>
             </Tabs>
           </TabNav>
-          {React.cloneElement(children, {
-            router,
-            currentTeamId: parseInt(location.query.fleet_id, 10),
-            isSidePanelOpen,
-            setSidePanelOpen,
-          })}
+          <div key={location?.pathname} className="tab-nav-routed-content">
+            {React.cloneElement(children, {
+              router,
+              currentTeamId: parseInt(location.query.fleet_id, 10),
+              isSidePanelOpen,
+              setSidePanelOpen,
+            })}
+          </div>
         </MainContent>
         {isSidePanelOpen && (
           <SidePanelContent>

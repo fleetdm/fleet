@@ -10,18 +10,6 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
 
-The following are the required keys in the `default.yml` and any `fleets/fleet-name.yml` files:
-
-```yaml
-name: # Only fleets/fleet-name.yml
-policies:
-reports:
-agent_options:
-controls:
-software:
-org_settings: # Only default.yml
-settings: # Only fleets/fleet-name.yml
-```
 Paths in YAML files are always relative to the file you’re editing.
 
 For example:
@@ -414,14 +402,10 @@ controls:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
-<<<<<<< AdamBaali-Gitops-YAML-globs-update
       - path: ../lib/macos-profile2.json
         labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-=======
-      - path: ../lib/macos-profile3.mobileconfig
->>>>>>> main
         labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
@@ -443,11 +427,6 @@ controls:
   setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
-    enable_create_local_idp_user_account: true
-    local_idp_user_account_configuration:
-      sso_configuration_profile_path: ../lib/platform-sso.mobileconfig
-      sso_software_package_path: ../lib/company-portal.package.yml
-      authentication_url: https://login.microsoftonline.com/common
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
@@ -540,6 +519,8 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 
 In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
 
+In JSON, certain characters (`"`, `\`, and control characters) must be escaped because they have special meanings in the data format. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.json` configuration profile (Apple DDM declaration or Android profile). For example, `"` will become `\"`.
+
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
 To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
@@ -554,12 +535,6 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
-- `enable_create_local_idp_user_account` specifies whether or not to automatically create a local idp user account on the host. Requires `enable_end_user_authentication` to be `true` and must be accompanied by `local_idp_user_account_configuration` object. Applies to macOS only. (default: `false`)
-- `local_idp_user_account_configuration` specifies the Platform SSO configuration profile, SSO extension software package, and authentication URL used to automatically create a local user account with IdP credentials when the user first sets up their macOS host.
-  - `sso_configuration_profile_path` is the path to the Platform SSO configuration profile (.mobileconfig). The profile must have `com.apple.extensiblesso` PayloadType and include `EnableAuthorization` and `EnableCreateUserAtLogin` set to `true`.
-  - `sso_software_package_path` is the path to the SSO extension software package (.package.yml) that is added to the fleet.
-  - `authentication_url` is the URL used to authenticate the user with the IdP during Platform SSO setup.
-- `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business Manager (ABM).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
@@ -574,11 +549,6 @@ setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
   macos_manual_agent_install: false
   enable_end_user_authentication: true
-  enable_create_local_idp_user_account: true
-  local_idp_user_account_configuration:
-    sso_configuration_profile_path: "./platform-sso.mobileconfig"
-    sso_software_package_path: "./company-portal.package.yml"
-    authentication_url: "https://login.microsoftonline.com/common"
   lock_end_user_info: true
   apple_enable_release_device_manually: false
   apple_setup_assistant: "./setup_assistant.json"
@@ -738,6 +708,9 @@ software:
 - `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   + Android: `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+- `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
+- `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
+- `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
@@ -882,8 +855,8 @@ org_settings:
   server_settings:
     ai_features_disabled: false
     enable_analytics: true
-    live_report_disabled: false
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    discard_reports_data: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
 ```
