@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -742,6 +744,55 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 		return nil, err
 	}
 	return svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+}
+
+func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (godep.Profile, *time.Time, error) {
+	user := authz.UserFromContext(ctx)
+	if user != nil && user.HasAnyTeamRole() {
+		// Check each team role permission, since if the user has just one team level permission, they can use this endpoint
+		var authorized bool
+		var authErr error
+		for _, tm := range user.Teams {
+			err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID}, fleet.ActionRead)
+			if err == nil {
+				// Early skip, since we only need one team with permission
+				authorized = true
+				break
+			}
+
+			authErr = err
+		}
+
+		if !authorized {
+			return godep.Profile{}, nil, authErr
+		}
+	} else {
+		// Check the global role permissions
+		if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{}, fleet.ActionRead); err != nil {
+			return godep.Profile{}, nil, err
+		}
+	}
+
+	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil && !fleet.IsNotFound(err) {
+		return godep.Profile{}, nil, ctxerr.Wrap(ctx, err, "get default setup assistant enrollment profile")
+	}
+
+	if fleet.IsNotFound(err) {
+		// This can never be null
+		return *svc.depService.GetDefaultProfile(), nil, nil
+	}
+
+	if profile == nil {
+		return godep.Profile{}, nil, ctxerr.New(ctx, "default setup assistant enrollment profile is nil")
+	}
+
+	var godepProfile godep.Profile
+	if err := json.Unmarshal(*profile.DEPProfile, &godepProfile); err != nil {
+		return godep.Profile{}, nil, ctxerr.Wrap(ctx, err, "unmarshal default setup assistant enrollment profile")
+	}
+
+	return godepProfile, &profile.UpdatedAt, nil
 }
 
 func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
