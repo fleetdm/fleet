@@ -7,8 +7,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shurcooL/githubv4"
 	"golang.org/x/oauth2"
@@ -144,6 +146,13 @@ func main() {
 			fmt.Println("❌ Error Setting Estimate from Draft project : " + err.Error())
 		}
 		fmt.Printf("✅ Estimation in Project %d set to: %.1f\n", targetProjectNumber, estimate)
+	}
+
+	sprintTitle, err := setCurrentSprintInProject(issueNumber, targetProjectNumber)
+	if err != nil {
+		fmt.Println("❌ Error setting current sprint: " + err.Error())
+	} else {
+		fmt.Printf("✅ Sprint set to %q in Project %d\n", sprintTitle, targetProjectNumber)
 	}
 
 	err = setIssueMilestone(token, client, issueID, milestone)
@@ -708,6 +717,247 @@ func setEstimateInProject71(issueNumber int, targetProjectNumber int, estimate f
 	//	fmt.Println(string(setOutput))
 
 	return nil
+}
+
+// setCurrentSprintInProject finds the issue's item in the target project, looks
+// up the project's "Sprint" iteration field, picks the iteration that spans
+// today, and sets it on the item. Returns the chosen iteration title.
+func setCurrentSprintInProject(issueNumber int, targetProjectNumber int) (string, error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return "", fmt.Errorf("GITHUB_TOKEN is not set")
+	}
+
+	// 1) Look up the project item ID and project ID for targetProjectNumber.
+	itemQuery := fmt.Sprintf(`{
+      "query": "query($owner:String!,$repo:String!,$number:Int!) { repository(owner:$owner, name:$repo) { issue(number:$number) { projectItems(first:20) { nodes { id project { number id } } } } } }",
+      "variables": {
+        "owner": "fleetdm",
+        "repo": "fleet",
+        "number": %d
+      }
+    }`, issueNumber)
+
+	itemCmd := exec.Command("curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Authorization: bearer "+token,
+		"-H", "Content-Type: application/json",
+		"https://api.github.com/graphql",
+		"-d", itemQuery)
+	itemOut, err := itemCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch project item ID: %v", err)
+	}
+
+	var itemResp struct {
+		Data struct {
+			Repository struct {
+				Issue struct {
+					ProjectItems struct {
+						Nodes []struct {
+							ID      string `json:"id"`
+							Project struct {
+								Number int    `json:"number"`
+								ID     string `json:"id"`
+							} `json:"project"`
+						} `json:"nodes"`
+					} `json:"projectItems"`
+				} `json:"issue"`
+			} `json:"repository"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(itemOut, &itemResp); err != nil {
+		return "", fmt.Errorf("failed to parse project item JSON: %v", err)
+	}
+
+	var projectItemID, projectID string
+	for _, n := range itemResp.Data.Repository.Issue.ProjectItems.Nodes {
+		if n.Project.Number == targetProjectNumber {
+			projectItemID = n.ID
+			projectID = n.Project.ID
+			break
+		}
+	}
+	if projectItemID == "" || projectID == "" {
+		return "", fmt.Errorf("project %d item not found on issue #%d", targetProjectNumber, issueNumber)
+	}
+
+	// 2) Fetch the project's fields and find the Sprint iteration field.
+	fieldsQuery := fmt.Sprintf(`{
+      "query": "query { node(id:\"%s\") { ... on ProjectV2 { fields(first:50) { nodes { __typename ... on ProjectV2FieldCommon { id name } ... on ProjectV2IterationField { configuration { iterations { id title startDate duration } } } } } } } }"
+    }`, projectID)
+
+	fieldsCmd := exec.Command("curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Authorization: bearer "+token,
+		"-H", "Content-Type: application/json",
+		"https://api.github.com/graphql",
+		"-d", fieldsQuery)
+	fieldsOut, err := fieldsCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch project fields: %v", err)
+	}
+
+	var fieldsResp struct {
+		Data struct {
+			Node struct {
+				Fields struct {
+					Nodes []struct {
+						Typename      string `json:"__typename"`
+						ID            string `json:"id"`
+						Name          string `json:"name"`
+						Configuration struct {
+							Iterations []struct {
+								ID        string `json:"id"`
+								Title     string `json:"title"`
+								StartDate string `json:"startDate"`
+								Duration  int    `json:"duration"`
+							} `json:"iterations"`
+						} `json:"configuration"`
+					} `json:"nodes"`
+				} `json:"fields"`
+			} `json:"node"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(fieldsOut, &fieldsResp); err != nil {
+		return "", fmt.Errorf("failed to parse project fields JSON: %v", err)
+	}
+
+	type iter struct {
+		ID, Title, StartDate string
+		Duration             int
+	}
+
+	type sprintCandidate struct {
+		fieldID    string
+		fieldName  string
+		iterations []iter
+		score      int
+	}
+	var cands []sprintCandidate
+
+	wanted := "sprint"
+	for _, f := range fieldsResp.Data.Node.Fields.Nodes {
+		if f.Typename != "ProjectV2IterationField" {
+			continue
+		}
+		nameLower := strings.ToLower(f.Name)
+		score := 0
+		switch {
+		case nameLower == wanted:
+			score = 100
+		case strings.Contains(nameLower, wanted):
+			score = 80
+		default:
+			continue
+		}
+		var its []iter
+		for _, it := range f.Configuration.Iterations {
+			its = append(its, iter{
+				ID:        it.ID,
+				Title:     it.Title,
+				StartDate: it.StartDate,
+				Duration:  it.Duration,
+			})
+		}
+		cands = append(cands, sprintCandidate{
+			fieldID:    f.ID,
+			fieldName:  f.Name,
+			iterations: its,
+			score:      score,
+		})
+	}
+	if len(cands) == 0 {
+		return "", fmt.Errorf("no Sprint iteration field found in Project %d", targetProjectNumber)
+	}
+	sort.Slice(cands, func(i, j int) bool { return cands[i].score > cands[j].score })
+	best := cands[0]
+	if len(best.iterations) == 0 {
+		return "", fmt.Errorf("Sprint field %q has no iterations configured", best.fieldName)
+	}
+
+	// 3) Pick the iteration that spans today (fallback: latest past, then earliest future).
+	now := time.Now()
+	type span struct {
+		it    iter
+		start time.Time
+		end   time.Time
+	}
+	var spans []span
+	for _, it := range best.iterations {
+		if it.StartDate == "" || it.Duration <= 0 {
+			continue
+		}
+		start, err := time.Parse("2006-01-02", it.StartDate)
+		if err != nil {
+			continue
+		}
+		end := start.AddDate(0, 0, it.Duration)
+		spans = append(spans, span{it: it, start: start, end: end})
+	}
+	if len(spans) == 0 {
+		return "", fmt.Errorf("Sprint field %q has no parseable iterations", best.fieldName)
+	}
+
+	var chosen iter
+	found := false
+	for _, s := range spans {
+		if !now.Before(s.start) && now.Before(s.end) {
+			chosen = s.it
+			found = true
+			break
+		}
+	}
+	if !found {
+		// latest started in the past
+		sort.Slice(spans, func(i, j int) bool { return spans[i].start.After(spans[j].start) })
+		for _, s := range spans {
+			if !now.Before(s.start) {
+				chosen = s.it
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		// earliest future
+		sort.Slice(spans, func(i, j int) bool { return spans[i].start.Before(spans[j].start) })
+		chosen = spans[0].it
+	}
+
+	// 4) Set the iteration on the project item.
+	mutation := fmt.Sprintf(`{
+      "query": "mutation { updateProjectV2ItemFieldValue(input:{projectId:\"%s\", itemId:\"%s\", fieldId:\"%s\", value:{iterationId:\"%s\"}}) { projectV2Item { id } } }"
+    }`, projectID, projectItemID, best.fieldID, chosen.ID)
+
+	setCmd := exec.Command("curl",
+		"-s",
+		"-X", "POST",
+		"-H", "Authorization: bearer "+token,
+		"-H", "Content-Type: application/json",
+		"https://api.github.com/graphql",
+		"-d", mutation)
+	setOut, err := setCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to set sprint: %v", err)
+	}
+
+	var setResp struct {
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(setOut, &setResp); err == nil && len(setResp.Errors) > 0 {
+		var msgs []string
+		for _, e := range setResp.Errors {
+			msgs = append(msgs, e.Message)
+		}
+		return "", fmt.Errorf("GraphQL error setting sprint: %s", strings.Join(msgs, "; "))
+	}
+
+	return chosen.Title, nil
 }
 
 func removeIssueFromProject(client *githubv4.Client, owner, repo string, issueNumber, projectNumber int) error {
