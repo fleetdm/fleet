@@ -52,6 +52,9 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Remove the mapping for the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
+> If you use attributes other than the supported attributes above, the payload will be rejected by Fleet.
+
+
 #### Step 3: Map Okta users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
