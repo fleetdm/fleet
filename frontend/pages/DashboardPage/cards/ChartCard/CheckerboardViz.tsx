@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { ChartTheme, IFormattedDataPoint } from "./types";
+import { ChartTheme, IFormattedDataPoint, TooltipFormatter } from "./types";
 
 const baseClass = "checkerboard-viz";
 
@@ -38,15 +38,7 @@ interface ICheckerboardVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
   theme?: ChartTheme;
-  tooltipFormatter?: ({
-    value,
-    total,
-    percentage,
-  }: {
-    value: number;
-    total?: number;
-    percentage?: number;
-  }) => string | React.ReactNode;
+  tooltipFormatter?: TooltipFormatter;
 }
 
 // These are calculated at a chart width of 580px and columns.
