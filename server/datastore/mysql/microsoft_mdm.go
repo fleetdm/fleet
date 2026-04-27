@@ -822,9 +822,10 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		return ctxerr.Wrap(ctx, err, "running query to get matching profiles")
 	}
 
-	// batch-update the matching entries with the desired detail and status
+	// Partition matching entries into upsert and delete buckets.
 	var sb strings.Builder
 	args = args[:0]
+	var deleteCommandUUIDs []string
 	for _, hp := range matchingHostProfiles {
 		payload := uuidsToPayloads[hp.CommandUUID]
 		if payload.Status != nil && *payload.Status == fleet.MDMDeliveryFailed {
@@ -839,32 +840,47 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				hp.Retries++
 			}
 		}
+
+		// Delete bucket: remove operations resolving to a terminal status.
+		// Verified and verifying are both terminal for removes.
+		// Failed removes are kept (upserted) so the failure is visible.
+		if hp.OperationType == fleet.MDMOperationTypeRemove && payload.Status != nil &&
+			(*payload.Status == fleet.MDMDeliveryVerified || *payload.Status == fleet.MDMDeliveryVerifying) {
+			deleteCommandUUIDs = append(deleteCommandUUIDs, hp.CommandUUID)
+			continue
+		}
+
+		// For failed remove operations, prefix the detail.
+		if hp.OperationType == fleet.MDMOperationTypeRemove && payload.Status != nil &&
+			*payload.Status == fleet.MDMDeliveryFailed {
+			payload.Detail = fmt.Sprintf("Failed to remove: %s", payload.Detail)
+		}
+
 		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status, hp.Retries, hp.Checksum)
 		sb.WriteString("(?, ?, ?, ?, ?, command_uuid, ?),")
 	}
 
+	// Execute batched UPSERT for the upsert bucket.
 	values := strings.TrimSuffix(sb.String(), ",")
-	if len(values) == 0 {
-		return nil
-	}
-	stmt = fmt.Sprintf(updateHostProfilesStmt, values)
-	if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	if len(values) > 0 {
+		stmt = fmt.Sprintf(updateHostProfilesStmt, values)
+		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host profiles")
+		}
 	}
 
-	// Clean up remove + verified rows for the command UUIDs we just processed.
-	// Only delete 'verified' (not 'verifying'); verifying is an in-flight
-	// state and should not be deleted until the device confirms. We scope to
-	// specific command_uuids to avoid deleting rows from concurrent responses.
-	removeCleanupStmt, removeCleanupArgs, err := sqlx.In(`
-		DELETE FROM host_mdm_windows_profiles
-		WHERE host_uuid = ? AND command_uuid IN (?) AND operation_type = ? AND status = ?`,
-		hostUUID, commandUUIDs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerified)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
-	}
-	if _, err = tx.ExecContext(ctx, removeCleanupStmt, removeCleanupArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up completed remove profiles")
+	// Execute batched DELETE for terminal remove operations.
+	if len(deleteCommandUUIDs) > 0 {
+		deleteStmt, deleteArgs, err := sqlx.In(`
+			DELETE FROM host_mdm_windows_profiles
+			WHERE host_uuid = ? AND command_uuid IN (?)`,
+			hostUUID, deleteCommandUUIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN for remove cleanup")
+		}
+		if _, err = tx.ExecContext(ctx, deleteStmt, deleteArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleaning up completed remove profiles")
+		}
 	}
 
 	return nil
