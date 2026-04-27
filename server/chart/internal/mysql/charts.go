@@ -107,7 +107,6 @@ type cveSoftwareMatcher struct {
 // whose critical CVEs contribute to the CVE chart. Patterns are deliberately
 // broad (trailing `%`) so packaging variants (Chrome Beta/Canary, Firefox
 // ESR/Nightly, kernel metapackages) are absorbed without maintenance.
-// See openspec/changes/archive/*-cve-chart-demo-filter/design.md §1.
 var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	// Browsers.
 	{"Google Chrome%", nil},
