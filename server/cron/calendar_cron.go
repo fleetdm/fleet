@@ -633,14 +633,11 @@ func attemptCreatingEventOnUserCalendar(
 	}
 }
 
-// getPreferredCalendarEventDate returns the date 2 business days after the
-// given date. This ensures end users have at least 1 full business day to
-// proactively resolve the issue before the remediation event.
+// getPreferredCalendarEventDate returns the next business day after the
+// given date, skipping weekends.
 func getPreferredCalendarEventDate(year int, month time.Month, today int) time.Time {
 	currentDate := time.Date(year, month, today, 0, 0, 0, 0, time.UTC)
-	currentDate = addBusinessDay(currentDate)
-	currentDate = addBusinessDay(currentDate)
-	return currentDate
+	return addBusinessDay(currentDate)
 }
 
 func addBusinessDay(date time.Time) time.Time {

@@ -38,59 +38,59 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 		expected time.Time
 	}{
 		{
-			name:     "Monday schedules on Wednesday (2 business days)",
+			name:     "Monday schedules on Tuesday",
 			year:     2024,
 			month:    3,
 			today:    4, // Monday March 4
-			expected: date(2024, 3, 6),
+			expected: date(2024, 3, 5),
 		},
 		{
-			name:     "Tuesday schedules on Thursday (2 business days)",
+			name:     "Tuesday schedules on Wednesday",
 			year:     2024,
 			month:    3,
 			today:    5, // Tuesday March 5
-			expected: date(2024, 3, 7),
+			expected: date(2024, 3, 6),
 		},
 		{
-			name:     "Wednesday schedules on Friday (2 business days)",
+			name:     "Wednesday schedules on Thursday",
 			year:     2024,
 			month:    3,
 			today:    6, // Wednesday March 6
-			expected: date(2024, 3, 8),
+			expected: date(2024, 3, 7),
 		},
 		{
-			name:     "Thursday schedules on Monday (skip weekend)",
+			name:     "Thursday schedules on Friday",
 			year:     2024,
 			month:    3,
 			today:    7, // Thursday March 7
-			expected: date(2024, 3, 11),
+			expected: date(2024, 3, 8),
 		},
 		{
-			name:     "Friday schedules on Tuesday (skip weekend)",
+			name:     "Friday schedules on Monday (skip weekend)",
 			year:     2024,
 			month:    3,
 			today:    8, // Friday March 8
-			expected: date(2024, 3, 12),
+			expected: date(2024, 3, 11),
 		},
 		{
-			name:     "Saturday schedules on Tuesday",
+			name:     "Saturday schedules on Monday (skip Sunday)",
 			year:     2024,
 			month:    3,
 			today:    9, // Saturday March 9
-			expected: date(2024, 3, 12),
+			expected: date(2024, 3, 11),
 		},
 		{
-			name:     "Sunday schedules on Tuesday",
+			name:     "Sunday schedules on Monday",
 			year:     2024,
 			month:    3,
 			today:    10, // Sunday March 10
-			expected: date(2024, 3, 12),
+			expected: date(2024, 3, 11),
 		},
 		{
 			name:     "End of month rolls to next month",
 			year:     2024,
 			month:    3,
-			today:    28, // Thursday March 28
+			today:    29, // Friday March 29
 			expected: date(2024, 4, 1),
 		},
 		{
@@ -98,7 +98,7 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 			year:     2025,
 			month:    12,
 			today:    31, // Wednesday Dec 31
-			expected: date(2026, 1, 2),
+			expected: date(2026, 1, 1),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
