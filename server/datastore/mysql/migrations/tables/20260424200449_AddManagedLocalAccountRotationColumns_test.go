@@ -111,6 +111,7 @@ func TestUp_20260424200449(t *testing.T) {
 		time.Now().Add(2*time.Hour),
 	)
 	require.NoError(t, err)
+	defer rows.Close()
 	var hostUUIDs []string
 	for rows.Next() {
 		var u string
@@ -118,6 +119,5 @@ func TestUp_20260424200449(t *testing.T) {
 		hostUUIDs = append(hostUUIDs, u)
 	}
 	require.NoError(t, rows.Err())
-	require.NoError(t, rows.Close())
 	assert.Equal(t, []string{"host-uuid-new"}, hostUUIDs)
 }
