@@ -31,12 +31,14 @@ const usePlatformSelector = (
   const [checkWindows, setCheckWindows] = useState(false);
   const [checkLinux, setCheckLinux] = useState(false);
   const [checkChrome, setCheckChrome] = useState(false);
+  const [checkAndroid, setCheckAndroid] = useState(false);
 
   const checksByPlatform: Record<string, boolean> = {
     darwin: checkDarwin,
     windows: checkWindows,
     linux: checkLinux,
     chrome: checkChrome,
+    android: checkAndroid,
   };
 
   const settersByPlatform: Record<string, (val: boolean) => void> = {
@@ -44,6 +46,7 @@ const usePlatformSelector = (
     windows: setCheckWindows,
     linux: setCheckLinux,
     chrome: setCheckChrome,
+    android: setCheckAndroid,
   };
 
   const setSelectedPlatforms = (platformsToCheck: string[]) => {
@@ -60,7 +63,7 @@ const usePlatformSelector = (
 
   useEffect(() => {
     if (platformContext === "") {
-      setSelectedPlatforms(["darwin", "windows", "linux", "chrome"]);
+      setSelectedPlatforms(["darwin", "windows", "linux", "chrome", "android"]);
     }
     platformContext && setSelectedPlatforms(platformContext.split(","));
   }, [platformContext]);
@@ -73,16 +76,18 @@ const usePlatformSelector = (
         checkWindows={checkWindows}
         checkLinux={checkLinux}
         checkChrome={checkChrome}
+        checkAndroid={checkAndroid}
         setCheckDarwin={setCheckDarwin}
         setCheckWindows={setCheckWindows}
         setCheckLinux={setCheckLinux}
         setCheckChrome={setCheckChrome}
+        setCheckAndroid={setCheckAndroid}
         disabled={disabled}
         installSoftware={installSoftware}
         currentTeamId={currentTeamId}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
+  }, [checkDarwin, checkWindows, checkLinux, checkChrome, checkAndroid, disabled]);
 
   return {
     setSelectedPlatforms,

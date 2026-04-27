@@ -36,6 +36,8 @@ object KeystoreManager {
         testKey = null
     }
 
+    internal fun isTestModeEnabled(): Boolean = testMode
+
     private fun getOrCreateKey(): SecretKey {
         if (testMode) {
             return testKey ?: error("Test mode enabled but no test key available")

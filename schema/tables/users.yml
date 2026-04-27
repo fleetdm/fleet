@@ -5,6 +5,7 @@ platforms:
   - windows
   - linux
   - chrome
+  - android
 examples: |-
   List users that have interactive access via a shell that isn't false.
   

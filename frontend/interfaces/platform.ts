@@ -23,9 +23,10 @@ export const QUERYABLE_PLATFORMS = [
   "windows",
   "linux",
   "chrome",
+  "android",
 ] as const;
 
-export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados", "android"] as const;
+export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados"] as const;
 
 export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
 export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
@@ -50,7 +51,10 @@ export const SCHEDULED_QUERYABLE_PLATFORMS: ScheduledQueryablePlatform[] = [
   "linux",
 ];
 
-export type ScheduledQueryablePlatform = Exclude<QueryablePlatform, "chrome">;
+export type ScheduledQueryablePlatform = Exclude<
+  QueryablePlatform,
+  "chrome" | "android"
+>;
 
 export const isScheduledQueryablePlatform = (
   platform: string | undefined
@@ -66,7 +70,8 @@ export type CommaSeparatedPlatformString =
   | QueryablePlatform
   | `${QueryablePlatform},${QueryablePlatform}`
   | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`
-  | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`;
+  | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`
+  | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`;
 
 // --- MacAdmins Extension Tables ---
 

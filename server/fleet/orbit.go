@@ -63,6 +63,7 @@ type OrbitConfig struct {
 	Extensions       json.RawMessage          `json:"extensions,omitempty"`
 	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
+	Android          *AndroidOrbitConfig      `json:"android,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
@@ -87,6 +88,64 @@ type OrbitUpdateChannels struct {
 	Osqueryd string `json:"osqueryd"`
 	// Desktop holds the Fleet Desktop channel.
 	Desktop string `json:"desktop"`
+}
+
+const (
+	DefaultAndroidDistributedReadIntervalSeconds = 60
+	DefaultAndroidScreenOffIntervalSeconds       = 300
+	DefaultAndroidIdleIntervalSeconds            = 900
+	DefaultAndroidChargingIntervalSeconds        = 60
+	DefaultAndroidBatterySaverIntervalSeconds    = 1800
+)
+
+// AndroidScheduledQuery defines a query that the Android agent runs on a schedule.
+type AndroidScheduledQuery struct {
+	Query       string `json:"query"`
+	Interval    int    `json:"interval"`
+	Description string `json:"description,omitempty"`
+}
+
+type AndroidOrbitConfig struct {
+	DistributedReadIntervalSeconds int                                `json:"distributed_read_interval_seconds"`
+	ScreenOffIntervalSeconds       int                                `json:"screen_off_interval_seconds"`
+	IdleIntervalSeconds            int                                `json:"idle_interval_seconds"`
+	ChargingIntervalSeconds        int                                `json:"charging_interval_seconds"`
+	BatterySaverIntervalSeconds    int                                `json:"battery_saver_interval_seconds"`
+	ScheduledQueries               map[string]AndroidScheduledQuery   `json:"scheduled_queries,omitempty"`
+}
+
+// OrbitSoftwareInventoryItem represents an installed app reported by an Android agent.
+type OrbitSoftwareInventoryItem struct {
+	AppName     string `json:"app_name"`
+	Version     string `json:"version"`
+	PackageName string `json:"package_name"`
+}
+
+func DefaultAndroidOrbitConfig() AndroidOrbitConfig {
+	return AndroidOrbitConfig{
+		DistributedReadIntervalSeconds: DefaultAndroidDistributedReadIntervalSeconds,
+		ScreenOffIntervalSeconds:       DefaultAndroidScreenOffIntervalSeconds,
+		IdleIntervalSeconds:            DefaultAndroidIdleIntervalSeconds,
+		ChargingIntervalSeconds:        DefaultAndroidChargingIntervalSeconds,
+		BatterySaverIntervalSeconds:    DefaultAndroidBatterySaverIntervalSeconds,
+		ScheduledQueries: map[string]AndroidScheduledQuery{
+			"device_security_check": {
+				Query:       "SELECT is_device_secure FROM device_info",
+				Interval:    300,
+				Description: "Check device lock screen status",
+			},
+			"os_version_check": {
+				Query:       "SELECT name, version, security_patch FROM os_version",
+				Interval:    600,
+				Description: "Collect OS version info",
+			},
+			"battery_status": {
+				Query:       "SELECT * FROM battery",
+				Interval:    900,
+				Description: "Monitor battery health",
+			},
+		},
+	}
 }
 
 // OrbitHostInfo holds device information used during Orbit enroll.

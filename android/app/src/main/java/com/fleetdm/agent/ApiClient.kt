@@ -29,6 +29,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import com.fleetdm.agent.device.DeviceIdManager
 
 /**
  * Converts a java.util.Date to ISO8601 format string.
@@ -82,12 +86,80 @@ object ApiClient : CertificateApiClient {
 
     private val enrollmentMutex = Mutex()
 
+    private fun shouldRequireHttps(): Boolean = !BuildConfig.DEBUG && !KeystoreManager.isTestModeEnabled()
+
+    internal fun validateBaseUrl(baseUrl: String, requireHttps: Boolean): Result<String> {
+        return try {
+            val parsedUrl = URL(baseUrl)
+            if (parsedUrl.protocol !in listOf("https", "http")) {
+                return Result.failure(Exception("Base URL must use HTTP or HTTPS scheme"))
+            }
+            if (requireHttps && parsedUrl.protocol != "https") {
+                return Result.failure(Exception("Base URL must use HTTPS in non-debug builds"))
+            }
+            if (parsedUrl.userInfo != null) {
+                return Result.failure(Exception("Base URL must not include user info"))
+            }
+            if (parsedUrl.path.isNotEmpty() && parsedUrl.path != "/") {
+                return Result.failure(Exception("Base URL must not include a path"))
+            }
+            if (!parsedUrl.query.isNullOrEmpty() || !parsedUrl.ref.isNullOrEmpty()) {
+                return Result.failure(Exception("Base URL must not include query or fragment"))
+            }
+
+            val normalized = "${parsedUrl.protocol}://${parsedUrl.authority}".trimEnd('/')
+            Result.success(normalized)
+        } catch (e: Exception) {
+            Result.failure(Exception("Invalid base URL format: ${e.message}"))
+        }
+    }
+
     fun initialize(context: Context) {
         Log.d(TAG, "initializing api client")
         appContext = context.applicationContext
         if (!::dataStore.isInitialized) {
             dataStore = appContext.prefDataStore
         }
+    }
+
+    suspend fun distributedRead(): Result<DistributedReadResponse> = withReenrollOnUnauthorized {
+        val nodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        makeRequest(
+            endpoint = "/api/v1/osquery/distributed/read",
+            method = "POST",
+            body = DistributedReadRequest(nodeKey = nodeKey),
+            bodySerializer = DistributedReadRequest.serializer(),
+            responseSerializer = DistributedReadResponse.serializer(),
+            authorized = false,
+        )
+    }
+
+    suspend fun distributedWrite(
+        queryResults: Map<String, List<Map<String, String>>>,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        val nodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        val req = DistributedWriteRequest(nodeKey = nodeKey, queries = queryResults)
+
+        // Fleet usually returns an empty JSON object; we don't care about the body.
+        val res = makeRequest(
+            endpoint = "/api/v1/osquery/distributed/write",
+            method = "POST",
+            body = req,
+            bodySerializer = DistributedWriteRequest.serializer(),
+            responseSerializer = JsonElement.serializer(),
+            authorized = false,
+        )
+
+        res.fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
     }
 
     private suspend fun setApiKey(key: String) {
@@ -164,6 +236,12 @@ object ApiClient : CertificateApiClient {
                     requestMethod = method
                     useCaches = false
                     doInput = true
+                    val deviceId = runCatching { DeviceIdManager.getOrCreateDeviceId() }
+                        .onFailure { FleetLog.e(TAG, "Failed to retrieve device id: ${it.message}") }
+                        .getOrNull()
+                    if (!deviceId.isNullOrBlank()) {
+                        setRequestProperty("X-Fleet-Device-Id", deviceId)
+                    }
                     if (authorized) {
                         getNodeKeyOrEnroll().fold(
                             onFailure = { throwable -> return@withContext Result.failure(throwable) },
@@ -289,6 +367,41 @@ object ApiClient : CertificateApiClient {
         return resp
     }
 
+    suspend fun submitResultLogs(logs: List<ScheduledQueryResultLog>): Result<Unit> {
+        val nodeKey = getApiKey() ?: return Result.failure(Exception("Node key not set"))
+
+        val request = SubmitLogsRequest(
+            nodeKey = nodeKey,
+            logType = "result",
+            data = logs,
+        )
+
+        return makeRequest(
+            endpoint = "/api/v1/osquery/log",
+            method = "POST",
+            body = request,
+            bodySerializer = SubmitLogsRequest.serializer(),
+            responseSerializer = JsonElement.serializer(),
+            authorized = false,
+        ).fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
+    }
+
+    suspend fun getOsqueryConfig(): Result<OsqueryConfigResponse> {
+        val nodeKey = getApiKey() ?: return Result.failure(Exception("Node key not set"))
+
+        return makeRequest(
+            endpoint = "/api/v1/osquery/config",
+            method = "POST",
+            body = OsqueryConfigRequest(nodeKey = nodeKey),
+            bodySerializer = OsqueryConfigRequest.serializer(),
+            responseSerializer = OsqueryConfigResponse.serializer(),
+            authorized = false,
+        )
+    }
+
     suspend fun getOrbitConfig(): Result<OrbitConfig> = withReenrollOnUnauthorized {
         val nodeKeyResult = getNodeKeyOrEnroll()
 
@@ -306,8 +419,45 @@ object ApiClient : CertificateApiClient {
         )
     }
 
+    suspend fun reportSoftwareInventory(
+        software: List<SoftwareInventoryItem>,
+    ): Result<Unit> = withReenrollOnUnauthorized {
+        val orbitNodeKey = getNodeKeyOrEnroll().getOrElse { error ->
+            return@withReenrollOnUnauthorized Result.failure(error)
+        }
+
+        makeRequest(
+            endpoint = "/api/fleet/orbit/software_inventory",
+            method = "POST",
+            body = ReportSoftwareInventoryRequest(
+                orbitNodeKey = orbitNodeKey,
+                software = software,
+            ),
+            bodySerializer = ReportSoftwareInventoryRequest.serializer(),
+            responseSerializer = kotlinx.serialization.json.JsonElement.serializer(),
+            authorized = false,
+        ).fold(
+            onSuccess = { Result.success(Unit) },
+            onFailure = { Result.failure(it) },
+        )
+    }
+
     suspend fun setEnrollmentCredentials(enrollSecret: String, hardwareUUID: String, computerName: String, serverUrl: String) {
         dataStore.edit { preferences ->
+            val currentEnrollSecret = preferences[ENROLL_SECRET]
+            val currentHardwareUUID = preferences[HARDWARE_UUID]
+            val currentServerUrl = preferences[SERVER_URL_KEY]
+
+            val identityChanged = currentEnrollSecret != null &&
+                (currentEnrollSecret != enrollSecret ||
+                    currentHardwareUUID != hardwareUUID ||
+                    currentServerUrl != serverUrl)
+
+            if (identityChanged) {
+                preferences.remove(API_KEY)
+                Log.i(TAG, "Enrollment identity changed, cleared stored node key")
+            }
+
             preferences[ENROLL_SECRET] = enrollSecret
             preferences[HARDWARE_UUID] = hardwareUUID
             preferences[COMPUTER_NAME] = computerName
@@ -443,6 +593,86 @@ object ApiClient : CertificateApiClient {
 // and is widely used and reliable in production. The opt-in only acknowledges that the API shape could change in a future version.
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable
+data class DistributedReadRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class DistributedReadResponse(
+    @SerialName("queries")
+    val queries: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class DistributedWriteRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+
+    // Map: queryName -> rows[] where each row is {col: value}
+    @SerialName("queries")
+    val queries: Map<String, List<Map<String, String>>> = emptyMap(),
+)
+
+
+
+@Serializable
+data class ScheduledQueryResultLog(
+    @SerialName("name")
+    val name: String,
+    @SerialName("hostIdentifier")
+    val hostIdentifier: String,
+    @SerialName("snapshot")
+    val snapshot: List<Map<String, String>>,
+    @SerialName("unixTime")
+    val unixTime: Long,
+    @SerialName("action")
+    val action: String = "snapshot",
+)
+
+@Serializable
+data class SubmitLogsRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+    @SerialName("log_type")
+    val logType: String,
+    @SerialName("data")
+    val data: List<ScheduledQueryResultLog>,
+)
+
+@Serializable
+data class OsqueryConfigRequest(
+    @SerialName("node_key")
+    val nodeKey: String,
+)
+
+@Serializable
+data class OsqueryQueryContent(
+    @SerialName("query")
+    val query: String,
+    @SerialName("interval")
+    val interval: Int = 0,
+    @SerialName("platform")
+    val platform: String? = null,
+    @SerialName("snapshot")
+    val snapshot: Boolean? = null,
+)
+
+@Serializable
+data class OsqueryPackContent(
+    @SerialName("queries")
+    val queries: Map<String, OsqueryQueryContent> = emptyMap(),
+)
+
+@Serializable
+data class OsqueryConfigResponse(
+    @SerialName("packs")
+    val packs: Map<String, OsqueryPackContent> = emptyMap(),
+)
+
+@Serializable
 data class EnrollRequest(
     @SerialName("enroll_secret")
     val enrollSecret: String,
@@ -486,8 +716,42 @@ data class OrbitConfig(
     @SerialName("notifications")
     val notifications: OrbitConfigNotifications = OrbitConfigNotifications(),
 
+    @SerialName("android")
+    val android: AndroidOrbitConfig? = null,
+
     @SerialName("update_channels")
     val updateChannels: OrbitUpdateChannels? = null,
+)
+
+@Serializable
+data class AndroidScheduledQueryConfig(
+    @SerialName("query")
+    val query: String,
+    @SerialName("interval")
+    val interval: Int,
+    @SerialName("description")
+    val description: String = "",
+)
+
+@Serializable
+data class AndroidOrbitConfig(
+    @SerialName("distributed_read_interval_seconds")
+    val distributedReadIntervalSeconds: Int = 60,
+
+    @SerialName("screen_off_interval_seconds")
+    val screenOffIntervalSeconds: Int = 300,
+
+    @SerialName("idle_interval_seconds")
+    val idleIntervalSeconds: Int = 900,
+
+    @SerialName("charging_interval_seconds")
+    val chargingIntervalSeconds: Int = 60,
+
+    @SerialName("battery_saver_interval_seconds")
+    val batterySaverIntervalSeconds: Int = 1800,
+
+    @SerialName("scheduled_queries")
+    val scheduledQueries: Map<String, AndroidScheduledQueryConfig> = emptyMap(),
 )
 
 @Serializable
@@ -536,6 +800,30 @@ data class OrbitUpdateChannels(
 
     @SerialName("desktop")
     val desktop: String = "",
+)
+
+@Serializable
+data class SoftwareInventoryItem(
+    @SerialName("app_name")
+    val appName: String,
+    @SerialName("version")
+    val version: String,
+    @SerialName("package_name")
+    val packageName: String,
+)
+
+@Serializable
+private data class ReportSoftwareInventoryRequest(
+    @SerialName("orbit_node_key")
+    val orbitNodeKey: String,
+    @SerialName("software")
+    val software: List<SoftwareInventoryItem>,
+)
+
+@Serializable
+private data class GetCertificateTemplateRequest(
+    @SerialName("orbit_node_key")
+    val orbitNodeKey: String,
 )
 
 @Serializable

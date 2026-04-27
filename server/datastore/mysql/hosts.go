@@ -2382,6 +2382,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
         computer_name = COALESCE(NULLIF(computer_name, ''), ?),
         hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
+        platform = COALESCE(NULLIF(?, ''), platform),
         refetch_requested = ?%s
       WHERE id = ?`
 			args := []any{
@@ -2391,6 +2392,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				hostInfo.HardwareSerial,
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
+				hostInfo.Platform,
 				refetchRequested,
 			}
 

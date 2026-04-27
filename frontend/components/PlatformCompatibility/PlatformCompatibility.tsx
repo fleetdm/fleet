@@ -22,6 +22,7 @@ const DISPLAY_ORDER = [
   "Windows",
   "Linux",
   "ChromeOS",
+  "Android",
 ] as QueryableDisplayPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
@@ -52,7 +53,7 @@ const tipContent = (
   <>
     Estimated compatibility based on the tables <br />
     used in the query. Reports are not supported <br />
-    on iPhones, iPads, and Android hosts.
+    on iPhones and iPads.
   </>
 );
 
@@ -92,7 +93,9 @@ const PlatformCompatibility = ({
             color={isCompatible ? "status-success" : "status-error"}
             size="small"
           />
-          {platform === "ChromeOS" ? liveQueryOnlyPlatform : platform}
+          {platform === "ChromeOS" || platform === "Android"
+            ? liveQueryOnlyPlatform
+            : platform}
         </span>
       );
     });

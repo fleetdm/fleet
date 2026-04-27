@@ -4,6 +4,7 @@ platforms:
   - darwin
   - linux
   - chrome
+  - android
 columns:
   - name: cpu_subtype
     platforms:

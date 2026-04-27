@@ -2,6 +2,14 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 import java.io.FileInputStream
 import java.util.Properties
 
+
+
+fun fleetProp(name: String): String =
+    (project.findProperty(name) as String?)
+        ?: (System.getenv(name.replace('.', '_').uppercase()) ?: "")
+
+
+
 // ==================== PLUGINS ====================
 
 plugins {
@@ -101,6 +109,8 @@ android {
         debug {
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
+            buildConfigField("String", "DEBUG_FLEET_SERVER_URL", "\"${fleetProp("fleet.server_url")}\"")
+            buildConfigField("String", "DEBUG_FLEET_ENROLL_SECRET", "\"${fleetProp("fleet.enroll_secret")}\"")
         }
         release {
             if (keystorePropertiesFile.exists()) {
@@ -255,6 +265,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.amapi.sdk)
     implementation(libs.kotlinx.serialization.json)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // SCEP (Simple Certificate Enrollment Protocol)
     implementation(libs.jscep)

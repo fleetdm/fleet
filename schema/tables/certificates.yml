@@ -1,4 +1,9 @@
 name: certificates
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 description: "[Certificate
   authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in
   Keychains/ca-bundles."

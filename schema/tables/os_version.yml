@@ -4,6 +4,7 @@ platforms:
   - linux
   - windows
   - chrome
+  - android
 examples: |-
   See the OS version as well as the CPU architecture in use (X86 vs ARM for
   example)

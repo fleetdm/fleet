@@ -1,0 +1,30 @@
+name: app_signatures
+evented: false
+platforms:
+  - android
+description: Signing certificate information for installed Android applications.
+columns:
+  - name: app_name
+    type: text
+    required: false
+    description: Human-readable application name.
+  - name: package_name
+    type: text
+    required: false
+    description: Android package name.
+  - name: sha256
+    type: text
+    required: false
+    description: SHA-256 hash of the signing certificate.
+  - name: subject
+    type: text
+    required: false
+    description: Certificate subject (X.500 principal name).
+  - name: issuer
+    type: text
+    required: false
+    description: Certificate issuer (X.500 principal name).
+  - name: version_name
+    type: text
+    required: false
+    description: Application version name.

@@ -1,4 +1,8 @@
 name: battery
+platforms:
+  - darwin
+  - windows
+  - android
 examples: |-
   This table contains a lot of information about the health of batteries. This
   query shows how many cycles the battery of a device was used for, allowing you

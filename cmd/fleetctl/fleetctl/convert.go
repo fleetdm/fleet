@@ -24,6 +24,7 @@ var platformMapping = map[string][]string{
 	"linux":     {"linux"},
 	"windows":   {"windows"},
 	"chrome":    {"chrome"},
+	"android":   {"android"},
 	"specs":     {"darwin", "linux", "windows"},
 	"utility":   {"darwin", "linux", "windows"},
 	"yara":      {"darwin", "linux", "windows"},

@@ -54,6 +54,8 @@ type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enr
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
+type ReportSoftwareInventoryFunc func(ctx context.Context, software []fleet.OrbitSoftwareInventoryItem) error
+
 type LogFleetdErrorFunc func(ctx context.Context, errData fleet.FleetdError) error
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) error
@@ -965,6 +967,9 @@ type Service struct {
 
 	GetOrbitConfigFunc        GetOrbitConfigFunc
 	GetOrbitConfigFuncInvoked bool
+
+	ReportSoftwareInventoryFunc        ReportSoftwareInventoryFunc
+	ReportSoftwareInventoryFuncInvoked bool
 
 	LogFleetdErrorFunc        LogFleetdErrorFunc
 	LogFleetdErrorFuncInvoked bool
@@ -2376,6 +2381,13 @@ func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error)
 	s.GetOrbitConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetOrbitConfigFunc(ctx)
+}
+
+func (s *Service) ReportSoftwareInventory(ctx context.Context, software []fleet.OrbitSoftwareInventoryItem) error {
+	s.mu.Lock()
+	s.ReportSoftwareInventoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReportSoftwareInventoryFunc(ctx, software)
 }
 
 func (s *Service) LogFleetdError(ctx context.Context, errData fleet.FleetdError) error {

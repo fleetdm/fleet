@@ -1,0 +1,42 @@
+name: installed_apps
+evented: false
+platforms:
+  - android
+description: Installed application inventory and package metadata on Android devices.
+examples: |-
+  List installed apps and versions on Android hosts.
+
+  ```
+  SELECT app_name, package_name, version_name, version_code
+  FROM installed_apps
+  LIMIT 50;
+  ```
+columns:
+  - name: package_name
+    type: text
+    required: false
+    description: Android package name.
+  - name: app_name
+    type: text
+    required: false
+    description: Human-readable application name.
+  - name: version_name
+    type: text
+    required: false
+    description: Application version name.
+  - name: version_code
+    type: text
+    required: false
+    description: Application version code.
+  - name: first_install_time
+    type: text
+    required: false
+    description: First install time on device.
+  - name: last_update_time
+    type: text
+    required: false
+    description: Last update time on device.
+  - name: is_system
+    type: text
+    required: false
+    description: Whether the app is a system app.

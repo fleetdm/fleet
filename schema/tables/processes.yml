@@ -1,4 +1,9 @@
 name: processes
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   List executables listening on network ports.
 

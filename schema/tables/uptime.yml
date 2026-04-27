@@ -1,4 +1,9 @@
 name: uptime
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   See how long hosts that have been up for more than a month have been up. This
   could indicate systems that are not ephemeral as expected, or not being

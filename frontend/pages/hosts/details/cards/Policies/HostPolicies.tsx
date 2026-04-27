@@ -110,20 +110,6 @@ const Policies = ({
       );
     }
 
-    if (isAndroid(hostPlatform)) {
-      return (
-        <EmptyTable
-          header={<>Policies are not supported for this host</>}
-          info={
-            <>
-              Interested in detecting device health issues on Android hosts?{" "}
-              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-            </>
-          }
-        />
-      );
-    }
-
     if (policies.length === 0) {
       return (
         <EmptyTable

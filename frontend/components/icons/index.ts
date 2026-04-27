@@ -138,6 +138,7 @@ export const ICON_MAP = {
   ios: iOS,
   iOS,
   android: Android,
+  Android,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,

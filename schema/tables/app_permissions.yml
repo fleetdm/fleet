@@ -1,0 +1,38 @@
+name: app_permissions
+evented: false
+platforms:
+  - android
+description: Permissions requested and granted by installed Android applications.
+examples: |-
+  Show granted dangerous permissions on Android devices.
+
+  ```
+  SELECT app_name, package_name, permission
+  FROM app_permissions
+  WHERE granted='true' AND protection_level='dangerous';
+  ```
+columns:
+  - name: package_name
+    type: text
+    required: false
+    description: Android package name.
+  - name: app_name
+    type: text
+    required: false
+    description: Human-readable application name.
+  - name: permission
+    type: text
+    required: false
+    description: Android permission name.
+  - name: protection_level
+    type: text
+    required: false
+    description: Permission protection level (for example normal or dangerous).
+  - name: granted
+    type: text
+    required: false
+    description: Whether the permission is granted.
+  - name: is_system
+    type: text
+    required: false
+    description: Whether the app is a system app.

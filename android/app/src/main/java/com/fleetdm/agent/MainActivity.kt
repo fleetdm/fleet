@@ -2,16 +2,10 @@
 
 package com.fleetdm.agent
 
-import android.app.admin.DevicePolicyManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Context.DEVICE_POLICY_SERVICE
-import android.content.Context.RESTRICTIONS_SERVICE
 import android.content.Intent
-import android.content.RestrictionsManager
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
@@ -30,15 +24,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,10 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -62,18 +50,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.fleetdm.agent.ui.theme.FleetTextDark
 import com.fleetdm.agent.ui.theme.MyApplicationTheme
+import com.fleetdm.agent.device.DeviceIdManager
+import com.fleetdm.agent.device.Storage
 import kotlinx.serialization.Serializable
 
 const val CLICKS_TO_DEBUG = 8
 
-@Serializable
-object MainDestination
-
-@Serializable
-object DebugDestination
-
-@Serializable
-object LogsDestination
+@Serializable object MainDestination
+@Serializable object DebugDestination
+@Serializable object LogsDestination
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,16 +91,16 @@ fun AppNavigation() {
                 onNavigateToDebug = { navController.navigate(DebugDestination) },
             )
         }
-
         composable<DebugDestination> {
             DebugScreen(
-                onNavigateBack = { navController.navigateUp() },
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToLogs = { navController.navigate(LogsDestination) },
             )
         }
-
         composable<LogsDestination> {
-            LogsScreen(onNavigateBack = { navController.navigateUp() })
+            LogsScreen(
+                onNavigateBack = { navController.popBackStack() },
+            )
         }
     }
 }
@@ -125,25 +110,29 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
     val context = LocalContext.current
     val orchestrator = remember { AgentApplication.getCertificateOrchestrator(context) }
 
+    val deviceId = remember {
+        Storage.init(context)
+        DeviceIdManager.getOrCreateDeviceId()
+    }
+
     var versionClicks by remember { mutableStateOf(0) }
-    val installedCerts by orchestrator.installedCertsFlow(context).collectAsStateWithLifecycle(initialValue = emptyMap())
+    val installedCerts by orchestrator
+        .installedCertsFlow(context)
+        .collectAsStateWithLifecycle(initialValue = emptyMap())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         content = { paddingValues ->
-            Column(Modifier.padding(paddingValues = paddingValues)) {
+            Column(
+                Modifier
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 LogoHeader()
                 HorizontalDivider()
                 AboutFleet {
                     val intent = Intent(Intent.ACTION_VIEW, BuildConfig.INFO_URL.toUri())
-                    if (intent.resolveActivity(context.packageManager) != null) {
-                        // A browser is available, open the URL directly
-                        context.startActivity(intent)
-                    } else {
-                        // A browser is not available in the work profile, display a toast with the URL
-                        val toast = Toast.makeText(context, "Visit ${BuildConfig.INFO_URL}\nfor more information", Toast.LENGTH_LONG)
-                        toast.show()
-                    }
+                    context.startActivity(intent)
                 }
                 HorizontalDivider()
                 Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -159,58 +148,34 @@ fun MainScreen(onNavigateToDebug: () -> Unit) {
                         }
                     }
                 }
+                DeviceIdRow(deviceId = deviceId) {
+                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText("Device ID", deviceId)
+                    )
+                    Toast.makeText(context, "Device ID copied", Toast.LENGTH_SHORT).show()
+                }
             }
         },
     )
 }
 
 @Composable
-fun AboutFleet(modifier: Modifier = Modifier, onLearnClick: () -> Unit = {}) {
-    Column(modifier = modifier.padding(20.dp)) {
-        Text(
-            text = stringResource(R.string.app_description),
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier
-                .padding(top = 10.dp)
-                .clickable(onClick = onLearnClick),
+fun DeviceIdRow(deviceId: String, onClick: () -> Unit = {}) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
         ) {
             Text(
-                text = stringResource(R.string.learn_about_fleet),
-                fontWeight = FontWeight.Bold,
+                text = "Device ID",
                 color = FleetTextDark,
+                fontWeight = FontWeight.Bold,
             )
-            Icon(imageVector = Icons.AutoMirrored.Default.ArrowForward, contentDescription = "forward arrow")
-        }
-    }
-}
-
-@Composable
-fun LogoHeader(modifier: Modifier = Modifier) {
-    Image(
-        modifier = modifier.padding(20.dp),
-        painter = painterResource(R.drawable.fleet_logo),
-        contentDescription = stringResource(R.string.fleet_logo),
-    )
-}
-
-@Composable
-fun CertificateList(modifier: Modifier = Modifier, certificates: CertificateStateMap) {
-    Column(modifier = modifier.padding(all = 20.dp)) {
-        Text(
-            text = stringResource(R.string.certificate_list_title),
-            color = FleetTextDark,
-            fontWeight = FontWeight.Bold,
-        )
-        certificates.ifEmpty {
-            Text(text = stringResource(R.string.certificate_list_no_certificates))
-        }
-        certificates.forEach { (_, value) ->
-            if (value.status == CertificateStatus.INSTALLED || value.status == CertificateStatus.INSTALLED_UNREPORTED) {
-                Text(text = value.alias)
-            }
+            Text(text = deviceId)
         }
     }
 }
@@ -223,8 +188,7 @@ fun AppVersion(onClick: () -> Unit = {}) {
             .clickable(onClick = onClick),
     ) {
         Column(
-            modifier = Modifier
-                .padding(horizontal = 20.dp),
+            modifier = Modifier.padding(horizontal = 20.dp),
         ) {
             Text(
                 text = stringResource(R.string.app_version_title),
@@ -236,30 +200,55 @@ fun AppVersion(onClick: () -> Unit = {}) {
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun FleetScreenPreview() {
-    MyApplicationTheme {
-        Column {
-            LogoHeader()
-            HorizontalDivider()
-            AboutFleet()
-            HorizontalDivider()
-            CertificateList(
-                certificates = mapOf(
-                    1 to CertificateState(alias = "WIFI-1", status = CertificateStatus.INSTALLED),
-                    2 to CertificateState(alias = "VPN-3", status = CertificateStatus.FAILED),
-                ),
+fun AboutFleet(onLearnClick: () -> Unit = {}) {
+    Column(Modifier.padding(20.dp)) {
+        Text(text = stringResource(R.string.app_description))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(top = 10.dp)
+                .clickable(onClick = onLearnClick),
+        ) {
+            Text(
+                text = stringResource(R.string.learn_about_fleet),
+                fontWeight = FontWeight.Bold,
+                color = FleetTextDark,
             )
-            AppVersion(onClick = {})
+            Icon(
+                imageVector = Icons.AutoMirrored.Default.ArrowForward,
+                contentDescription = null,
+            )
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun AboutFleetPreview() {
-    MyApplicationTheme {
-        AboutFleet()
+fun LogoHeader() {
+    Image(
+        modifier = Modifier.padding(20.dp),
+        painter = painterResource(R.drawable.fleet_logo),
+        contentDescription = null,
+    )
+}
+
+@Composable
+fun CertificateList(certificates: CertificateStateMap) {
+    Column(Modifier.padding(20.dp)) {
+        Text(
+            text = stringResource(R.string.certificate_list_title),
+            color = FleetTextDark,
+            fontWeight = FontWeight.Bold,
+        )
+        certificates.ifEmpty {
+            Text(text = stringResource(R.string.certificate_list_no_certificates))
+        }
+        certificates.forEach { (_, value) ->
+            if (value.status == CertificateStatus.INSTALLED ||
+                value.status == CertificateStatus.INSTALLED_UNREPORTED
+            ) {
+                Text(text = value.alias)
+            }
+        }
     }
 }

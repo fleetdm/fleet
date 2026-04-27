@@ -1,4 +1,9 @@
 name: routes
+platforms:
+  - darwin
+  - linux
+  - windows
+  - android
 examples: |-
   Identify static routes
   
