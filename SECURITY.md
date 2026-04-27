@@ -8,9 +8,9 @@ Fleet endeavors to acknowledge and fix any reported vulnerabilities ASAP. Acknow
 
 ### PGP Key
 
-To encrypt vulnerability reports before sending them, please use this [PGP key](https://keys.openpgp.org/vks/v1/by-fingerprint/23A19D1F16D7184657D16D67320DB57DE4F0EE8F). 
+To encrypt vulnerability reports before sending them, please use this [PGP key](https://keys.openpgp.org/vks/v1/by-fingerprint/82F2AF19547E462A4605D53801B2575E46766EBE).
 
-The fingerprint of the key is `23A1 9D1F 16D7 1846 57D1  6D67 320D B57D E4F0 EE8F`.
+The fingerprint of the key is `82F2 AF19 547E 462A 4605  D538 01B2 575E 4676 6EBE`.
 
 ### Vulnerability tracking
 
