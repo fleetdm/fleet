@@ -152,7 +152,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       />
     ) : (
       <ManualLabelForm
-        key={targetedHosts?.map((h) => h.id).join(",")}
+        key={`${labelId}-${(targetedHosts || [])
+          .map((h) => h.id)
+          .sort((a, b) => a - b)
+          .join(",")}`}
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}
