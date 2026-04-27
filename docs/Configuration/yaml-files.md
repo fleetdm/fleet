@@ -10,18 +10,6 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
 
-The following are the required keys in the `default.yml` and any `fleets/fleet-name.yml` files:
-
-```yaml
-name: # Only fleets/fleet-name.yml
-policies:
-reports:
-agent_options:
-controls:
-software:
-org_settings: # Only default.yml
-settings: # Only fleets/fleet-name.yml
-```
 Paths in YAML files are always relative to the file you’re editing.
 
 For example:
@@ -58,7 +46,7 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
-- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
+- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
@@ -147,6 +135,7 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
 To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+
 #### Automations
 
 ##### Install software
@@ -155,6 +144,7 @@ _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
 #### Run script
@@ -211,19 +201,27 @@ policies:
   calendar_events_enabled: false
   run_script:
     path: ./disable-guest-account.sh
-- name: Install Firefox on macOS
+- name: macOS - Firefox installed
   platform: darwin
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
-  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
   install_software:
     package_path: ./firefox.package.yml
-- name: [Install software] Logic Pro
+- name: macOS - Logic Pro installed
   platform: darwin
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
-  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.logic10'"
   install_software:
+    app_store_id: "1487937127" # (for App Store apps)
+- name: macOS - Zoom installed
+  platform: darwin
+  description: This policy checks that Zoom is installed
+  resolution: Install Logic Pro App Store app if not installed
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos'"
+  install_software:
+    fleet_maintained_app_slug: zoom/darwin
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
 - name: Zoom up to date
@@ -378,6 +376,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment.
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 
 #### Example
@@ -395,6 +394,7 @@ controls:
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
+  apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
@@ -533,6 +533,8 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 
 In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
 
+In JSON, certain characters (`"`, `\`, and control characters) must be escaped because they have special meanings in the data format. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in a `.json` configuration profile (Apple DDM declaration or Android profile). For example, `"` will become `\"`.
+
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
 To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops).
@@ -588,7 +590,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
-Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/34492) is coming soon.
+Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
@@ -647,7 +649,7 @@ software:
 #### self_service, labels, categories, and setup_experience
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
-- `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
+- `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
 - `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
   - `Browsers`: shown as **🌎 Browsers**
   - `Communication`: shown as **👬 Communication**
@@ -719,6 +721,9 @@ software:
 - `configuration.path` is the Android Play Store app's managed configuration in JSON format. Currently only supported for Android.
   + `managedConfiguration` and `workProfileWidgets` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+- `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
+- `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
+- `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
@@ -863,8 +868,8 @@ org_settings:
   server_settings:
     ai_features_disabled: false
     enable_analytics: true
-    live_report_disabled: false
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    discard_reports_data: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
 ```

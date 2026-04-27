@@ -1,1 +1,0 @@
-* Enabled Windows MDM in `fleetctl preview` by auto-generating WSTEP certificates on startup.

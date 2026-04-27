@@ -49,7 +49,7 @@ Below is an explanation of what each of the macOS CrowdStrike Falcon payloads do
 
 [Download the CrowdStrike Falcon macOS Configuration Profiles](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macos/configuration-profiles)
 
-To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Custom settings** then click **Add Profile**.
+To upload Configuration Profiles to your Fleet instance: go to **Controls > OS Settings > Configuration profiles** then click **Add Profile**.
 
 ![Manage configuration profiles](../website/assets/images/articles/fleet-crowdstrike-add-profile-800x450@2x.png)
 
@@ -134,6 +134,20 @@ Exit $installProcess.ExitCode
 } catch {
   Write-Host "Error: $_"
   Exit 1
+}
+```
+
+If you are using the .exe package, you will need to use the following post-install script:
+
+```
+$logFile = "${env:TEMP}\fleet-install-software.log"
+try {
+    $installProcess = Start-Process -FilePath "${env:INSTALLER_PATH}" -ArgumentList "/quiet /norestart /install CID=<YOUR-CUSTOMER-ID-HERE>"
+    Get-Content $logFile -Tail 500
+    Exit $installProcess.ExitCode
+} catch {
+    Write-Host "Error: $_"
+    Exit 1
 }
 ```
 

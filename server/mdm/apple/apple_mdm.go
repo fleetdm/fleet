@@ -106,15 +106,12 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 		ProfileName:      "Fleet default enrollment profile",
 		AllowPairing:     true,
 		AutoAdvanceSetup: false,
-		IsSupervised:     false,
 		IsMultiUser:      false,
 		IsMandatory:      false,
 		IsMDMRemovable:   true,
 		Language:         "en",
 		OrgMagic:         "1",
-		Region:           "US",
 		SkipSetupItems: []string{
-			"Accessibility",
 			"Appearance",
 			"AppleID",
 			"AppStore",
@@ -123,15 +120,20 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 			"FileVault",
 			"iCloudDiagnostics",
 			"iCloudStorage",
+			"Intelligence",
 			"Location",
+			"OSShowcase",
 			"Payment",
 			"Privacy",
 			"Restore",
 			"ScreenTime",
 			"Siri",
+			"SoftwareUpdate",
 			"TermsOfAddress",
 			"TOS",
 			"UnlockWithWatch",
+			"UpdateCompleted",
+			"Welcome",
 		},
 	}
 }
@@ -1822,6 +1824,17 @@ func sendRecoveryLockCommandsWithCommander(
 		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "restore recovery lock for re-enabled hosts"))
 	} else if restored > 0 {
 		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
+	}
+
+	// Soft-delete any live rows whose host is no longer MDM enrolled. Catches hosts
+	// where MDM was disabled without firing MDMTurnOff or MDMResetEnrollment — typically
+	// when the device user removed the MDM profile manually and only osquery refetch
+	// eventually reported host_mdm.enrolled=0. One bounded UPDATE per cron tick.
+	swept, err := ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts"))
+	} else if swept > 0 {
+		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
 	}
 
 	// Handle SET password operations (hosts that need a recovery lock password)

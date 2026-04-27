@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"testing"
 
@@ -24,6 +25,9 @@ func TestNewTeamNameValidation(t *testing.T) {
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = 1
 		return team, nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()
@@ -160,6 +164,9 @@ func TestModifyTeamNameValidation(t *testing.T) {
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return team, nil
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
@@ -277,6 +284,9 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return nil, &notFoundError{}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
@@ -372,6 +382,299 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNewTeamCollationEqualConflict covers the case where the requested name
+// collides with an existing team under MySQL's collation.
+func TestNewTeamCollationEqualConflict(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		t.Fatalf("NewTeam should not be called when a conflict is detected")
+		return nil, nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		require.Equal(t, uint(0), excludeID)
+		return &fleet.Team{ID: 42, Name: "ABC"}, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz: authorizer,
+	}
+
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	_, err = svc.NewTeam(ctx, fleet.TeamPayload{Name: new("abc")})
+	require.Error(t, err)
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	require.Contains(t, err.Error(), `"ABC"`)
+	require.Contains(t, err.Error(), "must differ by more than letter case")
+}
+
+// TestModifyTeamCaseOnlyRenameAndConflict covers two ModifyTeam scenarios:
+//  1. Case-only self-rename succeeds (the team is excluded from the conflict
+//     check by id).
+//  2. Rename into another team's name returns a ConflictError naming that
+//     team.
+func TestModifyTeamCaseOnlyRenameAndConflict(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "ABC"}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz: authorizer,
+	}
+
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	t.Run("case-only self rename succeeds", func(t *testing.T) {
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			require.Equal(t, uint(5), excludeID)
+			return nil, nil
+		}
+
+		team, err := svc.ModifyTeam(ctx, 5, fleet.TeamPayload{Name: new("abc")})
+		require.NoError(t, err)
+		require.NotNil(t, team)
+		require.Equal(t, "abc", team.Name)
+	})
+
+	t.Run("rename into another team's name conflicts", func(t *testing.T) {
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			require.Equal(t, uint(5), excludeID)
+			return &fleet.Team{ID: 6, Name: "def"}, nil
+		}
+
+		team, err := svc.ModifyTeam(ctx, 5, fleet.TeamPayload{Name: new("DEF")})
+		require.Error(t, err)
+		require.Nil(t, team)
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.Contains(t, err.Error(), `"def"`)
+		require.Contains(t, err.Error(), "must differ by more than letter case")
+	})
+}
+
+// TestApplyTeamSpecsCollationEqualConflict covers the three GitOps scenarios
+// that were inconsistently handled:
+//   - Single-team case-only rename should succeed.
+//   - Cross-file conflict (new filename, colliding name) should return
+//     ConflictError.
+//   - Intra-batch conflict should be detected before any DB writes.
+func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	newSvc := func() (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, newB bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		}
+		svc := &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config: config.FleetConfig{
+				Server: config.ServerConfig{PrivateKey: "something"},
+			},
+			authz:  authorizer,
+			logger: slog.New(slog.DiscardHandler),
+		}
+		return svc, ds
+	}
+
+	t.Run("case-only rename of existing team succeeds and persists new name", func(t *testing.T) {
+		svc, ds := newSvc()
+		filename := "abc.yml"
+		existing := &fleet.Team{ID: 7, Name: "ABC", Filename: new(filename)}
+		ds.TeamByFilenameFunc = func(ctx context.Context, f string) (*fleet.Team, error) {
+			require.Equal(t, filename, f)
+			return existing, nil
+		}
+		conflictCalls := 0
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			conflictCalls++
+			require.Equal(t, uint(7), excludeID,
+				"conflict check must exclude the team matched by filename so a case-only rename succeeds")
+			return nil, nil
+		}
+		var savedTeam *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			savedTeam = team
+			return team, nil
+		}
+
+		// Run without DryRun so editTeamFromSpec actually rewrites team.Name
+		// and SaveTeam is called — otherwise we'd only be asserting that the
+		// conflict check didn't trip.
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "abc", Filename: new(filename)},
+		}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.Equal(t, 1, conflictCalls, "TeamConflictsWithName must be called once per spec")
+		require.True(t, ds.SaveTeamFuncInvoked, "SaveTeam must be called to persist the rename")
+		require.NotNil(t, savedTeam)
+		require.Equal(t, "abc", savedTeam.Name, "rename must persist the spec's new case form")
+		require.Equal(t, uint(7), savedTeam.ID, "rename must target the same team id")
+	})
+
+	t.Run("filename-matched rename into another team's name conflicts", func(t *testing.T) {
+		// Regression: team "ABC" is managed by "abc.yml". User tries to
+		// rename it to "DEF" via the same file, but another team "def"
+		// already exists under a different file. This must 409.
+		svc, ds := newSvc()
+		existing := &fleet.Team{ID: 7, Name: "ABC", Filename: new("abc.yml")}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return existing, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			require.Equal(t, uint(7), excludeID, "must exclude the filename-matched team")
+			return &fleet.Team{ID: 8, Name: "def"}, nil
+		}
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			t.Fatalf("SaveTeam must not be called when a conflict is detected")
+			return nil, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "DEF", Filename: new("abc.yml")},
+		}, fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}})
+		require.Error(t, err)
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.Contains(t, err.Error(), `"def"`)
+		require.Contains(t, err.Error(), "must differ by more than letter case")
+	})
+
+	t.Run("adopt existing team via new filename succeeds", func(t *testing.T) {
+		// Regression for TestIntegrationsEnterpriseGitops: a spec with a new
+		// filename that matches an existing team by name must adopt it
+		// (possibly taking over management from another YAML file). The
+		// pre-fix behavior was adoption; the fix must not break it.
+		svc, ds := newSvc()
+		existing := &fleet.Team{ID: 12, Name: "Adoptable", Filename: new("old.yml")}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return existing, nil
+		}
+		var savedTeam *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			savedTeam = team
+			return team, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "Adoptable", Filename: new("new.yml")},
+		}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked, "SaveTeam must be called to adopt the team")
+		require.NotNil(t, savedTeam)
+		require.Equal(t, uint(12), savedTeam.ID)
+		require.NotNil(t, savedTeam.Filename)
+		require.Equal(t, "new.yml", *savedTeam.Filename, "adoption must set the new filename")
+	})
+
+	t.Run("intra-batch conflict short-circuits before any DB conflict check", func(t *testing.T) {
+		svc, ds := newSvc()
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			t.Fatalf("TeamConflictsWithName must not be called when the pre-pass catches the conflict (got name=%q, excludeID=%d)", name, excludeID)
+			return nil, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "ABC", Filename: new("foo.yml")},
+			{Name: "abc", Filename: new("bar.yml")},
+		}, fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}})
+		require.Error(t, err)
+		var conflict *fleet.ConflictError
+		require.ErrorAs(t, err, &conflict)
+		require.Contains(t, err.Error(), "foo.yml")
+		require.Contains(t, err.Error(), "bar.yml")
+		require.Contains(t, err.Error(), "must differ by more than letter case")
+	})
+
+	t.Run("no-filename spec with collation-equal name preserves DB canonical name", func(t *testing.T) {
+		// Regression: without a filename, a spec whose name is a case variant
+		// of an existing team must NOT silently rename that team. The DB's
+		// canonical form wins; users who want to rename must supply a
+		// filename.
+		svc, ds := newSvc()
+		existing := &fleet.Team{ID: 11, Name: "Workstations"}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			// TeamByName is collation-aware in production, so "workstations"
+			// matches "Workstations" here.
+			return existing, nil
+		}
+		var savedTeam *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			savedTeam = team
+			return team, nil
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{
+			{Name: "workstations"}, // no filename
+		}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, savedTeam)
+		require.Equal(t, "Workstations", savedTeam.Name,
+			"no-filename spec must preserve the DB's canonical name, not silently case-rename it")
+	})
 }
 
 func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
