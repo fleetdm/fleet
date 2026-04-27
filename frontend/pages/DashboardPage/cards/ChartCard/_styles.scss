@@ -231,8 +231,6 @@
   }
 
   // Color levels for cells (SVG fill) and legend swatches (background-color).
-  // Scale colors don't exist in the shared palette, so they stay as literal
-  // hex values; level-4 matches $core-fleet-green and is aliased accordingly.
   // The per-level colors are exposed as custom properties so themes can
   // override them with a single block of overrides below.
   &--theme-green {
