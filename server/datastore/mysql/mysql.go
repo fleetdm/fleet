@@ -92,9 +92,10 @@ type Datastore struct {
 	// changed; that bool is surfaced as updates.WindowsConfigProfile,
 	// matching Apple's semantics (idempotent second calls return false).
 	//
-	// Production binaries never set this. Test code installs it via
-	// installWindowsEagerHook (only compiled in *_test.go); the factory is
-	// nil in production. Without the hook, BulkSetPendingMDMHostProfiles
+	// Production binaries never set this. Tests opt in by calling
+	// Datastore.EnableTestWindowsEagerHook (defined in
+	// microsoft_mdm_eager_test.go, so cross-package callers cannot
+	// reference it). Without the hook, BulkSetPendingMDMHostProfiles
 	// leaves updates.WindowsConfigProfile at its zero value (false): the
 	// only consumer of the field (service/mdm.go's BatchSetMDMProfiles
 	// flow) ORs it with profUpdates.WindowsConfigProfile from
@@ -117,19 +118,6 @@ type Datastore struct {
 func (ds *Datastore) WithPusher(p nano_push.Pusher) {
 	ds.pusher = p
 }
-
-// installWindowsEagerHook is set by an init() in microsoft_mdm_eager_test.go
-// (a *_test.go file, so production binaries do not compile that init()).
-// EnableTestWindowsEagerHook calls it to install the eager-reconciliation
-// hook on a single test datastore that has explicitly opted in. In
-// production builds the package var is nil.
-//
-// Why this indirection: the test-only eager helper lives in
-// microsoft_mdm_eager_test.go, so production-compiled code (including
-// testing_utils.go and EnableTestWindowsEagerHook) cannot reference it
-// by name. The init() in *_test.go captures the helper into this
-// function-pointer var, which production code then reads generically.
-var installWindowsEagerHook func(*Datastore)
 
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via

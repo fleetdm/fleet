@@ -1133,11 +1133,11 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 // a real MySQL.
 func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	// The eager-reconciliation hook is opt-in (see
-	// EnableTestWindowsEagerHook). This test verifies the production
-	// async path, so it intentionally does not opt in: BulkSet defers
-	// Windows reconciliation to the cron, and we drive
-	// ReconcileWindowsProfiles below to observe the eventual state.
+	// This test runs the production async path. Cross-package tests
+	// cannot opt into the eager-reconciliation hook anyway (the helper
+	// lives in mysql/_test.go and is not linked into this binary), and
+	// they shouldn't: drive ReconcileWindowsProfiles directly to observe
+	// the eventual state, as we do below.
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))

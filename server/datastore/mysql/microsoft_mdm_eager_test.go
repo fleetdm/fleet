@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,20 +29,24 @@ import (
 // path by calling ds.EnableTestWindowsEagerHook(t). Tests that should verify
 // the async path drive ReconcileWindowsProfiles directly.
 //
-// This entire file lives in *_test.go so production binaries do not
-// contain any of this code. The only link from production to here is
-// the package-level installWindowsEagerHook var (declared in mysql.go),
-// which is nil in production builds because *_test.go is not compiled.
+// This file lives in *_test.go, so production binaries contain none of
+// this code (including EnableTestWindowsEagerHook). Cross-package callers
+// that try to use it get a compile error rather than a runtime fatal,
+// which is the right shape: those tests should drive
+// ReconcileWindowsProfiles directly to verify the production async path.
 
-func init() {
-	// Capture the test-only helper into the package-level var declared in
-	// mysql.go. EnableTestWindowsEagerHook (in testing_utils.go, which is
-	// production-compiled and cannot reference *_test.go symbols by name)
-	// invokes this captured func to install the hook on a single
-	// opted-in datastore.
-	installWindowsEagerHook = func(ds *Datastore) {
-		ds.testWindowsEagerHook = ds.bulkSetPendingMDMWindowsHostProfilesForTests
-	}
+// EnableTestWindowsEagerHook installs the test-only eager-reconciliation
+// hook on ds for the duration of the current test. After this call,
+// BulkSetPendingMDMHostProfiles reconciles Windows profile rows
+// synchronously and surfaces an Apple-parity
+// updates.WindowsConfigProfile bool. The hook is restored to its prior
+// value via t.Cleanup so sibling tests sharing the same datastore (e.g.
+// TestMDMShared subtests) are unaffected.
+func (ds *Datastore) EnableTestWindowsEagerHook(tb testing.TB) {
+	tb.Helper()
+	prev := ds.testWindowsEagerHook
+	ds.testWindowsEagerHook = ds.bulkSetPendingMDMWindowsHostProfilesForTests
+	tb.Cleanup(func() { ds.testWindowsEagerHook = prev })
 }
 
 // bulkSetPendingMDMWindowsHostProfilesForTests reconciles Windows profile
