@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -2391,7 +2392,7 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 // returns "" here; the mysqlredis wrapper backs it with Redis).
 //
 // See ReconcileWindowsProfiles.
-func (ds *Datastore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {
+func (ds *Datastore) GetMDMWindowsReconcileCursor(_ context.Context) (string, error) {
 	return "", nil
 }
 
@@ -2399,7 +2400,7 @@ func (ds *Datastore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, 
 // Windows MDM reconciliation cron. The bare mysql.Datastore is a no-op
 // here; the mysqlredis wrapper writes to Redis. See
 // GetMDMWindowsReconcileCursor.
-func (ds *Datastore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error {
+func (ds *Datastore) SetMDMWindowsReconcileCursor(_ context.Context, _ string) error {
 	return nil
 }
 
@@ -2605,11 +2606,12 @@ func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, prof
 		return nil, ctxerr.Wrap(ctx, err, "building IN for existing Windows profile UUIDs")
 	}
 	var rows []string
-	// Route this existence check to the primary. The whole point of the
-	// guard is to catch admin deletes that happened seconds ago (between
-	// the cron's initial list and the upsert); replica lag could show a
-	// just-deleted profile as still present and defeat the guard.
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, stmt, args...); err != nil {
+	// Force a primary read: the guard exists to catch admin deletes that
+	// happened seconds ago (between the cron's initial list and the upsert).
+	// Replica lag could show a just-deleted profile as still present and
+	// defeat the guard.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting existing Windows profile UUIDs")
 	}
 	result := make(map[string]struct{}, len(rows))

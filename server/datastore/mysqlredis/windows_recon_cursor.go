@@ -2,6 +2,7 @@ package mysqlredis
 
 import (
 	"context"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -27,7 +28,7 @@ func (d *Datastore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, e
 	switch {
 	case err == nil:
 		return cursor, nil
-	case err == redigo.ErrNil:
+	case errors.Is(err, redigo.ErrNil):
 		return "", nil
 	default:
 		return "", ctxerr.Wrap(ctx, err, "get windows MDM reconcile cursor")

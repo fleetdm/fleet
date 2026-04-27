@@ -32,13 +32,8 @@ func TestPBT_ScopedListingEquivalence(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	ctx := t.Context()
 
-	// Disable the eager-reconciliation hook that test datastores install
-	// by default. With the hook on, AddHostsToTeam would synchronously
-	// rewrite host_mdm_windows_profiles, making the seeded population
-	// non-deterministic. Production runs without the hook (the cron does
-	// the work asynchronously), so disabling it here also matches the
-	// production code path the cron actually targets.
-	t.Cleanup(ds.DisableTestWindowsEagerHook())
+	// This property test exercises the production async path. The eager
+	// hook is off by default, so no opt-in is needed.
 
 	// Two teams plus the implicit "no team" (team_id=0). Hosts and
 	// profiles span all three so both team-scoped and global predicates

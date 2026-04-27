@@ -371,15 +371,28 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	testing_utils.LoadDefaultSchema(t, testName, opts)
 	ds := connectMySQL(t, testName, opts)
-	// Install the eager-reconciliation hook for tests that observe
-	// host_mdm_windows_profiles state synchronously after
-	// BulkSetPendingMDMHostProfiles. The factory is nil in production
-	// binaries (see installWindowsEagerHook in mysql.go), so this is a
-	// no-op outside test builds.
-	if installWindowsEagerHook != nil {
-		installWindowsEagerHook(ds)
-	}
 	return ds
+}
+
+// EnableTestWindowsEagerHook installs a test-only hook that makes
+// BulkSetPendingMDMHostProfiles reconcile Windows profile rows
+// synchronously instead of deferring to the mdm_windows_profile_manager
+// cron. Use this only in tests whose assertions depend on
+// host_mdm_windows_profiles rows (or updates.WindowsConfigProfile being
+// true) immediately after the bulk set returns. Tests that should
+// exercise the production async path must NOT call this; they should
+// drive ReconcileWindowsProfiles explicitly instead.
+//
+// Panics if called outside a test binary that has the eager helper
+// linked in (i.e. the mysql package's *_test.go init() has run). Tests
+// in other packages cannot use this because *_test.go symbols are not
+// linked across package boundaries.
+func (ds *Datastore) EnableTestWindowsEagerHook(tb testing.TB) {
+	tb.Helper()
+	if installWindowsEagerHook == nil {
+		tb.Fatal("EnableTestWindowsEagerHook: no eager hook is registered; this helper is only available in the mysql package's own test binary")
+	}
+	installWindowsEagerHook(ds)
 }
 
 func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {

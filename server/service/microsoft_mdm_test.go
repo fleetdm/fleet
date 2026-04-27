@@ -1133,20 +1133,11 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 // a real MySQL.
 func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
-	// Force the production async path. The test datastore constructor
-	// installs an eager-reconciliation hook by default; we want the
-	// cron-driven flow here.
-	//
-	// The eager hook is registered via an init() in
-	// server/datastore/mysql/microsoft_mdm_eager_test.go. Go does not
-	// compile dependency *_test.go files when an external package
-	// imports it for testing, so when this test (in package service)
-	// runs, that init() does not fire and ds.testWindowsEagerHook
-	// stays nil. DisableTestWindowsEagerHook() handles that case
-	// gracefully: it saves the (nil) current value, sets it to nil,
-	// and the cleanup restores nil to nil. Either way we end this
-	// test on the production async path.
-	t.Cleanup(ds.DisableTestWindowsEagerHook())
+	// The eager-reconciliation hook is opt-in (see
+	// EnableTestWindowsEagerHook). This test verifies the production
+	// async path, so it intentionally does not opt in: BulkSet defers
+	// Windows reconciliation to the cron, and we drive
+	// ReconcileWindowsProfiles below to observe the eventual state.
 
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))

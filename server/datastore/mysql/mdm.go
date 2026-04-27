@@ -756,12 +756,12 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// Since profUpdates already covers the only consumer, this approximation
 	// added noise without adding signal, so it was removed.
 	//
-	// In tests, the eager hook installed by microsoft_mdm_eager_test.go's
-	// init() performs synchronous reconciliation and returns true iff rows
-	// actually changed (Apple-parity). External-package tests where the
-	// init() does not compile in observe the production behavior:
-	// WindowsConfigProfile stays false here. Those tests should drive the
-	// cron explicitly to observe Windows pending state.
+	// In tests that opt in via Datastore.EnableTestWindowsEagerHook, the
+	// hook performs synchronous reconciliation and returns true iff rows
+	// actually changed (Apple-parity). Tests that have not opted in (the
+	// default) observe production behavior: WindowsConfigProfile stays
+	// false here. Those tests should drive the cron explicitly to observe
+	// Windows pending state.
 	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {

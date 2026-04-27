@@ -1489,6 +1489,12 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	// This test asserts on host_mdm_windows_profiles row state and on
+	// updates.WindowsConfigProfile immediately after BulkSetPendingMDMHostProfiles.
+	// In production, those side effects are deferred to the
+	// mdm_windows_profile_manager cron, so the test must opt into the
+	// eager-reconciliation hook to keep its Apple-parity assertions valid.
+	ds.EnableTestWindowsEagerHook(t)
 	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
 	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
 	// adding to it.
@@ -8149,6 +8155,10 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	// Opt into the eager Windows reconciliation hook: this test asserts
+	// on host_mdm_windows_profiles state immediately after BulkSet, which
+	// production defers to the cron.
+	ds.EnableTestWindowsEagerHook(t)
 	test.AddBuiltinLabels(t, ds)
 	ctx := context.Background()
 
@@ -8580,9 +8590,8 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Force the production async path: with the eager hook disabled,
-	// BulkSetPendingMDMHostProfiles must NOT write host_mdm_windows_profiles.
-	t.Cleanup(ds.DisableTestWindowsEagerHook())
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
 	require.NoError(t, err)
@@ -8634,9 +8643,8 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// Production async path so the listing actually has work to find for
-	// our hosts after BulkSet.
-	t.Cleanup(ds.DisableTestWindowsEagerHook())
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-test"})
 	require.NoError(t, err)

@@ -21,15 +21,12 @@ import (
 // callers of BulkSetPendingMDMHostProfiles never write
 // host_mdm_windows_profiles synchronously.
 //
-// In unit tests the cron does not run. Tests that observe
-// host_mdm_windows_profiles state immediately after
-// BulkSetPendingMDMHostProfiles need the diff to be applied
-// synchronously and need updates.WindowsConfigProfile to follow the same
-// "rows actually changed" semantics as Apple's
-// bulkSetPendingMDMAppleHostProfilesDB (so idempotent re-applies return
-// false). The init() below installs an eager-reconciliation hook on
-// every test datastore so BulkSetPendingMDMHostProfiles takes the
-// hook branch and gets exact Apple-parity.
+// Tests inherit production semantics by default: BulkSetPendingMDMHostProfiles
+// defers Windows reconciliation, leaves host_mdm_windows_profiles untouched,
+// and returns updates.WindowsConfigProfile=false. Tests whose assertions
+// depend on the row state immediately after BulkSet must opt into the eager
+// path by calling ds.EnableTestWindowsEagerHook(t). Tests that should verify
+// the async path drive ReconcileWindowsProfiles directly.
 //
 // This entire file lives in *_test.go so production binaries do not
 // contain any of this code. The only link from production to here is
@@ -37,10 +34,11 @@ import (
 // which is nil in production builds because *_test.go is not compiled.
 
 func init() {
-	// Capture the test-only helper as a generic Datastore mutator so
-	// initializeDatabase (in testing_utils.go, which is production-
-	// compiled and cannot reference *_test.go symbols by name) can
-	// install it.
+	// Capture the test-only helper into the package-level var declared in
+	// mysql.go. EnableTestWindowsEagerHook (in testing_utils.go, which is
+	// production-compiled and cannot reference *_test.go symbols by name)
+	// invokes this captured func to install the hook on a single
+	// opted-in datastore.
 	installWindowsEagerHook = func(ds *Datastore) {
 		ds.testWindowsEagerHook = ds.bulkSetPendingMDMWindowsHostProfilesForTests
 	}
