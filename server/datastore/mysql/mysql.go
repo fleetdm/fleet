@@ -93,13 +93,7 @@ type Datastore struct {
 	// matching Apple's semantics (idempotent second calls return false).
 	//
 	// Production binaries never set this. Tests opt in by calling
-	// Datastore.EnableTestWindowsEagerHook (defined in
-	// microsoft_mdm_eager_test.go, so cross-package callers cannot
-	// reference it). Without the hook, BulkSetPendingMDMHostProfiles
-	// leaves updates.WindowsConfigProfile at its zero value (false): the
-	// only consumer of the field (service/mdm.go's BatchSetMDMProfiles
-	// flow) ORs it with profUpdates.WindowsConfigProfile from
-	// BatchSetMDMProfiles, which is the accurate transactional signal.
+	// Datastore.EnableTestWindowsEagerHook.
 	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in

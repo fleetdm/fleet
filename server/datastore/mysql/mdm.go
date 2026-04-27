@@ -740,28 +740,13 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 		return updates, err
 	}
 
-	// Activity signal for Windows.
-	//
-	// In production this stays false: the only consumer of
-	// updates.WindowsConfigProfile is service/mdm.go's BatchSetMDMProfiles
-	// flow, which ORs this with profUpdates.WindowsConfigProfile from
-	// BatchSetMDMProfiles. profUpdates is computed inside the
-	// BatchSetMDMProfiles transaction by batchSetMDMWindowsProfilesDB and
-	// is the source of truth for "did the YAML/UI batch actually change a
-	// Windows profile row?" An earlier revision of this method ran a
-	// post-commit listing here to approximate the same signal, but that
-	// approximation (a) over-fired on idempotent re-applies whenever
-	// hosts had latent pending work and (b) had a small race against
-	// ReconcileWindowsProfiles between the outer commit and the listing.
-	// Since profUpdates already covers the only consumer, this approximation
-	// added noise without adding signal, so it was removed.
-	//
-	// In tests that opt in via Datastore.EnableTestWindowsEagerHook, the
-	// hook performs synchronous reconciliation and returns true iff rows
-	// actually changed (Apple-parity). Tests that have not opted in (the
-	// default) observe production behavior: WindowsConfigProfile stays
-	// false here. Those tests should drive the cron explicitly to observe
-	// Windows pending state.
+	// updates.WindowsConfigProfile drives the "edited Windows profile"
+	// audit-log entry written by service/mdm.go's BatchSetMDMProfiles.
+	// We leave it false in production; BatchSetMDMProfiles ORs it with
+	// its own profUpdates.WindowsConfigProfile from
+	// batchSetMDMWindowsProfilesDB, which is the transactional source of
+	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
+	// get Apple-parity synchronous reconciliation here.
 	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
@@ -779,7 +764,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // reconciliation inside the caller-provided transaction. Windows profile
 // reconciliation is NOT performed here; the resolved Windows host UUIDs are
 // returned so the caller can optionally reconcile them (only the test path
-// does so — production relies on the mdm_windows_profile_manager cron).
+// does so; production relies on the mdm_windows_profile_manager cron).
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
