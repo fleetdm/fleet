@@ -1,6 +1,6 @@
 {
   "title": "Fleet host cache",
-  "description": "Observability for the Redis-backed host lookup cache fronting LoadHostByNodeKey and LoadHostByOrbitNodeKey (PR #43936). Shows hit rate, lookup volume by result, error volume by operation, and invalidation volume by write-path reason.",
+  "description": "Observability for the Redis-backed host lookup cache fronting LoadHostByNodeKey and LoadHostByOrbitNodeKey. Shows hit rate, lookup volume by result, error volume by operation, and invalidation volume by write-path reason.",
   "tags": ["redis", "cache", "host-cache"],
   "layout": [
     { "i": "row-overview",  "x": 0, "y": 0, "w": 12, "h": 1 },
@@ -24,7 +24,7 @@
       "id": "hit-rate",
       "panelTypes": "graph",
       "title": "Hit rate",
-      "description": "A/B where A = rate of hits, B = rate of all lookups. Target: >= 80% at steady state once the cache warms. Watch for drops during invalidation storms (mass team transfers, re-enrollments).",
+      "description": "A/B where A = rate of hits + negative_hits (both Redis-served, both avoid MySQL), B = rate of all lookups. Target: >= 80% at steady state once the cache warms. Watch for drops during invalidation storms (mass team transfers, re-enrollments).",
       "yAxisUnit": "percentunit",
       "legendPosition": "bottom",
       "query": {
@@ -47,7 +47,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "result = 'hit'" },
+              "filter": { "expression": "result IN ['hit', 'negative_hit']" },
               "groupBy": [],
               "orderBy": [],
               "selectColumns": [],
