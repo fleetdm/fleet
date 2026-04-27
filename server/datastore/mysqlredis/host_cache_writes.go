@@ -74,15 +74,31 @@ func (d *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	return nil
 }
 
-// EnrollOrbit invalidates for the returned host on successful enrollment. Orbit
-// enrollment may create a new hosts row or update an existing one's
-// orbit_node_key + team_id. In either case the cached snapshot is stale after the call.
+// EnrollOrbit invalidates for the returned host on successful enrollment. Orbit enrollment may create a new
+// hosts row or update an existing one's orbit_node_key + team_id; in either case the cached snapshot is stale.
+//
+// Asymmetry with EnrollOsquery: mysql.EnrollOsquery does a final SELECT that hydrates host.NodeKey and
+// host.OrbitNodeKey on the returned struct, but mysql.EnrollOrbit does NOT, the *fleet.Host it returns has
+// only ID/ComputerName/Hostname/HardwareModel/HardwareSerial/Platform/PlatformLike populated.
+//
+// Replay opts to recover the just-issued orbit_node_key so the negative-cache plug fires for orbit, matching
+// the contract the helper is documented to provide. Without this, an /orbit/* probe arriving in the 0-5s
+// window before EnrollOrbit committed leaves an onk_miss:<K> entry that survives the wrapper, and the
+// freshly-enrolled host returns NotFound from the negative cache for up to hostCacheNegativeTTL on its
+// first /orbit/* requests.
 func (d *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 	host, err := d.Datastore.EnrollOrbit(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	d.invalidateAfterHostEnroll(ctx, host, "enroll")
+	cfg := &fleet.DatastoreEnrollOrbitConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	if host != nil && host.ID != 0 {
+		d.hostCacheDeleteByID(ctx, host.ID, "enroll")
+		d.hostCacheClearDirectEntries(ctx, "", cfg.OrbitNodeKey)
+	}
 	return host, nil
 }
 

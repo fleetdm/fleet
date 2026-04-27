@@ -199,17 +199,22 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 	return d.hostCacheGetFamily(ctx, osqueryCacheFamily, nodeKey)
 }
 
-// hostCachePutFamily stores host under the given family's positive-cache key and updates that family's reverse
-// index so invalidation-by-ID can find the key later. Fire-and-forget: errors are recorded, not returned.
+// hostCachePutFamily stores host under the given family's primaryKey and updates that family's indexKey
+// (reverse index) so invalidation-by-ID can find the primaryKey later. Fire-and-forget: errors are recorded,
+// not returned.
 //
-// Index ordering: the reverse index is written BEFORE the payload. If both succeed, the cache is consistent. If
-// the index SET fails, no payload is written, so nothing is stranded. If the payload SET fails after the index
-// succeeded, the orphaned index points at a non-existent key. The next read takes the DB path, and any subsequent
-// hostCacheDeleteByID call cleans the stranded index. The problematic state (payload present, index missing, so
-// hostCacheDeleteByID silently no-ops and leaves the payload alive until TTL) cannot occur with this ordering.
+// Write order: primaryKey BEFORE indexKey. This ordering is correctness-critical for safe interaction with
+// a concurrent invalidate-by-ID for the same host. invalidate-by-ID's first command is GET indexKey; on
+// ErrNil it returns silently without issuing any DELs. With primaryKey written first, an invalidator that
+// arrives between the two SETs sees no indexKey yet, exits without touching the in-flight primaryKey, and
+// the populate completes both writes consistently.
 //
-// Both SETs use EXAT (absolute Unix-second expiration) with a single computed expiresAt.
-// Requires Redis 6.2+, which Fleet's docker-compose.yml uses in CI as of 2026-04-27.
+// Known limitation: if SET indexKey fails after SET primaryKey succeeded (Redis transient failure
+// mid-pipeline with RetryConn also failing), the orphan primaryKey survives until TTL because
+// invalidate-by-ID can't find it via the missing indexKey. This is a very rare fail, and TTL bounds the staleness.
+//
+// Both SETs use EXAT (absolute Unix-second expiration) with a single computed expiresAt. Requires
+// Redis 6.2+, which Fleet's docker-compose.yml pins.
 func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, host *fleet.Host) {
 	if !d.hostCacheEnabled || host == nil {
 		return
@@ -238,14 +243,14 @@ func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, hos
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
+	if _, err := conn.Do("SET", fam.primaryKey(key), raw, "EXAT", expiresAt); err != nil {
+		d.recordHostCacheErr(ctx, "set", err)
+		return
+	}
 	if host.ID != 0 {
 		if _, err := conn.Do("SET", fam.indexKey(host.ID), key, "EXAT", expiresAt); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
-			return
 		}
-	}
-	if _, err := conn.Do("SET", fam.primaryKey(key), raw, "EXAT", expiresAt); err != nil {
-		d.recordHostCacheErr(ctx, "set", err)
 	}
 }
 
