@@ -653,6 +653,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/bomutils` docker image
 
+### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:28:25
+
 ### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -660,6 +668,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:48:55
+
+### [CVE-2026-28389](https://nvd.nist.gov/vuln/detail/CVE-2026-28389)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:29:08
+
+### [CVE-2026-28388](https://nvd.nist.gov/vuln/detail/CVE-2026-28388)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:28:53
+
+### [CVE-2026-28387](https://nvd.nist.gov/vuln/detail/CVE-2026-28387)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use fleetdm/bomutils to connect to TLS servers using OpenSSL.
+- **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:28:43
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
