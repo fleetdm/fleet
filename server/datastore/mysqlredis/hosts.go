@@ -15,7 +15,7 @@ const enrolledHostsSetKey = "enrolled_hosts:host_ids"
 
 var redisSetMembersBatchSize = 10000 // var so it can be changed in tests
 
-// SyncEnrolledHostIDs forces synchronisation of host IDs between the DB and
+// SyncEnrolledHostIDs forces synchronization of host IDs between the DB and
 // the Redis set. To optimize for the common case, it first checks if the
 // counts are the same in the database and the redis set, and if so it does
 // nothing else. Otherwise, it loads the current list of IDs from the database,
@@ -139,7 +139,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 	// if the node_key had been probed moments before enrollment. Clearing it
 	// here ensures the next LoadHostByNodeKey populates the positive cache
 	// instead of returning a false NotFound.
-	d.invalidateAfterHostWrite(ctx, h, "enroll")
+	d.invalidateAfterHostEnroll(ctx, h, "enroll")
 	return h, nil
 }
 
@@ -155,7 +155,7 @@ func (d *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEn
 	}
 	// EnrollOsquery can update an existing row's node_key + team_id on
 	// re-enrollment, so the cached snapshot is stale after the call.
-	d.invalidateAfterHostWrite(ctx, h, "enroll")
+	d.invalidateAfterHostEnroll(ctx, h, "enroll")
 	return h, nil
 }
 

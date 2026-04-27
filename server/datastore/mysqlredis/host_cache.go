@@ -44,6 +44,13 @@ const (
 	// window around the configured base TTL, so a Redis restart or TTL-driven
 	// wave doesn't trigger a synchronized stampede back to the reader.
 	hostCacheTTLJitterFraction = 0.2
+
+	// hostCacheFlightTimeout caps the duration of the singleflight-shared DB call. The flight ctx is
+	// detached from the originating caller's deadline (see loadHostFamily), so without this cap a wedged
+	// query would pin the singleflight slot indefinitely and starve every subsequent caller for the same
+	// node_key. 30s is well above the p99.9 of a single-row indexed lookup (typically 1-5ms) and below the
+	// 60s window where waiting clients have any chance of caring about the result.
+	hostCacheFlightTimeout = 30 * time.Second
 )
 
 // hostCacheLookup is the tri-state result of a cache read.
@@ -89,6 +96,35 @@ func hostCacheOrbitIndexByID(hostID uint) string {
 	return hostCacheKeyPrefix + ":id2onk:" + strconv.FormatUint(uint64(hostID), 10)
 }
 
+// cacheFamily holds the family-specific keying primitives shared between the osquery (LoadHostByNodeKey) and
+// orbit (LoadHostByOrbitNodeKey) cache paths. The cache read/write/invalidation methods take a cacheFamily value
+// to avoid duplicating the same logic for both families. Adding a third agent in the future means adding one more
+// cacheFamily value at this site; the read/write code does not change.
+type cacheFamily struct {
+	sfPrefix   string                    // singleflight key prefix to disambiguate flights ("nk:" or "onk:")
+	primaryKey func(string) string       // positive-cache key constructor
+	missKey    func(string) string       // negative-cache key constructor
+	indexKey   func(uint) string         // reverse-index key constructor
+	nodeKeyOf  func(*fleet.Host) *string // accessor for the family's host key field on *fleet.Host
+}
+
+var (
+	osqueryCacheFamily = cacheFamily{
+		sfPrefix:   "nk:",
+		primaryKey: hostCacheKeyByNodeKey,
+		missKey:    hostCacheKeyMiss,
+		indexKey:   hostCacheIndexByID,
+		nodeKeyOf:  func(h *fleet.Host) *string { return h.NodeKey },
+	}
+	orbitCacheFamily = cacheFamily{
+		sfPrefix:   "onk:",
+		primaryKey: hostCacheKeyByOrbitNodeKey,
+		missKey:    hostCacheKeyOrbitMiss,
+		indexKey:   hostCacheOrbitIndexByID,
+		nodeKeyOf:  func(h *fleet.Host) *string { return h.OrbitNodeKey },
+	}
+)
+
 // jitteredHostCacheTTL returns the configured base TTL perturbed by
 // ±(hostCacheTTLJitterFraction / 2). With the default 0.2 and a 60s base, the
 // result falls in [54s, 66s], yielding ~5 cache hits per miss at the default
@@ -105,28 +141,27 @@ func (d *Datastore) jitteredHostCacheTTL() time.Duration {
 	return d.hostCacheTTL + time.Duration(delta)
 }
 
-// hostCacheGet looks up a host by node_key. It checks the positive cache first
-// (the common case) and falls through to the negative cache only on positive
-// miss. Never propagates Redis or JSON errors; any error is recorded and the
-// caller sees a hostCacheLookupMiss.
-func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Host, hostCacheLookup) {
-	if !d.hostCacheEnabled || nodeKey == "" {
+// hostCacheGetFamily looks up a host by key in the given cache family. It checks the positive cache first (the
+// common case) and falls through to the negative cache only on positive miss. Never propagates Redis or JSON
+// errors; any error is recorded and the caller sees a hostCacheLookupMiss.
+//
+// On unmarshal failure the bad key is DELed so the next lookup repopulates from the database; this is the
+// schema-drift defense.
+func (d *Datastore) hostCacheGetFamily(ctx context.Context, fam cacheFamily, key string) (*fleet.Host, hostCacheLookup) {
+	if !d.hostCacheEnabled || key == "" {
 		return nil, hostCacheLookupMiss
 	}
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
-	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByNodeKey(nodeKey)))
+	raw, err := redigo.Bytes(conn.Do("GET", fam.primaryKey(key)))
 	switch {
 	case err == nil:
 		envelope := new(hostCacheEnvelope)
 		if jerr := json.Unmarshal(raw, envelope); jerr != nil {
-			// Schema drift or a poisoned entry. Drop the bad key so the next
-			// lookup repopulates from the database, and treat this call as a
-			// miss.
 			d.recordHostCacheErr(ctx, "get", jerr)
-			if _, derr := conn.Do("DEL", hostCacheKeyByNodeKey(nodeKey)); derr != nil {
+			if _, derr := conn.Do("DEL", fam.primaryKey(key)); derr != nil {
 				d.recordHostCacheErr(ctx, "del", derr)
 			}
 			d.recordHostCacheLookup(ctx, "miss")
@@ -144,7 +179,7 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 		return nil, hostCacheLookupMiss
 	}
 
-	_, err = redigo.Bytes(conn.Do("GET", hostCacheKeyMiss(nodeKey)))
+	_, err = redigo.Bytes(conn.Do("GET", fam.missKey(key)))
 	switch {
 	case err == nil:
 		d.recordHostCacheLookup(ctx, "negative_hit")
@@ -159,13 +194,28 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 	}
 }
 
-// hostCachePut stores host under the positive-cache key and updates the reverse
-// index so invalidation-by-ID can find the node_key later. Fire-and-forget:
-// errors are recorded, not returned.
-func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
-	if !d.hostCacheEnabled || host == nil || host.NodeKey == nil || *host.NodeKey == "" {
+// hostCacheGet is the osquery-family wrapper of hostCacheGetFamily.
+func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Host, hostCacheLookup) {
+	return d.hostCacheGetFamily(ctx, osqueryCacheFamily, nodeKey)
+}
+
+// hostCachePutFamily stores host under the given family's positive-cache key and updates that family's reverse
+// index so invalidation-by-ID can find the key later. Fire-and-forget: errors are recorded, not returned.
+//
+// Index ordering: the reverse index is written BEFORE the payload. If both succeed, the cache is consistent. If
+// the index SET fails, no payload is written, so nothing is stranded. If the payload SET fails after the index
+// succeeded, the orphaned index points at a non-existent key. The next read takes the DB path, and any subsequent
+// hostCacheDeleteByID call cleans the stranded index. The problematic state (payload present, index missing, so
+// hostCacheDeleteByID silently no-ops and leaves the payload alive until TTL) cannot occur with this ordering.
+func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, host *fleet.Host) {
+	if !d.hostCacheEnabled || host == nil {
 		return
 	}
+	keyPtr := fam.nodeKeyOf(host)
+	if keyPtr == nil || *keyPtr == "" {
+		return
+	}
+	key := *keyPtr
 
 	raw, err := json.Marshal(envelopeFromHost(host))
 	if err != nil {
@@ -174,7 +224,7 @@ func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
 	}
 
 	ttl := d.jitteredHostCacheTTL()
-	// Redis only accepts integer TTLs
+	// Redis only accepts integer TTLs.
 	ttlSec := int(ttl.Seconds())
 	if ttlSec <= 0 {
 		ttlSec = 1
@@ -183,38 +233,38 @@ func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
-	// Write the reverse index BEFORE the payload. If both succeed, the cache
-	// is consistent. If the index SET fails, no payload is written, so
-	// nothing is stranded. If the payload SET fails after the index succeeds,
-	// the orphaned index points at a non-existent key. The next read takes
-	// the DB path, and any subsequent hostCacheDeleteByID call cleans the
-	// stranded index. The problematic state (payload present, index missing,
-	// so hostCacheDeleteByID silently no-ops and leaves the payload alive
-	// until TTL) cannot occur with this ordering.
 	if host.ID != 0 {
-		if _, err := conn.Do("SET", hostCacheIndexByID(host.ID), *host.NodeKey, "EX", ttlSec); err != nil {
+		if _, err := conn.Do("SET", fam.indexKey(host.ID), key, "EX", ttlSec); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
 			return
 		}
 	}
-	if _, err := conn.Do("SET", hostCacheKeyByNodeKey(*host.NodeKey), raw, "EX", ttlSec); err != nil {
+	if _, err := conn.Do("SET", fam.primaryKey(key), raw, "EX", ttlSec); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 	}
 }
 
-// hostCachePutNotFound stores a short-lived negative-cache entry. Used when the
-// database returns NotFound for a node_key.
-func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
-	if !d.hostCacheEnabled || nodeKey == "" {
+// hostCachePut is the osquery-family wrapper of hostCachePutFamily.
+func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
+	d.hostCachePutFamily(ctx, osqueryCacheFamily, host)
+}
+
+// hostCachePutNotFoundFamily stores a short-lived negative-cache entry under the given family. Used when the
+// database returns NotFound; bounded by hostCacheNegativeTTL.
+func (d *Datastore) hostCachePutNotFoundFamily(ctx context.Context, fam cacheFamily, key string) {
+	if !d.hostCacheEnabled || key == "" {
 		return
 	}
-
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
-
-	if _, err := conn.Do("SET", hostCacheKeyMiss(nodeKey), "1", "EX", int(hostCacheNegativeTTL.Seconds())); err != nil {
+	if _, err := conn.Do("SET", fam.missKey(key), "1", "EX", int(hostCacheNegativeTTL.Seconds())); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 	}
+}
+
+// hostCachePutNotFound is the osquery-family wrapper of hostCachePutNotFoundFamily.
+func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
+	d.hostCachePutNotFoundFamily(ctx, osqueryCacheFamily, nodeKey)
 }
 
 // hostCacheDeleteByNodeKey invalidates the primary, negative, and index keys
@@ -262,108 +312,20 @@ func (d *Datastore) hostCacheDeleteByNodeKey(ctx context.Context, nodeKey string
 	d.recordHostCacheInvalidation(ctx, reason)
 }
 
-// hostCacheGetByOrbitNodeKey is the orbit-side counterpart of hostCacheGet.
-// Same tri-state semantics: hit returns the decoded host, negative means
-// "cached NotFound", miss means caller should fall through to the DB. Redis
-// and JSON errors are recorded and treated as miss.
+// hostCacheGetByOrbitNodeKey is the orbit-family wrapper of hostCacheGetFamily.
 func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, hostCacheLookup) {
-	if !d.hostCacheEnabled || orbitNodeKey == "" {
-		return nil, hostCacheLookupMiss
-	}
-
-	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
-	defer conn.Close()
-
-	raw, err := redigo.Bytes(conn.Do("GET", hostCacheKeyByOrbitNodeKey(orbitNodeKey)))
-	switch {
-	case err == nil:
-		envelope := new(hostCacheEnvelope)
-		if jerr := json.Unmarshal(raw, envelope); jerr != nil {
-			d.recordHostCacheErr(ctx, "get", jerr)
-			if _, derr := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(orbitNodeKey)); derr != nil {
-				d.recordHostCacheErr(ctx, "del", derr)
-			}
-			d.recordHostCacheLookup(ctx, "miss")
-			return nil, hostCacheLookupMiss
-		}
-		d.recordHostCacheLookup(ctx, "hit")
-		return envelope.toHost(), hostCacheLookupHit
-	case errors.Is(err, redigo.ErrNil):
-		// positive miss; fall through to negative cache
-	default:
-		d.recordHostCacheErr(ctx, "get", err)
-		d.recordHostCacheLookup(ctx, "miss")
-		return nil, hostCacheLookupMiss
-	}
-
-	_, err = redigo.Bytes(conn.Do("GET", hostCacheKeyOrbitMiss(orbitNodeKey)))
-	switch {
-	case err == nil:
-		d.recordHostCacheLookup(ctx, "negative_hit")
-		return nil, hostCacheLookupNegative
-	case errors.Is(err, redigo.ErrNil):
-		d.recordHostCacheLookup(ctx, "miss")
-		return nil, hostCacheLookupMiss
-	default:
-		d.recordHostCacheErr(ctx, "get", err)
-		d.recordHostCacheLookup(ctx, "miss")
-		return nil, hostCacheLookupMiss
-	}
+	return d.hostCacheGetFamily(ctx, orbitCacheFamily, orbitNodeKey)
 }
 
-// hostCachePutByOrbit stores host under the orbit positive-cache key and
-// updates the orbit reverse index. Fire-and-forget errors.
+// hostCachePutByOrbit is the orbit-family wrapper of hostCachePutFamily.
 func (d *Datastore) hostCachePutByOrbit(ctx context.Context, host *fleet.Host) {
-	if !d.hostCacheEnabled || host == nil || host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		return
-	}
-
-	raw, err := json.Marshal(envelopeFromHost(host))
-	if err != nil {
-		d.recordHostCacheErr(ctx, "set", err)
-		return
-	}
-
-	ttl := d.jitteredHostCacheTTL()
-	ttlSec := int(ttl.Seconds())
-	if ttlSec <= 0 {
-		ttlSec = 1
-	}
-
-	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
-	defer conn.Close()
-
-	// Index first, payload second — see hostCachePut for rationale.
-	if host.ID != 0 {
-		if _, err := conn.Do("SET", hostCacheOrbitIndexByID(host.ID), *host.OrbitNodeKey, "EX", ttlSec); err != nil {
-			d.recordHostCacheErr(ctx, "set", err)
-			return
-		}
-	}
-	if _, err := conn.Do("SET", hostCacheKeyByOrbitNodeKey(*host.OrbitNodeKey), raw, "EX", ttlSec); err != nil {
-		d.recordHostCacheErr(ctx, "set", err)
-	}
+	d.hostCachePutFamily(ctx, orbitCacheFamily, host)
 }
 
-// hostCachePutNotFoundByOrbitNodeKey stores a short-lived negative-cache entry
-// on the orbit side. Mirrors hostCachePutNotFound.
-func (d *Datastore) hostCachePutNotFoundByOrbitNodeKey(ctx context.Context, orbitNodeKey string) {
-	if !d.hostCacheEnabled || orbitNodeKey == "" {
-		return
-	}
-	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
-	defer conn.Close()
-	if _, err := conn.Do("SET", hostCacheKeyOrbitMiss(orbitNodeKey), "1", "EX", int(hostCacheNegativeTTL.Seconds())); err != nil {
-		d.recordHostCacheErr(ctx, "set", err)
-	}
-}
-
-// hostCacheDeleteByID invalidates both the osquery and orbit caches when only
-// the host ID is known. It reads both reverse indices (id2nk, id2onk) and
-// deletes whichever entries it finds. Either or both may be missing (host
-// enrolled only one agent, TTL expiry, never populated). Missing entries
-// mean there's nothing more to do on that side, and the invalidation is still
-// counted so the metrics line up with write-path activity.
+// hostCacheDeleteByID invalidates both the osquery and orbit caches when only the host ID is known. It reads
+// both reverse indices (id2nk, id2onk) and deletes whichever entries it finds. Either or both may be missing
+// (host enrolled only one agent, TTL expiry, never populated). Missing entries mean there's nothing more to do
+// on that side, and the invalidation is still counted so the metrics line up with write-path activity.
 func (d *Datastore) hostCacheDeleteByID(ctx context.Context, hostID uint, reason string) {
 	if !d.hostCacheEnabled || hostID == 0 {
 		return
@@ -372,15 +334,17 @@ func (d *Datastore) hostCacheDeleteByID(ctx context.Context, hostID uint, reason
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
-	d.clearNodeKeyEntriesByID(ctx, conn, hostID)
-	d.clearOrbitNodeKeyEntriesByID(ctx, conn, hostID)
+	for _, fam := range []cacheFamily{osqueryCacheFamily, orbitCacheFamily} {
+		d.clearEntriesByID(ctx, conn, fam, hostID)
+	}
 	d.recordHostCacheInvalidation(ctx, reason)
 }
 
-// clearNodeKeyEntriesByID looks up id2nk for the given host and deletes the
-// osquery-side entries. Silent-no-op when the reverse index is missing.
-func (d *Datastore) clearNodeKeyEntriesByID(ctx context.Context, conn redigo.Conn, hostID uint) {
-	nodeKey, err := redigo.String(conn.Do("GET", hostCacheIndexByID(hostID)))
+// clearEntriesByID resolves the given family's reverse index for hostID and DELs the resulting positive,
+// negative, and reverse-index keys. Silent no-op when the reverse index is missing (host enrolled only one
+// agent, TTL expiry, never populated).
+func (d *Datastore) clearEntriesByID(ctx context.Context, conn redigo.Conn, fam cacheFamily, hostID uint) {
+	key, err := redigo.String(conn.Do("GET", fam.indexKey(hostID)))
 	switch {
 	case errors.Is(err, redigo.ErrNil):
 		return
@@ -389,31 +353,9 @@ func (d *Datastore) clearNodeKeyEntriesByID(ctx context.Context, conn redigo.Con
 		return
 	}
 	for _, k := range []string{
-		hostCacheKeyByNodeKey(nodeKey),
-		hostCacheKeyMiss(nodeKey),
-		hostCacheIndexByID(hostID),
-	} {
-		if _, err := conn.Do("DEL", k); err != nil {
-			d.recordHostCacheErr(ctx, "del", err)
-		}
-	}
-}
-
-// clearOrbitNodeKeyEntriesByID is the orbit-side analog of
-// clearNodeKeyEntriesByID: resolves id2onk and DELs the orbit entries.
-func (d *Datastore) clearOrbitNodeKeyEntriesByID(ctx context.Context, conn redigo.Conn, hostID uint) {
-	orbitNodeKey, err := redigo.String(conn.Do("GET", hostCacheOrbitIndexByID(hostID)))
-	switch {
-	case errors.Is(err, redigo.ErrNil):
-		return
-	case err != nil:
-		d.recordHostCacheErr(ctx, "get", err)
-		return
-	}
-	for _, k := range []string{
-		hostCacheKeyByOrbitNodeKey(orbitNodeKey),
-		hostCacheKeyOrbitMiss(orbitNodeKey),
-		hostCacheOrbitIndexByID(hostID),
+		fam.primaryKey(key),
+		fam.missKey(key),
+		fam.indexKey(hostID),
 	} {
 		if _, err := conn.Do("DEL", k); err != nil {
 			d.recordHostCacheErr(ctx, "del", err)
@@ -435,15 +377,18 @@ func (d *Datastore) hostCacheClearDirectEntries(ctx context.Context, nodeKey, or
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
-	if nodeKey != "" {
-		for _, k := range []string{hostCacheKeyByNodeKey(nodeKey), hostCacheKeyMiss(nodeKey)} {
-			if _, err := conn.Do("DEL", k); err != nil {
-				d.recordHostCacheErr(ctx, "del", err)
-			}
-		}
+	pairs := []struct {
+		fam cacheFamily
+		key string
+	}{
+		{osqueryCacheFamily, nodeKey},
+		{orbitCacheFamily, orbitNodeKey},
 	}
-	if orbitNodeKey != "" {
-		for _, k := range []string{hostCacheKeyByOrbitNodeKey(orbitNodeKey), hostCacheKeyOrbitMiss(orbitNodeKey)} {
+	for _, p := range pairs {
+		if p.key == "" {
+			continue
+		}
+		for _, k := range []string{p.fam.primaryKey(p.key), p.fam.missKey(p.key)} {
 			if _, err := conn.Do("DEL", k); err != nil {
 				d.recordHostCacheErr(ctx, "del", err)
 			}
@@ -466,7 +411,7 @@ const hostCacheInvalidateBatchSize = 500
 // of host IDs. Equivalent to calling hostCacheDeleteByID in a loop but uses
 // pipelined MGET + variadic DEL to collapse what would otherwise be ~8
 // sequential round-trips per host into O(slots × chunks) round-trips for
-// the whole batch — at 10k hosts on a loaded Redis, that's the difference
+// the whole batch. At 10k hosts on a loaded Redis, that's the difference
 // between ~80 seconds and ~200 milliseconds. Records one invalidation
 // counter bump per input ID. Errors are recorded on the errors counter and
 // logged; TTL is the safety net for any keys that survived a transient
@@ -476,42 +421,44 @@ func (d *Datastore) invalidateHostIDs(ctx context.Context, ids []uint, reason st
 		return
 	}
 
-	// Phase 1: batch-GET every id2nk and id2onk to discover which payloads
-	// to clear. Interleaved (id2nk, id2onk, id2nk, id2onk, ...) so the
-	// result[2*i] / result[2*i+1] pairing is unambiguous below.
-	idxKeys := make([]string, 0, 2*len(ids))
+	families := []cacheFamily{osqueryCacheFamily, orbitCacheFamily}
+	nFam := len(families)
+
+	// Phase 1: batch-GET the reverse index for every (id, family) pair, in family-major order
+	// [osq_id1, orb_id1, osq_id2, orb_id2, ...] so resolved[i*nFam+f] maps unambiguously to (id i, family f).
+	idxKeys := make([]string, 0, nFam*len(ids))
 	for _, id := range ids {
-		idxKeys = append(idxKeys, hostCacheIndexByID(id))
-		idxKeys = append(idxKeys, hostCacheOrbitIndexByID(id))
+		for _, fam := range families {
+			idxKeys = append(idxKeys, fam.indexKey(id))
+		}
 	}
 	resolved := d.pipelinedMGET(ctx, idxKeys)
 
-	// Phase 2: build the full DEL key list (payload + negative + reverse
-	// index for whichever side was populated) and issue pipelined DELs.
-	delKeys := make([]string, 0, 6*len(ids))
+	// Phase 2: build the full DEL key list (payload + negative + reverse index for whichever family was
+	// populated) and issue pipelined DELs.
+	delKeys := make([]string, 0, 3*nFam*len(ids))
 	for i, id := range ids {
-		if nk := resolved[2*i]; nk != "" {
-			delKeys = append(delKeys, hostCacheKeyByNodeKey(nk), hostCacheKeyMiss(nk))
+		for f, fam := range families {
+			if key := resolved[i*nFam+f]; key != "" {
+				delKeys = append(delKeys, fam.primaryKey(key), fam.missKey(key))
+			}
+			delKeys = append(delKeys, fam.indexKey(id))
 		}
-		if onk := resolved[2*i+1]; onk != "" {
-			delKeys = append(delKeys, hostCacheKeyByOrbitNodeKey(onk), hostCacheKeyOrbitMiss(onk))
-		}
-		delKeys = append(delKeys, hostCacheIndexByID(id), hostCacheOrbitIndexByID(id))
 	}
 	d.pipelinedDEL(ctx, delKeys)
 
-	// Phase 3: one invalidation counter bump per id, matching the
-	// per-host-invalidation semantics of the non-batched path.
-	for range ids {
-		d.recordHostCacheInvalidation(ctx, reason)
-	}
+	// Phase 3: bump the invalidations counter by len(ids) in a single Add to match the per-host-invalidation
+	// semantics of the non-batched path. (OTEL counters aggregate identically whether you Add(N) once or
+	// Add(1) N times; one call is cheaper.)
+	d.recordHostCacheInvalidations(ctx, reason, len(ids))
 }
 
-// pipelinedMGET returns the string value for each key in input order. Empty
-// string for missing keys or if an error prevented retrieval. In Redis
-// cluster mode, keys are grouped by slot (CROSSSLOT-safe) and one MGET is
-// issued per slot group; each group is further chunked to bound individual
-// command size.
+// pipelinedMGET returns the string value for each key in input order. Empty string for missing keys or if an
+// error prevented retrieval.
+//
+// Works in both modes via redis.SplitKeysBySlot: in cluster mode keys are grouped by slot (CROSSSLOT-safe)
+// and one MGET per slot group is issued; in standalone mode SplitKeysBySlot returns a single group containing
+// all keys and BindConn is a no-op. Either way the group is further chunked at hostCacheInvalidateBatchSize.
 func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 	result := make([]string, len(keys))
 	if len(keys) == 0 {
@@ -538,17 +485,19 @@ func (d *Datastore) pipelinedMGET(ctx context.Context, keys []string) []string {
 func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[string]int, out []string) {
 	conn := d.pool.Get()
 	defer conn.Close()
-	// BindConn MUST come before ConfigureDoer — redisc's BindConn expects the
-	// raw cluster conn from the pool, not a RetryConn wrapper. See
-	// server/datastore/redis/ratelimit_store.go for the canonical ordering.
+	// BindConn MUST come before ConfigureDoer. redisc's BindConn expects the raw cluster conn from the pool,
+	// not a RetryConn wrapper. See server/datastore/redis/ratelimit_store.go for the canonical ordering.
 	// In standalone mode BindConn is a no-op.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
 		return
 	}
-	conn = redis.ConfigureDoer(d.pool, conn)
+	// ConfigureDoer returns a RetryConn wrapper around conn. We use the wrapper for the Do() call but keep the
+	// `defer conn.Close()` against the raw conn so the lifecycle is explicit and tools don't flag the assignment
+	// as a potential leak. The wrapper holds no extra resources beyond what the raw conn does.
+	doer := redis.ConfigureDoer(d.pool, conn)
 	args := redigo.Args{}.AddFlat(chunk)
-	values, err := redigo.Values(conn.Do("MGET", args...))
+	values, err := redigo.Values(doer.Do("MGET", args...))
 	if err != nil {
 		d.recordHostCacheErr(ctx, "get", err)
 		return
@@ -566,9 +515,9 @@ func (d *Datastore) mgetChunk(ctx context.Context, chunk []string, indexOf map[s
 	}
 }
 
-// pipelinedDEL issues variadic DEL across all keys, slot-grouped and chunked.
-// All errors are recorded and treated as best-effort; TTL is the backstop
-// for any keys we failed to DEL.
+// pipelinedDEL issues variadic DEL across all keys. Slot-grouped and chunked the same way as pipelinedMGET
+// (see that function for the standalone-vs-cluster behavior). All errors are recorded and treated as
+// best-effort; TTL is the backstop for any keys we failed to DEL.
 func (d *Datastore) pipelinedDEL(ctx context.Context, keys []string) {
 	if len(keys) == 0 {
 		return
@@ -586,14 +535,14 @@ func (d *Datastore) pipelinedDEL(ctx context.Context, keys []string) {
 func (d *Datastore) delChunk(ctx context.Context, chunk []string) {
 	conn := d.pool.Get()
 	defer conn.Close()
-	// BindConn before ConfigureDoer — see mgetChunk for the rationale.
+	// BindConn before ConfigureDoer, see mgetChunk for the rationale.
 	if err := redis.BindConn(d.pool, conn, chunk...); err != nil {
 		d.recordHostCacheErr(ctx, "del", err)
 		return
 	}
-	conn = redis.ConfigureDoer(d.pool, conn)
+	doer := redis.ConfigureDoer(d.pool, conn)
 	args := redigo.Args{}.AddFlat(chunk)
-	if _, err := conn.Do("DEL", args...); err != nil {
+	if _, err := doer.Do("DEL", args...); err != nil {
 		d.recordHostCacheErr(ctx, "del", err)
 	}
 }
@@ -614,67 +563,92 @@ func (d *Datastore) recordHostCacheLookup(ctx context.Context, result string) {
 }
 
 func (d *Datastore) recordHostCacheInvalidation(ctx context.Context, reason string) {
-	//nolint:nilaway // initialized in package init(); panic on registration failure guarantees non-nil
-	hostCacheInvalidations.Add(ctx, 1, hostCacheInvalidationAttrs(reason))
+	d.recordHostCacheInvalidations(ctx, reason, 1)
 }
 
-// LoadHostByNodeKey overrides the inner Datastore's LoadHostByNodeKey to serve
-// from the Redis cache when populated. On miss it falls through to the inner
-// Datastore under a singleflight guard so a thundering herd of N concurrent
-// misses for the same node_key collapses into a single DB call.
+// recordHostCacheInvalidations bumps the invalidations counter by n. The bulk-batch path uses this to add
+// len(ids) in one Add() call instead of looping; observation at the metrics backend is identical.
+func (d *Datastore) recordHostCacheInvalidations(ctx context.Context, reason string, n int) {
+	if n <= 0 {
+		return
+	}
+	//nolint:nilaway // initialized in package init(); panic on registration failure guarantees non-nil
+	hostCacheInvalidations.Add(ctx, int64(n), hostCacheInvalidationAttrs(reason))
+}
+
+// loadHostFamily is the family-agnostic implementation of LoadHostByNodeKey and LoadHostByOrbitNodeKey.
+// dbLoad is the inner Datastore method to invoke on cache miss.
 //
 // Semantics:
 //   - Cache disabled: always delegate; never read or write the cache.
 //   - Positive cache hit: return cached host.
 //   - Negative cache hit: return a NotFoundError without hitting the DB.
-//   - Miss: singleflight-guarded DB fetch; on success populate positive cache,
-//     on NotFound populate negative cache; propagate other errors without
-//     populating either cache (transient failures must not poison the cache).
+//   - Miss: singleflight-guarded DB fetch; on success populate positive cache, on NotFound populate negative
+//     cache; propagate other errors without populating either cache (transient failures must not poison).
 //
-// Callers receive a host that is safe to mutate: cache-hit path returns a
-// fresh struct from JSON unmarshal, singleflight path returns a shallow copy
-// so concurrent callers that joined the same flight don't race on each
-// other's mutations (e.g., AuthenticateHost overwrites host.SeenTime).
-func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+// Concurrent-request handling (the reason for the singleflight + WithoutCancel + WithTimeout dance):
+//
+// When N concurrent HTTP requests authenticate the same host (e.g., one host's osquery agent has multiple
+// in-flight calls to /api/v1/osquery/config and /distributed/read), all N callers cache-miss in the same
+// instant. Without singleflight all N would issue identical DB queries; with singleflight only the first
+// caller runs the closure and the other N-1 attach to that same execution and receive its result.
+//
+// The detail that needs care: the singleflight closure runs in the FIRST caller's goroutine and lexically
+// captures whatever ctx is in scope. If we used the caller's ctx directly inside the closure and the first
+// caller's request was canceled (e.g., a tight LB timeout fires at 50ms), the DB call would observe that
+// cancellation and abort, returning an error that singleflight delivers to every attached caller, including
+// ones that had seconds of remaining budget. context.WithoutCancel(ctx) detaches the inner DB call from any
+// one caller's lifecycle: the call survives whichever caller happened to start it, so peers that joined the
+// shared execution still receive the result. WithoutCancel preserves ctx VALUES (logger, request id, otel
+// span) but drops cancellation; that's why we don't just use context.Background().
+//
+// We then wrap the detached ctx in context.WithTimeout(_, hostCacheFlightTimeout) so a wedged DB query
+// cannot pin the singleflight slot for this node_key indefinitely. Fleet's MysqlConfig does not set
+// readTimeout/writeTimeout on the DSN, so without an explicit cap the safety net for a stuck query would be
+// operator-side only (MySQL server max_execution_time, TCP keepalive, or manual KILL). 30s is the cap.
+//
+// The singleflight key is prefixed with fam.sfPrefix so osquery and orbit shared executions cannot collide
+// if a node_key ever happened to equal an orbit_node_key (astronomically unlikely with 32-char random keys
+// but cheap to defend against), and so telemetry/debugging can tell the two populations apart.
+//
+// DoChan + select on ctx.Done() lets each individual caller abandon its own wait when its own ctx is
+// canceled, without affecting the shared execution that joiners are still waiting on.
+//
+// Callers receive a host that is safe to mutate: cache-hit path returns a fresh struct from JSON unmarshal,
+// shared-execution path returns a shallow copy so concurrent callers that joined the same execution don't
+// race on each other's mutations (e.g., AuthenticateHost overwrites host.SeenTime).
+func (d *Datastore) loadHostFamily(
+	ctx context.Context,
+	fam cacheFamily,
+	key string,
+	dbLoad func(context.Context, string) (*fleet.Host, error),
+) (*fleet.Host, error) {
 	if !d.hostCacheEnabled {
-		return d.Datastore.LoadHostByNodeKey(ctx, nodeKey)
+		return dbLoad(ctx, key)
 	}
 
-	if host, result := d.hostCacheGet(ctx, nodeKey); result == hostCacheLookupHit {
+	if host, result := d.hostCacheGetFamily(ctx, fam, key); result == hostCacheLookupHit {
 		return host, nil
 	} else if result == hostCacheLookupNegative {
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
 	}
 
-	// Detach the inner call's context from the initiating caller's
-	// cancellation AND deadline. Without the detach, if caller A starts the
-	// flight and A's request is canceled or its deadline expires (e.g.,
-	// A has a tight 50ms LB timeout), the DB call is aborted and every
-	// joiner — including those with much more generous deadlines — receives
-	// A's error. We rely on the Redis pool's read_timeout / connect_timeout
-	// and the MySQL driver's own timeouts to bound the flight duration,
-	// which is what every non-cached call is already bounded by today.
-	flightCtx := context.WithoutCancel(ctx)
+	ch := d.hostCacheSF.DoChan(fam.sfPrefix+key, func() (any, error) {
+		// flightCtx and cancel are scoped to the closure (i.e., to the actual DB call), NOT to the
+		// surrounding loadHostFamily call. If they were declared outside, `defer cancel()` would fire when
+		// the originating caller bails (e.g., on its own ctx cancellation), which would in turn cancel
+		// flightCtx and abort the shared DB call, poisoning every other caller waiting on the same flight.
+		// Scoping them here ties cancel() to the lifetime of the actual work.
+		flightCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), hostCacheFlightTimeout)
+		defer cancel()
 
-	// Prefix the singleflight key so osquery and orbit flights can't collide
-	// if a node_key ever happened to equal an orbit_node_key (astronomically
-	// unlikely with 32-char random keys but cheap to defend against). Also
-	// helps telemetry/debugging distinguish the two flight populations.
-	//
-	// DoChan lets the caller abandon the wait if its own ctx is canceled
-	// without affecting the shared flight — the flight runs under flightCtx
-	// (no cancellation inherited from the initiating caller) so peers that
-	// joined the same flight still receive the result. Using plain Do would
-	// block the canceled caller until the flight completes, burning caller
-	// resources on a result it no longer needs.
-	ch := d.hostCacheSF.DoChan("nk:"+nodeKey, func() (any, error) {
-		h, derr := d.Datastore.LoadHostByNodeKey(flightCtx, nodeKey)
+		h, derr := dbLoad(flightCtx, key)
 		switch {
 		case derr == nil && h != nil:
-			d.hostCachePut(flightCtx, h)
+			d.hostCachePutFamily(flightCtx, fam, h)
 		case fleet.IsNotFound(derr):
-			d.hostCachePutNotFound(flightCtx, nodeKey)
-			// Other (transient) errors are intentionally not cached — retry on next call.
+			d.hostCachePutNotFoundFamily(flightCtx, fam, key)
+			// Other (transient) errors are intentionally not cached, retry on next call.
 		}
 		return h, derr
 	})
@@ -691,64 +665,26 @@ func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fle
 	}
 	h, _ := v.(*fleet.Host)
 	if h == nil {
-		// Inner returned (nil, nil); shouldn't happen but don't hand out a nil
-		// pointer that downstream code will dereference.
+		// Inner returned (nil, nil); shouldn't happen but don't hand out a nil pointer that downstream code
+		// will dereference.
 		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
 	}
-	// Shallow-copy so concurrent callers that joined the same singleflight
-	// don't race on mutations like host.SeenTime = now().
+	// Shallow-copy so concurrent callers that joined the same singleflight don't race on mutations like
+	// host.SeenTime = now(). Cannot use Go 1.26 new(expr) form here because the leading `*` in `*h` is
+	// ambiguous with pointer-type syntax in the parser.
 	clone := *h
 	return &clone, nil
 }
 
-// LoadHostByOrbitNodeKey is the orbit-side counterpart of LoadHostByNodeKey.
-// Identical semantics (cache-aside, singleflight, ctx detach, shallow clone),
-// backed by the same hostCacheEnvelope wire format. The additional fields
-// LoadHostByOrbitNodeKey's SELECT returns (DEP assignment, disk encryption
-// state, encryption key availability, team name) ride along automatically via
-// the embedded fleet.Host.
+// LoadHostByNodeKey overrides the inner Datastore's LoadHostByNodeKey to serve from the Redis cache when
+// populated. The osquery-family wrapper of loadHostFamily; see loadHostFamily for full semantics.
+func (d *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	return d.loadHostFamily(ctx, osqueryCacheFamily, nodeKey, d.Datastore.LoadHostByNodeKey)
+}
+
+// LoadHostByOrbitNodeKey is the orbit-family wrapper of loadHostFamily. The additional fields
+// LoadHostByOrbitNodeKey's SELECT returns (DEP assignment, disk encryption state, encryption key availability,
+// team name) ride along automatically via the embedded fleet.Host in the cache envelope.
 func (d *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
-	if !d.hostCacheEnabled {
-		return d.Datastore.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
-	}
-
-	if host, result := d.hostCacheGetByOrbitNodeKey(ctx, orbitNodeKey); result == hostCacheLookupHit {
-		return host, nil
-	} else if result == hostCacheLookupNegative {
-		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
-	}
-
-	// See LoadHostByNodeKey for the rationale on detaching without
-	// reapplying the caller's deadline.
-	flightCtx := context.WithoutCancel(ctx)
-
-	// DoChan lets the caller bail on cancellation without blocking; see
-	// LoadHostByNodeKey for the full rationale.
-	ch := d.hostCacheSF.DoChan("onk:"+orbitNodeKey, func() (any, error) {
-		h, derr := d.Datastore.LoadHostByOrbitNodeKey(flightCtx, orbitNodeKey)
-		switch {
-		case derr == nil && h != nil:
-			d.hostCachePutByOrbit(flightCtx, h)
-		case fleet.IsNotFound(derr):
-			d.hostCachePutNotFoundByOrbitNodeKey(flightCtx, orbitNodeKey)
-		}
-		return h, derr
-	})
-	var v any
-	var err error
-	select {
-	case r := <-ch:
-		v, err = r.Val, r.Err
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-	if err != nil {
-		return nil, err
-	}
-	h, _ := v.(*fleet.Host)
-	if h == nil {
-		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("Host"))
-	}
-	clone := *h
-	return &clone, nil
+	return d.loadHostFamily(ctx, orbitCacheFamily, orbitNodeKey, d.Datastore.LoadHostByOrbitNodeKey)
 }

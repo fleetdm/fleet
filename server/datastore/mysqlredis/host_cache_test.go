@@ -28,27 +28,31 @@ import (
 // prefix to prevent concurrent tests from clobbering each other's keys).
 const hostCacheTestCleanupPrefix = "fleet:hostcache:v1"
 
-// hostCacheFamily parameterizes the load-path tests across both cache families
-// (osquery `LoadHostByNodeKey` and orbit `LoadHostByOrbitNodeKey`). Every
-// end-to-end override test runs once per family; field-fidelity is covered by
-// TestHostCacheEnvelopeRoundTrip, so these tests focus on cache semantics only.
+// hostCacheFamily parameterizes the load-path tests across both cache families (osquery `LoadHostByNodeKey`
+// and orbit `LoadHostByOrbitNodeKey`). Every end-to-end override test runs once per family; field-fidelity is
+// covered by TestHostCacheEnvelopeRoundTrip, so these tests focus on cache semantics only.
+//
+// Embeds the production cacheFamily so tests have direct access to the same key constructors and
+// nodeKeyOf accessor the production code uses. The test-only fields (name, load, mock setters, buildHost)
+// wire the tests to the public API and the mock.DataStore harness.
 type hostCacheFamily struct {
+	cacheFamily
 	name       string
 	sampleKey  string
 	load       func(*Datastore, context.Context, string) (*fleet.Host, error)
 	setMock    func(*mock.DataStore, func(context.Context, string) (*fleet.Host, error))
 	getInvoked func(*mock.DataStore) bool
 	setInvoked func(*mock.DataStore, bool)
-	// buildHost returns a minimally-populated *fleet.Host whose relevant
-	// node_key pointer matches the argument, so the cache put under this family
-	// will succeed.
+	// buildHost returns a minimally-populated *fleet.Host whose relevant node_key pointer matches the
+	// argument, so the cache put under this family will succeed.
 	buildHost func(id uint, key string) *fleet.Host
 }
 
 var hostCacheFamilies = []hostCacheFamily{
 	{
-		name:      "osquery",
-		sampleKey: "nk-test",
+		cacheFamily: osqueryCacheFamily,
+		name:        "osquery",
+		sampleKey:   "nk-test",
 		load: func(d *Datastore, ctx context.Context, k string) (*fleet.Host, error) {
 			return d.LoadHostByNodeKey(ctx, k)
 		},
@@ -63,8 +67,9 @@ var hostCacheFamilies = []hostCacheFamily{
 		},
 	},
 	{
-		name:      "orbit",
-		sampleKey: "onk-test",
+		cacheFamily: orbitCacheFamily,
+		name:        "orbit",
+		sampleKey:   "onk-test",
 		load: func(d *Datastore, ctx context.Context, k string) (*fleet.Host, error) {
 			return d.LoadHostByOrbitNodeKey(ctx, k)
 		},

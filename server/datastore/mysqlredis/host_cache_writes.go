@@ -10,7 +10,7 @@ import (
 // This file holds the mysqlredis overrides for write-path methods that mutate
 // cached host fields. Each wrapper delegates to the inner Datastore first, then
 // invalidates the Redis-backed host cache on success. Errors from the inner
-// call short-circuit invalidation — we must not poison the cache on transient
+// call short-circuit invalidation. We must not poison the cache on transient
 // failures.
 //
 // Invalidation reason labels must be one of the low-cardinality values the
@@ -26,7 +26,7 @@ func (d *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if err := d.Datastore.UpdateHost(ctx, host); err != nil {
 		return err
 	}
-	d.invalidateAfterHostWrite(ctx, host, "update")
+	d.invalidateAfterHostUpdate(ctx, host, "update")
 	return nil
 }
 
@@ -39,7 +39,7 @@ func (d *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) erro
 	if err := d.Datastore.SerialUpdateHost(ctx, host); err != nil {
 		return err
 	}
-	d.invalidateAfterHostWrite(ctx, host, "update")
+	d.invalidateAfterHostUpdate(ctx, host, "update")
 	return nil
 }
 
@@ -76,14 +76,13 @@ func (d *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 
 // EnrollOrbit invalidates for the returned host on successful enrollment. Orbit
 // enrollment may create a new hosts row or update an existing one's
-// orbit_node_key + team_id. In either case the cached snapshot is stale after
-// the call.
+// orbit_node_key + team_id. In either case the cached snapshot is stale after the call.
 func (d *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
 	host, err := d.Datastore.EnrollOrbit(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-	d.invalidateAfterHostWrite(ctx, host, "enroll")
+	d.invalidateAfterHostEnroll(ctx, host, "enroll")
 	return host, nil
 }
 
@@ -115,29 +114,40 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	return nil
 }
 
-// invalidateAfterHostWrite is the common tail for write paths that hand us a
-// *fleet.Host. Invalidates via the reverse indices on the host's ID — the
-// only path that's guaranteed to clear BOTH cache families (osquery and
-// orbit) regardless of which keys are populated on the caller-supplied Host
-// struct. Some write paths hand us only a partial Host (e.g., the returned
-// *Host from mysql.EnrollOrbit has ID but not NodeKey/OrbitNodeKey), and
-// relying on direct-key DEL in those cases would silently miss the other
-// family and leave it stale until TTL.
+// invalidateAfterHostUpdate is the common tail for write paths that update an already-existing host
+// (UpdateHost, SerialUpdateHost). Clears the cache via the reverse index on the host's ID, which covers
+// both osquery and orbit families.
 //
-// Additionally clears direct-key entries for any keys the caller DOES have
-// on the struct. This covers the case where a NotFound was negatively-cached
-// under a key before the host existed — the reverse index can't find that
-// entry (the host has no id-to-key mapping yet), so it must be cleared by
-// the caller-supplied key. Matters most for NewHost / EnrollOsquery which
-// can race with pre-enrollment probes.
-func (d *Datastore) invalidateAfterHostWrite(ctx context.Context, host *fleet.Host, reason string) {
+// This path does NOT clear by direct keys: an already-cached host's reverse index is populated, so the
+// by-ID path finds and DELs every related key. The pre-enrollment-negative-cache race that motivates
+// invalidateAfterHostEnroll's direct-keys clear cannot apply to UpdateHost callers (you cannot UPDATE a
+// host that doesn't exist yet), so the extra DELs would be wasted Redis ops.
+func (d *Datastore) invalidateAfterHostUpdate(ctx context.Context, host *fleet.Host, reason string) {
+	if host == nil || host.ID == 0 {
+		return
+	}
+	d.hostCacheDeleteByID(ctx, host.ID, reason)
+}
+
+// invalidateAfterHostEnroll is the common tail for write paths that may CREATE a host or rotate its
+// node_key (NewHost, EnrollOsquery, EnrollOrbit). Does the by-ID invalidation that
+// invalidateAfterHostUpdate does, plus a direct-keys clear using the caller-supplied NodeKey and
+// OrbitNodeKey on the returned *fleet.Host.
+//
+// The direct-keys clear plugs the pre-enrollment-negative-cache race: if a poll arrived with the
+// new node_key BEFORE the host row existed, LoadHostByNodeKey returned NotFound and wrote
+// nk_miss:<new_key> with a 5s TTL but did NOT populate the reverse index (no host ID to point at).
+// hostCacheDeleteByID's reverse-index walk cannot find that entry; only a direct DEL using the
+// just-issued node_key can. Without the direct clear, the freshly-enrolled host's first 0-5s of
+// auth attempts return NotFound from the negative cache.
+//
+// Does NOT record a second invalidation; hostCacheDeleteByID already bumped the counter.
+func (d *Datastore) invalidateAfterHostEnroll(ctx context.Context, host *fleet.Host, reason string) {
 	if host == nil || host.ID == 0 {
 		return
 	}
 	d.hostCacheDeleteByID(ctx, host.ID, reason)
 
-	// Belt-and-braces clear of direct keys. Does not record a second
-	// invalidation — hostCacheDeleteByID already did.
 	nk := ""
 	if host.NodeKey != nil {
 		nk = *host.NodeKey
