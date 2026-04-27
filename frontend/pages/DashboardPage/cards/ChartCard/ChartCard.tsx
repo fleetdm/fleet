@@ -67,7 +67,9 @@ const DATASETS: IDataSet[] = [
           target="vulncode-link"
           href="https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138"
         >
-          certain critical vulnerabilities
+          certain critical
+          <br />
+          vulnerabilities
         </a>{" "}
         during a given hour.
       </>
