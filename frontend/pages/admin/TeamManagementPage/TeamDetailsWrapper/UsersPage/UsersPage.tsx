@@ -391,12 +391,13 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       <PageDescription
         content={
           <>
-            Manage users with access to this fleet.{" "}
-            {isGlobalAdmin && (
-              <CustomLink
-                url={PATHS.ADMIN_USERS}
-                text="Manage users with global access here"
-              />
+            {isGlobalAdmin ? (
+              <>
+                <CustomLink url={PATHS.ADMIN_USERS} text="Manage users" /> with
+                access to this fleet.
+              </>
+            ) : (
+              "Manage users with access to this fleet."
             )}
           </>
         }

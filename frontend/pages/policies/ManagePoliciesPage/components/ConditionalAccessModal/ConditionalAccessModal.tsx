@@ -136,26 +136,12 @@ const ConditionalAccessModal = ({
 
   const renderNotConfigured = () => (
     <>
-      To block single sign-on from hosts failing policies, you must first
-      connect Fleet to {providerText}.
-      <br />
-      <br />
-      This can be configured in{" "}
-      {isGlobalAdmin ? (
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-          text="Settings > Integrations > Conditional access"
-        />
-      ) : (
-        <>
-          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-          <b>Conditional access</b>
-        </>
-      )}
-      .
-      <br />
-      <br />
-      {learnMoreLink}
+      <CustomLink
+        url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+        text={`Connect Fleet to ${providerText}`}
+        emphasized
+      />{" "}
+      to block single sign-on from hosts failing policies. {learnMoreLink}
       <div className="modal-cta-wrap">
         <Button onClick={onExit}>Close</Button>
       </div>

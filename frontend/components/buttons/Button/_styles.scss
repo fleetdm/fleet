@@ -220,7 +220,6 @@ $base-class: "button";
   // Looks exactly like a CustomLink but is a <button>
   &--link {
     @include link;
-    @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
     background: transparent;
     border: 0;
     box-shadow: none;
