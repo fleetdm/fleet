@@ -250,6 +250,7 @@ import Zed from "./Zed";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -513,6 +514,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "yubikey manager": YubikeyManager,
   zed: Zed,
   zeplin: Zeplin,
+  "zoom rooms": ZoomRooms,
   zotero: Zotero,
 } as const;
 

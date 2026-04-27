@@ -1976,6 +1976,13 @@
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
     },
     {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.ZoomPresence",
+      "description": "Zoom Rooms is conference room software for Zoom meetings."
+    },
+    {
       "name": "Zoom",
       "slug": "zoom/darwin",
       "platform": "darwin",
