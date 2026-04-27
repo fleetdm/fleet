@@ -207,6 +207,9 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 // succeeded, the orphaned index points at a non-existent key. The next read takes the DB path, and any subsequent
 // hostCacheDeleteByID call cleans the stranded index. The problematic state (payload present, index missing, so
 // hostCacheDeleteByID silently no-ops and leaves the payload alive until TTL) cannot occur with this ordering.
+//
+// Both SETs use EXAT (absolute Unix-second expiration) with a single computed expiresAt.
+// Requires Redis 6.2+, which Fleet's docker-compose.yml uses in CI as of 2026-04-27.
 func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, host *fleet.Host) {
 	if !d.hostCacheEnabled || host == nil {
 		return
@@ -224,22 +227,24 @@ func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, hos
 	}
 
 	ttl := d.jitteredHostCacheTTL()
-	// Redis only accepts integer TTLs.
+	// Redis only accepts integer TTLs. Floor at 1 second so a degenerate near-zero jittered value still produces a
+	// future expiry rather than EXAT'ing into the past (which would immediately expire the keys).
 	ttlSec := int(ttl.Seconds())
 	if ttlSec <= 0 {
 		ttlSec = 1
 	}
+	expiresAt := time.Now().Unix() + int64(ttlSec)
 
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
 	if host.ID != 0 {
-		if _, err := conn.Do("SET", fam.indexKey(host.ID), key, "EX", ttlSec); err != nil {
+		if _, err := conn.Do("SET", fam.indexKey(host.ID), key, "EXAT", expiresAt); err != nil {
 			d.recordHostCacheErr(ctx, "set", err)
 			return
 		}
 	}
-	if _, err := conn.Do("SET", fam.primaryKey(key), raw, "EX", ttlSec); err != nil {
+	if _, err := conn.Do("SET", fam.primaryKey(key), raw, "EXAT", expiresAt); err != nil {
 		d.recordHostCacheErr(ctx, "set", err)
 	}
 }
