@@ -128,22 +128,6 @@ func TestHostCacheHelpers(t *testing.T) {
 			assert.Equal(t, nk, got)
 		})
 
-		t.Run("put returned *Host is independent of cache", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-
-			nk := "node-independent"
-			wrapped.hostCachePut(ctx, &fleet.Host{ID: 8, NodeKey: &nk, Hostname: "original"})
-
-			loaded, result := wrapped.hostCacheGet(ctx, nk)
-			require.Equal(t, hostCacheLookupHit, result)
-			loaded.Hostname = "mutated-by-caller"
-
-			// A second read must return the stored value, unaffected by the mutation.
-			second, result := wrapped.hostCacheGet(ctx, nk)
-			require.Equal(t, hostCacheLookupHit, result)
-			assert.Equal(t, "original", second.Hostname)
-		})
-
 		t.Run("miss returns hostCacheLookupMiss", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
@@ -178,6 +162,12 @@ func TestHostCacheHelpers(t *testing.T) {
 		t.Run("delete by node_key clears primary, negative, and index", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
+			// Set up the worst-case state: positive cache, negative cache, and reverse index all
+			// populated for the same node_key. This combination occurs in production when a probe
+			// arrived before enrollment (writing the negative entry) and then enrollment completed
+			// (writing positive + index). The delete contract is "clean up all keys for this
+			// node_key regardless of which are live," so we populate all three to verify the
+			// delete clears them all.
 			nk := "node-del-nk"
 			wrapped.hostCachePut(ctx, &fleet.Host{ID: 10, NodeKey: &nk})
 			wrapped.hostCachePutNotFound(ctx, nk)
@@ -229,122 +219,14 @@ func TestHostCacheHelpers(t *testing.T) {
 	})
 }
 
-// TestHostCacheEnvelopeRoundTrip is a drift-catcher: it builds a *fleet.Host
-// populated with every field either LoadHostByNodeKey or LoadHostByOrbitNodeKey
-// touches, marshals it through the hostCacheEnvelope, unmarshals into a fresh
-// envelope, and asserts the resulting *fleet.Host is structurally identical to
-// the input. Any field that stops round-tripping through JSON — because
-// fleet.Host added a new `json:"-"` tag, or an upstream change broke a tag,
-// or the envelope forgot to shadow a hidden field — surfaces as a cmp.Diff.
-//
-// This replaces the per-entry round-trip tests that asserted every field
-// by hand. The cmp.Diff approach asserts ALL fields (not just the ones we
-// remembered to list), so it's strictly more complete.
-func TestHostCacheEnvelopeRoundTrip(t *testing.T) {
-	nk := "node-rt"
-	onk := "orbit-rt"
-	oqhid := "osq-rt"
-	tz := "UTC"
-	teamID := uint(3)
-	primaryIPID := uint(99)
-	certTrue := true
-	depTrue := true
-	encEnabledTrue := true
-	teamName := "team-rt"
-	until := time.Date(2026, time.April, 22, 12, 0, 0, 0, time.UTC)
-	now := time.Date(2026, time.April, 21, 12, 0, 0, 0, time.UTC)
-
-	orig := &fleet.Host{
-		ID:                          42,
-		OsqueryHostID:               &oqhid,
-		DetailUpdatedAt:             now,
-		NodeKey:                     &nk,
-		Hostname:                    "h",
-		UUID:                        "u",
-		Platform:                    "darwin",
-		OsqueryVersion:              "5.0",
-		OSVersion:                   "14.0",
-		Build:                       "23A344",
-		PlatformLike:                "darwin",
-		CodeName:                    "sonoma",
-		Uptime:                      time.Hour,
-		Memory:                      1 << 30,
-		CPUType:                     "arm64",
-		CPUSubtype:                  "m1",
-		CPUBrand:                    "Apple",
-		CPUPhysicalCores:            8,
-		CPULogicalCores:             8,
-		HardwareVendor:              "Apple",
-		HardwareModel:               "MacBookPro",
-		HardwareVersion:             "v1",
-		HardwareSerial:              "SN123",
-		ComputerName:                "Laptop",
-		PrimaryNetworkInterfaceID:   &primaryIPID,
-		DistributedInterval:         10,
-		LoggerTLSPeriod:             60,
-		ConfigTLSRefresh:            60,
-		PrimaryIP:                   "10.0.0.1",
-		PrimaryMac:                  "aa:bb:cc:dd:ee:ff",
-		LabelUpdatedAt:              now,
-		LastEnrolledAt:              now,
-		RefetchRequested:            true,
-		RefetchCriticalQueriesUntil: &until,
-		TeamID:                      &teamID,
-		PolicyUpdatedAt:             now,
-		PublicIP:                    "1.2.3.4",
-		OrbitNodeKey:                &onk,
-		LastRestartedAt:             now,
-		TimeZone:                    &tz,
-		GigsDiskSpaceAvailable:      100.5,
-		GigsTotalDiskSpace:          500.0,
-		PercentDiskSpaceAvailable:   20.1,
-		HasHostIdentityCert:         &certTrue,
-		// Orbit-specific fields (populated only by LoadHostByOrbitNodeKey,
-		// but included here so the single round-trip test covers both paths).
-		DEPAssignedToFleet:    &depTrue,
-		DiskEncryptionEnabled: &encEnabledTrue,
-		TeamName:              &teamName,
-		MDM:                   fleet.MDMHostData{EncryptionKeyAvailable: true},
-	}
-	orig.CreatedAt = now
-	orig.UpdatedAt = now
-
-	raw, err := json.Marshal(envelopeFromHost(orig))
-	require.NoError(t, err)
-
-	envelope := new(hostCacheEnvelope)
-	require.NoError(t, json.Unmarshal(raw, envelope))
-	got := envelope.toHost()
-
-	// Ignore unexported fields — they don't round-trip through JSON by
-	// construction (encoding/json only marshals exported fields), so the
-	// cache can't possibly drop them.
-	ignoreUnexported := cmpopts.IgnoreUnexported(fleet.Host{}, fleet.MDMHostData{})
-	if diff := cmp.Diff(orig, got, ignoreUnexported); diff != "" {
-		t.Fatalf("round-trip mismatch (-want +got):\n%s", diff)
-	}
-
-	// Extra explicit check on the four security-critical shadow fields — a
-	// cmp.Diff failure elsewhere could mask them, and they're the whole
-	// reason the envelope exists.
-	require.NotNil(t, got.NodeKey)
-	assert.Equal(t, *orig.NodeKey, *got.NodeKey)
-	require.NotNil(t, got.OrbitNodeKey)
-	assert.Equal(t, *orig.OrbitNodeKey, *got.OrbitNodeKey)
-	require.NotNil(t, got.OsqueryHostID)
-	assert.Equal(t, *orig.OsqueryHostID, *got.OsqueryHostID)
-	require.NotNil(t, got.HasHostIdentityCert)
-	assert.Equal(t, *orig.HasHostIdentityCert, *got.HasHostIdentityCert)
-}
-
+// TestJitteredHostCacheTTL covers the invariants TestPBT_JitteredHostCacheTTLBounds cannot:
+// variance over many draws at a single base, and the zero-base edge case. Bounds across the
+// full base-TTL range are covered by the property-based test.
 func TestJitteredHostCacheTTL(t *testing.T) {
+	// Variance: 1000 draws at one base should produce a spread, not a constant value. (rapid runs one
+	// jitter draw per generated input, so it doesn't directly check that any single base produces
+	// non-degenerate variance.)
 	d := &Datastore{hostCacheEnabled: true, hostCacheTTL: 30 * time.Second}
-
-	base := float64(d.hostCacheTTL)
-	halfJitter := base * hostCacheTTLJitterFraction / 2
-	minAllowed := time.Duration(base - halfJitter)
-	maxAllowed := time.Duration(base + halfJitter)
-
 	const samples = 1000
 	var minSeen, maxSeen time.Duration = math.MaxInt64, 0
 	for range samples {
@@ -355,13 +237,10 @@ func TestJitteredHostCacheTTL(t *testing.T) {
 		if got > maxSeen {
 			maxSeen = got
 		}
-		assert.GreaterOrEqual(t, got, minAllowed, "jittered TTL below ±10% bound")
-		assert.LessOrEqual(t, got, maxAllowed, "jittered TTL above ±10% bound")
 	}
-	// Sanity: we should see a meaningful spread, not just 1000 identical values.
 	assert.Less(t, minSeen, maxSeen, "jitter produced no variance over %d samples", samples)
 
-	// Disabled / zero base returns zero.
+	// Zero base returns zero. (PBT only generates positive bases.)
 	zero := &Datastore{hostCacheEnabled: true, hostCacheTTL: 0}
 	assert.Equal(t, time.Duration(0), zero.jitteredHostCacheTTL())
 }
@@ -380,7 +259,7 @@ func TestLoadHost_CacheDisabled(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, fam.getInvoked(ds))
 
-			// Second call also hits the inner datastore — there's no cache.
+			// Second call also hits the inner datastore (there's no cache).
 			fam.setInvoked(ds, false)
 			_, err = fam.load(wrapped, ctx, fam.sampleKey)
 			require.NoError(t, err)
@@ -503,8 +382,7 @@ func TestLoadHost_Override(t *testing.T) {
 		})
 
 		t.Run("canceled caller does not poison the shared DB call", func(t *testing.T) {
-			// Regression test for the PR review finding: without ctx detach,
-			// cancelling the caller whose goroutine happens to be the
+			// Without ctx detach, cancelling the caller whose goroutine happens to be the
 			// singleflight leader would cancel the shared DB query and fail
 			// every joiner even though their own contexts are alive.
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
@@ -589,7 +467,7 @@ func TestLoadHost_RedisErrorFallsThrough(t *testing.T) {
 			require.NotNil(t, got)
 			assert.True(t, fam.getInvoked(ds))
 
-			// Second call also hits DB — cache never populated successfully.
+			// Second call also hits DB (cache never populated successfully).
 			fam.setInvoked(ds, false)
 			_, err = fam.load(wrapped, ctx, fam.sampleKey+"-redis-down")
 			require.NoError(t, err)

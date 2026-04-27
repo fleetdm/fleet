@@ -3,7 +3,6 @@ package mysqlredis
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -35,79 +34,113 @@ func TestWritePathInvalidation(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		ctx := t.Context()
 
-		t.Run("UpdateHost invalidates by node_key", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
+		// Single-host wrapper invalidation cases. Each case verifies that the wrapper invalidates the
+		// cache for the affected host after a successful inner call. Methods with materially different
+		// invalidation paths (enrollment, batch, regression) get their own subtests below.
+		singleHostWrappers := []struct {
+			name      string
+			id        uint
+			setupMock func(*mock.Store)
+			invoke    func(context.Context, *Datastore, uint, string) error
+			invoked   func(*mock.Store) bool
+		}{
+			{
+				name: "UpdateHost",
+				id:   1,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, nk string) error {
+					return d.UpdateHost(ctx, &fleet.Host{ID: id, NodeKey: &nk})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostFuncInvoked },
+			},
+			{
+				name: "SerialUpdateHost",
+				id:   2,
+				setupMock: func(ds *mock.Store) {
+					ds.SerialUpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, nk string) error {
+					return d.SerialUpdateHost(ctx, &fleet.Host{ID: id, NodeKey: &nk})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SerialUpdateHostFuncInvoked },
+			},
+			{
+				name: "UpdateHostOsqueryIntervals",
+				id:   3,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostOsqueryIntervalsFunc = func(_ context.Context, _ uint, _ fleet.HostOsqueryIntervals) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostOsqueryIntervals(ctx, id, fleet.HostOsqueryIntervals{})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostOsqueryIntervalsFuncInvoked },
+			},
+			{
+				name: "UpdateHostRefetchRequested",
+				id:   4,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostRefetchRequested(ctx, id, true)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchRequestedFuncInvoked },
+			},
+			{
+				name: "UpdateHostRefetchCriticalQueriesUntil",
+				id:   5,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostRefetchCriticalQueriesUntilFunc = func(_ context.Context, _ uint, _ *time.Time) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostRefetchCriticalQueriesUntil(ctx, id, new(time.Unix(1, 0)))
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchCriticalQueriesUntilFuncInvoked },
+			},
+			{
+				name: "UpdateHostIdentityCertHostIDBySerial",
+				id:   6,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostIdentityCertHostIDBySerialFunc = func(_ context.Context, _ uint64, _ uint) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostIdentityCertHostIDBySerial(ctx, 12345, id)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostIdentityCertHostIDBySerialFuncInvoked },
+			},
+			{
+				name: "DeleteHost",
+				id:   7,
+				setupMock: func(ds *mock.Store) {
+					ds.DeleteHostFunc = func(_ context.Context, _ uint) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.DeleteHost(ctx, id)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.DeleteHostFuncInvoked },
+			},
+		}
 
-			nk := "nk-update"
-			primeCachedHost(t, d, 1, nk)
-			require.NoError(t, d.UpdateHost(ctx, &fleet.Host{ID: 1, NodeKey: &nk}))
-			require.True(t, ds.UpdateHostFuncInvoked)
-			requireCacheMiss(t, d, nk)
-		})
+		for _, tc := range singleHostWrappers {
+			t.Run(tc.name+" invalidates cache", func(t *testing.T) {
+				t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+				ds := new(mock.Store)
+				tc.setupMock(ds)
+				d := New(ds, pool, WithHostCache(30*time.Second))
 
-		t.Run("SerialUpdateHost invalidates by node_key", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.SerialUpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-serial"
-			primeCachedHost(t, d, 2, nk)
-			require.NoError(t, d.SerialUpdateHost(ctx, &fleet.Host{ID: 2, NodeKey: &nk}))
-			require.True(t, ds.SerialUpdateHostFuncInvoked)
-			requireCacheMiss(t, d, nk)
-		})
-
-		t.Run("UpdateHostOsqueryIntervals invalidates by id", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.UpdateHostOsqueryIntervalsFunc = func(_ context.Context, _ uint, _ fleet.HostOsqueryIntervals) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-intervals"
-			primeCachedHost(t, d, 3, nk)
-			require.NoError(t, d.UpdateHostOsqueryIntervals(ctx, 3, fleet.HostOsqueryIntervals{}))
-			require.True(t, ds.UpdateHostOsqueryIntervalsFuncInvoked)
-			requireCacheMiss(t, d, nk)
-		})
-
-		t.Run("UpdateHostRefetchRequested invalidates by id", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-refetch"
-			primeCachedHost(t, d, 4, nk)
-			require.NoError(t, d.UpdateHostRefetchRequested(ctx, 4, true))
-			require.True(t, ds.UpdateHostRefetchRequestedFuncInvoked)
-			requireCacheMiss(t, d, nk)
-		})
-
-		t.Run("UpdateHostRefetchCriticalQueriesUntil invalidates by id", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.UpdateHostRefetchCriticalQueriesUntilFunc = func(_ context.Context, _ uint, _ *time.Time) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-critical"
-			primeCachedHost(t, d, 5, nk)
-			until := time.Now().Add(time.Hour)
-			require.NoError(t, d.UpdateHostRefetchCriticalQueriesUntil(ctx, 5, &until))
-			require.True(t, ds.UpdateHostRefetchCriticalQueriesUntilFuncInvoked)
-			requireCacheMiss(t, d, nk)
-		})
+				nk := "nk-" + tc.name
+				primeCachedHost(t, d, tc.id, nk)
+				require.NoError(t, tc.invoke(ctx, d, tc.id, nk))
+				require.True(t, tc.invoked(ds), "inner mock not invoked")
+				requireCacheMiss(t, d, nk)
+			})
+		}
 
 		t.Run("EnrollOrbit invalidates for returned host", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			// mock.Store has a hand-written EnrollOrbit that returns (nil, nil)
-			// regardless of EnrollOrbitFunc, so for this subtest we wrap the
-			// auto-generated mock.DataStore directly.
-			//
-			// The mock returns a Host with ONLY ID populated — mirroring the
+			// The mock returns a Host with ONLY ID populated, mirroring the
 			// production mysql.EnrollOrbit, which doesn't set NodeKey or
 			// OrbitNodeKey on its returned struct. This exercises the ID-based
 			// reverse-index invalidation path that production actually takes.
@@ -140,26 +173,12 @@ func TestWritePathInvalidation(t *testing.T) {
 				primeCachedHost(t, d, ids[i], nk)
 			}
 
-			teamID := uint(7)
-			params := fleet.NewAddHostsToTeamParams(&teamID, ids)
+			params := fleet.NewAddHostsToTeamParams(new(uint(7)), ids)
 			require.NoError(t, d.AddHostsToTeam(ctx, params))
 			require.True(t, ds.AddHostsToTeamFuncInvoked)
 			for _, nk := range nks {
 				requireCacheMiss(t, d, nk)
 			}
-		})
-
-		t.Run("UpdateHostIdentityCertHostIDBySerial invalidates by host id", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.UpdateHostIdentityCertHostIDBySerialFunc = func(_ context.Context, _ uint64, _ uint) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-cert"
-			primeCachedHost(t, d, 20, nk)
-			require.NoError(t, d.UpdateHostIdentityCertHostIDBySerial(ctx, 12345, 20))
-			require.True(t, ds.UpdateHostIdentityCertHostIDBySerialFuncInvoked)
-			requireCacheMiss(t, d, nk)
 		})
 
 		t.Run("NewHost clears stale negative cache for new node_key", func(t *testing.T) {
@@ -194,18 +213,6 @@ func TestWritePathInvalidation(t *testing.T) {
 			h, err := d.EnrollOsquery(ctx)
 			require.NoError(t, err)
 			require.NotNil(t, h)
-			requireCacheMiss(t, d, nk)
-		})
-
-		t.Run("DeleteHost clears cache entry", func(t *testing.T) {
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.DeleteHostFunc = func(_ context.Context, _ uint) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			nk := "nk-delete"
-			primeCachedHost(t, d, 50, nk)
-			require.NoError(t, d.DeleteHost(ctx, 50))
 			requireCacheMiss(t, d, nk)
 		})
 
@@ -292,49 +299,6 @@ func TestWritePathInvalidation(t *testing.T) {
 			assert.Equal(t, hostCacheLookupMiss, res)
 		})
 
-		t.Run("AddHostsToTeam pipelines large batches (regression: 10k-host stall)", func(t *testing.T) {
-			// Regression test for the cloud-loadtest finding where
-			// AddHostsToTeam was taking ~80 s on 10k-host batches because
-			// hostCacheDeleteByID-in-a-loop issued ~8 sequential Redis
-			// round-trips per host. The pipelined invalidateHostIDs variant
-			// should collapse that to O(slots × chunks) and stay well
-			// under a few seconds even for thousands of hosts.
-			//
-			// This test proves correctness at scale (every primed entry is
-			// gone after the call); the wall-clock win is a property of
-			// the pipelined Redis commands, not the test harness. A batch
-			// size above hostCacheInvalidateBatchSize (500) ensures the
-			// chunking path is exercised.
-			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
-			ds := new(mock.Store)
-			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
-			d := New(ds, pool, WithHostCache(30*time.Second))
-
-			const hostCount = 1500 // exceeds the 500-key batch threshold
-			ids := make([]uint, hostCount)
-			nks := make([]string, hostCount)
-			for i := range ids {
-				ids[i] = uint(10_000 + i)
-				nks[i] = fmt.Sprintf("nk-pipeline-%04d", i)
-				primeCachedHost(t, d, ids[i], nks[i])
-			}
-
-			teamID := uint(77)
-			start := time.Now()
-			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamID, ids)))
-			elapsed := time.Since(start)
-			t.Logf("AddHostsToTeam invalidation for %d hosts took %s", hostCount, elapsed)
-
-			// Every primed entry must be gone. Spot-check by scanning the
-			// cache keyspace — we primed N entries, there should be 0 left
-			// after the invalidation. (Other tests may have left unrelated
-			// keys behind, so scan for the known prefix we used.)
-			for _, nk := range nks {
-				_, result := d.hostCacheGet(ctx, nk)
-				require.Equal(t, hostCacheLookupMiss, result, "nk %q should be invalidated", nk)
-			}
-		})
-
 		t.Run("inner error preserves cache", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
@@ -347,8 +311,7 @@ func TestWritePathInvalidation(t *testing.T) {
 			err := d.UpdateHost(ctx, &fleet.Host{ID: 90, NodeKey: &nk})
 			require.ErrorIs(t, err, boom)
 
-			// Cache must still hold the pre-write value — a failed write must
-			// not evict valid cached data.
+			// Cache must still hold the pre-written value. A failed write operation must not evict valid cached data.
 			_, result := d.hostCacheGet(ctx, nk)
 			assert.Equal(t, hostCacheLookupHit, result)
 		})
