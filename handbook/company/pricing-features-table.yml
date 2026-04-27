@@ -276,9 +276,9 @@
     - description: Connect end users to Wi-Fi by adding your SCEP server.
       moreInfoUrl: https://youtu.be/secV4NCGYPg
 #
-#  ╔╦╗ ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
-#   ║║║ ║╣ ╠╦╝║  ║╣  ║║║╣  ║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║
-#  ╩ ╩ ╚═╝╩╚═╚═╝╚═╝ ╩ ╩╚═╝═╩╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
+#  ╔╦╗╔═╗╔╗ ╦ ╦╔═╗  ╦  ╔═╗╔═╗╔═╗╦╔╗╔╔═╗
+#   ║║║╣ ╠╩╗║ ║║ ╦  ║  ║ ║║ ╦║ ╦║║║║║ ╦
+#  ═╩╝╚═╝╚═╝╚═╝╚═╝  ╩═╝╚═╝╚═╝╚═╝╩╝╚╝╚═╝
 - industryName: Debug logging during setup experience
   description: Enable debug logging for fleetd during device enrollment to troubleshoot setup issues.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#debug-logging-on-enroll
@@ -290,9 +290,9 @@
   usualDepartment: IT
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/43997
 #
-#  ╔╦╗ ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
-#   ║║║ ║╣ ╠╦╝║  ║╣  ║║║╣  ║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║
-#  ╩ ╩ ╚═╝╩╚═╚═╝╚═╝ ╩ ╩╚═╝═╩╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
+#  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
+#  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
+#  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Bring your own device (BYOD) enrollment
   description: BYOD enrollment for macOS, iOS/iPadOS, Windows, and Android devices.
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
