@@ -485,6 +485,7 @@ const HostDetailsPage = ({
     IHostPastActivitiesResponse,
     Array<{
       scope: string;
+      hostId: number;
       pageIndex: number;
       perPage: number;
       activeTab: "past" | "upcoming";
@@ -493,17 +494,14 @@ const HostDetailsPage = ({
     [
       {
         scope: "past-activities",
+        hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex, perPage }] }) => {
-      return activitiesAPI.getHostPastActivities(
-        hostIdFromURL,
-        pageIndex,
-        perPage
-      );
+    ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(hostId, pageIndex, perPage);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -524,6 +522,7 @@ const HostDetailsPage = ({
     IHostUpcomingActivitiesResponse,
     Array<{
       scope: string;
+      hostId: number;
       pageIndex: number;
       perPage: number;
       activeTab: "past" | "upcoming";
@@ -532,14 +531,15 @@ const HostDetailsPage = ({
     [
       {
         scope: "upcoming-activities",
+        hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex, perPage }] }) => {
+    ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
       return activitiesAPI.getHostUpcomingActivities(
-        hostIdFromURL,
+        hostId,
         pageIndex,
         perPage
       );
