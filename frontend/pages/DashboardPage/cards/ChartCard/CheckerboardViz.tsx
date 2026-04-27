@@ -231,9 +231,7 @@ const CheckerboardViz = ({
 
   return (
     <div
-      className={classnames(baseClass, {
-        [`${baseClass}--theme-${theme}`]: theme !== "green",
-      })}
+      className={classnames(baseClass, `${baseClass}--theme-${theme}`)}
       ref={containerRef}
     >
       <div className={`${baseClass}__chart-row`}>

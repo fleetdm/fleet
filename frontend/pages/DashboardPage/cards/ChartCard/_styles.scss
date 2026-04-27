@@ -235,12 +235,14 @@
   // hex values; level-4 matches $core-fleet-green and is aliased accordingly.
   // The per-level colors are exposed as custom properties so themes can
   // override them with a single block of overrides below.
-  --level-0: #ebedf0;
-  --level-1: #e4f1ec;
-  --level-2: #badecf;
-  --level-3: #82d2b9;
-  --level-4: #{$core-fleet-green};
-  --level-5: #005b4a;
+  &--theme-green {
+    --level-0: #ebedf0;
+    --level-1: #e4f1ec;
+    --level-2: #badecf;
+    --level-3: #82d2b9;
+    --level-4: #009a7d;
+    --level-5: #005b4a;
+  }
 
   &--theme-red {
     --level-0: #ebedf0;
