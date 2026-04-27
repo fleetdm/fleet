@@ -3833,6 +3833,91 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteComma
 		assert.Equal(t, 0, removeCount, "verified remove row should be deleted")
 	})
 
+	t.Run("remove then reinstall same profile", func(t *testing.T) {
+		// Validates that deleting a verified-remove row by command_uuid does not
+		// interfere with a fresh install of the same (host_uuid, profile_uuid) pair.
+		profileUUID := uuid.NewString()
+
+		// Step 1: create a remove row and ACK it as verified → row deleted.
+		removeCommandUUID := uuid.NewString()
+		removeCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: removeCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Delete>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/ReinstallTest</LocURI>
+			</Target>
+		</Item>
+	</Delete>
+`, removeCommandUUID),
+		}
+		err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, removeCmd)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'verifying', 'remove', ?, 'reinstall-test', ?)`, enrolledDevice1.HostUUID, removeCommandUUID, profileUUID)
+			return err
+		})
+		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Delete", StatusCode: 200, UUID: removeCommandUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		require.NoError(t, err)
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &count, `
+SELECT COUNT(*) FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID)
+		})
+		require.Equal(t, 0, count, "remove row should be deleted after verified ACK")
+
+		// Step 2: fresh install of the same profile with a new command UUID.
+		installCommandUUID := uuid.NewString()
+		installCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: installCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Replace>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/ReinstallTest</LocURI>
+			</Target>
+			<Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+			<Data>1</Data>
+		</Item>
+	</Replace>
+`, installCommandUUID),
+		}
+		err = ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, installCmd)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'reinstall-test', ?)`, enrolledDevice1.HostUUID, installCommandUUID, profileUUID)
+			return err
+		})
+		enrichedSyncML = createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Replace", StatusCode: 200, UUID: installCommandUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		require.NoError(t, err)
+
+		// The reinstalled profile should land as verified.
+		var status string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &status, `
+SELECT status FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID)
+		})
+		assert.Equal(t, "verified", status, "reinstalled profile should be verified")
+	})
+
 	t.Run("wipe failure returns WipeFailed result", func(t *testing.T) {
 		ctx := t.Context()
 

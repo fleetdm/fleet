@@ -841,11 +841,11 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			}
 		}
 
-		// Delete bucket: remove operations resolving to a terminal status.
-		// Verified and verifying are both terminal for removes.
+		// Delete bucket: remove operations that resolved to verified.
+		// This is the only terminal-success status for Windows removes
 		// Failed removes are kept (upserted) so the failure is visible.
 		if hp.OperationType == fleet.MDMOperationTypeRemove && payload.Status != nil &&
-			(*payload.Status == fleet.MDMDeliveryVerified || *payload.Status == fleet.MDMDeliveryVerifying) {
+			*payload.Status == fleet.MDMDeliveryVerified {
 			deleteCommandUUIDs = append(deleteCommandUUIDs, hp.CommandUUID)
 			continue
 		}
