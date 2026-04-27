@@ -2597,20 +2597,14 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 // host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
 // page through the pending-work universe in batches, smoothing the
 // writer pressure that an unbounded reconciliation generates during
-// bulk events like team transfers. See
-// claude/perf/windows-mdm-reconciler-batching.md.
+// bulk events like team transfers.
 //
-// var rather than const so property-based tests can shrink the batch
-// size to make cursor-paging behavior tractable to exercise. Production
-// never reassigns it.
+// var rather than const so property-based tests can shrink the batch size
 var reconcileWindowsProfilesBatchSize = 2000
 
+// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
 // Named return so the deferred SetCursor block below sees the actual
-// function exit error. Several late-body calls use `if err := ...;
-// err != nil { return ctxerr.Wrap(ctx, err, ...) }`, which shadows in
-// the if scope; without a named return the deferred `if err == nil`
-// would observe the outer err from the last successful call and
-// advance the cursor anyway. With a named return, every `return X`
+// function exit error. With a named return, every `return X`
 // assigns X to the named err before the defer fires, so any failure
 // path correctly skips the cursor write.
 func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
@@ -2632,9 +2626,6 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		cursor = ""
 	}
 
-	// Pick up to reconcileWindowsProfilesBatchSize distinct hosts (sorted
-	// ascending by host_uuid) that have any pending Windows MDM work after
-	// the cursor.
 	hostUUIDs, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, cursor, reconcileWindowsProfilesBatchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing next pending Windows MDM hosts")
@@ -2646,30 +2637,10 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		//
 		// Decision: cursor write failures here (and in the deferred
 		// advance below) are logged-and-swallowed rather than returned
-		// as tick failures. The trade-off:
-		//
-		//   - Fail-the-tick (what reviewers suggested): a transient
-		//     Redis blip becomes a per-tick error log every 30s. Most
-		//     tick failures recover on the next tick anyway because
-		//     Redis recovers, so the noise doesn't translate into
-		//     actionable signal.
-		//   - Log-and-continue (current behavior): if the failure is
-		//     transient, the next tick re-runs the same listing, finds
-		//     work or doesn't, and writes the cursor again. If the
-		//     failure is *persistent* (Redis is down for an extended
-		//     window), the cron is still mostly correct: ticks where
-		//     hostUUIDs > stale_cursor still process those hosts; only
-		//     hosts whose UUIDs sort *before* the stale cursor are
-		//     skipped, and they resume the next time a tick succeeds
-		//     in resetting. A persistent Redis outage breaks much more
-		//     than this cron, so loud failure here doesn't add real
-		//     observability.
-		//
-		// Revisit if monitoring shows the bounded skip window is
-		// biting in practice (e.g., specific hosts repeatedly
-		// failing reconciliation around Redis incidents).
+		// as tick failures.
 		if cursor != "" {
 			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
+				// We assume a transient Redis failure here.
 				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
 			}
 		}
