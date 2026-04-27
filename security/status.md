@@ -5,6 +5,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-40200](https://nvd.nist.gov/vuln/detail/CVE-2026-40200)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet runs on 64-bit. The 64-bit trigger is ~23 trillion elements — that requires petabytes of contiguous memory in a single sort call. It is not reachable from any Fleet code path under any real workload. Also, the only way Fleet would touch musl's qsort is through a cgo dependency (SQLite via fts5, the only meaningful cgo path). Even SQLite's internal qsort calls are nowhere near the trigger threshold.
+- **Products:** `fleet`,`pkg:apk/alpine/musl`,`pkg:apk/alpine/musl-utils`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:51:37
+
+### [CVE-2026-39883](https://nvd.nist.gov/vuln/detail/CVE-2026-39883)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Exploiting this vulnerability already requires access to the host running the Fleet server (so its practical exploitability appears overstated by the CVSS score / High rating).
+- **Products:** `fleet`,`pkg:golang/go.opentelemetry.io/otel/sdk`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 15:03:59
+
+### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The loop variable capture is a real code defect, but its practical exploitability as a signature bypass (without possession of the IdP private key in the first place) appears overstated by the CVSS 7.5 / High rating.
+- **Products:** `fleet`,`pkg:golang/github.com/russellhaering/goxmldsig`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 15:00:17
+
 ### [CVE-2026-33186](https://nvd.nist.gov/vuln/detail/CVE-2026-33186)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -12,6 +36,78 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleet`,`pkg:golang/google.golang.org/grpc`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:38:53
+
+### [CVE-2026-32283](https://nvd.nist.gov/vuln/detail/CVE-2026-32283)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.85.0 when it's available.
+- **Products:** `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 15:37:36
+
+### [CVE-2026-32281](https://nvd.nist.gov/vuln/detail/CVE-2026-32281)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.85.0 when it's available.
+- **Products:** `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 15:37:25
+
+### [CVE-2026-32280](https://nvd.nist.gov/vuln/detail/CVE-2026-32280)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.85.0 when it's available.
+- **Products:** `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 15:37:12
+
+### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleet uses Go TLS to connect to servers.
+- **Products:** `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:42:11
+
+### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleet uses Go TLS to connect to servers.
+- **Products:** `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:41:44
+
+### [CVE-2026-28389](https://nvd.nist.gov/vuln/detail/CVE-2026-28389)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleet uses Go TLS to connect to servers.
+- **Products:** `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:41:34
+
+### [CVE-2026-28388](https://nvd.nist.gov/vuln/detail/CVE-2026-28388)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleet uses Go TLS to connect to servers.
+- **Products:** `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:41:22
+
+### [CVE-2026-28387](https://nvd.nist.gov/vuln/detail/CVE-2026-28387)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleet uses Go TLS to connect to servers.
+- **Products:** `fleet`,`pkg:apk/alpine/libcrypto3`,`pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-04-27 14:41:09
+
+### [CVE-2026-25679](https://nvd.nist.gov/vuln/detail/CVE-2026-25679)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** All url.Parse inputs reachable in Fleet are admin-trusted configuration, not attacker-controlled. Nonetheless, we advise upgrading to v4.84.0 when possible.
+- **Products:** `fleet`,`pkg:golang/stdlib`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 17:05:55
 
 ### [CVE-2026-22184](https://nvd.nist.gov/vuln/detail/CVE-2026-22184)
 - **Author:** @lucasmrod
