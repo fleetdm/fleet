@@ -3804,15 +3804,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			return alreadyExists("VPP app", payload.Title)
 		}
 
-		// check if in-house apps or equivalent installers exist
-		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if in-house app exists for title identifier")
-		}
-		if exists {
-			return alreadyExists("in-house app", payload.Title)
-		}
-
+		// check only for installers, since in-house apps target iOS/iPadOS so they won't conflict
 		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
@@ -3821,19 +3813,19 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 			return alreadyExists("installer", payload.Title)
 		}
 	case "windows", "linux":
-		exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		exists, err := ds.checkInstallerExistsByName(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+			return ctxerr.Wrap(ctx, err, "check if installer exists by name")
 		}
 		if exists {
 			return alreadyExists("installer", payload.Title)
 		}
 
 		// check by upgrade code if there is one
-		if payload.UniqueIdentifier() != payload.Title {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		if payload.UpgradeCode != "" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+				return ctxerr.Wrap(ctx, err, "check if installer exists for upgrade code")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)
