@@ -300,7 +300,7 @@ func (r BatchScriptExecutionStatusResponse) Error() error { return r.Err }
 
 // TODO - remove these once we retire batch script summary endpoint and code.
 type (
-	BatchScriptExecutionSummaryRequest  = BatchScriptExecutionStatusRequest
+	BatchScriptExecutionSummaryRequest  BatchScriptExecutionStatusRequest
 	BatchScriptExecutionSummaryResponse struct {
 		ScriptID    uint      `json:"script_id" db:"script_id"`
 		ScriptName  string    `json:"script_name" db:"script_name"`
