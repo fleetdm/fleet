@@ -1440,13 +1440,6 @@ func (a *agent) runWindowsMDMLoop() {
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
-		// If Fleet's initial response contained only <Status> acks (no Install/Delete/Exec for us
-		// to ack), there is nothing left to send. Fleet rejects a SyncML body with zero protocol
-		// commands as "invalid SyncML body: no SyncML protocol commands", so end the session here
-		// like a real Windows client would.
-		if !a.winMDMClient.HasQueuedResponses() {
-			continue
-		}
 		if _, err := a.winMDMClient.SendResponse(); err != nil {
 			log.Printf("MDM send response request failed: %s", err)
 			a.stats.IncrementMDMErrors()
