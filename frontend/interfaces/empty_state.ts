@@ -1,7 +1,4 @@
-import { GraphicNames } from "components/graphics";
-
-export interface IEmptyTableProps {
-  graphicName?: GraphicNames;
+export interface IEmptyStateProps {
   header?: JSX.Element | string;
   info?: JSX.Element | string;
   additionalInfo?: JSX.Element | string;

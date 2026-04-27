@@ -6,7 +6,7 @@ import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
@@ -19,7 +19,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -177,8 +177,7 @@ const QueriesTable = ({
     ]
   );
 
-  const emptyParams: IEmptyTableProps = {
-    graphicName: "empty-queries",
+  const emptyParams: IEmptyStateProps = {
     header: "You don't have any reports",
   };
 
@@ -294,7 +293,7 @@ const QueriesTable = ({
             variant: "inverse",
             onClick: onDeleteQueryClick,
           }}
-          emptyComponent={() => EmptyTable(emptyParams)}
+          emptyComponent={() => <EmptyState {...emptyParams} />}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
               <TableCount name="reports" count={totalQueriesCount} />

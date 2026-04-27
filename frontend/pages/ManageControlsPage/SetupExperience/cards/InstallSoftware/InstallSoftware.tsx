@@ -29,7 +29,8 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
@@ -166,7 +167,7 @@ const InstallSoftware = ({
         <SetupExperienceContentContainer>
           <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
           {turnOnMdm ? (
-            <GenericMsgWithNavButton
+            <EmptyState
               header={
                 platform === "android"
                   ? "Turn on Android MDM"
@@ -177,9 +178,13 @@ const InstallSoftware = ({
                   ? "Turn on MDM to install software during setup experience."
                   : "Turn on MDM and automatic enrollment to install software during setup experience."
               }
-              buttonText="Turn on"
-              path={PATHS.ADMIN_INTEGRATIONS_MDM}
-              router={router}
+              primaryButton={
+                <Button
+                  onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+                >
+                  Turn on
+                </Button>
+              }
             />
           ) : (
             <InstallSoftwareForm
