@@ -172,6 +172,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-40962](https://nvd.nist.gov/vuln/detail/CVE-2026-40962)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl functionality does not make use of ffmpeg.
+- **Products:** `fleetctl`,`pkg:deb/debian/libavcodec61`,`pkg:deb/debian/libavformat61`,`pkg:deb/debian/libavutil59`,`pkg:deb/debian/libswresample5`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-04-27 17:38:09
+
 ### [CVE-2026-34875](https://nvd.nist.gov/vuln/detail/CVE-2026-34875)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
