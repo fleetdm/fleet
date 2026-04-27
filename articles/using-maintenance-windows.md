@@ -12,8 +12,6 @@ The user can reschedule if needed—Fleet will respect the new time and run the 
 
 You can customize these flows with a webhook (e.g. Tines) to run scripts, use the Fleet API, or call MDM commands.
 
-> 🔜 Auto-remediation for patching (OS updates, software) is coming soon.
-
 ### Setup
 
 1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendars**.
