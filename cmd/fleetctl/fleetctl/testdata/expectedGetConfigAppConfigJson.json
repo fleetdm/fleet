@@ -142,6 +142,7 @@
       "windows_entra_tenant_ids": null,
       "windows_require_bitlocker_pin": null,
       "apple_require_hardware_attestation": false,
+      "preserve_host_activities_on_reenrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",

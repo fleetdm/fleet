@@ -18457,6 +18457,49 @@ func (s *integrationMDMTestSuite) TestWindowsMigrationEnabled() {
 	require.Contains(t, errMsg, "Windows MDM is not enabled")
 }
 
+func (s *integrationMDMTestSuite) TestPreserveHostActivitiesOnReenrollment() {
+	t := s.T()
+
+	// Capture the initial value to confirm round-trip without forcing a fixture
+	// state on the suite.
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	initial := acResp.MDM.PreserveHostActivitiesOnReenrollment
+
+	// PATCH to true.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"preserve_host_activities_on_reenrollment": true
+		}
+	}`), http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+
+	// PATCH to false.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"preserve_host_activities_on_reenrollment": false
+		}
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+
+	// Empty mdm patch must not clobber the prior value.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {}
+	}`), http.StatusOK, &acResp)
+	require.False(t, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+
+	// Restore initial value to keep subsequent tests order-independent.
+	body := fmt.Sprintf(`{"mdm": {"preserve_host_activities_on_reenrollment": %t}}`, initial)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(body), http.StatusOK, &acResp)
+	require.Equal(t, initial, acResp.MDM.PreserveHostActivitiesOnReenrollment)
+}
+
 func (s *integrationMDMTestSuite) TestHostsCantTurnMDMOff() {
 	t := s.T()
 	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)

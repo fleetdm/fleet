@@ -186,6 +186,8 @@ type GitOpsControls struct {
 
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 
+	PreserveHostActivitiesOnReenrollment any `json:"preserve_host_activities_on_reenrollment"`
+
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`

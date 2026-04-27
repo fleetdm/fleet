@@ -20,6 +20,7 @@ controls:
     deadline: "2024-12-31"
     minimum_version: "15.1"
     update_new_hosts: true
+  preserve_host_activities_on_reenrollment: true
   scripts:
   - path: ../lib/unassigned/scripts/Script Z.ps1
   setup_experience: 'TODO: update with your setup_experience configuration'

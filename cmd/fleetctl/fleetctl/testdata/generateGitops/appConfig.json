@@ -256,6 +256,7 @@
       "9d30f55f-d117-4574-acf0-ff593e3e06e3"
     ],
     "apple_require_hardware_attestation": false,
+    "preserve_host_activities_on_reenrollment": true,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",

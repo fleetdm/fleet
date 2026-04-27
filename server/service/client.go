@@ -2119,6 +2119,12 @@ func (c *Client) DoGitOps(
 			mdmAppConfig["apple_require_hardware_attestation"] = false
 		}
 
+		// Put in default values for preserve_host_activities_on_reenrollment
+		mdmAppConfig["preserve_host_activities_on_reenrollment"] = incoming.Controls.PreserveHostActivitiesOnReenrollment
+		if incoming.Controls.PreserveHostActivitiesOnReenrollment == nil {
+			mdmAppConfig["preserve_host_activities_on_reenrollment"] = false
+		}
+
 		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
 		if incoming.Controls.AndroidEnabledAndConfigured != nil {
 			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
