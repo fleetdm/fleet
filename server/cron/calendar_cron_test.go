@@ -115,8 +115,8 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			for day := tc.daysStart; day <= tc.daysEnd; day++ {
 				actual := getPreferredCalendarEventDate(tc.year, tc.month, day)
-				require.NotEqual(t, time.Saturday, actual.Weekday())
-				require.NotEqual(t, time.Sunday, actual.Weekday())
+				require.NotEqual(t, actual.Weekday(), time.Saturday)
+				require.NotEqual(t, actual.Weekday(), time.Sunday)
 				require.Equal(t, tc.expected, actual)
 			}
 		})
