@@ -3415,7 +3415,7 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 		var resp getDefaultMDMAppleSetupAssistantProfileResponse
 		s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Profile)
-		require.Nil(t, resp.UploadedAt)
+		require.Nil(t, resp.UpdatedAt)
 
 		require.NotNil(t, defaultProfile)
 		require.Equal(t, *defaultProfile, resp.Profile)
@@ -3427,7 +3427,7 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 		var resp getDefaultMDMAppleSetupAssistantProfileResponse
 		s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Profile)
-		require.NotNil(t, resp.UploadedAt)
+		require.NotNil(t, resp.UpdatedAt)
 		require.Equal(t, *defaultProfile, resp.Profile)
 	})
 

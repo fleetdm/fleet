@@ -783,7 +783,7 @@ func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context)
 		return *svc.depService.GetDefaultProfile(), nil, nil
 	}
 
-	if profile == nil {
+	if profile == nil || profile.DEPProfile == nil {
 		return godep.Profile{}, nil, ctxerr.New(ctx, "default setup assistant enrollment profile is nil")
 	}
 
