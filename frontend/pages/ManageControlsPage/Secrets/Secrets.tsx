@@ -204,14 +204,16 @@ const Secrets = () => {
             {canEdit && (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  <Button
-                    variant="inverse"
-                    onClick={onClickAddSecret}
-                    disabled={disableChildren}
-                  >
-                    <Icon name="plus" />
-                    <span>Add custom variable</span>
-                  </Button>
+                  <span>
+                    <Button
+                      variant="inverse"
+                      onClick={onClickAddSecret}
+                      disabled={disableChildren}
+                    >
+                      <Icon name="plus" />
+                      <span>Add custom variable</span>
+                    </Button>
+                  </span>
                 )}
               />
             )}
