@@ -2093,15 +2093,15 @@ The GitHub Deployment page contains a link pointing to a vacant Vercel domain. A
 
 This was resolved during the penetration test period as identified in the penetration test report.
 
-#### 3 - Observers can access ABM keys
+#### 3 - Observers can access AB keys
 
 | Type                | Latacora Severity |
 | ------------------- | ----------------- |
 | Access Controls     | Medium risk       |
 
-According to the User Permissions table, an Observer should not be able to “View Apple business manager (BM) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
+According to the User Permissions table, an Observer should not be able to “View Apple Business (AB) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
 
-This endpoint always returns a new key pair used during ABM/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an ABM instance.
+This endpoint always returns a new key pair used during AB/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an AB instance.
 
 #### 4 - Observers can Access Any Software 
 

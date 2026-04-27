@@ -53,7 +53,6 @@ const Checkbox = (props: ICheckboxProps) => {
     labelTooltipClickable = false,
     iconTooltipContent,
     isLeftLabel,
-    helpText,
     enableEnterToCheck = false,
   } = props;
 
