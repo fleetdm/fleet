@@ -1284,6 +1284,25 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_setup_experience_orbit_debug_logging
+
+Generated when a user enables orbit debug logging for setup experience.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "expires_at": RFC3339 timestamp at which the debug override will lapse and the host reverts to the team-level setting.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "expires_at": "2026-04-15T18:00:00Z"
+}
+```
+
 ## created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a team (or no team).
