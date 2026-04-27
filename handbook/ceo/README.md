@@ -122,7 +122,7 @@ The CEO's calendar should reflect the following schedule for travel:
   - Calendar event name: Travel to NAME_OF_AIRPORT
   - Location: Address of the airport the CEO needs to go to.
 - Time block to go through security,
-  - 30 minuites for domestic and international flights
+  - 30 minutes for domestic and international flights
   - Calendar event name: Security
   - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
 - Time block to get water and boarding,
