@@ -7,29 +7,43 @@ import Icon from "components/Icon";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Button from "components/buttons/Button";
-import { IAppleSetupEnrollmentProfileResponse } from "services/entities/mdm";
+import {
+  IAppleSetupEnrollmentProfileResponse,
+  IDefaultAppleSetupEnrollmentProfileResponse,
+} from "services/entities/mdm";
 
-interface ISetupAssistantProfileCardProps {
-  profile: IAppleSetupEnrollmentProfileResponse;
-  onDelete?: () => void;
-  defaultProfile?: boolean;
+interface IBaseProps<TProfile> {
+  profile: TProfile;
 }
 
-const SetupAssistantProfileCard = ({
-  profile,
-  onDelete,
-  defaultProfile = false,
-}: ISetupAssistantProfileCardProps) => {
+interface IDefaultProfileProps
+  extends IBaseProps<IDefaultAppleSetupEnrollmentProfileResponse> {
+  defaultProfile: true;
+}
+
+interface ICustomProfileProps
+  extends IBaseProps<IAppleSetupEnrollmentProfileResponse> {
+  defaultProfile?: false;
+  onDelete: () => void;
+}
+
+type ISetupAssistantProfileCardProps =
+  | IDefaultProfileProps
+  | ICustomProfileProps;
+
+const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
   const baseClass = `setup-assistant-profile-card${
-    defaultProfile ? "-default-profile" : ""
+    props.defaultProfile ? "-default-profile" : ""
   }`;
   const onDownload = () => {
     const date = new Date();
     const filename = `${date.toISOString().split("T")[0]}_${
-      defaultProfile ? "default-automatic-enrollment.json" : profile.name
+      props.defaultProfile
+        ? "default-automatic-enrollment.json"
+        : props.profile.name
     }`;
     const file = new global.window.File(
-      [JSON.stringify(profile.enrollment_profile, null, 2)],
+      [JSON.stringify(props.profile.enrollment_profile, null, 2)],
       filename
     );
 
@@ -40,7 +54,7 @@ const SetupAssistantProfileCard = ({
     <Card paddingSize="medium" className={baseClass}>
       <Graphic name="file-configuration-profile" />
       <div className={`${baseClass}__info`}>
-        {defaultProfile ? (
+        {props.defaultProfile ? (
           <>
             <span className={`${baseClass}__profile-name`}>
               Default profile
@@ -51,9 +65,11 @@ const SetupAssistantProfileCard = ({
           </>
         ) : (
           <>
-            <span className={`${baseClass}__profile-name`}>{profile.name}</span>
+            <span className={`${baseClass}__profile-name`}>
+              {props.profile.name}
+            </span>
             <span className={`${baseClass}__uploaded-at`}>
-              {uploadedFromNow(profile.uploaded_at)}
+              {uploadedFromNow(props.profile.uploaded_at)}
             </span>
           </>
         )}
@@ -66,11 +82,11 @@ const SetupAssistantProfileCard = ({
         >
           <Icon name="download" />
         </Button>
-        {!defaultProfile && (
+        {!props.defaultProfile && (
           <Button
             className={`${baseClass}__delete-button`}
             variant="icon"
-            onClick={onDelete}
+            onClick={props.onDelete}
           >
             <Icon name="trash" />
           </Button>
