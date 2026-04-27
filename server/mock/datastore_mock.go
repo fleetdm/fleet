@@ -1095,7 +1095,7 @@ type SetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID str
 
 type GetManagedLocalAccountByCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
 
-type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (accountUUID *string, hasRow bool, err error)
+type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (accountUUID *string, err error)
 
 type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
 
@@ -8424,7 +8424,7 @@ func (s *DataStore) GetManagedLocalAccountByCommandUUID(ctx context.Context, com
 	return s.GetManagedLocalAccountByCommandUUIDFunc(ctx, commandUUID)
 }
 
-func (s *DataStore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, hasRow bool, err error) {
+func (s *DataStore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error) {
 	s.mu.Lock()
 	s.GetManagedLocalAccountUUIDFuncInvoked = true
 	s.mu.Unlock()

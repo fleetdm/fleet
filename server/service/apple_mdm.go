@@ -4285,13 +4285,16 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 // and being able to rotate the password (which requires the uuid) without
 // changing the host detail interval. Best-effort — errors are logged only.
 func (svc *MDMAppleCheckinAndCommandService) maybeRefetchForManagedLocalAccountUUID(ctx context.Context, host *fleet.Host) {
-	existing, hasRow, err := svc.ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	existing, err := svc.ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "get managed local account uuid for refetch kickstart",
 			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
 		return
 	}
-	if !hasRow || existing != nil {
+	if existing != nil {
 		return
 	}
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {

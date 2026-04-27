@@ -1933,9 +1933,10 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
 			return "", "", nil
 		}
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
 			assert.Equal(t, "host-uuid", hostUUID)
-			return nil, true, nil
+			return nil, nil
 		}
 		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 			assert.Equal(t, "host-uuid", hostUUID)
@@ -1962,8 +1963,9 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 			return "", "", nil
 		}
 		existing := "fleetadmin-uuid"
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
-			return &existing, true, nil
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return &existing, nil
 		}
 		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 			t.Fatalf("SetManagedLocalAccountUUID should not be called when account_uuid already set")
@@ -1983,8 +1985,8 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
 			return "", "", nil
 		}
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
-			return nil, false, nil
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, common_mysql.NotFound("ManagedLocalAccount")
 		}
 		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 			t.Fatalf("SetManagedLocalAccountUUID should not be called when no row exists")
@@ -2004,9 +2006,9 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
 			return "", "", nil
 		}
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
 			t.Fatalf("GetManagedLocalAccountUUID should not be called when _fleetadmin is absent")
-			return nil, false, nil
+			return nil, nil
 		}
 		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
 
@@ -2022,9 +2024,9 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		ds := new(mock.Store)
 		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "linux"}
 
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
 			t.Fatalf("GetManagedLocalAccountUUID should not be called on non-darwin")
-			return nil, false, nil
+			return nil, nil
 		}
 		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
 			// _fleetadmin is not skipped on non-darwin (guard is darwin-only),
@@ -2044,8 +2046,9 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
 			return "", "", nil
 		}
-		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, bool, error) {
-			return nil, false, errors.New("boom")
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, errors.New("boom")
 		}
 		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
 			t.Fatalf("SetManagedLocalAccountUUID should not be called after Get error")

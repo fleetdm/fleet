@@ -2574,13 +2574,16 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 // Errors are logged and swallowed so host-detail ingestion is not blocked by
 // this secondary concern.
 func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
-	existing, hasRow, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
 	if err != nil {
 		logger.ErrorContext(ctx, "get managed local account uuid during user ingest",
 			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
 		return
 	}
-	if !hasRow || existing != nil {
+	if existing != nil {
 		return
 	}
 	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {

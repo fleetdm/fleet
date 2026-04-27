@@ -1659,13 +1659,11 @@ type Datastore interface {
 	// AccountConfiguration).
 	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
-	// GetManagedLocalAccountUUID returns a tri-state result for the account UUID captured
-	// from osquery for the managed local account on the given host:
-	//   - hasRow=false:              no managed_local_account row exists for the host
-	//   - hasRow=true, accountUUID=nil:  row exists but account_uuid is NULL
-	//   - hasRow=true, accountUUID!=nil: row exists and account_uuid has been captured
-	// Reads from the read replica.
-	GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, hasRow bool, err error)
+	// GetManagedLocalAccountUUID returns the account UUID captured from osquery for the
+	// managed local account on the given host. Returns a NotFound error when no
+	// managed_local_account row exists. A nil *string means the row exists but
+	// account_uuid has not yet been captured. Reads from the read replica.
+	GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error)
 
 	// SetManagedLocalAccountUUID captures the osquery-reported account UUID on an existing
 	// managed_local_account row. The update is conditional on account_uuid IS NULL, making

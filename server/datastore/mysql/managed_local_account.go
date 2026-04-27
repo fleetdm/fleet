@@ -91,17 +91,18 @@ func (ds *Datastore) SetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	return nil
 }
 
-func (ds *Datastore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (*string, bool, error) {
+func (ds *Datastore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (*string, error) {
 	const stmt = `SELECT account_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?`
 
 	var accountUUID *string
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &accountUUID, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, false, nil
+			return nil, ctxerr.Wrap(ctx, notFound("ManagedLocalAccount").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
 		}
-		return nil, false, ctxerr.Wrap(ctx, err, "get managed local account uuid")
+		return nil, ctxerr.Wrap(ctx, err, "get managed local account uuid")
 	}
-	return accountUUID, true, nil
+	return accountUUID, nil
 }
 
 func (ds *Datastore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error {
