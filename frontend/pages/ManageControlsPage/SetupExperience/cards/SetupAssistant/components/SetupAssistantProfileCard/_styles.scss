@@ -1,4 +1,4 @@
-.setup-assistant-profile-card {
+.setup-assistant-profile-card, .setup-assistant-profile-card-default-profile {
   display: flex;
   gap: $pad-medium;
   align-items: center;
@@ -16,6 +16,9 @@
   &__uploaded-at {
     font-size: $xx-small;
   }
+  &__description {
+    font-size: $x-small;
+  }
 
   &__actions {
     display: flex;
@@ -27,4 +30,8 @@
   &__download-button, &__delete-button {
     padding: 11px; // TODO: use a padding value from existing variables. talk to design.
   }
+}
+
+.setup-assistant-profile-card-default-profile {
+  background-color: $ui-off-white;
 }
