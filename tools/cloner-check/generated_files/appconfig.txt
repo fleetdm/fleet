@@ -33,6 +33,7 @@ github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ActivityExpirySettings	fleet.ActivityExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryWindow	int
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	PreserveHostActivitiesOnReenrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
@@ -167,7 +168,6 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
-github.com/fleetdm/fleet/v4/server/fleet/MDM	PreserveHostActivitiesOnReenrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleRequireHardwareAttestation	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
