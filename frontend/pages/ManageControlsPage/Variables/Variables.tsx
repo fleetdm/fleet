@@ -222,7 +222,6 @@ const Variables = () => {
         {renderPageDescription()}
         {canEdit && (
           <GitOpsModeTooltipWrapper
-            entityType="secrets"
             renderChildren={(disableChildren) => (
               <Button
                 variant="inverse"
