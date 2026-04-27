@@ -12602,7 +12602,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -12807,7 +12807,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -12920,7 +12920,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "fleet_name": null, "fleet_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
