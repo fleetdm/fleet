@@ -14,7 +14,6 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
-import Card from "components/Card";
 
 import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
@@ -46,8 +45,8 @@ const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
     <EmptyState
       header={
         isAvailableForInstall
-          ? "No versions detected."
-          : "No versions detected for this software item."
+          ? "No versions detected"
+          : "No versions detected for this software item"
       }
       info={
         isAvailableForInstall ? (

@@ -36,7 +36,7 @@ const ConfigProfileStatusTable = ({
       columnConfigs={columnConfigs}
       data={tableData}
       isLoading={false}
-      emptyComponent={() => <EmptyState />}
+      emptyComponent={() => <EmptyState header="No host status available" />} // Unreachable empty state, kept for consistency
       showMarkAllPages={false}
       isAllPagesSelected={false}
       manualSortBy

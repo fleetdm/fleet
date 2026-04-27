@@ -1,5 +1,4 @@
 // EmptyState — decorative ghost-table empty state component.
-//
 // Layout:
 //   .empty-state                    → positioned container, border, radius, overflow hidden
 //     .empty-state__ghost-table     → flex row of ghost columns (decorative backdrop)
@@ -72,7 +71,6 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     }
   }
 
-
   // ----------------------------------------------------------
   // Veil — gradient overlay that fades the ghost table
   // Uses color-mix() so the gradient adapts to dark mode automatically
@@ -122,6 +120,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   &__info,
   &__additional-info {
     @include help-text;
+
     line-height: 1.5;
     text-align: center;
     margin: 0;
