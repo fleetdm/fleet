@@ -21,6 +21,7 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"GetByCommandUUID", testManagedLocalAccountGetByCommandUUID},
 		{"UpsertOverwrites", testManagedLocalAccountUpsertOverwrites},
 		{"NotFound", testManagedLocalAccountNotFound},
+		{"GetSetAccountUUID", testManagedLocalAccountGetSetAccountUUID},
 	}
 
 	for _, c := range cases {
@@ -175,4 +176,48 @@ func testManagedLocalAccountNotFound(t *testing.T, ds *Datastore) {
 	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "nonexistent")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testManagedLocalAccountGetSetAccountUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "host-uuid-account-uuid"
+	accountUUID := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
+
+	// No row yet.
+	got, hasRow, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.False(t, hasRow)
+	assert.Nil(t, got)
+
+	// Set before row exists is a no-op (no error).
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, accountUUID))
+	got, hasRow, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.False(t, hasRow)
+	assert.Nil(t, got)
+
+	// Create the row (account_uuid NULL by default).
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, hostUUID, "pw", "cmd-1"))
+
+	got, hasRow, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.True(t, hasRow)
+	assert.Nil(t, got)
+
+	// First Set populates account_uuid.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, accountUUID))
+	got, hasRow, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.True(t, hasRow)
+	require.NotNil(t, got)
+	assert.Equal(t, accountUUID, *got)
+
+	// Second Set with a different value is a no-op because account_uuid IS NOT NULL.
+	otherUUID := "AAAAAAAA-BBBB-CCCC-DDDD-000000000002"
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, otherUUID))
+	got, hasRow, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.True(t, hasRow)
+	require.NotNil(t, got)
+	assert.Equal(t, accountUUID, *got)
 }

@@ -12,8 +12,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const managedLocalAccountUsername = "_fleetadmin"
-
 func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error {
 	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
 	if err != nil {
@@ -56,7 +54,7 @@ func (ds *Datastore) GetHostManagedLocalAccountPassword(ctx context.Context, hos
 	}
 
 	return &fleet.HostManagedLocalAccountPassword{
-		Username:  managedLocalAccountUsername,
+		Username:  fleet.ManagedLocalAccountUsername,
 		Password:  string(decrypted),
 		UpdatedAt: row.UpdatedAt,
 	}, nil
@@ -89,6 +87,31 @@ func (ds *Datastore) SetHostManagedLocalAccountStatus(ctx context.Context, hostU
 	const stmt = `UPDATE host_managed_local_account_passwords SET status = ? WHERE host_uuid = ?`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set managed local account status")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (*string, bool, error) {
+	const stmt = `SELECT account_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?`
+
+	var accountUUID *string
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &accountUUID, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false, nil
+		}
+		return nil, false, ctxerr.Wrap(ctx, err, "get managed local account uuid")
+	}
+	return accountUUID, true, nil
+}
+
+func (ds *Datastore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error {
+	const stmt = `
+		UPDATE host_managed_local_account_passwords
+		SET account_uuid = ?
+		WHERE host_uuid = ? AND account_uuid IS NULL
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, accountUUID, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set managed local account uuid")
 	}
 	return nil
 }
