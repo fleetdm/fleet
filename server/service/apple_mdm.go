@@ -4709,62 +4709,116 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal device information command result")
 	}
-	deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
-	deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
-	availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
-	osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
-	var wifiMac string
-	wifiMacVal, ok := deviceInformationResponse.QueryResponses["WiFiMAC"]
-	if ok {
-		// WiFiMAC info is not present for user-enrolled devices
-		wifiMac = wifiMacVal.(string)
+
+	// Apple MDM responses occasionally omit DeviceInformation fields or return them
+	// as nil/wrong types; type-assert defensively rather than panicking, and preserve
+	// existing host values or skip dependent updates when fields are missing.
+	queryResponses := deviceInformationResponse.QueryResponses
+	deviceName, deviceNameOK := queryResponses["DeviceName"].(string)
+	deviceCapacity, deviceCapacityOK := queryResponses["DeviceCapacity"].(float64)
+	availableDeviceCapacity, availableDeviceCapacityOK := queryResponses["AvailableDeviceCapacity"].(float64)
+	osVersion, osVersionOK := queryResponses["OSVersion"].(string)
+	productName, productNameOK := queryResponses["ProductName"].(string)
+	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
+	isLostModeEnabled, _ := queryResponses["IsMDMLostModeEnabled"].(bool)
+
+	var missingFields []string
+	if !deviceNameOK {
+		missingFields = append(missingFields, "DeviceName")
 	}
-	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
-	isLostModeEnabled := false
-	isLostModeEnabledVal, ok := deviceInformationResponse.QueryResponses["IsMDMLostModeEnabled"]
-	if ok {
-		isLostModeEnabled = isLostModeEnabledVal.(bool)
+	if !deviceCapacityOK {
+		missingFields = append(missingFields, "DeviceCapacity")
 	}
-	host.ComputerName = deviceName
-	host.Hostname = deviceName
-	host.GigsDiskSpaceAvailable = availableDeviceCapacity
-	host.GigsTotalDiskSpace = deviceCapacity
+	if !availableDeviceCapacityOK {
+		missingFields = append(missingFields, "AvailableDeviceCapacity")
+	}
+	if !osVersionOK {
+		missingFields = append(missingFields, "OSVersion")
+	}
+	if !productNameOK {
+		missingFields = append(missingFields, "ProductName")
+	}
+	if len(missingFields) > 0 {
+		svc.logger.WarnContext(ctx, "DeviceInformation response missing or unexpectedly typed fields; preserving existing host values",
+			"host_id", host.ID,
+			"host_uuid", host.UUID,
+			"missing_or_invalid_fields", missingFields,
+		)
+	}
+
+	if deviceNameOK {
+		host.ComputerName = deviceName
+		host.Hostname = deviceName
+	}
+	if availableDeviceCapacityOK {
+		host.GigsDiskSpaceAvailable = availableDeviceCapacity
+	}
+	if deviceCapacityOK {
+		host.GigsTotalDiskSpace = deviceCapacity
+	}
+
+	// Determine platform/osVersionPrefix from ProductName when present; otherwise
+	// fall back to the previously-known platform on the host.
 	var (
 		osVersionPrefix string
 		platform        string
 	)
-	if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
-		osVersionPrefix = "iOS"
-		platform = "ios"
-	} else { // iPad
-		osVersionPrefix = "iPadOS"
-		platform = "ipados"
+	if productNameOK {
+		if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
+			osVersionPrefix = "iOS"
+			platform = "ios"
+		} else { // iPad
+			osVersionPrefix = "iPadOS"
+			platform = "ipados"
+		}
+		host.HardwareModel = productName
+	} else {
+		platform = host.Platform
+		switch host.Platform {
+		case "ios":
+			osVersionPrefix = "iOS"
+		case "ipados":
+			osVersionPrefix = "iPadOS"
+		}
 	}
-	host.OSVersion = osVersionPrefix + " " + osVersion
+
+	// Only update host.OSVersion when we have both the prefix (from ProductName or
+	// preserved platform) and the version string itself.
+	if osVersionOK && osVersionPrefix != "" {
+		host.OSVersion = osVersionPrefix + " " + osVersion
+	}
+
 	host.PrimaryMac = wifiMac
-	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
 	// iOS/iPadOS devices do not support dynamic labels at this time so we should update their LabelUpdatedAt timestamp
 	// on refetch similar to other platforms to simplify exclusion logic with dynamic labels
 	host.LabelUpdatedAt = time.Now()
 	host.RefetchRequested = false
 
-	timeZone, _ := deviceInformationResponse.QueryResponses["TimeZone"].(string)
+	timeZone, _ := queryResponses["TimeZone"].(string)
 	host.TimeZone = &timeZone
 
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
-	if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
-		deviceCapacity, nil); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
+	// Skip the disk space update when either capacity field is missing/invalid,
+	// since the percent-available calculation divides by deviceCapacity.
+	if deviceCapacityOK && availableDeviceCapacityOK && deviceCapacity > 0 {
+		if err := svc.ds.SetOrUpdateHostDisksSpace(ctx, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
+			deviceCapacity, nil); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to update host storage")
+		}
 	}
-	if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
-		Name:     osVersionPrefix,
-		Version:  osVersion,
-		Platform: platform,
-	}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to update host operating system")
+	// Skip the operating system row update unless we have a version and a known
+	// platform/prefix to associate it with — otherwise we'd write a junk row.
+	if osVersionOK && osVersionPrefix != "" && platform != "" {
+		if err := svc.ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+			Name:     osVersionPrefix,
+			Version:  osVersion,
+			Platform: platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to update host operating system")
+		}
 	}
 
 	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "Pending" {

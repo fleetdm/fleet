@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -5348,6 +5349,276 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+}
+
+// TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive covers handling of
+// DeviceInformation responses where one or more of the QueryResponses fields are
+// missing or have an unexpected type. The handler must not panic, must preserve
+// previously-known host values where the new value is unavailable, and must skip
+// dependent datastore updates whose required inputs are missing.
+func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
+	const (
+		hostID            = uint(42)
+		hostUUID          = "ABC-DEF-GHI"
+		existingHostname  = "Existing iPad"
+		existingModel     = "iPad12,2"       // differs from incoming ProductName so we can detect preservation
+		existingOSVersion = "iPadOS 16.7.10" // differs from incoming OSVersion so we can detect preservation
+	)
+	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "UUID"
+
+	rawWithFields := func(fields map[string]string) []byte {
+		var inner strings.Builder
+		for _, v := range fields {
+			inner.WriteString(v) // v is a complete <key>...</key><type>...</type> pair
+		}
+		return []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>REFETCH-fd23f8ac-1c50-41c7-a5bb-f13633c9ea97</string>
+        <key>QueryResponses</key>
+        <dict>` + inner.String() + `</dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>FFFFFFFF-FFFFFFFFFFFFFFFF</string>
+</dict>
+</plist>`)
+	}
+
+	allFields := func() map[string]string {
+		return map[string]string{
+			"DeviceName":              `<key>DeviceName</key><string>Work iPad</string>`,
+			"DeviceCapacity":          `<key>DeviceCapacity</key><real>64</real>`,
+			"AvailableDeviceCapacity": `<key>AvailableDeviceCapacity</key><real>51.26</real>`,
+			"OSVersion":               `<key>OSVersion</key><string>17.5.1</string>`,
+			"ProductName":             `<key>ProductName</key><string>iPad13,18</string>`,
+			"WiFiMAC":                 `<key>WiFiMAC</key><string>ff:ff:ff:ff:ff:ff</string>`,
+		}
+	}
+
+	type expectations struct {
+		expectComputerName  string
+		expectHostname      string
+		expectOSVersion     string
+		expectHardwareModel string
+		expectGigsTotal     float64
+		expectGigsAvailable float64
+		expectDiskUpdate    bool
+		expectOSUpdate      bool
+		expectOSName        string
+		expectOSVersionRow  string
+		expectOSPlatform    string
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(map[string]string)
+		expect expectations
+	}{
+		{
+			name:   "missing DeviceName preserves existing hostname",
+			mutate: func(f map[string]string) { delete(f, "DeviceName") },
+			expect: expectations{
+				expectComputerName:  existingHostname,
+				expectHostname:      existingHostname,
+				expectOSVersion:     "iPadOS 17.5.1",
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     64,
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    true,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+			},
+		},
+		{
+			name:   "missing ProductName preserves hardware model but still writes OS using preserved platform",
+			mutate: func(f map[string]string) { delete(f, "ProductName") },
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     "iPadOS 17.5.1", // prefix from preserved host.Platform, version from new payload
+				expectHardwareModel: existingModel,   // preserved
+				expectGigsTotal:     64,
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    true,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+			},
+		},
+		{
+			name:   "missing DeviceCapacity skips disk update",
+			mutate: func(f map[string]string) { delete(f, "DeviceCapacity") },
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     "iPadOS 17.5.1",
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     0, // preserved/zero — no incoming value
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    false,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+			},
+		},
+		{
+			name:   "missing AvailableDeviceCapacity skips disk update",
+			mutate: func(f map[string]string) { delete(f, "AvailableDeviceCapacity") },
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     "iPadOS 17.5.1",
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     64,
+				expectGigsAvailable: 0,
+				expectDiskUpdate:    false,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+			},
+		},
+		{
+			name: "wrong-type DeviceCapacity (string) skips disk update without panicking",
+			mutate: func(f map[string]string) {
+				f["DeviceCapacity"] = `<key>DeviceCapacity</key><string>not-a-number</string>`
+			},
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     "iPadOS 17.5.1",
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     0,
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    false,
+				expectOSUpdate:      true,
+				expectOSName:        "iPadOS",
+				expectOSVersionRow:  "17.5.1",
+				expectOSPlatform:    "ipados",
+			},
+		},
+		{
+			name:   "missing OSVersion skips OS update",
+			mutate: func(f map[string]string) { delete(f, "OSVersion") },
+			expect: expectations{
+				expectComputerName:  "Work iPad",
+				expectHostname:      "Work iPad",
+				expectOSVersion:     existingOSVersion, // preserved
+				expectHardwareModel: "iPad13,18",
+				expectGigsTotal:     64,
+				expectGigsAvailable: 51.26,
+				expectDiskUpdate:    true,
+				expectOSUpdate:      false,
+			},
+		},
+		{
+			name: "all DeviceInformation fields missing yields no panic and no dependent updates",
+			mutate: func(f map[string]string) {
+				delete(f, "DeviceName")
+				delete(f, "DeviceCapacity")
+				delete(f, "AvailableDeviceCapacity")
+				delete(f, "OSVersion")
+				delete(f, "ProductName")
+				delete(f, "WiFiMAC")
+			},
+			expect: expectations{
+				expectComputerName:  existingHostname,
+				expectHostname:      existingHostname,
+				expectOSVersion:     existingOSVersion,
+				expectHardwareModel: existingModel,
+				expectGigsTotal:     0,
+				expectGigsAvailable: 0,
+				expectDiskUpdate:    false,
+				expectOSUpdate:      false,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ds := new(mock.Store)
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:            hostID,
+					UUID:          hostUUID,
+					Hostname:      existingHostname,
+					ComputerName:  existingHostname,
+					HardwareModel: existingModel,
+					OSVersion:     existingOSVersion,
+					Platform:      "ipados",
+					MDM: fleet.MDMHostData{
+						EnrollmentStatus: ptr.String("On (automatic)"), // not Pending; skip lost-mode flow
+					},
+				}, nil
+			}
+
+			ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+				return nil
+			}
+			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+				return nil
+			}
+
+			ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+				assert.Equal(t, tc.expect.expectComputerName, host.ComputerName, "ComputerName")
+				assert.Equal(t, tc.expect.expectHostname, host.Hostname, "Hostname")
+				assert.Equal(t, tc.expect.expectOSVersion, host.OSVersion, "OSVersion")
+				assert.Equal(t, tc.expect.expectHardwareModel, host.HardwareModel, "HardwareModel")
+				assert.InDelta(t, tc.expect.expectGigsTotal, host.GigsTotalDiskSpace, 0.001, "GigsTotalDiskSpace")
+				assert.InDelta(t, tc.expect.expectGigsAvailable, host.GigsDiskSpaceAvailable, 0.001, "GigsDiskSpaceAvailable")
+				return nil
+			}
+
+			ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+				assert.Equal(t, hostID, incomingHostID)
+				assert.InDelta(t, tc.expect.expectGigsAvailable, gigsAvailable, 0.001)
+				assert.InDelta(t, tc.expect.expectGigsTotal, gigsTotal, 0.001)
+				assert.False(t, math.IsNaN(percentAvailable), "percentAvailable should not be NaN")
+				assert.False(t, math.IsInf(percentAvailable, 0), "percentAvailable should not be Inf")
+				return nil
+			}
+
+			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
+				assert.Equal(t, hostID, incomingHostID)
+				assert.Equal(t, tc.expect.expectOSName, hostOS.Name)
+				assert.Equal(t, tc.expect.expectOSVersionRow, hostOS.Version)
+				assert.Equal(t, tc.expect.expectOSPlatform, hostOS.Platform)
+				return nil
+			}
+
+			fields := allFields()
+			tc.mutate(fields)
+
+			require.NotPanics(t, func() {
+				_, err := svc.CommandAndReportResults(
+					&mdm.Request{Context: ctx},
+					&mdm.CommandResults{
+						Enrollment:  mdm.Enrollment{UDID: hostUUID},
+						CommandUUID: commandUUID,
+						Raw:         rawWithFields(fields),
+					},
+				)
+				require.NoError(t, err)
+			})
+
+			require.True(t, ds.UpdateHostFuncInvoked, "UpdateHost should always be called")
+			require.True(t, ds.RemoveHostMDMCommandFuncInvoked, "RemoveHostMDMCommand should always be called")
+			assert.Equal(t, tc.expect.expectDiskUpdate, ds.SetOrUpdateHostDisksSpaceFuncInvoked,
+				"SetOrUpdateHostDisksSpace invocation")
+			assert.Equal(t, tc.expect.expectOSUpdate, ds.UpdateHostOperatingSystemFuncInvoked,
+				"UpdateHostOperatingSystem invocation")
+		})
+	}
 }
 
 func TestUnmarshalAppList(t *testing.T) {
