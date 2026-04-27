@@ -686,7 +686,7 @@ type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
-type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (godep.Profile, *time.Time, error)
+type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
@@ -4595,7 +4595,7 @@ func (s *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (
 	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
 }
 
-func (s *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (godep.Profile, *time.Time, error) {
+func (s *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error) {
 	s.mu.Lock()
 	s.GetDefaultMDMAppleSetupAssistantProfileFuncInvoked = true
 	s.mu.Unlock()
