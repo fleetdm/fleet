@@ -161,6 +161,36 @@ func TestWritePathInvalidation(t *testing.T) {
 			requireCacheMiss(t, d, nk)
 		})
 
+		t.Run("EnrollOrbit clears stale negative cache for new orbit_node_key", func(t *testing.T) {
+			// mysql.EnrollOrbit does NOT populate host.OrbitNodeKey on the returned struct
+			// (unlike EnrollOsquery, which does a SELECT-back). The wrapper must extract orbit_node_key
+			// from opts to fire the direct-keys clear; otherwise the helper short-circuits on empty key
+			// and a pre-enrollment onk_miss:<K> entry survives, returning NotFound from the negative
+			// cache for the freshly-enrolled host's first /orbit/* requests.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			onk := "onk-pre-enroll-race"
+			ds := new(mock.DataStore)
+			ds.EnrollOrbitFunc = func(_ context.Context, _ ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+				// Mirror mysql.EnrollOrbit's return: ID set, OrbitNodeKey nil.
+				return &fleet.Host{ID: 99}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// A probe arrived before enrollment committed and cached NotFound under the new key.
+			d.hostCachePutNotFoundFamily(ctx, orbitCacheFamily, onk)
+			_, before := d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupNegative, before, "precondition: negative cache must be primed")
+
+			h, err := d.EnrollOrbit(ctx, fleet.WithEnrollOrbitNodeKey(onk))
+			require.NoError(t, err)
+			require.NotNil(t, h)
+
+			// After EnrollOrbit, the negative entry must be gone so the agent's first /orbit/config
+			// falls through to the DB instead of getting a stale NotFound.
+			_, after := d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupMiss, after, "EnrollOrbit must clear the pre-enrollment negative cache")
+		})
+
 		t.Run("AddHostsToTeam invalidates every host in the batch", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
