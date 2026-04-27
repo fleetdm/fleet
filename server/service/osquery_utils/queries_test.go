@@ -1955,6 +1955,35 @@ func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
 		assert.True(t, ds.SaveHostUsersFuncInvoked)
 	})
 
+	t.Run("darwin with row and different account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return new("some-uuid"), nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
 	t.Run("darwin with row and existing account_uuid -> no Set call", func(t *testing.T) {
 		ds := new(mock.Store)
 		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}

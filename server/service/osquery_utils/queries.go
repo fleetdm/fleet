@@ -2583,7 +2583,7 @@ func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, ho
 			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
 		return
 	}
-	if existing != nil {
+	if existing != nil && *existing == accountUUID {
 		return
 	}
 	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {

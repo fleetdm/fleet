@@ -1666,9 +1666,8 @@ type Datastore interface {
 	GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error)
 
 	// SetManagedLocalAccountUUID captures the osquery-reported account UUID on an existing
-	// managed_local_account row. The update is conditional on account_uuid IS NULL, making
-	// it idempotent and benign under replica lag. No-op if the row doesn't exist or
-	// account_uuid is already set.
+	// managed_local_account row. No-op if the row doesn't exist or account_uuid is already set
+	// to the specified UUID.
 	SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the

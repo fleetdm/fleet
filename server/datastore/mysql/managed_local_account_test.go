@@ -212,11 +212,11 @@ func testManagedLocalAccountGetSetAccountUUID(t *testing.T, ds *Datastore) {
 	require.NotNil(t, got)
 	assert.Equal(t, accountUUID, *got)
 
-	// Second Set with a different value is a no-op because account_uuid IS NOT NULL.
+	// Second Set with a different value updates it.
 	otherUUID := "AAAAAAAA-BBBB-CCCC-DDDD-000000000002"
 	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, otherUUID))
 	got, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Equal(t, accountUUID, *got)
+	assert.Equal(t, otherUUID, *got)
 }

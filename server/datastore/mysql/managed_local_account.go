@@ -109,9 +109,9 @@ func (ds *Datastore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID, a
 	const stmt = `
 		UPDATE host_managed_local_account_passwords
 		SET account_uuid = ?
-		WHERE host_uuid = ? AND account_uuid IS NULL
-	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, accountUUID, hostUUID); err != nil {
+		WHERE host_uuid = ? AND (account_uuid IS NULL OR account_uuid <> ?)`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, accountUUID, hostUUID, accountUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set managed local account uuid")
 	}
 	return nil
