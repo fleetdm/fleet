@@ -1,0 +1,13 @@
+<Replace>
+  <!-- Deny write access to removable storage (read-only external storage) -->
+  <CmdID>1</CmdID>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Storage/RemovableDiskDenyWriteAccess</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

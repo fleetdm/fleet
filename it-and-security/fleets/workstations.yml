@@ -137,6 +137,9 @@ controls:
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Removable storage read-only.xml
+        labels_exclude_any:
+          - "Windows hosts excluded from external storage restrictions"
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
