@@ -3729,6 +3729,39 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
+func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	t.Run("explicit true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_true.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops actually flips it.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("omitted preserves prior value", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops does not clobber
+		// the value when the field is absent from the YAML.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
