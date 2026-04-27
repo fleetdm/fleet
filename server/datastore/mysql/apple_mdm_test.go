@@ -8810,6 +8810,83 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				require.NoError(t, err)
 				require.NotNil(t, profile)
 			})
+
+			// Regression test for issue #44111: the reconcile re-render that fires after a
+			// renewal trigger calls BulkUpsertMDMManagedCertificates with a payload that has
+			// nil NotValidBefore/NotValidAfter/Serial (those fields aren't known at profile
+			// render time). That upsert must not clobber the populated cert metadata, otherwise
+			// RenewMDMManagedCertificates' `HAVING validity_period IS NOT NULL` clause excludes
+			// the row and the renewal cron silently stops re-trying.
+			t.Run("Reconcile re-render preserves cert metadata (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+
+				// Renewal cron flips status to NULL since the cert is in the renewal window.
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status)
+
+				// Reconcile re-renders the profile and upserts with the render-time payload —
+				// type/ca_name/challenge_retrieved_at set, all cert fields nil. Mirrors the
+				// payload built by ReplaceCustomSCEPProxyURLVariable and the NDES handler.
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						Type:                 caType,
+						CAName:               caName,
+					},
+				})
+				require.NoError(t, err)
+
+				// Cert metadata must survive the reconcile re-render.
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.NotNil(t, profile)
+				require.NotNil(t, profile.Serial, "serial must be preserved across reconcile re-render")
+				assert.Equal(t, serial, *profile.Serial)
+				require.NotNil(t, profile.NotValidBefore, "not_valid_before must be preserved across reconcile re-render")
+				assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+				require.NotNil(t, profile.NotValidAfter, "not_valid_after must be preserved across reconcile re-render")
+				assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+
+				// If the device's SCEP handshake never completes, the renewal cron must still
+				// pick up the row on a subsequent run. Re-mark verified, re-run renewal — must
+				// flip status to NULL again, proving validity_period is still queryable.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status, "renewal cron must still detect cert with preserved metadata")
+			})
 		})
 	}
 }

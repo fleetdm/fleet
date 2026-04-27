@@ -2802,6 +2802,14 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
+		// Cert metadata columns (not_valid_before, not_valid_after, serial) use COALESCE so a
+		// nil incoming value preserves the previously stored value. The reconcile re-render
+		// path (e.g. ReplaceCustomSCEPProxyURLVariable, NDES/Smallstep handlers) upserts with
+		// those fields nil — they aren't known until the device completes the SCEP handshake
+		// and osquery reports the issued cert via updateHostMDMManagedCertDetailsDB. Without
+		// COALESCE, a renewal trigger silently wipes cert metadata, which then disables the
+		// renewal cron itself (its HAVING clause requires validity_period IS NOT NULL). See
+		// issue #44111.
 		stmt := fmt.Sprintf(`
 	    INSERT INTO host_mdm_managed_certificates (
               host_uuid,
@@ -2816,11 +2824,11 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
             VALUES %s
             ON DUPLICATE KEY UPDATE
               challenge_retrieved_at = VALUES(challenge_retrieved_at),
-			  not_valid_before = VALUES(not_valid_before),
-			  not_valid_after = VALUES(not_valid_after),
+			  not_valid_before = COALESCE(VALUES(not_valid_before), not_valid_before),
+			  not_valid_after = COALESCE(VALUES(not_valid_after), not_valid_after),
 			  type = VALUES(type),
 			  ca_name = VALUES(ca_name),
-			  serial = VALUES(serial)`,
+			  serial = COALESCE(VALUES(serial), serial)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
