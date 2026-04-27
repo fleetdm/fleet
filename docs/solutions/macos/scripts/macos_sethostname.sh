@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # Get the serial number of the host
 serial_number=$(ioreg -l | grep IOPlatformSerialNumber | awk '{print $4}' | tr -d '"')
