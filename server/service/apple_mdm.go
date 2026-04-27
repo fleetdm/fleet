@@ -3393,7 +3393,7 @@ type getDefaultMDMAppleSetupAssistantProfileResponse struct {
 
 func (r getDefaultMDMAppleSetupAssistantProfileResponse) Error() error { return r.Err }
 
-func getDefaultMDMAppleSetupAssistantProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDefaultMDMAppleSetupAssistantProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	profile, updatedAt, err := svc.GetDefaultMDMAppleSetupAssistantProfile(ctx)
 	if err != nil {
 		return getDefaultMDMAppleSetupAssistantProfileResponse{Err: err}, nil

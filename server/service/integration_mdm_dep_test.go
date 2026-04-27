@@ -3470,7 +3470,7 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 					Password:                 &password,
 					Name:                     &email,
 					Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: defaultDEPTeam.ID}, Role: fleet.RoleObserver}},
-					AdminForcedPasswordReset: ptr.Bool(false),
+					AdminForcedPasswordReset: new(false),
 				},
 			}, http.StatusOK, &cur)
 			t.Cleanup(func() {
@@ -3495,7 +3495,7 @@ func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
 						{Team: fleet.Team{ID: extraTeam.ID}, Role: fleet.RoleObserver},
 						{Team: fleet.Team{ID: defaultDEPTeam.ID}, Role: fleet.RoleMaintainer},
 					},
-					AdminForcedPasswordReset: ptr.Bool(false),
+					AdminForcedPasswordReset: new(bool),
 				},
 			}, http.StatusOK, &cur)
 			t.Cleanup(func() {
