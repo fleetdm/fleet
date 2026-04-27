@@ -2,8 +2,10 @@ package mysql
 
 import (
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
@@ -48,9 +50,7 @@ func TestPBT_ScopedListingEquivalence(t *testing.T) {
 	pTeamB := InsertWindowsProfileForTest(t, ds, teamB.ID)
 
 	// 6 windows hosts, 2 per scope. All MDM-enrolled so the desired-state
-	// predicate surfaces them. Insert with Platform=windows + TeamID up
-	// front (the test.NewHost-then-UpdateHost pattern is documented as
-	// flaky for this JOIN; see newWindowsHostInTeam's comment).
+	// predicate surfaces them.
 	type hostSpec struct {
 		name string
 		ip   string
@@ -67,7 +67,11 @@ func TestPBT_ScopedListingEquivalence(t *testing.T) {
 	hosts := make([]*fleet.Host, 0, len(specs))
 	hostUUIDs := make([]string, 0, len(specs))
 	for _, s := range specs {
-		h := newWindowsHostInTeam(t, ds, s.name, s.ip, uuid.NewString(), uuid.NewString(), s.team)
+		opts := []test.NewHostOption{test.WithPlatform("windows")}
+		if s.team != nil {
+			opts = append(opts, test.WithTeamID(*s.team))
+		}
+		h := test.NewHost(t, ds, s.name, s.ip, uuid.NewString(), uuid.NewString(), time.Now(), opts...)
 		windowsEnroll(t, ds, h)
 		hosts = append(hosts, h)
 		hostUUIDs = append(hostUUIDs, h.UUID)

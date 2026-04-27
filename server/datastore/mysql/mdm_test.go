@@ -8580,13 +8580,12 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 }
 
 // testBulkSetPendingDefersWindowsReconciliation verifies the production
-// behavior of BulkSetPendingMDMHostProfiles: it must not synchronously
+// behavior of BulkSetPendingMDMHostProfiles: it does not synchronously
 // write host_mdm_windows_profiles (the mdm_windows_profile_manager cron
-// handles that on its next 30s tick), but the activity-logging signal
-// updates.WindowsConfigProfile must still be true so callers
-// (BatchSetMDMProfiles in service/mdm.go) log the "edited Windows
-// profile" activity. This matches Apple's bulkSetPendingMDMAppleHostProfilesDB
-// bool semantics.
+// handles that on its next 30s tick), and updates.WindowsConfigProfile
+// stays false here. The accurate "Windows profile changed" signal comes
+// from batchSetMDMWindowsProfilesDB inside BatchSetMDMProfiles, which is
+// the only consumer.
 func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -8602,12 +8601,8 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
 	require.NoError(t, err)
 
-	// Insert the host with Platform=windows and the team set up front. The
-	// alternative pattern (test.NewHost defaults to darwin, then UpdateHost
-	// to flip platform/team) is flaky on CI: the desired-state JOIN that
-	// requires hosts.platform='windows' AND hosts.team_id = profile.team_id
-	// can miss the row.
-	host := newWindowsHostInTeam(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", &team.ID)
+	host := test.NewHost(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(team.ID))
 	windowsEnroll(t, ds, host)
 
 	// Sanity: host_mdm_windows_profiles starts empty for this host.
@@ -8633,6 +8628,15 @@ func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	assert.Empty(t, after,
 		"BulkSetPendingMDMHostProfiles must not write host_mdm_windows_profiles synchronously")
+
+	// Round-trip: the cron's listing must observe this host as pending so
+	// the deferred reconciliation can run on the next tick. Without this,
+	// the empty post-state above would also be consistent with a
+	// regression that silently drops the pending signal.
+	pending, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 10)
+	require.NoError(t, err)
+	require.Contains(t, pending, host.UUID,
+		"host must appear in cron listing so deferred reconciliation can run")
 }
 
 // testListNextPendingMDMWindowsHostUUIDsCursor exercises the host-window
@@ -8650,8 +8654,9 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	InsertWindowsProfileForTest(t, ds, team.ID)
 
-	// Five Windows hosts. Use sortable UUIDs so the test can predict
-	// ordering. lexicographic ordering: "host-uuid-1" < "host-uuid-2" < ...
+	// Windows hosts that should be listed. Zero-pad the UUID suffix so
+	// lexicographic ordering matches numeric ordering for any N (without
+	// padding, "host-uuid-10" sorts before "host-uuid-2").
 	type hostFixture struct {
 		host *fleet.Host
 		uuid string
@@ -8659,24 +8664,54 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	const numHosts = 5
 	fixtures := make([]hostFixture, numHosts)
 	for i := range numHosts {
-		uuid := fmt.Sprintf("host-uuid-%d", i)
-		h := newWindowsHostInTeam(t, ds,
+		uuid := fmt.Sprintf("host-uuid-%02d", i)
+		h := test.NewHost(t, ds,
 			fmt.Sprintf("recon-cursor-host-%d", i),
 			fmt.Sprintf("1.1.1.%d", i),
 			fmt.Sprintf("recon-cursor-key-%d", i),
 			uuid,
-			&team.ID,
+			time.Now(),
+			test.WithPlatform("windows"), test.WithTeamID(team.ID),
 		)
 		windowsEnroll(t, ds, h)
 		fixtures[i] = hostFixture{host: h, uuid: uuid}
 	}
 
+	// Filter-probe hosts that must NEVER appear in the listing. Without
+	// these, the assertions below would pass for an implementation that
+	// returns every enrolled host instead of filtering by desired state.
+	//
+	//   * cross-team Windows host: a team with no profile means no
+	//     desired state, so this host has nothing to install.
+	//   * same-team darwin host: the desired-state JOIN requires
+	//     hosts.platform='windows'.
+	//
+	// UUIDs are chosen so they would sort *before* and *after* the
+	// fixture UUIDs ("c..." < "host..." < "s...") if filtering broke.
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-other-team"})
+	require.NoError(t, err)
+	crossTeamHost := test.NewHost(t, ds,
+		"recon-cursor-cross-team", "2.2.2.1", "recon-cursor-cross-team-key",
+		"cross-team-windows-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(otherTeam.ID),
+	)
+	windowsEnroll(t, ds, crossTeamHost)
+	sameTeamDarwinHost := test.NewHost(t, ds,
+		"recon-cursor-darwin", "3.3.3.1", "recon-cursor-darwin-key",
+		"same-team-darwin-uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team.ID),
+	)
+	excluded := []string{crossTeamHost.UUID, sameTeamDarwinHost.UUID}
+
 	// Trigger the listing's "needs work" predicate by running BulkSet so
-	// the team-profile -> host pairs become candidates.
-	hostIDs := make([]uint, numHosts)
-	for i, f := range fixtures {
-		hostIDs[i] = f.host.ID
+	// the team-profile -> host pairs become candidates. Include the
+	// probe hosts so the same code path runs over them; the listing must
+	// still exclude them.
+	hostIDs := make([]uint, 0, numHosts+len(excluded))
+	for _, f := range fixtures {
+		hostIDs = append(hostIDs, f.host.ID)
 	}
+	hostIDs = append(hostIDs, crossTeamHost.ID, sameTeamDarwinHost.ID)
 	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil)
 	require.NoError(t, err)
 
@@ -8696,6 +8731,12 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	for i := 1; i < len(batch2); i++ {
 		require.Less(t, batch2[i-1], batch2[i], "result must be sorted ascending")
 	}
+	// Inter-batch ordering: the cursor's strict-greater-than semantics
+	// require that every UUID in batch2 is strictly greater than batch1's
+	// last UUID. Without this, a regression that partitions the universe
+	// in the wrong order could still pass the set-coverage check below.
+	require.Less(t, batch1[len(batch1)-1], batch2[0],
+		"batch2 must start strictly after batch1's last UUID")
 
 	// The two batches together cover every host exactly once. Compare
 	// against the fixture UUIDs so the test fails on over-broad or
@@ -8714,10 +8755,21 @@ func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, covered)
 
+	// Filter-probe hosts must not have leaked into any batch.
+	for _, u := range excluded {
+		require.NotContains(t, covered, u, "host %s should be filtered out", u)
+	}
+
 	// Third call past the last host: empty (cursor has reached the end).
 	batch3, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch2[len(batch2)-1], 3)
 	require.NoError(t, err)
 	require.Empty(t, batch3, "no more hosts after the end of the universe")
+
+	// batchSize <= 0 must short-circuit to an empty result without error,
+	// matching the explicit guard in ListNextPendingMDMWindowsHostUUIDs.
+	zero, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, zero, "batchSize=0 must short-circuit to empty")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
