@@ -42,7 +42,8 @@
     },
     "activity_expiry_settings": {
       "activity_expiry_enabled": false,
-      "activity_expiry_window": 0
+      "activity_expiry_window": 0,
+      "preserve_host_activities_on_reenrollment": false
     },
     "conditional_access": {
       "microsoft_entra_tenant_id": "",
@@ -142,7 +143,6 @@
       "windows_entra_tenant_ids": null,
       "windows_require_bitlocker_pin": null,
       "apple_require_hardware_attestation": false,
-      "preserve_host_activities_on_reenrollment": false,
       "macos_migration": {
         "enable": false,
         "mode": "",

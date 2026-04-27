@@ -1303,7 +1303,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraTenantIDs")] = cmd.AppConfig.MDM.WindowsEntraTenantIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
-			result[jsonFieldName(mdmT, "PreserveHostActivitiesOnReenrollment")] = cmd.AppConfig.MDM.PreserveHostActivitiesOnReenrollment
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured

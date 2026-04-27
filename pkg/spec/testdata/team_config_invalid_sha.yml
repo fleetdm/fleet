@@ -58,7 +58,6 @@ controls:
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
   apple_require_hardware_attestation: false
-  preserve_host_activities_on_reenrollment: true
 software:
   app_store_apps:
     - app_store_id: "123456"

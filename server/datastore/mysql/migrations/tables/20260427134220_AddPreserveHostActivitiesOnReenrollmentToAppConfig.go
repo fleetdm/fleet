@@ -22,7 +22,7 @@ func Up_20260427134220(tx *sql.Tx) error {
 
 	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		if config != nil {
-			config.MDM.PreserveHostActivitiesOnReenrollment = preserve
+			config.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = preserve
 		}
 		return nil
 	}); err != nil {

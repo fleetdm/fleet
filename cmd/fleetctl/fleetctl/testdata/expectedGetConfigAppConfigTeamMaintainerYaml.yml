@@ -11,6 +11,7 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+    preserve_host_activities_on_reenrollment: false
   conditional_access:
     microsoft_entra_tenant_id: ""
     microsoft_entra_connection_configured: false
@@ -43,7 +44,6 @@ spec:
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     apple_require_hardware_attestation: false
-    preserve_host_activities_on_reenrollment: false
     macos_migration:
       enable: false
       mode: ""

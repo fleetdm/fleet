@@ -238,12 +238,6 @@ type MDM struct {
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
 
-	// PreserveHostActivitiesOnReenrollment controls whether existing host
-	// activities, scripts, and software install records are kept when a managed
-	// host re-enrolls. Defaults to true for upgraded installs (preserves prior
-	// behavior) and false for fresh installs.
-	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
-
 	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
 	// certain Apple MDM enrollments.
 	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
@@ -1245,6 +1239,12 @@ type HostExpirySettings struct {
 type ActivityExpirySettings struct {
 	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
 	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+
+	// PreserveHostActivitiesOnReenrollment controls whether existing host
+	// activities, scripts, and software install records are kept when a managed
+	// host re-enrolls. Defaults to true for upgraded installs (preserves prior
+	// behavior) and false for fresh installs.
+	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
 }
 
 type Features struct {

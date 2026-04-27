@@ -21,9 +21,9 @@ func TestUp_20260427134220_FreshInstall(t *testing.T) {
 	var cfg map[string]any
 	require.NoError(t, json.Unmarshal(raw, &cfg))
 
-	mdm, ok := cfg["mdm"].(map[string]any)
+	aes, ok := cfg["activity_expiry_settings"].(map[string]any)
 	require.True(t, ok)
-	require.False(t, mdm["preserve_host_activities_on_reenrollment"].(bool))
+	require.False(t, aes["preserve_host_activities_on_reenrollment"].(bool))
 }
 
 func TestUp_20260427134220_UpgradedInstall(t *testing.T) {
@@ -43,7 +43,7 @@ func TestUp_20260427134220_UpgradedInstall(t *testing.T) {
 	var cfg map[string]any
 	require.NoError(t, json.Unmarshal(raw, &cfg))
 
-	mdm, ok := cfg["mdm"].(map[string]any)
+	aes, ok := cfg["activity_expiry_settings"].(map[string]any)
 	require.True(t, ok)
-	require.True(t, mdm["preserve_host_activities_on_reenrollment"].(bool))
+	require.True(t, aes["preserve_host_activities_on_reenrollment"].(bool))
 }
