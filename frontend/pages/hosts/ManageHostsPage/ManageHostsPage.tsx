@@ -65,7 +65,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -1732,14 +1732,12 @@ const ManageHostsPage = ({
     }
     if (maybeEmptyHosts) {
       const emptyState = () => {
-        const emptyHosts: IEmptyTableProps = {
-          graphicName: "empty-hosts",
+        const emptyHosts: IEmptyStateProps = {
           header: "Hosts will show up here once they’re added to Fleet",
           info:
             "Expecting to see hosts? Try again soon as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again soon as the system catches up.";
@@ -1759,7 +1757,6 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyState({
-            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
@@ -1828,7 +1825,7 @@ const ManageHostsPage = ({
     });
 
     const emptyState = () => {
-      const emptyHosts: IEmptyTableProps = {
+      const emptyHosts: IEmptyStateProps = {
         header: "No hosts match the current criteria",
         info:
           "Expecting to see new hosts? Try again soon as the system catches up.",

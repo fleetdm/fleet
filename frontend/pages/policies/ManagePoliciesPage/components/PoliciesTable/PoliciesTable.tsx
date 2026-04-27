@@ -3,7 +3,7 @@ import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
@@ -62,8 +62,7 @@ const PoliciesTable = ({
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState: IEmptyTableProps = {
-    graphicName: "empty-policies",
+  const emptyState: IEmptyStateProps = {
     header: "You don't have any policies",
     info:
       "Add policies to detect device health issues and trigger automations.",
@@ -85,7 +84,6 @@ const PoliciesTable = ({
   }
 
   if (searchQuery || isFiltered) {
-    delete emptyState.graphicName;
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
@@ -147,7 +145,6 @@ const PoliciesTable = ({
         }}
         emptyComponent={() => (
           <EmptyState
-            graphicName={emptyState.graphicName}
             header={emptyState.header}
             info={emptyState.info}
             additionalInfo={emptyState.additionalInfo}

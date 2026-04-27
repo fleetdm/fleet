@@ -1,7 +1,7 @@
 import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   getVulnFilterRenderDetails,
   ISoftwareDropdownFilterVal,
@@ -55,7 +55,7 @@ const EmptySoftwareTable = ({
   const isFiltered =
     vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
 
-  const getEmptySoftwareInfo = (): IEmptyTableProps => {
+  const getEmptySoftwareInfo = (): IEmptyStateProps => {
     if (isSoftwareDisabled) {
       return {
         header: "Software inventory disabled",

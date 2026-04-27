@@ -54,7 +54,6 @@ const NoResults = ({
 
     return (
       <EmptyState
-        graphicName="collecting-results"
         header="Collecting results..."
         info={collectingResultsInfo()}
       />

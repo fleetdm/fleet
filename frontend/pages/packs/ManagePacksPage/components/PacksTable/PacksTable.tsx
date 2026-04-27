@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 
 import { IPack } from "interfaces/pack";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
@@ -59,8 +59,7 @@ const PacksTable = ({
 
   // TODO: useCallback search string
   const emptyState = () => {
-    const emptyPacks: IEmptyTableProps = {
-      graphicName: "empty-packs",
+    const emptyPacks: IEmptyStateProps = {
       header: "You don't have any packs",
       info:
         "Query packs allow you to schedule recurring queries for your hosts.",

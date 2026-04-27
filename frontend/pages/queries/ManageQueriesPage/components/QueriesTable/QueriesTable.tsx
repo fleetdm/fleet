@@ -6,7 +6,7 @@ import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
@@ -177,8 +177,7 @@ const QueriesTable = ({
     ]
   );
 
-  const emptyParams: IEmptyTableProps = {
-    graphicName: "empty-queries",
+  const emptyParams: IEmptyStateProps = {
     header: "You don't have any reports",
   };
 
