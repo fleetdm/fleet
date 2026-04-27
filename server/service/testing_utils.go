@@ -481,38 +481,30 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fleet.Datastore, svc fleet.Service,
 	opts ...*TestServerOpts,
 ) (map[string]fleet.User, *httptest.Server) {
-	// Normalize opts so all feature-route wiring below runs regardless of
-	// whether the caller supplied TestServerOpts. Zero-opts callers would
-	// otherwise skip activity (and android) route registration, which makes
-	// apiendpoints.Init fail because the YAML catalog expects those routes
-	// on the mux.
-	if len(opts) == 0 {
-		opts = []*TestServerOpts{{}}
-	}
-
 	var cfg config.FleetConfig
-	if opts[0].FleetConfig != nil {
+	if len(opts) > 0 && opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
 	} else {
 		cfg = config.TestConfig()
 	}
 	users := map[string]fleet.User{}
-	if !opts[0].SkipCreateTestUsers {
+	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	if opts[0].Logger != nil {
+	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
 
-	opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	if len(opts) > 0 {
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+	}
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
 	// the main handler. Otherwise, build a path-only stub from the same registration
-	// code and surface it to apiendpoints.Init for catalog validation only. opts is
-	// always non-empty by the normalization at the top of this function.
+	// code and surface it to apiendpoints.Init for catalog validation only.
 	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
-	if opts[0].DBConns != nil {
+	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
 		activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)

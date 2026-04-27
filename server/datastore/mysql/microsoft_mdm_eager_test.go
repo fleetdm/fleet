@@ -14,34 +14,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// TEST-ONLY: Windows profile eager-reconciliation helpers.
-//
-// In production, Windows profile reconciliation is performed by the
-// mdm_windows_profile_manager cron (see ReconcileWindowsProfiles), which
-// computes the desired-vs-actual diff globally every 30s. Production
-// callers of BulkSetPendingMDMHostProfiles never write
-// host_mdm_windows_profiles synchronously.
-//
-// Tests inherit production semantics by default: BulkSetPendingMDMHostProfiles
-// defers Windows reconciliation, leaves host_mdm_windows_profiles untouched,
-// and returns updates.WindowsConfigProfile=false. Tests whose assertions
-// depend on the row state immediately after BulkSet must opt into the eager
-// path by calling ds.EnableTestWindowsEagerHook(t). Tests that should verify
-// the async path drive ReconcileWindowsProfiles directly.
-//
-// This file lives in *_test.go, so production binaries contain none of
-// this code (including EnableTestWindowsEagerHook). Cross-package callers
-// that try to use it get a compile error rather than a runtime fatal,
-// which is the right shape: those tests should drive
-// ReconcileWindowsProfiles directly to verify the production async path.
+// Test-only Windows profile eager-reconciliation helpers. Production
+// reconciles via the mdm_windows_profile_manager cron; tests that assert
+// on host_mdm_windows_profiles immediately after BulkSetPendingMDMHostProfiles
+// must opt in by calling ds.EnableTestWindowsEagerHook(t).
 
-// EnableTestWindowsEagerHook installs the test-only eager-reconciliation
-// hook on ds for the duration of the current test. After this call,
-// BulkSetPendingMDMHostProfiles reconciles Windows profile rows
-// synchronously and surfaces an Apple-parity
-// updates.WindowsConfigProfile bool. The hook is restored to its prior
-// value via t.Cleanup so sibling tests sharing the same datastore (e.g.
-// TestMDMShared subtests) are unaffected.
+// EnableTestWindowsEagerHook makes BulkSetPendingMDMHostProfiles reconcile
+// Windows rows synchronously for the rest of the test. The prior hook is
+// restored via t.Cleanup so sibling tests on a shared datastore (e.g.
+// TestMDMShared) aren't affected.
 func (ds *Datastore) EnableTestWindowsEagerHook(tb testing.TB) {
 	tb.Helper()
 	prev := ds.testWindowsEagerHook

@@ -370,8 +370,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *com
 // test.
 func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	testing_utils.LoadDefaultSchema(t, testName, opts)
-	ds := connectMySQL(t, testName, opts)
-	return ds
+	return connectMySQL(t, testName, opts)
 }
 
 func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
