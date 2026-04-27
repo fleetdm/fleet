@@ -841,19 +841,14 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			}
 		}
 
-		// Delete bucket: remove operations that resolved to verified.
-		// This is the only terminal-success status for Windows removes
-		// Failed removes are kept (upserted) so the failure is visible.
+		// Delete bucket: remove operations that resolved to a terminal state.
+		// Removes are best-effort; both verified and failed are terminal since
+		// failed removes are non-retryable and should not surface as host-level
+		// failures in profile summaries.
 		if hp.OperationType == fleet.MDMOperationTypeRemove && payload.Status != nil &&
-			*payload.Status == fleet.MDMDeliveryVerified {
+			(*payload.Status == fleet.MDMDeliveryVerified || *payload.Status == fleet.MDMDeliveryFailed) {
 			deleteCommandUUIDs = append(deleteCommandUUIDs, hp.CommandUUID)
 			continue
-		}
-
-		// For failed remove operations, prefix the detail.
-		if hp.OperationType == fleet.MDMOperationTypeRemove && payload.Status != nil &&
-			*payload.Status == fleet.MDMDeliveryFailed {
-			payload.Detail = fmt.Sprintf("Failed to remove: %s", payload.Detail)
 		}
 
 		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status, hp.Retries, hp.Checksum)

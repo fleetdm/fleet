@@ -3652,25 +3652,14 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 	})
 
 	t.Run("remove status outcomes", func(t *testing.T) {
+		// Both verified and failed removes are terminal (best-effort removal)
+		// and should be deleted from host_mdm_windows_profiles.
 		cases := []struct {
-			name          string
-			statusCode    int
-			expectDeleted bool
-			expectStatus  string
-			expectDetail  string
+			name       string
+			statusCode int
 		}{
-			{
-				name:          "verified remove deletes row",
-				statusCode:    200,
-				expectDeleted: true,
-			},
-			{
-				name:          "failed remove persists with detail prefix",
-				statusCode:    418, // not in the "treated as success" list, maps to Failed
-				expectDeleted: false,
-				expectStatus:  "failed",
-				expectDetail:  "Failed to remove:",
-			},
+			{"verified remove deletes row", 200},
+			{"failed remove deletes row", 418}, // not in the "treated as success" list, maps to Failed
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -3712,25 +3701,7 @@ VALUES (?, 'verifying', 'remove', ?, 'disable-onedrive', ?)`, enrolledDevice1.Ho
 SELECT COUNT(*) FROM host_mdm_windows_profiles
 WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteCommandUUID)
 				})
-
-				if tc.expectDeleted {
-					assert.Equal(t, 0, count, "row should be deleted")
-				} else {
-					require.Equal(t, 1, count, "row should persist")
-					var status, detail string
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						return sqlx.GetContext(t.Context(), q, &status, `
-SELECT status FROM host_mdm_windows_profiles
-WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteCommandUUID)
-					})
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						return sqlx.GetContext(t.Context(), q, &detail, `
-SELECT detail FROM host_mdm_windows_profiles
-WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteCommandUUID)
-					})
-					assert.Equal(t, tc.expectStatus, status)
-					assert.Contains(t, detail, tc.expectDetail)
-				}
+				assert.Equal(t, 0, count, "terminal remove row should be deleted")
 			})
 		}
 	})
