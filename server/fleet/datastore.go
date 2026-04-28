@@ -1855,6 +1855,14 @@ type Datastore interface {
 	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a
+	// VPP token. Used to lazy-backfill the column for tokens uploaded before
+	// the country_code column existed.
+	UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error
+	// UpdateVPPAppCountryCode persists the anchored storefront country for a
+	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
+	// path when the original anchored country has no Fleet-known token left.
+	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the

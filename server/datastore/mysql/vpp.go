@@ -757,9 +757,13 @@ func (ds *Datastore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) er
 }
 
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
+	// country_code is intentionally only set on INSERT and not updated on
+	// duplicate key. The first add of a (adam_id, platform) row "anchors"
+	// the app to that storefront; subsequent inserts (from other teams) must
+	// not overwrite it. Re-anchoring happens via UpdateVPPAppCountryCode.
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform, country_code)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -773,8 +777,12 @@ ON DUPLICATE KEY UPDATE
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?, ?),`)
+		var countryCode any
+		if a.CountryCode != "" {
+			countryCode = a.CountryCode
+		}
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform, countryCode)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -1372,9 +1380,10 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 			organization_name,
 			location,
 			renew_at,
-			token
+			token,
+			country_code
 		)
-	VALUES (?, ?, ?, ?)
+	VALUES (?, ?, ?, ?, ?)
 `
 
 	vppTokenDB, err := vppTokenDataToVppTokenDB(ctx, tok)
@@ -1387,6 +1396,12 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
+	var countryCode any
+	if tok.CountryCode != "" {
+		countryCode = tok.CountryCode
+		vppTokenDB.CountryCode = tok.CountryCode
+	}
+
 	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		insertStmt,
@@ -1394,6 +1409,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		vppTokenDB.Location,
 		vppTokenDB.RenewDate,
 		tokEnc,
+		countryCode,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
@@ -1413,7 +1429,8 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		organization_name = ?,
 		location = ?,
 		renew_at = ?,
-		token = ?
+		token = ?,
+		country_code = ?
 	WHERE
 		id = ?
 `
@@ -1428,6 +1445,11 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
+	var countryCode any
+	if tok.CountryCode != "" {
+		countryCode = tok.CountryCode
+	}
+
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
@@ -1435,6 +1457,7 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		vppTokenDB.Location,
 		vppTokenDB.RenewDate,
 		tokEnc,
+		countryCode,
 		tokenID,
 	)
 	if err != nil {
@@ -1442,6 +1465,45 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 	}
 
 	return ds.GetVPPToken(ctx, tokenID)
+}
+
+// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a VPP
+// token. Used to lazy-backfill the column for tokens uploaded before the
+// country_code column existed.
+func (ds *Datastore) UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error {
+	if countryCode == "" {
+		return ctxerr.New(ctx, "country code cannot be empty")
+	}
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`UPDATE vpp_tokens SET country_code = ? WHERE id = ?`,
+		countryCode,
+		tokenID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token country code")
+	}
+	return nil
+}
+
+// UpdateVPPAppCountryCode persists the anchored storefront country for a
+// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal path
+// when the original anchored country has no Fleet-known token left.
+func (ds *Datastore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error {
+	if countryCode == "" {
+		return ctxerr.New(ctx, "country code cannot be empty")
+	}
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`UPDATE vpp_apps SET country_code = ? WHERE adam_id = ? AND platform = ?`,
+		countryCode,
+		adamID,
+		platform,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp app country code")
+	}
+	return nil
 }
 
 func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
@@ -1462,10 +1524,11 @@ func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fl
 	exp = exp.UTC()
 
 	vppTokenDB := &fleet.VPPTokenDB{
-		OrgName:   tokRaw.OrgName,
-		Location:  tok.Location,
-		RenewDate: exp,
-		Token:     tok.Token,
+		OrgName:     tokRaw.OrgName,
+		Location:    tok.Location,
+		RenewDate:   exp,
+		Token:       tok.Token,
+		CountryCode: tok.CountryCode,
 	}
 
 	return vppTokenDB, nil
@@ -1478,7 +1541,8 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		organization_name,
 		location,
 		renew_at,
-		token
+		token,
+		COALESCE(country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 	WHERE
@@ -1523,11 +1587,12 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 	}
 
 	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
 	}
 
 	if tokTeams == nil {
@@ -1715,7 +1780,8 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		organization_name,
 		location,
 		renew_at,
-		token
+		token,
+		COALESCE(country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 `
@@ -1760,11 +1826,12 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		}
 
 		tokens[tokEnc.ID] = &fleet.VPPTokenDB{
-			ID:        tokEnc.ID,
-			OrgName:   tokEnc.OrgName,
-			Location:  tokEnc.Location,
-			RenewDate: tokEnc.RenewDate,
-			Token:     string(tokDec),
+			ID:          tokEnc.ID,
+			OrgName:     tokEnc.OrgName,
+			Location:    tokEnc.Location,
+			RenewDate:   tokEnc.RenewDate,
+			Token:       string(tokDec),
+			CountryCode: tokEnc.CountryCode,
 		}
 	}
 
@@ -1812,7 +1879,8 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token
+		v.token,
+		COALESCE(v.country_code, '') AS country_code
 	FROM
 		vpp_token_teams vt
 	INNER JOIN
@@ -1840,7 +1908,8 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token
+		v.token,
+		COALESCE(v.country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 	INNER JOIN
@@ -1889,11 +1958,12 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	}
 
 	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
 	}
 
 	if tokTeams == nil {
@@ -1997,7 +2067,8 @@ SELECT
 	icon_url,
 	name,
 	latest_version,
-	platform
+	platform,
+	COALESCE(country_code, '') AS country_code
 FROM vpp_apps WHERE platform IN (?)`
 
 	query, args, err := sqlx.In(query, fleet.ApplePlatforms)
