@@ -11,7 +11,7 @@
 - Fixed an issue where adding a custom icon for a script-only package was not allowed in GitOps.
 - Fixed a server panic (502) when an Android pubsub status report arrived for a host that had been deleted from Fleet.
 - Added ability to save policies whose SQL is flagged as a syntax error.
-- Renewing and deleting AB tokens in the UI is now enabled in gitops mode
+- Enabled renewing and deleting AB tokens in the UI in gitops mode.
 * Implemented Clear Passcode feature for iOS and iPadOS.
 - Fixed a Windows BitLocker encrypt/decrypt loop on machines with secondary drives using auto-unlock. Fleet now detects disk encryption using `conversion_status` (not just `protection_status`), preventing the server from repeatedly requesting encryption when the disk is already encrypted. Added `bitlocker_protection_status` tracking so the UI shows "Action required" when BitLocker protection is off instead of misleadingly showing "Verified."
 - Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.
