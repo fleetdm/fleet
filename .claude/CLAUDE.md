@@ -42,6 +42,15 @@ The following terms were recently renamed. Use the new terms in conversation and
 - **Pointers**: Use Go 1.26 `new(expression)` for pointer values (e.g., `new("value")`, `new(true)`, `new(42)`). Do NOT use the legacy `server/ptr` package in new code — it exists throughout the codebase but is superseded by `new(expr)`.
 - **Reference example**: `server/service/vulnerabilities.go`
 
+## CI and Docker
+
+When interpolating a git branch name into a Docker/registry identifier in a workflow or script:
+- Branch names can be up to ~250 chars and may contain `/`, uppercase, `+`, `@`, etc. None of these are valid in all Docker contexts.
+- **Docker tags**: max 128 chars, must match `[a-zA-Z0-9_][a-zA-Z0-9_.-]*` (no `/`, no `+`).
+- **Docker image / repo names**: must be lowercase.
+- Sanitize with `${BRANCH//\//-}`, also replace `+`, `@`, spaces, lowercase the result, then truncate to 128 chars before use.
+- Existing sanitization lives in `.github/workflows/goreleaser-snapshot-fleet.yaml` and `.github/workflows/docker-cleanup-branch.yaml` — follow the same pattern when adding new interpolations.
+
 ## Before writing a fix
 
 - Identify WHERE in the request lifecycle the problem manifests (creation vs team-addition vs sync vs query). Fix it there, not at the reproduction step.
