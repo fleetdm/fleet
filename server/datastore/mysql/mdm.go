@@ -39,8 +39,15 @@ END AS platform
 	return p, nil
 }
 
-func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
-	appleStmt := `
+// getMDMCommandsSubqueries returns the Apple and Windows command-list
+// sub-statements separately, each already filtered by hostFilter (if any).
+// The caller is responsible for wrapping each branch with the per-branch
+// pagination (team filter, request_type filter, cursor predicate, ORDER BY,
+// inner LIMIT) before merging them with UNION ALL. Doing the pagination
+// inside each branch instead of around the UNION ALL bounds per-tick work
+// to O(page_size) per branch rather than O(total commands per branch).
+func getMDMCommandsSubqueries(ds *Datastore, hostFilter string) (appleStmt, windowsStmt string, params []interface{}) {
+	appleStmt = `
 SELECT
     nvq.id as host_uuid,
     nvq.command_uuid,
@@ -60,7 +67,7 @@ WHERE
    nvq.active = 1
 `
 
-	windowsStmt := `
+	windowsStmt = `
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
@@ -78,16 +85,21 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 WHERE TRUE
 `
 
-	var params []interface{}
-	appleStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
-	windowsStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, windowsStmt, params)
+	appleStmt, params = ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
+	windowsStmt, params = ds.whereFilterHostsByIdentifier(hostFilter, windowsStmt, params)
+	return appleStmt, windowsStmt, params
+}
 
-	stmt := fmt.Sprintf(
+// getCombinedMDMCommandsQuery returns the legacy combined statement
+// (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
+// single-command lookups; the list-commands path builds its own form
+// (see getMDMCommandsSubqueries).
+func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
+	appleStmt, windowsStmt, params := getMDMCommandsSubqueries(ds, hostFilter)
+	return fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
-		appleStmtWithFilter, windowsStmtWithFilter,
-	)
-
-	return stmt, params
+		appleStmt, windowsStmt,
+	), params
 }
 
 func (ds *Datastore) ListMDMCommands(
@@ -100,12 +112,54 @@ func (ds *Datastore) ListMDMCommands(
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
 	}
 
-	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
-	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "combined_commands")
-	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
-	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
+	appleStmt, windowsStmt, baseParams := getMDMCommandsSubqueries(ds, listOpts.Filters.HostIdentifier)
+
+	// Per-branch pagination: each branch carries the team filter, the
+	// request_type filter, the cursor predicate (if any), the ORDER BY,
+	// and an inner LIMIT large enough to cover the requested page if all
+	// matching rows came from this branch alone (page*per_page + per_page +
+	// 1). Without this, the UNION ALL would materialize every command on
+	// both sides before pagination, which times out at scale (#44170).
+	innerOpts := listOpts.ListOptions
+	// Inner LIMIT = page*per_page + per_page; appendListOptionsWithCursorToSQL
+	// adds +1 because IncludeMetadata is true. Inner Page=0 suppresses the
+	// inner OFFSET; the outer wrapper handles offset slicing.
+	innerOpts.PerPage = innerOpts.PerPage*innerOpts.Page + innerOpts.PerPage
+	innerOpts.Page = 0
+	innerOpts.IncludeMetadata = true
+
+	paginateBranch := func(branch string, params []interface{}) (string, []interface{}) {
+		wrapped := fmt.Sprintf("SELECT * FROM (%s) AS branch WHERE ", branch)
+		wrapped += ds.whereFilterHostsByTeams(tmFilter, "branch")
+		wrapped, params = addRequestTypeFilter(wrapped, &listOpts.Filters, params)
+		wrapped, params = appendListOptionsWithCursorToSQL(wrapped, params, &innerOpts)
+		return wrapped, params
+	}
+
+	// Each branch needs its own params slice; sqlx.SelectContext binds
+	// placeholders left-to-right across the merged statement.
+	appleParams := append([]interface{}{}, baseParams...)
+	windowsParams := append([]interface{}{}, baseParams...)
+	appleStmt, appleParams = paginateBranch(appleStmt, appleParams)
+	windowsStmt, windowsParams = paginateBranch(windowsStmt, windowsParams)
+
+	mergedStmt := fmt.Sprintf(
+		"SELECT * FROM ((%s) UNION ALL (%s)) AS combined_commands",
+		appleStmt, windowsStmt,
+	)
+	mergedParams := append([]interface{}{}, appleParams...)
+	mergedParams = append(mergedParams, windowsParams...)
+
+	// Outer pagination: ORDER BY + LIMIT + OFFSET only. The cursor
+	// predicate is already applied inside each branch, so clear After here
+	// to avoid a redundant outer WHERE that would force an extra filter
+	// pass over the merged set.
+	outerOpts := listOpts.ListOptions
+	outerOpts.After = ""
+	mergedStmt, mergedParams = appendListOptionsWithCursorToSQL(mergedStmt, mergedParams, &outerOpts)
+
 	var results []*fleet.MDMCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, mergedStmt, mergedParams...); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 
