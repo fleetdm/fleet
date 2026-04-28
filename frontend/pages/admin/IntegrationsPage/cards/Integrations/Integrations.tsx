@@ -292,12 +292,10 @@ const Integrations = (): JSX.Element => {
         }}
         resultsTitle="integrations"
         emptyComponent={() => (
-          <Card borderRadiusSize="small">
-            <EmptyIntegrationsTable
-              className={noIntegrationsClass}
-              onActionButtonClick={toggleAddIntegrationModal}
-            />
-          </Card>
+          <EmptyIntegrationsTable
+            className={noIntegrationsClass}
+            onActionButtonClick={toggleAddIntegrationModal}
+          />
         )}
         showMarkAllPages={false}
         isAllPagesSelected={false}

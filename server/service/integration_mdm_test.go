@@ -19080,7 +19080,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, vppAppTitleID), &installSoftwareRequest{}, http.StatusAccepted)
 
 	// also enqueue a script execution request on host 1
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// host 1 has 2 upcoming activities, the vpp app and the script
@@ -19684,7 +19684,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	require.Len(t, hostActivitiesResp.Activities, 0)
 
 	// enqueue a script run and an uninstall
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptID: &script.ID}, http.StatusAccepted, &runResp)
 	time.Sleep(time.Millisecond)
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", mdmHost.ID, swTitleID), &uninstallSoftwareRequest{}, http.StatusAccepted)
@@ -19694,7 +19694,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	require.Len(t, hostActivitiesResp.Activities, 2)
 
 	// the script shows up for the host's script runs
-	var scriptResp getHostScriptDetailsResponse
+	var scriptResp fleet.GetHostScriptDetailsResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", mdmHost.ID), nil, http.StatusOK, &scriptResp)
 	require.Len(t, scriptResp.Scripts, 1)
 	require.NotNil(t, scriptResp.Scripts[0].LastExecution)
@@ -19820,7 +19820,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	}
 
 	// script has no last execution (only execution was canceled)
-	scriptResp = getHostScriptDetailsResponse{}
+	scriptResp = fleet.GetHostScriptDetailsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", mdmHost.ID), nil, http.StatusOK, &scriptResp)
 	require.Len(t, scriptResp.Scripts, 1)
 	require.Nil(t, scriptResp.Scripts[0].LastExecution)
@@ -19835,13 +19835,13 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
 
 	// enqueue a lock and a wipe respectively as immediate upcoming activities
-	var lockResp lockHostResponse
+	var lockResp fleet.LockHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h1.ID), nil, http.StatusOK, &lockResp)
 	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp.DeviceStatus)
 	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
 	s.lastActivityMatches(fleet.ActivityTypeLockedHost{}.ActivityName(), "", 0)
 
-	var wipeResp wipeHostResponse
+	var wipeResp fleet.WipeHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h2.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
@@ -19871,7 +19871,7 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	h4 := createOrbitEnrolledHost(t, "ubuntu", "h4", s.ds)
 
 	// this time enqueue a script before the lock/wipe for each host, so that lock/wipe are cancelable
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h3.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 	time.Sleep(time.Millisecond)
@@ -20394,7 +20394,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 	// wipe the host
-	var wipeResp wipeHostResponse
+	var wipeResp fleet.WipeHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
@@ -22184,18 +22184,18 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", team1MacOSHost.ID, mcUUID), nil, http.StatusAccepted)
 
 	// Attempt to list scripts, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusOK, &listScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
 	// Attempt to get a script, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptNoTeam.ID), getScriptRequest{}, http.StatusOK, &getScriptResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptNoTeam.ID), fleet.GetScriptRequest{}, http.StatusOK, &fleet.GetScriptResponse{})
 	// Attempt to run script on a host, should allow.
-	var rsr runScriptResponse
+	var rsr fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 		HostID:     globalHost.ID,
 		ScriptName: "no_team_exit_0.sh",
 	}, http.StatusAccepted, &rsr)
 	// Attempt to run script on batch of hosts, should fail.
-	var batchRes batchScriptRunResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	var batchRes fleet.BatchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: scriptT1.ID,
 		HostIDs:  []uint{team1MacOSHost.ID},
 	}, http.StatusForbidden, &batchRes)
@@ -22545,28 +22545,28 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", globalHost.ID, mcUUID2), nil, http.StatusForbidden)
 
 	// Attempt to list scripts on t1, should allow.
-	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusOK, &listScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusOK, &fleet.ListScriptsResponse{}, "team_id", fmt.Sprint(t1.ID))
 	// Attempt to list scripts on "No team", should fail.
-	s.DoJSON("GET", "/api/latest/fleet/scripts", listScriptsRequest{}, http.StatusForbidden, &listScriptsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/scripts", fleet.ListScriptsRequest{}, http.StatusForbidden, &fleet.ListScriptsResponse{})
 	// Attempt to get a script, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptT1.ID), getScriptRequest{}, http.StatusOK, &getScriptResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", scriptT1.ID), fleet.GetScriptRequest{}, http.StatusOK, &fleet.GetScriptResponse{})
 	// Attempt to run script on a host, should allow.
-	rsr = runScriptResponse{}
+	rsr = fleet.RunScriptResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 		HostID:     team1Host.ID,
 		ScriptName: "exit_0.sh",
 		TeamID:     t1.ID,
 	}, http.StatusAccepted, &rsr)
 	// Attempt to run script on a host in "No team", should fail.
-	rsr = runScriptResponse{}
+	rsr = fleet.RunScriptResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
 		HostID:     globalHost.ID,
 		ScriptName: "no_team_exit_0.sh",
 	}, http.StatusForbidden, &rsr)
 
 	// Attempt to run script on batch of hosts, should fail.
-	batchRes = batchScriptRunResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	batchRes = fleet.BatchScriptRunResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: scriptT1.ID,
 		HostIDs:  []uint{team1MacOSHost.ID},
 	}, http.StatusForbidden, &batchRes)

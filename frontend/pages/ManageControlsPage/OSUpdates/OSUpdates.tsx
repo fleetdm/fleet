@@ -18,7 +18,8 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import GenericMsgWithNavButton from "../../../components/GenericMsgWithNavButton/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
@@ -119,12 +120,14 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     !config?.mdm.windows_enabled_and_configured
   ) {
     return (
-      <GenericMsgWithNavButton
+      <EmptyState
         header="Additional configuration required"
         info="MDM must be turned on to change settings on your hosts."
-        path={PATHS.ADMIN_INTEGRATIONS_MDM}
-        buttonText="Turn on"
-        router={router}
+        primaryButton={
+          <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+            Turn on
+          </Button>
+        }
       />
     );
   }

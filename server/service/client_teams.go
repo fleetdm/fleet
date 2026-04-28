@@ -109,7 +109,7 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	}
 	query.Add("fleet_name", tmName)
 
-	var resp batchSetScriptsResponse
+	var resp fleet.BatchSetScriptsResponse
 	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
 	return resp.Scripts, err
 }

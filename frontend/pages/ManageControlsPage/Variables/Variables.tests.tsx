@@ -55,7 +55,7 @@ describe("Custom variables", () => {
 
       render(<Variables />);
       await waitFor(() => {
-        expect(screen.getByText("No custom variables")).toBeInTheDocument();
+        expect(screen.getByText(/No custom variables/i)).toBeInTheDocument();
         expect(
           screen.getByRole("button", { name: "Add custom variable" })
         ).toBeInTheDocument();
