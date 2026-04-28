@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
   Cell,
+  Tooltip,
 } from "recharts";
 
 import PATHS from "router/paths";
@@ -17,9 +18,10 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 const baseClass = "hosts-enrolled-card";
 
-// Use the design-system color token via CSS custom property so recharts
-// picks up the themed value for the SVG fill.
+// Use design-system color tokens via CSS custom properties so recharts picks
+// up the themed values for the SVG fills.
 const BAR_COLOR = "var(--core-fleet-green)";
+const BAR_HOVER_COLOR = "var(--core-fleet-green-over)";
 
 export interface IHostPlatformCounts {
   darwin: number;
@@ -64,6 +66,27 @@ const formatTick = (value: number): string => {
     return Number.isInteger(k) ? `${k}k` : `${k.toFixed(1)}k`;
   }
   return `${value}`;
+};
+
+interface ITooltipProps {
+  active?: boolean;
+  payload?: { payload: IPlatformDatum }[];
+}
+
+const HostsEnrolledTooltip = ({
+  active,
+  payload,
+}: ITooltipProps): JSX.Element | null => {
+  if (!active || !payload?.length) return null;
+  const datum = payload[0].payload;
+  return (
+    <div className={`${baseClass}__tooltip`}>
+      <div className={`${baseClass}__tooltip-label`}>{datum.label}</div>
+      <div className={`${baseClass}__tooltip-value`}>
+        {datum.count.toLocaleString()} hosts
+      </div>
+    </div>
+  );
 };
 
 interface IYAxisTickProps {
@@ -179,10 +202,17 @@ const HostsEnrolledCard = ({
               />
             }
           />
+          <Tooltip
+            content={<HostsEnrolledTooltip />}
+            cursor={false}
+            isAnimationActive={false}
+          />
           <Bar
             dataKey="count"
             radius={[0, 4, 4, 0]}
             barSize={16}
+            isAnimationActive={false}
+            activeBar={{ fill: BAR_HOVER_COLOR }}
             onClick={(d) => handleBarClick(d.payload as IPlatformDatum)}
           >
             {data.map((entry) => (
