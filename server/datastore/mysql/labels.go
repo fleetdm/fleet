@@ -1244,10 +1244,17 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
-	if opt.ListOptions.OrderKey == "issues" {
-		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
+	// SECURITY: Validate the order key against the host allowlist. Without this,
+	// an Observer could specify order_key=h.node_key (or other sensitive columns)
+	// and binary-search-extract node_key / orbit_node_key secrets via the cursor
+	// (`after`) parameter. The allowlist intentionally excludes node_key,
+	// orbit_node_key, and other sensitive columns; the user-facing key "issues"
+	// is mapped to host_issues.total_issues_count by the allowlist itself.
+	// See https://github.com/fleetdm/confidential/issues/15633.
+	query, whereParams, err = appendListOptionsWithCursorToSQLSecure(query, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "apply list options for label hosts")
 	}
-	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
 	return query, append(joinParams, whereParams...), nil
 }
 

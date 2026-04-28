@@ -1556,6 +1556,103 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, err)
 }
 
+// TestLabelsHostsOrderKeyAllowlist is a regression test for
+// https://github.com/fleetdm/confidential/issues/15633 (Responsible Disclosure
+// MEDIUM: Observer-level node_key extraction via ORDER BY oracle).
+//
+// It exercises the labels host-listing endpoint as a Global Observer using the
+// exact attacker payload from the disclosure (order_key=h.node_key combined
+// with the after cursor) and asserts the request is rejected with 422 and no
+// host data is returned. It also verifies sensible order keys still work.
+func (s *integrationTestSuite) TestLabelsHostsOrderKeyAllowlist() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host with a known, secret node_key.
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "-osq"),
+		NodeKey:         ptr.String("super-secret-node-key-do-not-leak"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + ".local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Create a label and add the host to it.
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "-label",
+		Query: "select 1",
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(
+		ctx, host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false,
+	))
+
+	// Switch to a Global Observer (the lowest authenticated role described in
+	// the disclosure as sufficient to mount the attack).
+	observerEmail := "observer-15633@example.com"
+	observer := &fleet.User{
+		Name:       "observer-15633",
+		Email:      observerEmail,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, observer.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, observer)
+	require.NoError(t, err)
+	s.setTokenForTest(t, observerEmail, test.GoodPassword)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	// Disallowed order keys must be rejected with 422 and the response must
+	// not contain any host data. These are the values an attacker would
+	// iterate over to extract node_key / orbit_node_key one character at a
+	// time using the `after` cursor.
+	disallowed := []struct{ orderKey, after string }{
+		{"h.node_key", "A"},
+		{"node_key", "A"},
+		{"h.orbit_node_key", "A"},
+		{"orbit_node_key", "A"},
+		{"hdek.base64_encrypted", "A"},
+	}
+	for _, tc := range disallowed {
+		t.Run("disallowed/"+tc.orderKey, func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON(
+				"GET",
+				fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", label.ID),
+				nil,
+				http.StatusUnprocessableEntity,
+				&resp,
+				"order_key", tc.orderKey,
+				"after", tc.after,
+				"per_page", "50",
+			)
+			require.Empty(t, resp.Hosts, "must not leak any host rows when order_key is rejected")
+		})
+	}
+
+	// Allowed order keys must still return the host as expected.
+	allowed := []string{"id", "hostname", "display_name", "created_at"}
+	for _, key := range allowed {
+		t.Run("allowed/"+key, func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON(
+				"GET",
+				fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", label.ID),
+				nil,
+				http.StatusOK,
+				&resp,
+				"order_key", key,
+			)
+			require.Len(t, resp.Hosts, 1)
+			require.Equal(t, host.ID, resp.Hosts[0].ID)
+		})
+	}
+}
+
 func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	t := s.T()
 

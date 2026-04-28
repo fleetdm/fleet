@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/go-cmp/cmp"
@@ -77,6 +79,7 @@ func TestLabels(t *testing.T) {
 		{"AddAllHostsNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsAddAllHosts(false, t, ds) }},
 		{"Search", testLabelsSearch},
 		{"ListHostsInLabel", testLabelsListHostsInLabel},
+		{"ListHostsInLabelOrderKeyAllowlist", testLabelsListHostsInLabelOrderKeyAllowlist},
 		{"ListHostsInLabelAndStatus", testLabelsListHostsInLabelAndStatus},
 		{"ListHostsInLabelAndTeamFilterDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(true, t, ds) }},
 		{"ListHostsInLabelAndTeamFilterNotDeferred", func(t *testing.T, ds *Datastore) { testLabelsListHostsInLabelAndTeamFilter(false, t, ds) }},
@@ -516,6 +519,91 @@ func listHostsInLabelCheckCount(
 	require.Equal(t, expectedCount, count)
 	require.Len(t, hosts, expectedCount)
 	return hosts
+}
+
+// testLabelsListHostsInLabelOrderKeyAllowlist is a regression test for
+// https://github.com/fleetdm/confidential/issues/15633. It verifies that the
+// labels host-listing endpoint rejects sensitive or arbitrary order_key values
+// (preventing binary-search extraction of node_key / orbit_node_key via the
+// ORDER BY oracle), while still accepting the documented sort columns.
+func testLabelsListHostsInLabelOrderKeyAllowlist(t *testing.T, db *Datastore) {
+	ctx := context.Background()
+
+	h1, err := db.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ok-1"),
+		NodeKey:         ptr.String("super-secret-node-key-1"),
+		UUID:            "ok-1",
+		Hostname:        "alpha.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	h2, err := db.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ok-2"),
+		NodeKey:         ptr.String("super-secret-node-key-2"),
+		UUID:            "ok-2",
+		Hostname:        "bravo.local",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	lbl := &fleet.LabelSpec{ID: 1, Name: "ordertest", Query: "select 1"}
+	require.NoError(t, db.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{lbl}))
+
+	for _, h := range []*fleet.Host{h1, h2} {
+		require.NoError(t, db.RecordLabelQueryExecutions(
+			ctx, h, map[uint]*bool{lbl.ID: ptr.Bool(true)}, time.Now(), false,
+		))
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Disallowed order_key values must fail with InvalidOrderKeyError and must
+	// not return any rows. These are the values an attacker would attempt in
+	// order to binary-search-extract node_key / orbit_node_key.
+	disallowed := []string{
+		"h.node_key",
+		"node_key",
+		"h.orbit_node_key",
+		"orbit_node_key",
+		"hdek.base64_encrypted",
+		"some_random_garbage",
+	}
+	for _, key := range disallowed {
+		t.Run("disallowed/"+key, func(t *testing.T) {
+			opt := fleet.HostListOptions{ListOptions: fleet.ListOptions{OrderKey: key, After: "A"}}
+
+			_, err := db.ListHostsInLabel(ctx, filter, lbl.ID, opt)
+			require.Error(t, err, "ListHostsInLabel should reject order_key=%q", key)
+			var invalidKeyErr common_mysql.InvalidOrderKeyError
+			require.True(t, errors.As(err, &invalidKeyErr), "expected InvalidOrderKeyError, got %T: %v", err, err)
+			require.Equal(t, key, invalidKeyErr.Key)
+
+			_, err = db.CountHostsInLabel(ctx, filter, lbl.ID, opt)
+			require.Error(t, err, "CountHostsInLabel should reject order_key=%q", key)
+			require.True(t, errors.As(err, &invalidKeyErr), "expected InvalidOrderKeyError, got %T: %v", err, err)
+		})
+	}
+
+	// Allowed order_key values must continue to work. These cover the keys
+	// exercised by existing integration tests for this endpoint.
+	allowed := []string{"id", "hostname", "display_name", "created_at"}
+	for _, key := range allowed {
+		t.Run("allowed/"+key, func(t *testing.T) {
+			opt := fleet.HostListOptions{ListOptions: fleet.ListOptions{OrderKey: key}}
+			hosts, err := db.ListHostsInLabel(ctx, filter, lbl.ID, opt)
+			require.NoError(t, err, "ListHostsInLabel should accept order_key=%q", key)
+			require.Len(t, hosts, 2)
+		})
+	}
 }
 
 func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
