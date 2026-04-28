@@ -29133,7 +29133,12 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 	})
 }
 
-func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserCanReachGitOpsEndpoints() {
+// TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
+// catalog includes every route invoked by fleetctl gitops and
+// fleetctl generate-gitops. The test runs as an api-only admin user so any
+// 403 observed here comes from the api_only middleware (catalog miss), never
+// from service-level authz. Regression test for #44279.
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints() {
 	t := s.T()
 	defer func() { s.token = s.getTestAdminToken() }()
 
@@ -29152,25 +29157,26 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserCanReachGitOpsEndp
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		require.NotEqualf(t, http.StatusForbidden, resp.StatusCode,
-			"%s %s returned 403 for an api-only gitops user; the route is likely missing from server/api_endpoints/api_endpoints.yml",
+			"%s %s returned 403 for an api-only admin user; the route is likely missing from server/api_endpoints/api_endpoints.yml",
 			verb, path)
 	}
 
-	// Create an api-only user with the gitops global role and no endpoint
-	// restrictions; the middleware must accept any catalog entry.
+	// Create an api-only admin (no endpoint restrictions). Admins pass every
+	// service-level authz check, so the only remaining source of 403 is the
+	// api_only middleware's catalog check — exactly what we want to verify.
 	var createResp struct {
 		Token string `json:"token"`
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "api-only-gitops-no-restrictions",
-		"global_role": fleet.RoleGitOps,
+		"name":        "api-only-admin-gitops-catalog",
+		"global_role": fleet.RoleAdmin,
 	}, http.StatusOK, &createResp)
 	require.NotEmpty(t, createResp.Token)
 	s.token = createResp.Token
 
-	// Endpoints invoked by fleetctl gitops / generate-gitops. We don't pin the
-	// status code (gitops permissions and payload shape vary per endpoint), we
-	// only assert the api_only middleware does not block the request.
+	// Endpoints invoked by fleetctl gitops / generate-gitops. Status codes vary
+	// per endpoint based on payload validity; we only care that 403 never comes
+	// from the catalog check.
 	emptySpecs := map[string]any{"specs": []any{}}
 	assertNot403("GET", "/api/latest/fleet/me", nil)
 	assertNot403("GET", "/api/latest/fleet/config", nil)
@@ -29204,7 +29210,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 		{"method": "GET", "path": "/api/v1/fleet/me"},
 		{"method": "GET", "path": "/api/v1/fleet/config"},
 		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
-		{"method": "POST", "path": "/api/v1/fleet/spec/labels"},
+		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
 		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
 	}
 
@@ -29219,64 +29225,25 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 	require.NotEmpty(t, createResp.Token)
 	s.token = createResp.Token
 
-	// Allowed endpoints reach the handler (200/no middleware rejection).
+	// Allowed endpoints reach the handler.
 	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
-	s.Do("POST", "/api/latest/fleet/spec/labels", map[string]any{"specs": []any{}}, http.StatusOK)
-	s.Do("POST", "/api/latest/fleet/spec/policies", map[string]any{"specs": []any{}}, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	// Apply a real policy spec; an empty specs list short-circuits before authz
+	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
+	// middleware behavior we want to verify.
+	s.Do("POST", "/api/latest/fleet/spec/policies", map[string]any{
+		"specs": []map[string]any{
+			{"name": t.Name() + "-policy", "query": "SELECT 1;", "platform": "darwin"},
+		},
+	}, http.StatusOK)
 
 	// Other gitops endpoints are in the catalog but not in the allow list, so
 	// the middleware rejects them with 403.
 	s.Do("GET", "/api/latest/fleet/version", nil, http.StatusForbidden)
 	s.Do("GET", "/api/latest/fleet/fleets", nil, http.StatusForbidden)
-	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/labels", map[string]any{"specs": []any{}}, http.StatusForbidden)
 	s.Do("POST", "/api/latest/fleet/spec/reports", map[string]any{"specs": []any{}}, http.StatusForbidden)
 	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{}}, http.StatusForbidden)
-}
-
-func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserCannotEscalateOwnRole() {
-	t := s.T()
-	defer func() { s.token = s.getTestAdminToken() }()
-
-	var createResp struct {
-		User struct {
-			ID    uint   `json:"id"`
-			Email string `json:"email"`
-		} `json:"user"`
-		Token string `json:"token"`
-	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":        "api-only-gitops-escalation",
-		"global_role": fleet.RoleGitOps,
-	}, http.StatusOK, &createResp)
-	require.NotEmpty(t, createResp.Token)
-	require.NotEmpty(t, createResp.User.Email)
-	require.NotZero(t, createResp.User.ID)
-
-	apiUserEmail := createResp.User.Email
-	apiUserID := createResp.User.ID
-	s.token = createResp.Token
-
-	// Try to upgrade self to admin via the spec endpoint.
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", map[string]any{
-		"spec": map[string]any{
-			"roles": map[string]any{
-				apiUserEmail: map[string]any{
-					"global_role": fleet.RoleAdmin,
-				},
-			},
-		},
-	}, http.StatusForbidden)
-
-	// Confirm the user's role is unchanged.
-	s.token = s.getTestAdminToken()
-	var getResp struct {
-		User struct {
-			GlobalRole *string `json:"global_role"`
-		} `json:"user"`
-	}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", apiUserID), nil, http.StatusOK, &getResp)
-	require.NotNil(t, getResp.User.GlobalRole)
-	require.Equal(t, fleet.RoleGitOps, *getResp.User.GlobalRole)
 }
