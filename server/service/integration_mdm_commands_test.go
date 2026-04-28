@@ -236,9 +236,9 @@ func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
-	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-	require.Equal(t, "wipe", *getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionWipe), *getHostResp.Host.MDM.PendingAction)
 
 	// simulate a successful MDM result for the wipe command
 	cmd, err := mdmClient.Idle()
@@ -251,9 +251,9 @@ func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	// host is now in the terminal "wiped" state
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
-	require.Equal(t, "wiped", *getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
 	// upcoming activities for this host should now be empty: a wiped device
 	// will never execute them
@@ -272,9 +272,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
 	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	// enqueue two upcoming script-run activities (scripts on Windows are
-	// dispatched via orbit, not via Windows MDM, so they sit in the
-	// unified upcoming queue)
+	// enqueue two upcoming script-run activities
 	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
 		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
