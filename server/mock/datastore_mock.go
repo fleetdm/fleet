@@ -607,6 +607,8 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
 
+type BatchCancelAllHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error)
+
 type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
@@ -2753,6 +2755,9 @@ type DataStore struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
+
+	BatchCancelAllHostUpcomingActivitiesFunc        BatchCancelAllHostUpcomingActivitiesFunc
+	BatchCancelAllHostUpcomingActivitiesFuncInvoked bool
 
 	IsExecutionPendingForHostFunc        IsExecutionPendingForHostFunc
 	IsExecutionPendingForHostFuncInvoked bool
@@ -6704,6 +6709,13 @@ func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
+}
+
+func (s *DataStore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
+	s.mu.Lock()
+	s.BatchCancelAllHostUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchCancelAllHostUpcomingActivitiesFunc(ctx, hostID)
 }
 
 func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {

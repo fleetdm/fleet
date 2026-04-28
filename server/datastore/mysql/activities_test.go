@@ -38,6 +38,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"BatchCancelAllHostUpcomingActivities", testBatchCancelAllHostUpcomingActivities},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
@@ -1657,6 +1658,103 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+}
+
+func testBatchCancelAllHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostIOS := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		execIDs := []string{}
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	// edge case: host with no upcoming activities returns empty slice with no error
+	canceled, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostLeftUntouched.ID)
+	require.NoError(t, err)
+	require.Empty(t, canceled)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the test
+	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
+
+	// enqueue mixed activities on the main host: the first becomes activated,
+	// the rest stay queued.
+	exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	exec4, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	expectedExecIDs := []string{exec1, exec2, exec3, exec4}
+
+	got, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, len(expectedExecIDs))
+	require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+
+	// exec1 should already be activated (single activity at enqueue time)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host.ID, exec1)
+	require.NoError(t, err)
+	require.NotNil(t, meta.ActivatedAt)
+
+	// cancel everything in one shot
+	canceled, err = ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, canceled, len(expectedExecIDs))
+
+	// queue should now be empty
+	got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec1 was activated, so its host_script_results row must be marked canceled
+	var scriptCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scriptCanceled,
+			`SELECT canceled FROM host_script_results WHERE execution_id = ?`, exec1)
+	})
+	require.True(t, scriptCanceled)
+
+	// hostLeftUntouched still has its single activity untouched
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+
+	// repeat on an iOS host with an in-house app install (activated) followed by
+	// a vpp install, to cover the in_house and vpp activated-cancel branches.
+	exec5 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+	exec6, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{exec5, exec6}, pluckExecIDs(got))
+
+	canceledIOS, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostIOS.ID)
+	require.NoError(t, err)
+	require.Len(t, canceledIOS, 2)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec5 was activated; its host_in_house_software_installs row must be canceled
+	var inHouseCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &inHouseCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, exec5)
+	})
+	require.True(t, inHouseCanceled)
 }
 
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {

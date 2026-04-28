@@ -2778,7 +2778,7 @@ func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
 		require.Len(t, adamIDs, 1)
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID, true)
 		require.NoError(t, err)
 
 		// Should get adam_vpp_1 as pending installation.
@@ -2973,7 +2973,7 @@ func testMapAdamIDsRecentInstalls(t *testing.T, ds *Datastore) {
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
 		// Cancel the installation.
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID, true)
 		require.NoError(t, err)
 
 		// Should not get the install request (more than 1 second has passed since the install request).
