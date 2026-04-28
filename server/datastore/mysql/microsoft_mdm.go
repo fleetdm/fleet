@@ -2236,7 +2236,7 @@ func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, t
 
 func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
+	tx sqlx.QueryerContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
@@ -2313,13 +2313,7 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context
 	if len(hostUUIDs) == 0 {
 		return nil, nil
 	}
-	var result []*fleet.MDMWindowsProfilePayload
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, nil)
-		return err
-	})
-	return result, err
+	return ds.listMDMWindowsProfilesToInstallDB(ctx, ds.reader(ctx), hostUUIDs, nil)
 }
 
 // ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
@@ -2330,13 +2324,7 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context,
 	if len(hostUUIDs) == 0 {
 		return nil, nil
 	}
-	var result []*fleet.MDMWindowsProfilePayload
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, nil)
-		return err
-	})
-	return result, err
+	return ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.reader(ctx), hostUUIDs, nil)
 }
 
 // ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
@@ -2346,10 +2334,6 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context,
 // the beginning. The cron uses this to slice its per-tick work into a
 // bounded host window; see ReconcileWindowsProfiles.
 func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-	if batchSize <= 0 {
-		return nil, nil
-	}
-
 	// Push the cursor predicate (host_uuid > ?) into each branch of the
 	// UNION so the optimizer applies it before deduplication. The install
 	// query has 4 host-filter slots, one per UNION branch in the
@@ -2372,18 +2356,15 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 		LIMIT %d
 	`, toInstall, toRemove, batchSize)
 
+	// Placeholder order in stmt:
+	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
+	//   remove branches:  1 cursor (hmwp.host_uuid > ?)
 	var hostUUIDs []string
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// Placeholder order in stmt:
-		//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
-		//   remove branches:  1 cursor (hmwp.host_uuid > ?)
-		return sqlx.SelectContext(ctx, tx, &hostUUIDs, stmt,
-			afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
-			fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
-			afterHostUUID,
-		)
-	})
-	if err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
+		afterHostUUID,
+	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
 	}
 	return hostUUIDs, nil
@@ -2469,7 +2450,7 @@ func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx
 
 func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
+	tx sqlx.QueryerContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
