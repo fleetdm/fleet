@@ -4038,8 +4038,13 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	// order_key not in the allowlist is rejected by the secure list-options
 	// helper (defense against SQL injection via crafted ORDER BY). The
 	// helper's InvalidOrderKeyError implements the validation-error
-	// interface, so the response is a 422.
+	// interface, so the response is a 422. Both the unscoped path and
+	// the host-scoped path enforce the same allowlist.
 	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?order_key=team_id", nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "team_id")
+
+	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&order_key=team_id", h.UUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "team_id")
 }

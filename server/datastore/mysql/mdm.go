@@ -128,6 +128,26 @@ WHERE NOT EXISTS (
 	return appleStmt, windowsStmt, nil
 }
 
+// mdmCommandsOrderAllowlist is the closed set of order_key values accepted
+// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands. Both
+// the unscoped path (ListMDMCommands path B) and the host-scoped path
+// (listMDMCommandsByHostIdentifier, path A) use it to feed
+// appendListOptionsWithCursorToSQLSecure, which prevents arbitrary
+// columns from reaching ORDER BY.
+//
+// hostname is intentionally NOT in the allowlist: path A does not
+// project it in SQL (it is merged from byUUID after the SELECT runs),
+// so allowing it here would error on path A. Sorting by hostname is
+// also low-value — a single host_identifier yields one hostname, and
+// the unscoped path would otherwise need a separate allowlist.
+var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
+	"host_uuid":    "host_uuid",
+	"command_uuid": "command_uuid",
+	"status":       "status",
+	"updated_at":   "updated_at",
+	"request_type": "request_type",
+}
+
 // getCombinedMDMCommandsQuery returns the legacy combined statement
 // (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
 // single-command lookups; the list-commands path builds its own form
@@ -164,19 +184,6 @@ func (ds *Datastore) ListMDMCommands(
 
 	appleStmt, windowsStmt, baseParams := getMDMCommandsSubqueries(ds)
 
-	// Allowlist of order keys mapped to columns available at both the inner
-	// branch alias (`branch`) and the outer wrapper alias
-	// (`combined_commands`); both subqueries project these columns
-	// identically, so a single allowlist works at both levels.
-	orderAllowlist := common_mysql.OrderKeyAllowlist{
-		"host_uuid":    "host_uuid",
-		"command_uuid": "command_uuid",
-		"status":       "status",
-		"updated_at":   "updated_at",
-		"request_type": "request_type",
-		"hostname":     "hostname",
-	}
-
 	// Per-branch pagination: each branch carries the team filter, the
 	// request_type filter, the cursor predicate (if any), the ORDER BY,
 	// and an inner LIMIT large enough to cover the requested page if all
@@ -195,7 +202,7 @@ func (ds *Datastore) ListMDMCommands(
 		wrapped := fmt.Sprintf("SELECT * FROM (%s) AS branch WHERE ", branch)
 		wrapped += ds.whereFilterHostsByTeams(tmFilter, "branch")
 		wrapped, params = addRequestTypeFilter(wrapped, &listOpts.Filters, params)
-		return appendListOptionsWithCursorToSQLSecure(wrapped, params, &innerOpts, orderAllowlist)
+		return appendListOptionsWithCursorToSQLSecure(wrapped, params, &innerOpts, mdmCommandsOrderAllowlist)
 	}
 
 	// Each branch needs its own params slice; sqlx.SelectContext binds
@@ -227,7 +234,7 @@ func (ds *Datastore) ListMDMCommands(
 		outerOpts.After = ""
 		outerOpts.Page = 0
 	}
-	mergedStmt, mergedParams, err = appendListOptionsWithCursorToSQLSecure(mergedStmt, mergedParams, &outerOpts, orderAllowlist)
+	mergedStmt, mergedParams, err = appendListOptionsWithCursorToSQLSecure(mergedStmt, mergedParams, &outerOpts, mdmCommandsOrderAllowlist)
 	if err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "merge mdm commands pagination")
 	}
@@ -485,7 +492,13 @@ WHERE
 	if listOpts.PerPage == 0 {
 		listOpts.PerPage = 10
 	}
-	listStmt, params = appendListOptionsWithCursorToSQL(listStmt, params, &listOpts.ListOptions)
+	// Validate order_key against the closed allowlist before it reaches
+	// ORDER BY (defense against SQL injection / information disclosure
+	// via arbitrary column references). Path B uses the same allowlist.
+	listStmt, params, err = appendListOptionsWithCursorToSQLSecure(listStmt, params, &listOpts.ListOptions, mdmCommandsOrderAllowlist)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands pagination")
+	}
 
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
