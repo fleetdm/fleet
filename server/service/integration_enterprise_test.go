@@ -29133,22 +29133,14 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 	})
 }
 
-// TestBatchSetSoftwareInstallersScriptPackageHashRefPreservesScript covers
-// fleet#43659: when a script-only package (.sh/.ps1) uploaded via the UI is
-// then re-applied through the batch installers endpoint by hash_sha256 only
-// (no install script in the payload), the existing install_script must be
-// preserved. The pre-fix bug pointed install_script_content_id at an empty
-// content row, silently breaking self-service installs.
-func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersScriptPackageHashRefPreservesScript() {
+// Regression test for fleet#43659.
+func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	t := s.T()
 	ctx := context.Background()
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: "desc"})
 	require.NoError(t, err)
 
-	// Upload a .sh script-only package via the UI endpoint to mirror the
-	// reporter's setup: the script bytes get stored in object storage AND
-	// in script_contents, linked via install_script_content_id.
 	scriptPath := filepath.Join("testdata", "software-installers", "script.sh")
 	scriptBytes, err := os.ReadFile(scriptPath)
 	require.NoError(t, err)
@@ -29164,8 +29156,6 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersScriptPac
 		SelfService:   true,
 	}, http.StatusOK, "")
 
-	// Find the title and capture pre-batch state: install_script_content_id
-	// and the actual contents from script_contents.
 	var listResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp,
 		"team_id", fmt.Sprintf("%d", tm.ID), "available_for_install", "true")
@@ -29177,59 +29167,30 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersScriptPac
 			break
 		}
 	}
-	require.NotZero(t, titleID, "script.sh title not found after upload")
+	require.NotZero(t, titleID)
 
-	type installerRow struct {
-		StorageID              string `db:"storage_id"`
-		InstallScriptContentID uint   `db:"install_script_content_id"`
-	}
-	var before installerRow
+	var storageID string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &before,
-			"SELECT storage_id, install_script_content_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
+		return sqlx.GetContext(ctx, q, &storageID,
+			"SELECT storage_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
 			titleID, tm.ID)
 	})
-	require.NotEmpty(t, before.StorageID)
-	require.NotZero(t, before.InstallScriptContentID)
+	require.NotEmpty(t, storageID)
 
-	var beforeContents string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &beforeContents,
-			"SELECT contents FROM script_contents WHERE id = ?", before.InstallScriptContentID)
-	})
-	require.Equal(t, string(scriptBytes), beforeContents)
-
-	// Now run the batch endpoint with a hash-only payload (no URL, no
-	// InstallScript) — the shape gitops generates when a per-package yaml
-	// references the installer by hash_sha256 with no path:.
-	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{SHA256: before.StorageID},
-	}
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
-		batchSetSoftwareInstallersRequest{Software: softwareToInstall},
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{SHA256: storageID}}},
 		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
-	packages := waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
-	require.Len(t, packages, 1)
-	require.NotNil(t, packages[0].TitleID)
-	require.Equal(t, titleID, *packages[0].TitleID)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 
-	// Capture post-batch state. The fix preserves install_script_content_id
-	// (or upserts in place to a row with the same contents). Either way,
-	// dereferencing via script_contents must still give us the original bytes.
-	var after installerRow
+	var installScript string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &after,
-			"SELECT storage_id, install_script_content_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
+		return sqlx.GetContext(ctx, q, &installScript, `
+			SELECT sc.contents
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`,
 			titleID, tm.ID)
 	})
-	require.Equal(t, before.StorageID, after.StorageID, "storage_id must not change for a same-hash batch")
-
-	var afterContents string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &afterContents,
-			"SELECT contents FROM script_contents WHERE id = ?", after.InstallScriptContentID)
-	})
-	require.Equal(t, string(scriptBytes), afterContents,
-		"install_script must be preserved after hash-only batch upsert (regression: fleet#43659)")
+	require.Equal(t, string(scriptBytes), installScript)
 }

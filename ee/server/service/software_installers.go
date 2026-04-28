@@ -2998,15 +2998,10 @@ func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
 
-	// For script-only packages, the install_script row IS the package data.
-	// Gitops payloads that reference an installer by hash_sha256 (no path:)
-	// carry no script bytes, so without this hydration the upsert in
-	// BatchSetSoftwareInstallers would point install_script_content_id at
-	// an empty content row and silently break self-service installs.
 	if fleet.IsScriptPackage(existing.Extension) {
 		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fetch install script for hash-matched script-only package")
+			return ctxerr.Wrap(ctx, err, "fetch install script for hash-matched script package")
 		}
 		payload.InstallScript = string(contents)
 	}
