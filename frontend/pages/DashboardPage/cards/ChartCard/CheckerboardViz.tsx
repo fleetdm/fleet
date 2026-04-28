@@ -28,6 +28,7 @@ interface ICellData {
   hourRow: number;
   percentage: number;
   dayLabel: string;
+  tooltipDayLabel: string;
   hourLabel: string;
 }
 
@@ -91,6 +92,7 @@ const CheckerboardViz = ({
           hourRow: i,
           percentage: point.percentage,
           dayLabel: format(date, "MMM d"),
+          tooltipDayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
         };
       });
@@ -148,6 +150,7 @@ const CheckerboardViz = ({
           hourRow: row,
           percentage: point?.percentage ?? 0,
           dayLabel: format(date, "MMM d"),
+          tooltipDayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
       }
@@ -246,7 +249,7 @@ const CheckerboardViz = ({
                   rx={3}
                   ry={3}
                   className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
-                    cell.percentage
+                    cell.percentage,
                   )}`}
                   role="img"
                   aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
@@ -285,7 +288,7 @@ const CheckerboardViz = ({
           style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="chart-card__tooltip-label">
-            {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
+            {hoveredCell.tooltipDayLabel}, {hoveredCell.hourLabel}
           </div>
           <div className="chart-card__tooltip-value">
             {hoveredCell.percentage}% of hosts
