@@ -1,7 +1,7 @@
 import React from "react";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import CustomLink from "components/CustomLink";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
@@ -73,8 +73,7 @@ const SelfServiceTable = ({
         onClientSidePaginationChange={onClientSidePaginationChange}
         emptyComponent={() =>
           isEmptySearch ? (
-            <EmptyTable
-              graphicName="empty-search-question"
+            <EmptyState
               header="No items match your search"
               info={
                 <>

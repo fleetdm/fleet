@@ -31,11 +31,6 @@
     @include help-text;
   }
 
-  &__empty {
-    @include tab-empty-state;
-    gap: $pad-small;
-  }
-
   .paginated-list .loading-overlay {
     position: initial;
     top: initial;

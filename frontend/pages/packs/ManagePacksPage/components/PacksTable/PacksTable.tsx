@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 
 import { IPack } from "interfaces/pack";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
@@ -59,8 +59,7 @@ const PacksTable = ({
 
   // TODO: useCallback search string
   const emptyState = () => {
-    const emptyPacks: IEmptyTableProps = {
-      graphicName: "empty-packs",
+    const emptyPacks: IEmptyStateProps = {
       header: "You don't have any packs",
       info:
         "Query packs allow you to schedule recurring queries for your hosts.",
@@ -130,14 +129,14 @@ const PacksTable = ({
         }}
         renderCount={renderPackCount}
         secondarySelectActions={secondarySelectActions}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            primaryButton: emptyState().primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            graphicName={emptyState().graphicName}
+            header={emptyState().header}
+            info={emptyState().info}
+            primaryButton={emptyState().primaryButton}
+          />
+        )}
       />
     </div>
   );
