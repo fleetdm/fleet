@@ -1,7 +1,8 @@
 #!/bin/bash
 
-sed -i "s/placeholder/${ENROLL_SECRET}/g" /etc/default/orbit
+sed -i "s|placeholder|${ENROLL_SECRET}|g" /etc/default/orbit
 export $(cat /etc/default/orbit | xargs)
+set -a; . /etc/default/orbit; set +a
 
 while true; do
 	echo "Starting orbit..."
