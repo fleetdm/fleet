@@ -1001,22 +1001,6 @@ func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, comm
 // GET /mdm/commands
 ////////////////////////////////////////////////////////////////////////////////
 
-// Pagination bounds for GET /mdm/commands. Both paths (host-identifier
-// scoped and unscoped) get the same client-facing limits; the cap rejects
-// unbounded scans, the default keeps a no-per_page request small.
-//
-// maxMDMCommandsPage caps the offset (page * per_page) reachable via
-// page-based pagination. Without this, a request like
-// `?page=500000&per_page=1000` would force each UNION branch to compute a
-// LIMIT of ~500M rows and reintroduce the same timeout vector this fix
-// is removing. Clients needing deeper traversal should use cursor
-// pagination (`after`).
-const (
-	defaultMDMCommandsPerPage uint = 10
-	maxMDMCommandsPerPage     uint = 1000
-	maxMDMCommandsPage        uint = 100
-)
-
 type listMDMCommandsRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	HostIdentifier string            `query:"host_identifier,optional"`
@@ -1063,15 +1047,15 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 		}
 	}
 
-	if req.ListOptions.PerPage > maxMDMCommandsPerPage {
+	if req.ListOptions.PerPage > fleet.MaxMDMCommandsPerPage {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", maxMDMCommandsPerPage),
+			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", fleet.MaxMDMCommandsPerPage),
 		}
 	}
 
-	if req.ListOptions.Page > maxMDMCommandsPage {
+	if req.ListOptions.Page > fleet.MaxMDMCommandsPage {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Request could not be processed. Please set page to %d or less, or use cursor pagination via the after parameter for deep traversal.", maxMDMCommandsPage),
+			Message: fmt.Sprintf("Request could not be processed. Please set page to %d or less, or use cursor pagination via the after parameter for deep traversal.", fleet.MaxMDMCommandsPage),
 		}
 	}
 
@@ -1090,7 +1074,7 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	if req.ListOptions.PerPage == 0 {
-		req.ListOptions.PerPage = defaultMDMCommandsPerPage
+		req.ListOptions.PerPage = fleet.DefaultMDMCommandsPerPage
 	}
 	req.ListOptions.IncludeMetadata = true
 
