@@ -1,4 +1,4 @@
-# Variables in scripts and configuration profiles
+# Custom variables in scripts and configuration profiles
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
@@ -32,7 +32,7 @@ Variables are global, meaning they can be used in scripts and profiles across al
     env:
       ###  Variables used by the GitOps workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
-      FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+      FLEET_SECRET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
       WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
 ```
 
@@ -102,9 +102,9 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-<meta name="articleTitle" value="Variables in scripts and configuration profiles">
+<meta name="articleTitle" value="Custom variables in scripts and configuration profiles">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-01-02">
-<meta name="description" value="A guide on using variables in scripts and configuration profiles.">
+<meta name="description" value="A guide on using custom variables in scripts and configuration profiles.">
