@@ -18,34 +18,34 @@
 - Made fleet name uniqueness rules consistent across the UI, API, and GitOps paths. Fleet names must now differ by more than letter case, and conflicts return a 409 error on all code paths.
 - Fixed padding between GitOps exceptions checkboxes
 - Fixed a race condition where a host could silently revert to its previous team after an admin team transfer.
-- The team's `script_execution_timeout` in agent options now defaults to the global agent options value when unset.
+- Changed the team's `script_execution_timeout` in agent options to default to the global agent options value when unset.
 - Added POST /users/api_only endpoint for creating API-only users.
 - Added PATCH /users/api_only/{id} for updating existing API-only users.
 - Updated GET /users/{id} response to include the new `api_endpoints` field for API-only users.
 - Updated `fleetctl user create --api-only` removing email/password field requirements.
 * Updated go to 1.26.2
 * Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
-- Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) are now withheld until the referenced certificate is installed or terminally failed on the device.
-- The host OS settings detail column now shows the reason when an Android profile is pending due to a certificate dependency.
-- `fleetctl gitops` now processes Android certificates before Android profiles
+- Withheld Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) until the referenced certificate is installed or terminally failed on the device.
+- Updated the host OS settings detail column to show the reason when an Android profile is pending due to a certificate dependency.
+- Updated `fleetctl gitops` to process Android certificates before Android profiles.
 - Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
 - Fleet UI: Added new policy details page with read-only view of policy information
 - Fleet UI: Updated edit policy page to redirect users with read-only access to policy details page.
 - Fleet UI: Added dedicated `/policies/:id/live` route for running policies
 - Added new middleware (APIOnlyEndpointCheck) that enforces 403 for API-only users whose request either isn't in the API endpoint catalog or falls outside their configured per-user endpoint restrictions.
 * Fixed an issue where we would send an AccountConfiguration command to iOS and iPadOS devices when end user authentication was enabled; AccountConfiguration is macOS-only.
-* Fleet UI: Improve host policy empty state
+- Fleet UI: Improved host policy empty state.
 * Moved some core UI form components from TypeScript for better predictability/reliability
 - Updated macOS 15 CIS benchmark to include v2.0.0 changes
-* No longer turn on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
+- Stopped turning on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
 - Updated to default max request body size for eula pdf upload size check
 - Fleet UI: Fixed styling bugs in GitOps mode UI
 - Updated error message returned when an invalid domain is supplied for MDM Apple CSR signing
 * Added a new premium GET /api/_version_/fleet/rest_api endpoint that returns the contents of the embedded `api_endpoints.yml` artifact.
 - Updated the macOS 14 (Sonoma) CIS policy set to benchmark v3.0.0
 - Fixed an issue where sending a different cased display name for a DDM profile via the batch endpoint, would result in recreating the DDM profile triggering a resend.
-- Automatically escape JSON special characters in GitOps variables used in `.json` configuration profiles (Apple DDM declarations and Android profiles).
-* Generate an activity when a Windows MDM wipe command failed.
+- Added automatic escaping of JSON special characters in GitOps variables used in `.json` configuration profiles (Apple DDM declarations and Android profiles).
+- Generated an activity when a Windows MDM wipe command failed.
 * Fixed a bug where pending MDM profile rows persisted in the database after Apple or Windows MDM was turned off, causing stale profiles to reappear when MDM was re-enabled. Also fixed cleanup of pending Windows profile rows when a device unenrolls from MDM.
 * Fixed an issue where duplicate Disk Encryption activity types showed up.
 - Added support for Fleet variables in Apple's declaration profiles (DDM).
@@ -62,7 +62,7 @@
 - Enrolment page enroll button updated to render full screen width for larger resolution mobile devices
 - Fleet UI: Improved button and link styling
 * Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If this site is inaccessible, Fleet will fall back to the previous GitHub-hosted copies of manifest files.
-* Use Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
+- Switched to Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
 * Added user_api_endpoints table to track per-user API endpoint permissions.                         
 * Added startup validation that panics if any route declared in service/api_endpoints.yml is not registered in the router.
 * Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.
