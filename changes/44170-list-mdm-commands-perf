@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/commands` (and `GET /api/v1/fleet/mdm/commands`) timing out at scale by capping `per_page` at 1,000, defaulting to 10 when omitted, pushing pagination into each side of the underlying UNION ALL, and replacing the Windows-side OR-join on `mdm_windows_enrollments` with a UNION ALL of two indexable branches.
