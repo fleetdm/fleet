@@ -591,7 +591,7 @@ func testUpdateHostCertificatesOriginScopedDelete(t *testing.T, ds *Datastore) {
 		template := x509.Certificate{
 			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
 			Issuer:                pkix.Name{CommonName: "issuer", Organization: []string{"Issuer"}},
-			SerialNumber:          big.NewInt(mathrand.Int64()),
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
 			KeyUsage:              x509.KeyUsageDigitalSignature,
 			SignatureAlgorithm:    x509.SHA256WithRSA,
 			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
