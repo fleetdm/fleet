@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.51.0.245",
+      "version": "1.49.2.233",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.GeminiMacOS';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.GeminiMacOS' AND version_compare(bundle_short_version, '1.51.0.245') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.GeminiMacOS' AND version_compare(bundle_short_version, '1.49.2.233') < 0);"
       },
       "installer_url": "https://dl.google.com/release2/j33ro/release/Gemini.dmg",
       "install_script_ref": "6e7ec188",
