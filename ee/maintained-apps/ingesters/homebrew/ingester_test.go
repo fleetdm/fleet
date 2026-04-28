@@ -214,4 +214,49 @@ func TestIngestCaskPath(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "reading local cask JSON file")
 	require.Equal(t, 0, httpHits)
+
+	// Token mismatch between input and cask file is rejected so a misconfigured
+	// cask_path can't silently ingest the wrong app.
+	mismatchPath := path.Join(tempDir, "mismatch.json")
+	mismatchJSON, err := json.Marshal(brewCask{
+		Token:   "some-other-cask",
+		Name:    []string{"Some Other Cask"},
+		URL:     "https://example.com/other/installer.pkg",
+		Version: "1.0.0",
+		SHA256:  "cafebabe",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(mismatchPath, mismatchJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         mismatchPath,
+	})
+	require.ErrorContains(t, err, "does not match input token")
+	require.Equal(t, 0, httpHits)
+
+	// Cask file with an empty name is rejected.
+	emptyNamePath := path.Join(tempDir, "empty-name.json")
+	emptyNameJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(emptyNamePath, emptyNameJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         emptyNamePath,
+	})
+	require.ErrorContains(t, err, "empty name")
+	require.Equal(t, 0, httpHits)
 }

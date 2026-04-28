@@ -210,6 +210,14 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 		if err := json.Unmarshal(body, &cask); err != nil {
 			return cask, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
 		}
+		// Cross-check the cask file matches the configured input. This catches
+		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
+		if cask.Token != input.Token {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
+		}
+		if len(cask.Name) == 0 {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
+		}
 		return cask, nil
 	}
 
