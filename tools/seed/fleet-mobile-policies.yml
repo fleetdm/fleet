@@ -8,44 +8,44 @@
 apiVersion: v1
 kind: policy
 spec:
-  name: Suspicious autostart (Windows)
-  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
-  description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
-  resolution: "Remove the suspicious startup entry."
-  platform: windows
+  name: Personal devices - No plaintext passwords in common dotfiles
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/.bashrc' OR path LIKE '/Users/%/.zshrc' OR path LIKE '/Users/%/.bash_profile' OR path LIKE '/Users/%/.profile' OR path LIKE '/home/%/.bashrc' OR path LIKE '/home/%/.zshrc') AND size > 0);
+  description: "Checks that common shell dotfiles exist. This is a lightweight proxy to encourage auditing dotfiles on personal devices — manual review of contents is still recommended."
+  resolution: "Review your shell configuration files for any hardcoded passwords or secrets."
+  platform: darwin,linux
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: SMBv1 client driver disabled (Windows)
-  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Client' AND state != 1;
-  description: "Checks that the SMBv1 client is disabled."
-  resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
-  platform: windows
----
-apiVersion: v1
-kind: policy
-spec:
-  name: Secure keyboard entry for Terminal application enabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to enable secure keyboard entry for the Terminal application."
-  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
+  name: Personal devices - Screen saver password enabled
+  query: SELECT 1 FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.screensaver.plist' AND key = 'askForPassword' AND value = '1' LIMIT 1;
+  description: "Checks that at least one user has screen saver password protection enabled on personal macOS devices."
+  resolution: "Go to System Settings > Lock Screen and enable 'Require password after screen saver begins.'"
   platform: darwin
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: Ad tracking is limited (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to limit advertisement tracking."
-  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
+  name: Personal devices - Find My Mac enabled
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.icloud.managed' AND name = 'DisableFMMiCloudSetting' AND value = '0' LIMIT 1;
+  description: "Checks that Find My Mac is not disabled by MDM policy on personal devices."
+  resolution: "Go to System Settings > Apple ID > iCloud and enable Find My Mac."
   platform: darwin
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: Link-Local Multicast Name Resolution (LLMNR) disabled (Windows)
-  query: SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND CAST(data as integer) = 0;
-  description: "Checks if a Group Policy configures the computer to disable LLMNR. Disabling LLMNR can prevent malicious actors from gaining access to the computer's credentials."
-  resolution: "Contact your IT administrator to ensure your computer is receiving a Group Policy that disables LLMNR on your system."
-  platform: windows
+  name: Personal devices - Automatic OS updates enabled
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.SoftwareUpdate.plist' AND key = 'AutomaticallyInstallMacOSUpdates' AND value = '1';
+  description: "Checks that automatic macOS updates are enabled on personal devices via the local preference (not MDM-managed)."
+  resolution: "Go to System Settings > General > Software Update > Automatic Updates and enable 'Install macOS updates.'"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - No world-writable files in home directory
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/Desktop/%%' OR path LIKE '/Users/%/Documents/%%' OR path LIKE '/Users/%/Downloads/%%') AND mode LIKE '%7' AND type = 'regular' LIMIT 1);
+  description: "Checks that there are no world-writable files in common user directories on personal devices."
+  resolution: "Fix file permissions with: chmod o-w <file>"
+  platform: darwin

@@ -100,12 +100,12 @@ Reports extracted from `docs/queries.yml`. Covers inventory, detection, and info
 
 Applied automatically by `seed-users-and-fleets.sh` using `--policies-fleet`:
 
-- **`fleet-workstations-policies.yml`** — 5 managed corporate macOS policies (MDM enrolled, automatic login disabled, guest account disabled, iCloud sync disabled, password length)
-- **`fleet-mobile-policies.yml`** — 5 personal laptop/BYOD policies (suspicious autostart, SMBv1 disabled, secure keyboard entry, ad tracking limited, LLMNR disabled)
+- **`fleet-workstations-policies.yml`** — 5 managed corporate macOS policies (SSH disabled, AirDrop disabled, Bluetooth sharing disabled, login window config, Time Machine encrypted)
+- **`fleet-mobile-policies.yml`** — 5 personal laptop/BYOD policies (no plaintext passwords in dotfiles, screen saver password, Find My Mac, automatic OS updates, no world-writable files)
 
 ### Fleet-scoped reports
 
 Applied automatically by `seed-users-and-fleets.sh`:
 
-- **`fleet-workstations-reports.yml`** — 4 corporate macOS reports (Safari extensions, Crowdstrike Falcon status, Apple dev secrets, local admin accounts)
-- **`fleet-mobile-reports.yml`** — 4 personal laptop/BYOD reports (running Docker containers, apps outside /Applications, TLS certificates, fileless processes)
+- **`fleet-workstations-reports.yml`** — 4 corporate macOS reports (FileVault status, MDM enrollment details, Gatekeeper config, managed profiles)
+- **`fleet-mobile-reports.yml`** — 4 personal laptop/BYOD reports (Homebrew packages, disk space usage, SSH agent keys, browser extensions by user)

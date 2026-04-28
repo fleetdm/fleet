@@ -9,47 +9,43 @@
 apiVersion: v1
 kind: report
 spec:
-  name: Get running docker containers
-  platform: darwin, linux
-  fleet: FLEET_NAME
-  description: Returns the running Docker containers
-  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
-  purpose: Informational
-  tags: containers, inventory
-  contributors: DominusKelvin
----
-apiVersion: v1
-kind: report
-spec:
-  name: Get applications that are not in the Applications directory
+  name: Personal devices - Homebrew packages
   platform: darwin
   fleet: FLEET_NAME
-  description: Returns applications that are not in the `/Applications` directory
-  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  description: Lists all Homebrew packages installed on personal macOS devices.
+  query: SELECT name, version, description FROM homebrew_packages;
   purpose: Informational
-  tags: hunting, inventory
-  contributors: DominusKelvin
+  tags: inventory, dev tools
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Discover TLS certificates
-  platform: linux, windows, darwin
+  name: Personal devices - Disk space usage
+  platform: darwin, linux, windows
   fleet: FLEET_NAME
-  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
-  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  description: Returns disk usage information for personal devices to identify low storage.
+  query: SELECT path, type, blocks_size, blocks_available, blocks_free, ROUND((blocks_available * 1.0 / blocks_size) * 100, 1) AS percent_free FROM mounts WHERE path = '/' OR path = 'C:\';
   purpose: Informational
-  tags: network, tls
-  contributors: nabilschear
+  tags: inventory, troubleshooting
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Get processes that no longer exist on disk
-  platform: linux, darwin, windows
+  name: Personal devices - SSH agent keys
+  platform: darwin, linux
   fleet: FLEET_NAME
-  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
-  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
-  purpose: Incident response
-  tags: hunting, built-in
-  contributors: alphabrevity
+  description: Lists keys currently loaded in the SSH agent on personal devices.
+  query: SELECT * FROM ssh_configs;
+  purpose: Informational
+  tags: ssh, inventory
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Personal devices - Browser extensions by user
+  platform: darwin, linux, windows
+  fleet: FLEET_NAME
+  description: Lists all Chrome and Firefox extensions across all users on personal devices.
+  query: SELECT u.username, 'Chrome' AS browser, ce.name, ce.version FROM users u JOIN chrome_extensions ce ON u.uid = ce.uid UNION ALL SELECT u.username, 'Firefox' AS browser, fa.name, fa.version FROM users u JOIN firefox_addons fa ON u.uid = fa.uid;
+  purpose: Informational
+  tags: browser, inventory

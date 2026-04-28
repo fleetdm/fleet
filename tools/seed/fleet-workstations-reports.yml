@@ -9,46 +9,43 @@
 apiVersion: v1
 kind: report
 spec:
-  name: Get installed Safari extensions
+  name: Workstations - FileVault status
   platform: darwin
   fleet: FLEET_NAME
-  description: Retrieves the list of installed Safari Extensions for all users in the target system.
-  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  description: Returns the FileVault encryption status for each macOS workstation.
+  query: SELECT * FROM disk_encryption;
   purpose: Informational
-  tags: browser, built-in, inventory
-  contributors: zwass
+  tags: compliance, encryption
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Get Crowdstrike Falcon network content filter status
+  name: Workstations - MDM enrollment details
   platform: darwin
   fleet: FLEET_NAME
-  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
-  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  description: Returns MDM enrollment status and server URL for managed macOS workstations.
+  query: SELECT enrolled, server_url, install_date FROM mdm;
   purpose: Informational
-  tags: crowdstrike, plist, network, content filter
-  contributors: zwass
+  tags: mdm, compliance
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Identify Apple development secrets (macOS)
-  fleet: FLEET_NAME
-  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
-  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
-  tags: compliance, inventory, built-in
+  name: Workstations - Gatekeeper configuration
   platform: darwin
-  contributors: GuillaumeRoss
+  fleet: FLEET_NAME
+  description: Returns the current Gatekeeper configuration on macOS workstations.
+  query: SELECT * FROM gatekeeper;
+  purpose: Informational
+  tags: security, compliance
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Get local administrator accounts on macOS
+  name: Workstations - Managed configuration profiles
   platform: darwin
   fleet: FLEET_NAME
-  description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  description: Lists all managed configuration profiles installed via MDM on macOS workstations.
+  query: SELECT * FROM managed_policies;
   purpose: Informational
-  tags: hunting, inventory
-  contributors: alphabrevity
+  tags: mdm, configuration
