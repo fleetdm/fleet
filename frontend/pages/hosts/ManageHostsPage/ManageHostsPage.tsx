@@ -65,7 +65,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -97,7 +97,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import {
   defaultHiddenColumns,
   generateVisibleTableColumns,
@@ -1732,14 +1732,12 @@ const ManageHostsPage = ({
     }
     if (maybeEmptyHosts) {
       const emptyState = () => {
-        const emptyHosts: IEmptyTableProps = {
-          graphicName: "empty-hosts",
+        const emptyHosts: IEmptyStateProps = {
           header: "Hosts will show up here once they’re added to Fleet",
           info:
             "Expecting to see hosts? Try again soon as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again soon as the system catches up.";
@@ -1758,8 +1756,7 @@ const ManageHostsPage = ({
 
       return (
         <>
-          {EmptyTable({
-            graphicName: emptyState().graphicName,
+          {EmptyState({
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
@@ -1828,7 +1825,7 @@ const ManageHostsPage = ({
     });
 
     const emptyState = () => {
-      const emptyHosts: IEmptyTableProps = {
+      const emptyHosts: IEmptyStateProps = {
         header: "No hosts match the current criteria",
         info:
           "Expecting to see new hosts? Try again soon as the system catches up.",
@@ -1901,12 +1898,9 @@ const ManageHostsPage = ({
         searchable
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
-        emptyComponent={() =>
-          EmptyTable({
-            header: emptyState().header,
-            info: emptyState().info,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState header={emptyState().header} info={emptyState().info} />
+        )}
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}

@@ -1,4 +1,4 @@
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import React, { useMemo } from "react";
@@ -16,7 +16,7 @@ const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
 const EmptyOS = (platform: PlatformValueOptions): JSX.Element => (
-  <EmptyTable
+  <EmptyState
     className={`${baseClass}__os-empty-table`}
     header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""

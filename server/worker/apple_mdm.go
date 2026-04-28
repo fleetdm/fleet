@@ -238,12 +238,12 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 				return err
 			}
-			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount != nil && *appCfg.MDM.MacOSSetup.EnableManagedLocalAccount
+			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
-			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount != nil && *team.Config.MDM.MacOSSetup.EnableManagedLocalAccount
+			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		}
 	}
 
@@ -252,7 +252,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		fleetAdminFullName  = "Fleet Admin"
 	)
 
-	if ssoEnabled || managedAdminAccountEnabled {
+	// Only send AccountConfiguration for macOS devices.
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.9.3",
+      "version": "8.9.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.4') < 0);"
       },
-      "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.3/npp.8.9.3.Installer.x64.exe",
+      "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.4/npp.8.9.4.Installer.x64.exe",
       "install_script_ref": "46c6fee6",
       "uninstall_script_ref": "642b4036",
-      "sha256": "8db87a458551371e911bea5243840c783b5e7d41b7f867a2a6f74971881fb1e4",
+      "sha256": "f3629f500d0754d8e870255fff0e00384a37f5402d6f3ad8dd1f4f67d707b593",
       "default_categories": [
         "Productivity"
       ]

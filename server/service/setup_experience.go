@@ -238,31 +238,22 @@ func (svc *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, ho
 }
 
 func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
-	// Only macOS and Windows support canceling setup if software fails.
-	if host.Platform != "darwin" && host.Platform != "windows" {
-		return false, nil
-	}
-
 	teamID := host.TeamID
+	requireAllSoftware := false
 	if teamID == nil || *teamID == 0 {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		if host.Platform == "windows" {
-			return ac.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
+		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
+	} else {
+		team, err := ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load team")
 		}
-		return ac.MDM.MacOSSetup.RequireAllSoftware, nil
+		requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
 	}
-
-	team, err := ds.TeamLite(ctx, *teamID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "load team")
-	}
-	if host.Platform == "windows" {
-		return team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
-	}
-	return team.Config.MDM.MacOSSetup.RequireAllSoftware, nil
+	return requireAllSoftware, nil
 }
 
 func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
@@ -270,8 +261,8 @@ func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, 
 }
 
 func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datastore, host *fleet.Host, newActivityFn fleet.NewActivityFunc) error {
-	// Only macOS and Windows support canceling setup experience steps.
-	if host.Platform != "darwin" && host.Platform != "windows" {
+	// If the host is not MacOS, we do nothing.
+	if host.Platform != "darwin" {
 		return nil
 	}
 

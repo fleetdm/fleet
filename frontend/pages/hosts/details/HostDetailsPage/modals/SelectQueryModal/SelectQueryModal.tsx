@@ -17,6 +17,7 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 
 import {
   IListQueriesResponse,
@@ -162,13 +163,11 @@ const SelectQueryModal = ({
 
     if (!queriesFilter && queriesCount === 0) {
       return (
-        <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">You have no saved reports.</span>
-          <span className="info__data">
-            Expecting to see reports? Try again in a few seconds as the system
-            catches up.
-          </span>
-        </div>
+        <EmptyState
+          variant="list"
+          header="You have no saved reports"
+          info="Expecting to see reports? Try again in a few seconds as the system catches up."
+        />
       );
     }
 
@@ -220,15 +219,11 @@ const SelectQueryModal = ({
               iconSvg="search"
             />
           </div>
-          <div className={`${baseClass}__no-queries`}>
-            <span className="info__header">
-              No reports match the current search criteria.
-            </span>
-            <span className="info__data">
-              Expecting to see reports? Try again in a few seconds as the system
-              catches up.
-            </span>
-          </div>
+          <EmptyState
+            variant="list"
+            header="No reports match the current search criteria"
+            info="Expecting to see reports? Try again in a few seconds as the system catches up."
+          />
         </>
       );
     }

@@ -842,6 +842,13 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "Gemini",
+      "slug": "google-gemini/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.GeminiMacOS",
+      "description": "Gemini is a native desktop AI assistant from Google."
+    },
+    {
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
@@ -1967,6 +1974,13 @@
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
       "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zen Browser",
+      "slug": "zen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.zen-browser.zen",
+      "description": "Zen Browser is a Gecko based web browser."
     },
     {
       "name": "Zeplin",
