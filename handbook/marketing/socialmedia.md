@@ -69,7 +69,7 @@ Always-on. Only proven creatives. Engagement objective.
 - **Refresh:** quarterly — remove stale, add new proven, align to current messaging.  
 - **Budget split:** unaware.elf.it-major-mdm.strict 60%,  unaware.santa.it-major-mdm.strict, unaware.elf.it-gapfiller 20%.
 
-### Targeting Experiments
+### Targeting experiments
 
 Where everything is tested first.
 
