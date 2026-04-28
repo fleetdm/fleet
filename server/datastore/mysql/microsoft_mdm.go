@@ -195,11 +195,12 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
-		loadHostIDStmt  = "SELECT id FROM hosts WHERE uuid = ? LIMIT 1"
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
 		delSetupExpStmt = "DELETE FROM setup_experience_status_results WHERE host_uuid = ?"
-		delUpcomingStmt = "DELETE FROM upcoming_activities WHERE host_id = ?"
+		// Use a JOIN on hosts so the cleanup runs in a single statement and
+		// can never be silently skipped on a host lookup failure.
+		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -223,11 +224,8 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				}
 				// Clear stale upcoming activities (software installs, scripts)
 				// so they don't block new activities on re-enrollment.
-				var hostID uint
-				if err := sqlx.GetContext(ctx, tx, &hostID, loadHostIDStmt, hostUUID.String); err == nil {
-					if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostID); err != nil {
-						return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
-					}
+				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
 				}
 			}
 

@@ -2102,33 +2102,31 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 
 		// Stage 3: setup experience software/scripts still running.
-		// Orbit calls SetupExperienceInit when it sees RunSetupExperience=true,
-		// which enqueues items into setup_experience_status_results. Wait for
-		// all of them to reach a terminal state (success/failure).
-		hostLite, err := svc.ds.HostLiteByIdentifier(ctx, device.HostUUID)
+		// Orbit initiates setup experience during startup when it is enabled
+		// for the current OS/flags, which enqueues items into
+		// setup_experience_status_results. Wait for all of them to reach a
+		// terminal state (success/failure/cancelled).
+		//
+		// We pass teamID=0 because that parameter is only used for icon and
+		// display-name enrichment in the datastore call, not for filtering
+		// (the query filters only by host_uuid). Skipping a host lookup also
+		// avoids replica-lag issues that could let the gate be bypassed.
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, 0)
 		if err != nil {
-			if !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get host for ESP release check")
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
+		}
+		svc.logger.DebugContext(ctx, "ESP: setup experience check",
+			"host_uuid", device.HostUUID, "results_count", len(results))
+		for _, r := range results {
+			// IsTerminalStatus() returns true for success/failure. Cancelled
+			// is also a completed outcome and must not block ESP release.
+			if r.Status == fleet.SetupExperienceStatusCancelled {
+				continue
 			}
-			svc.logger.DebugContext(ctx, "ESP: host not found for setup experience check, skipping",
-				"host_uuid", device.HostUUID)
-		} else {
-			var teamID uint
-			if hostLite.TeamID != nil {
-				teamID = *hostLite.TeamID
-			}
-			results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, teamID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
-			}
-			svc.logger.DebugContext(ctx, "ESP: setup experience check",
-				"host_uuid", device.HostUUID, "results_count", len(results))
-			for _, r := range results {
-				if !r.Status.IsTerminalStatus() {
-					svc.logger.DebugContext(ctx, "ESP: waiting for setup experience item",
-						"name", r.Name, "status", r.Status)
-					return nil, nil
-				}
+			if !r.Status.IsTerminalStatus() {
+				svc.logger.DebugContext(ctx, "ESP: waiting for setup experience item",
+					"name", r.Name, "status", r.Status)
+				return nil, nil
 			}
 		}
 	}

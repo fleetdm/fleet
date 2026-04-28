@@ -1227,9 +1227,6 @@ func TestGetESPCommands(t *testing.T) {
 	// setReleaseMocks sets up mocks needed for tests that reach the release path
 	// (all profiles delivered + setup experience done).
 	setReleaseMocks := func(ds *mock.Store) {
-		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-			return &fleet.HostLite{ID: 1, UUID: hostUUID}, nil
-		}
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
@@ -1280,9 +1277,6 @@ func TestGetESPCommands(t *testing.T) {
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil // no profiles
 		}
-		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-			return &fleet.HostLite{ID: 1, UUID: hostUUID}, nil
-		}
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return []*fleet.SetupExperienceStatusResult{
 				{Name: "Slack", Status: fleet.SetupExperienceStatusRunning},
@@ -1292,6 +1286,39 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait while setup experience software is running")
+	})
+
+	t.Run("active treats cancelled setup experience items as terminal", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusCancelled},
+				{Name: "Asana", Status: fleet.SetupExperienceStatusSuccess},
+			}, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should release device when all setup items are terminal (cancelled or success)")
 	})
 
 	t.Run("active with no profiles releases device", func(t *testing.T) {
