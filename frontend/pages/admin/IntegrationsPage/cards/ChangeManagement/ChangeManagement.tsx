@@ -13,7 +13,6 @@ import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import validUrl from "components/forms/validators/valid_url";
@@ -76,6 +75,7 @@ const ChangeManagement = () => {
     Error,
     IConfig
   >(["integrations"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
     onSuccess: (data) => {
       const {
         gitops: {
@@ -228,7 +228,7 @@ const ChangeManagement = () => {
               Exceptions
             </TooltipWrapper>
           </div>
-          <div>
+          <div className="form-field">
             <Checkbox
               onChange={onInputChange}
               name="exceptLabels"

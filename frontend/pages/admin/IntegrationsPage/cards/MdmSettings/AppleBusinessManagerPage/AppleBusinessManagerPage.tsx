@@ -185,7 +185,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return (
         <>
           <p>
-            Add your ABM to enable automatic enrollment for company-owned hosts
+            Add your AB to enable automatic enrollment for company-owned hosts
             and enrollment, via a Managed Apple Account, for personal (BYOD)
             hosts.
           </p>
@@ -233,7 +233,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       {showRenewModal && selectedToken.current && (
         <RenewAbmModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

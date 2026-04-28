@@ -63,9 +63,9 @@ interface IHostsFilterBlockProps {
   params: {
     munkiIssueDetails: IMunkiIssuesAggregate | null;
     policyResponse: PolicyResponse;
-    policyId?: any;
+    policyId?: string | number;
     policy?: IPolicy;
-    macSettingsStatus?: any;
+    macSettingsStatus?: MacSettingsStatusQueryParam;
     softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
@@ -666,7 +666,8 @@ const HostsFilterBlock = ({
             <>
               Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
               API rate limit when preparing the macOS Setup Assistant for these
-              hosts. Fleet will try again every hour.
+              hosts. Fleet will try again within 24 hours of each host&apos;s
+              last throttled response.
             </>
           );
         case "NOT_ACCESSIBLE":

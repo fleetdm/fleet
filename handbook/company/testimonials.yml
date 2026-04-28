@@ -8,7 +8,13 @@
 #   youtubeVideoUrl:
 #.  productCategories: [Observability, Software management, Device management]
 #
-# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+- quote: I think it is key that people understand the leverage they have with AI if everything is 'code'. In the AI age, clickops will not prevail!
+  quoteAuthorName: Thomas Lübker
+  quoteAuthorProfileImageFilename: testimonial-author-thomas-luebker-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/tluebker/?skipRedirect=true
+  quoteAuthorJobTitle: Helping Apple devices take off in the enterprise
+  productCategories: [Device management]
 - quote: Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful.
   quoteAuthorName: Chayce O'Neal
   quoteAuthorProfileImageFilename: testimonial-author-chayce-oneal-100x100@2x.png
@@ -225,7 +231,7 @@
   quoteLinkUrl: https://www.linkedin.com/posts/mike-meyer-a5a21910_teamwork-engineering-devicemanagement-activity-7267672056970788866-Yt5Z?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg
   quoteAuthorName: Mike Meyer
   quoteAuthorProfileImageFilename: testimonial-author-mike-meyer-48x48@2x.png
-  quoteAuthorJobTitle: Senior Manager, Corporate Engineering
+  quoteAuthorJobTitle: Senior systems engineer & Technical lead
   productCategories: [Device management]
 - quote: My users love this. It's increasing security and compliance across our workforce.
   quoteImageFilename: social-proof-logo-swiftdialog-145x32@2x.png

@@ -58,6 +58,8 @@ module.exports = {
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
+        'Website - Gated document',
+        'Webinar',
       ],
     },
     getStartedResponses: {
@@ -224,6 +226,7 @@ module.exports = {
         // wr: 'Web referral',
         // soc: 'Organic social',
         // "Digital" sources:
+        cpc: 'Paid search (PS)', //note: either cpc or ps both map to Paid Search
         ps: 'Paid search (PS)',
         so: 'Paid social (SO)',
         pm: 'Paid media (PM)',
@@ -247,7 +250,7 @@ module.exports = {
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
-      if(['ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
+      if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
         attributionDetails.sourceChannel = 'Digital';
@@ -359,6 +362,13 @@ module.exports = {
       if(enrichmentData.person && enrichmentData.person.title){
         contactValuesToSet.Title = enrichmentData.person.title;
       }
+      // If no firstName/lastName was provided but enrichment matched a name, use it for the new contact record.
+      if(enrichmentData.person && enrichmentData.person.firstName && !firstName) {
+        firstName = enrichmentData.person.firstName;
+      }
+      if(enrichmentData.person && enrichmentData.person.lastName && !lastName) {
+        lastName = enrichmentData.person.lastName;
+      }
       let salesforceAccountOwnerId;
       if(!enrichmentData.employer || !enrichmentData.employer.emailDomain || !enrichmentData.employer.organization) {
         // Special sacrificial meat cave where the contacts with no organization go.
@@ -465,6 +475,16 @@ module.exports = {
 
 
 
+      // If we don't have a firstName or lastName (from inputs or enrichment), tell Salesforce to save the
+      // record even if its duplicate rules match — otherwise we'd silently update an unrelated "? ?"
+      // contact instead of creating a new one for this person.
+      let createOptions;
+      if(!firstName && !lastName) {
+        createOptions = {
+          headers: { 'Sforce-Duplicate-Rule-Header': 'allowSave=true' }
+        };
+      }
+
       let duplicateContactWasFound = false;
       let newContactRecord = await sails.helpers.flow.build(async ()=>{
         return await salesforceConnection.sobject('Contact')
@@ -474,7 +494,7 @@ module.exports = {
           FirstName: firstName ? firstName : '?',
           LastName: lastName ? lastName : '?',
           ...contactValuesToSet,
-        });
+        }, createOptions);
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
@@ -536,6 +556,14 @@ module.exports = {
     //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ║╣ ╔╩╦╝║╚═╗ ║ ║║║║║ ╦  ║  ║ ║║║║ ║ ╠═╣║   ║
     //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╚═╩╚═╝ ╩ ╩╝╚╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
     if(existingContactRecord) {
+      // If the existing contact has a placeholder name and we now have
+      // a real firstName/lastName, overwrite the placeholder. Otherwise leave the existing name alone.
+      if(firstName && existingContactRecord.FirstName === '?') {
+        contactValuesToSet.FirstName = firstName;
+      }
+      if(lastName && existingContactRecord.LastName === '?') {
+        contactValuesToSet.LastName = lastName;
+      }
       // If a description was provided and the contact has a description, prepend the new description to it.
       if(description && existingContactRecord.Description) {
         contactValuesToSet.Description += '\n' + existingContactRecord.Description;

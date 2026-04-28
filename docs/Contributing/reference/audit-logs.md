@@ -872,7 +872,7 @@ This activity contains the following fields:
 
 ## enabled_macos_disk_encryption
 
-Generated when a user turns on macOS disk encryption for a team (or no team).
+Generated when a user turns on disk encryption for a team (or no team).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
@@ -889,7 +889,7 @@ This activity contains the following fields:
 
 ## disabled_macos_disk_encryption
 
-Generated when a user turns off macOS disk encryption for a team (or no team).
+Generated when a user turns off disk encryption for a team (or no team).
 
 This activity contains the following fields:
 - "team_id": The ID of the team that disk encryption applies to, `null` if it applies to devices that are not in a team.
@@ -915,6 +915,36 @@ This activity does not contain any detail fields.
 Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
+
+## enabled_gitops_exception
+
+Generated when a user enables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "labels"
+}
+```
+
+## disabled_gitops_exception
+
+Generated when a user disables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "software"
+}
+```
 
 ## added_bootstrap_package
 
@@ -1234,6 +1264,23 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_wipe
+
+Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
 }
 ```
 

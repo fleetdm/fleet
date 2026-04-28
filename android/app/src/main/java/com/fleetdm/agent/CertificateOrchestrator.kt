@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
 import java.math.BigInteger
+import java.net.UnknownHostException
 import java.security.PrivateKey
 import java.security.cert.Certificate
 import java.text.SimpleDateFormat
@@ -16,8 +17,6 @@ import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -822,7 +821,13 @@ class CertificateOrchestrator(
     }
 
     /**
-     * Enrolls multiple certificates in parallel.
+     * Enrolls multiple certificates sequentially. Each enrollment involves multiple HTTP calls
+     * (template fetch, SCEP enrollment, status update), so sequential processing avoids
+     * overwhelming the server and the device's network stack.
+     *
+     * If DNS resolution fails for a certificate (after exhausting in-call retries), we abort the
+     * remaining certs since DNS failures are network-level, not cert-specific. The worker will
+     * return Result.retry() and WorkManager's backoff handles the DNS recovery.
      *
      * @param context Android context for certificate installation
      * @param hostCertificates List of certificate templates to enroll
@@ -832,15 +837,30 @@ class CertificateOrchestrator(
         context: Context,
         hostCertificates: List<HostCertificate>,
         certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
-    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
+    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> {
         Log.d(TAG, "Starting batch certificate enrollment for ${hostCertificates.size} certificates")
 
-        hostCertificates.associate { cert ->
-            cert.id to async {
-                enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
+        val results = mutableMapOf<Int, CertificateEnrollmentHandler.EnrollmentResult>()
+        for (cert in hostCertificates) {
+            val result = enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
+            results[cert.id] = result
+            if (result is CertificateEnrollmentHandler.EnrollmentResult.Failure && result.isDnsFailure()) {
+                Log.w(
+                    TAG,
+                    "DNS resolution failed for certificate ${cert.id}, aborting batch (${hostCertificates.size - results.size} certs deferred to next run)",
+                )
+                break
             }
-        }.mapValues { it.value.await() }
+        }
+        return results
     }
+
+    /**
+     * Returns true if this failure was caused by a DNS resolution problem, either directly or wrapped in
+     * another exception (e.g. SCEP wraps UnknownHostException in ScepNetworkException).
+     */
+    private fun CertificateEnrollmentHandler.EnrollmentResult.Failure.isDnsFailure(): Boolean =
+        generateSequence(exception as Throwable?) { it.cause }.any { it is UnknownHostException }
 
     /**
      * Android-specific certificate installer using DevicePolicyManager.

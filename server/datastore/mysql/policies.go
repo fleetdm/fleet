@@ -1478,6 +1478,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 
 				// generate new up-to-date patch policy
 				if spec.Type == fleet.PolicyTypePatch {
+					if fmaTitleID == nil {
+						return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: fmt.Sprintf("fleet_maintained_app_slug must be set for patch policy: %s", spec.Name),
+						})
+					}
 					installer, err := ds.getPatchPolicyInstaller(ctx, ptr.ValOrZero(teamID), *fmaTitleID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
@@ -1517,31 +1522,22 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				var (
 					shouldRemoveAllPolicyMemberships bool
 					removePolicyStats                bool
+					shouldUpdatePatchPolicyName      bool
 				)
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					// Figure out if the query, platform, software installer, or VPP app changed.
-					var softwareInstallerID *uint
-					if spec.SoftwareTitleID != nil {
-						softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
-					}
+					// Figure out if the query, platform, software installer, VPP app, or script changed.
 					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
 						switch {
 						case prev.Query != spec.Query:
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
-								(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+						case teamID != nil && softwareInstallerID != nil && !ptr.Equal(prev.SoftwareInstallerID, softwareInstallerID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
-								(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
+						case teamID != nil && vppAppsTeamsID != nil && !ptr.Equal(prev.VPPAppsTeamsID, vppAppsTeamsID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
-						case teamID != nil &&
-							((prev.ScriptID == nil && spec.ScriptID != nil) ||
-								(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
+						case teamID != nil && scriptID != nil && !ptr.Equal(prev.ScriptID, scriptID):
 							shouldRemoveAllPolicyMemberships = true
 							removePolicyStats = true
 						case prev.Platforms != spec.Platform:
@@ -1558,7 +1554,16 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					if teamID == nil {
 						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
 					} else {
-						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+						// Patch policies are unique by patch_software_title_id so we need to get them by that, and update their name
+						// so that it doesn't get deleted later.
+						if spec.Type == fleet.PolicyTypePatch {
+							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE patch_software_title_id = ? AND team_id = ?", fmaTitleID, teamID)
+							if _, ok := teamIDToPoliciesByName[teamID][spec.Name]; !ok {
+								shouldUpdatePatchPolicyName = true
+							}
+						} else {
+							err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+						}
 					}
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "select policies id")
@@ -1603,6 +1608,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 						`UPDATE policies SET needs_full_membership_cleanup = 1 WHERE id = ?`,
 						policyID); err != nil {
 						return ctxerr.Wrap(ctx, err, "setting needs_full_membership_cleanup flag")
+					}
+				}
+				if shouldUpdatePatchPolicyName {
+					if _, err := tx.ExecContext(ctx, `UPDATE policies SET name = ?, checksum = `+policiesChecksumComputedColumn()+` WHERE id = ?`, spec.Name, policyID); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting name for patch policy")
 					}
 				}
 				// Defer cleanup outside the transaction to avoid long-held row locks on

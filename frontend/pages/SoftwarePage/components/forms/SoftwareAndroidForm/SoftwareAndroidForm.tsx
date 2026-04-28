@@ -7,7 +7,6 @@ import { IAppStoreApp } from "interfaces/software";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
@@ -46,7 +45,6 @@ interface ISoftwareAndroidFormProps {
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
-  onClickPreviewEndUserExperience: () => void;
 }
 
 const SoftwareAndroidForm = ({
@@ -54,7 +52,6 @@ const SoftwareAndroidForm = ({
   onSubmit,
   isLoading = false,
   onCancel,
-  onClickPreviewEndUserExperience,
 }: ISoftwareAndroidFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode("software");
 
@@ -110,7 +107,7 @@ const SoftwareAndroidForm = ({
       <>
         <div className={`${baseClass}__form-fields`}>
           <InputField
-            autoFocus
+            autofocus
             label="Application ID"
             placeholder="com.android.chrome"
             helpText={

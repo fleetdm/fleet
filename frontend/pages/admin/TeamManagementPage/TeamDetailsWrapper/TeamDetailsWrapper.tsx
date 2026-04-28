@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useContext } from "react";
-import { upperFirst } from "lodash";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter } from "react-router";
@@ -294,7 +293,7 @@ const TeamDetailsWrapper = ({
 
   const onDeleteSubmit = useCallback(async () => {
     if (!teamIdForApi) {
-      return false;
+      return;
     }
 
     setIsUpdatingTeams(true);
@@ -529,7 +528,9 @@ const TeamDetailsWrapper = ({
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {children}
+        <div key={location.pathname} className="tab-nav-routed-content">
+          {children}
+        </div>
       </>
     </MainContent>
   );

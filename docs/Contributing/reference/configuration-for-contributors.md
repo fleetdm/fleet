@@ -196,19 +196,7 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 
 ### mdm.enable_custom_os_updates_and_filevault
 
-> Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
-
-This configuration option is not production ready. It hasn't been tested by Fleet. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet uses for these features under-the-hood.
-
-If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
-- Config file format:
-  ```yaml
-  mdm:
-    enable_custom_os_updates_and_filevault: true
-  ```
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable_custom_os_updates_and_filevault) reference.
 
 ### logging.tracing_enabled
 
@@ -244,22 +232,7 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
 
 ### mdm.allow_all_declarations
 
-> Experimental feature. This feature will be removed when Fleet adds the ability to add any declaration via Fleet's UI, API, and YAML.
-
-This configuration option is not production ready. It hasn't been tested by Fleet. Enabling this option bypasses all safety checks for declarations, including checks for forbidden declaration types, reserved identifiers, and required prefixes. Use only when you need to
-deploy declarations that Fleet would otherwise block.
-
-If set to `true`, you can add all types of Apple [declaration profiles](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations). By default, Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
-
-[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
-- Config file format:
-  ```yaml
-  mdm:
-    allow_all_declarations: true
-  ```
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) reference.
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 

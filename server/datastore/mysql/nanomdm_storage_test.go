@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -26,6 +28,7 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestGetPendingLockCommand", testGetPendingLockCommand},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
+		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
 	}
 
 	for _, c := range cases {
@@ -232,6 +235,128 @@ func testGetPendingLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 	require.Empty(t, pin)
+}
+
+// testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal verifies that
+// StoreAuthenticate does NOT clear the bootstrap token when a SCEP renewal is
+// in progress (renew_command_uuid is set in nano_cert_auth_associations), and
+// DOES clear it on a normal (re-)enrollment.
+// See https://github.com/fleetdm/fleet/issues/41167
+func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	deviceUUID := uuid.NewString()
+
+	// --- Set up device with a bootstrap token ---
+
+	// Insert into nano_devices with a bootstrap token.
+	bootstrapToken := base64.StdEncoding.EncodeToString([]byte("my-secret-bootstrap-token"))
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_devices (id, serial_number, authenticate, authenticate_at, bootstrap_token_b64, bootstrap_token_at)
+		 VALUES (?, 'SERIAL1', 'auth-raw', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`,
+		deviceUUID, bootstrapToken)
+	require.NoError(t, err)
+
+	// Insert a nano_enrollment so cert auth association can reference it.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1, NOW())`,
+		deviceUUID, deviceUUID)
+	require.NoError(t, err)
+
+	// Insert cert auth association (no SCEP renewal yet).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_cert_auth_associations (id, sha256) VALUES (?, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')`,
+		deviceUUID)
+	require.NoError(t, err)
+
+	// Helper to read bootstrap_token_b64 from nano_devices.
+	getBootstrapToken := func() sql.NullString {
+		var token sql.NullString
+		err := ds.writer(ctx).QueryRowContext(ctx,
+			`SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?`, deviceUUID,
+		).Scan(&token)
+		require.NoError(t, err)
+		return token
+	}
+
+	// Verify token is set.
+	token := getBootstrapToken()
+	require.True(t, token.Valid)
+	require.Equal(t, bootstrapToken, token.String)
+
+	// --- Case 1: Normal re-enrollment (no SCEP renewal) should clear the bootstrap token ---
+
+	authMsg := &mdm.Authenticate{
+		Enrollment: mdm.Enrollment{UDID: deviceUUID},
+		Raw:        []byte("auth-raw-reenroll"),
+	}
+	authMsg.SerialNumber = "SERIAL1"
+	req := &mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: deviceUUID, Type: mdm.Device},
+		Context:  ctx,
+	}
+
+	err = ns.StoreAuthenticate(req, authMsg)
+	require.NoError(t, err)
+
+	token = getBootstrapToken()
+	require.False(t, token.Valid, "bootstrap token should be cleared on normal re-enrollment")
+
+	// --- Restore the bootstrap token for the next test case ---
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_devices SET bootstrap_token_b64 = ?, bootstrap_token_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		bootstrapToken, deviceUUID)
+	require.NoError(t, err)
+
+	// --- Case 2: SCEP renewal in progress should preserve the bootstrap token ---
+
+	// Simulate SCEP renewal by inserting a nano_command and setting renew_command_uuid.
+	renewCmdUUID := uuid.NewString()
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
+		renewCmdUUID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_cert_auth_associations SET renew_command_uuid = ? WHERE id = ?`,
+		renewCmdUUID, deviceUUID)
+	require.NoError(t, err)
+
+	// Now call StoreAuthenticate again — this simulates the device checking in during SCEP renewal.
+	authMsg2 := &mdm.Authenticate{
+		Enrollment: mdm.Enrollment{UDID: deviceUUID},
+		Raw:        []byte("auth-raw-scep-renewal"),
+	}
+	authMsg2.SerialNumber = "SERIAL1"
+
+	err = ns.StoreAuthenticate(req, authMsg2)
+	require.NoError(t, err)
+
+	token = getBootstrapToken()
+	require.True(t, token.Valid, "bootstrap token should be preserved during SCEP renewal")
+	require.Equal(t, bootstrapToken, token.String)
+
+	// --- Case 3: After SCEP renewal completes (renew_command_uuid cleared), token should be cleared again ---
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`,
+		deviceUUID)
+	require.NoError(t, err)
+
+	authMsg3 := &mdm.Authenticate{
+		Enrollment: mdm.Enrollment{UDID: deviceUUID},
+		Raw:        []byte("auth-raw-post-renewal"),
+	}
+	authMsg3.SerialNumber = "SERIAL1"
+
+	err = ns.StoreAuthenticate(req, authMsg3)
+	require.NoError(t, err)
+
+	token = getBootstrapToken()
+	require.False(t, token.Valid, "bootstrap token should be cleared after SCEP renewal completes")
 }
 
 func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {

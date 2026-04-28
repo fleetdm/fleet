@@ -5,6 +5,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 import Button from "components/buttons/Button";
 
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
@@ -49,7 +50,7 @@ const PacksTable = ({
   }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
-    (queryData: any) => {
+    (queryData: ITableQueryData) => {
       const { searchQuery } = queryData;
       setSearchString(searchQuery);
     },

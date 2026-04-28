@@ -1,1 +1,1 @@
-* Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If you limit outbound Fleet server traffic, make sure it can access the new FMA manifests location.
+* Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If this site is inaccessible, Fleet will fall back to the previous GitHub-hosted copies of manifest files.

@@ -12,7 +12,7 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 
 ## UI
 
-#### Desktop Devices
+#### Workstations
 
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
@@ -21,7 +21,7 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
-#### Mobile Devices
+#### Mobile devices
 
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
@@ -151,9 +151,9 @@ In the Google Admin console:
 
 3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
+4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling it. This prevents pending activity (like scripts or software installs) from running on the re-enrolled host and avoids showing the original host’s vitals.
+> Delete the host from Fleet before re-enrolling it. This removes labels, prevents pending activity (like scripts or software installs) from running on the re-enrolled host, and avoids showing the original host’s vitals.
 
 ## Debugging
 
@@ -164,7 +164,7 @@ If you're running into issues when enrolling hosts, the best practice is to look
 
 - [Switch a workstation's operating system](#switch-a-workstations-operating-system)
 - [Supported osquery versions](#supported-osquery-versions)
-- [Best practice for dual-boot workstations](#best-practice-for-dual-boot-workstations)
+- [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 

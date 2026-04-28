@@ -50,7 +50,7 @@ type GetTransparencyURLFunc func(ctx context.Context) (string, error)
 
 type AuthenticateOrbitHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
 
-type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
+type EnrollOrbitFunc func(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (orbitNodeKey string, err error)
 
 type GetOrbitConfigFunc func(ctx context.Context) (fleet.OrbitConfig, error)
 
@@ -87,6 +87,8 @@ type PerformRequiredPasswordResetFunc func(ctx context.Context, password string)
 type ResetPasswordFunc func(ctx context.Context, token string, password string) (err error)
 
 type ModifyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
+
+type ModifyAPIOnlyUserFunc func(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error)
 
 type DeleteUserFunc func(ctx context.Context, id uint) (*fleet.User, error)
 
@@ -816,6 +818,8 @@ type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnq
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
+type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
+
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
 type UpdateSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
@@ -875,6 +879,8 @@ type CreateSecretVariableFunc func(ctx context.Context, name string, value strin
 type ListSecretVariablesFunc func(ctx context.Context, opts fleet.ListOptions) (secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error)
 
 type DeleteSecretVariableFunc func(ctx context.Context, id uint) error
+
+type ListAPIEndpointsFunc func(ctx context.Context) (endpoints []fleet.APIEndpoint, err error)
 
 type ScimDetailsFunc func(ctx context.Context) (fleet.ScimDetails, error)
 
@@ -1010,6 +1016,9 @@ type Service struct {
 
 	ModifyUserFunc        ModifyUserFunc
 	ModifyUserFuncInvoked bool
+
+	ModifyAPIOnlyUserFunc        ModifyAPIOnlyUserFunc
+	ModifyAPIOnlyUserFuncInvoked bool
 
 	DeleteUserFunc        DeleteUserFunc
 	DeleteUserFuncInvoked bool
@@ -2103,6 +2112,9 @@ type Service struct {
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
 
+	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
+	GetHostManagedAccountPasswordFuncInvoked bool
+
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
 
@@ -2192,6 +2204,9 @@ type Service struct {
 
 	DeleteSecretVariableFunc        DeleteSecretVariableFunc
 	DeleteSecretVariableFuncInvoked bool
+
+	ListAPIEndpointsFunc        ListAPIEndpointsFunc
+	ListAPIEndpointsFuncInvoked bool
 
 	ScimDetailsFunc        ScimDetailsFunc
 	ScimDetailsFuncInvoked bool
@@ -2349,11 +2364,11 @@ func (s *Service) AuthenticateOrbitHost(ctx context.Context, nodeKey string) (ho
 	return s.AuthenticateOrbitHostFunc(ctx, nodeKey)
 }
 
-func (s *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error) {
+func (s *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (orbitNodeKey string, err error) {
 	s.mu.Lock()
 	s.EnrollOrbitFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollOrbitFunc(ctx, hostInfo, enrollSecret)
+	return s.EnrollOrbitFunc(ctx, hostInfo, enrollSecret, euaToken)
 }
 
 func (s *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
@@ -2480,6 +2495,13 @@ func (s *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPaylo
 	s.ModifyUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.ModifyUserFunc(ctx, userID, p)
+}
+
+func (s *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (user *fleet.User, err error) {
+	s.mu.Lock()
+	s.ModifyAPIOnlyUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ModifyAPIOnlyUserFunc(ctx, userID, p)
 }
 
 func (s *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
@@ -5030,6 +5052,13 @@ func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) e
 	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
 }
 
+func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	s.mu.Lock()
+	s.GetHostManagedAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAccountPasswordFunc(ctx, hostID)
+}
+
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	s.mu.Lock()
 	s.UploadSoftwareInstallerFuncInvoked = true
@@ -5238,6 +5267,13 @@ func (s *Service) DeleteSecretVariable(ctx context.Context, id uint) error {
 	s.DeleteSecretVariableFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSecretVariableFunc(ctx, id)
+}
+
+func (s *Service) ListAPIEndpoints(ctx context.Context) (endpoints []fleet.APIEndpoint, err error) {
+	s.mu.Lock()
+	s.ListAPIEndpointsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAPIEndpointsFunc(ctx)
 }
 
 func (s *Service) ScimDetails(ctx context.Context) (fleet.ScimDetails, error) {

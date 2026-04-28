@@ -22,7 +22,7 @@ const baseClass = "software-options-selector";
 
 interface ICategoriesSelector {
   onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
-  selectedCategories: any; // TODO
+  selectedCategories: string[];
   onClickPreviewEndUserExperience: () => void;
 }
 

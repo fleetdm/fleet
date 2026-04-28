@@ -53,6 +53,7 @@ const (
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
 	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
+	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
 )
 
 type CronSchedulesService interface {

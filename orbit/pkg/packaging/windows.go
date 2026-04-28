@@ -104,6 +104,10 @@ func BuildMSI(opt Options) (string, error) {
 	if semver.Compare(orbitVersion, "v1.28.0") >= 0 {
 		opt.EnableEndUserEmailProperty = true
 	}
+	// v1.55.0 introduced EUA_TOKEN property for MSI package: https://github.com/fleetdm/fleet/issues/41379
+	if semver.Compare(orbitVersion, "v1.55.0") >= 0 {
+		opt.EnableEUATokenProperty = true
+	}
 
 	// Write files
 
@@ -176,24 +180,29 @@ func BuildMSI(opt Options) (string, error) {
 	absWixDir := opt.LocalWixDir
 	wineChecked := false
 
-	// Download wix for macOS running on arm64, unless a local-wix-dir is provided.
-	// We are using native MSI build on macOS arm64, instead of Docker, because the current fleetdm/wix Docker image is unreliable on macOS arm64.
-	// We are looking into creating a new Docker image for macOS arm64.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
-		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
+	// On macOS without --local-wix-dir, the default path uses Docker.
+	// For backwards compatibility with existing pipelines that rely
+	// on the legacy Wine + auto-downloaded WiX flow, fall back to that
+	// path if Docker isn't available — but warn that it's deprecated.
+	if runtime.GOOS == "darwin" && !opt.NativeTooling && absWixDir == "" {
+		if dockerErr := checkDockerAvailable(); dockerErr != nil {
+			fmt.Printf("\nWARNING: Docker is not available (%s).\n", dockerErr)
+			fmt.Println("Falling back to Wine + auto-downloaded WiX toolset. This path is deprecated")
+			fmt.Println("and will be removed in a future release. Install Docker Desktop to use the")
+			fmt.Println("supported path: https://docs.docker.com/get-docker")
+			fmt.Println()
 
-		// Ensure wine is installed before downloading wix
-		if err = checkWine(false); err != nil {
-			return "", err
-		}
-		wineChecked = true
+			if err = checkWine(false); err != nil {
+				return "", err
+			}
+			wineChecked = true
 
-		fmt.Printf("Downloading wix from %s\n", wixDownload)
-		client := fleethttp.NewClient()
-		absWixDir = filepath.Join(tmpDir, "wix")
-		err = downloadAndExtractZip(client, wixDownload, absWixDir)
-		if err != nil {
-			return "", err
+			fmt.Printf("Downloading wix from %s\n", wixDownload)
+			client := fleethttp.NewClient()
+			absWixDir = filepath.Join(tmpDir, "wix")
+			if err = downloadAndExtractZip(client, wixDownload, absWixDir); err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -246,10 +255,21 @@ func checkWine(wineChecked bool) error {
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
+				"%s failed. Is Wine installed? %w",
 				wix.WineCmd, err,
 			)
 		}
+	}
+	return nil
+}
+
+// checkDockerAvailable returns nil if the docker CLI is on PATH and the Docker
+// daemon is reachable. Otherwise it returns an error summarizing what went
+// wrong, which callers can use to decide whether to fall back to another path.
+func checkDockerAvailable() error {
+	cmd := exec.Command("docker", "version")
+	if err := cmd.Run(); err != nil {
+		return err
 	}
 	return nil
 }
