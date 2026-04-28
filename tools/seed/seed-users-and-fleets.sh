@@ -1,37 +1,29 @@
 #!/bin/bash
 
-# Seed users for local development
-#
-# Creates 11 users with various roles across the Workstations and
-# Personal mobile devices fleets. Creates the fleets if they don't
-# already exist, and discovers fleet IDs automatically.
-#
-# Prerequisites:
-#   1. Create an env file with:
-#        export SERVER_URL=https://localhost:8080
-#        export CURL_FLAGS='-k -s'
-#        export TOKEN=<your-api-token>
-#        export SEED_PASSWORD=<your-password>
-#
-#   2. Set FLEET_ENV_PATH to point to your env file:
-#        export FLEET_ENV_PATH=tools/seed/DO_NOT_COMMIT_ENV_FILE
-#
-#   3. Run this script:
-#        bash tools/seed/seed-users-and-fleets.sh
-#
-# All users are created with the password from $SEED_PASSWORD.
+# Seed users, fleets, policies, and reports for local development.
+# See tools/seed/README.md for full documentation.
 
-set -e
+set -euo pipefail
 
 source "$FLEET_ENV_PATH"
 
 API="$SERVER_URL/api/latest/fleet"
 AUTH="Authorization: Bearer $TOKEN"
 
-if [ -z "$SEED_PASSWORD" ]; then
-  echo "ERROR: SEED_PASSWORD is not set. Add it to your env file." >&2
+# Validate required env vars
+missing=""
+[ -z "${SEED_PASSWORD:-}" ] && missing="$missing SEED_PASSWORD"
+[ -z "${TOKEN:-}" ] && missing="$missing TOKEN"
+[ -z "${SERVER_URL:-}" ] && missing="$missing SERVER_URL"
+if [ -n "$missing" ]; then
+  echo "ERROR: Missing required env vars:$missing. Check your env file." >&2
   exit 1
 fi
+
+# Configure fleetctl with the same token so apply commands work without a separate login
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FLEETCTL="${FLEETCTL:-./build/fleetctl}"
+$FLEETCTL config set --address "$SERVER_URL" --token "$TOKEN" 2>/dev/null
 
 # Helper: get fleet ID and exact name by partial match (to handle emoji prefixes),
 # creating the fleet if it doesn't exist. Returns "id|exact_name".
@@ -66,6 +58,8 @@ else:
 }
 
 # Helper: create user via /users/admin (ignores errors if user already exists)
+# Sets LAST_USER_CREATED=1 if created, 0 if skipped.
+LAST_USER_CREATED=0
 create_user() {
   local data="$1"
   local name email
@@ -75,13 +69,16 @@ create_user() {
   result=$(curl -X POST $CURL_FLAGS -H "$AUTH" -H "Content-Type: application/json" "$API/users/admin" --insecure -d "$data" 2>&1)
   if echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'user' in d else 1)" 2>/dev/null; then
     echo "Created user: $name ($email, pw: \$SEED_PASSWORD)"
+    LAST_USER_CREATED=1
   else
     echo "Skipped user (may already exist): $name"
+    LAST_USER_CREATED=0
   fi
 }
 
 # Helper: create API-only user via /users/api_only (email and password are auto-generated,
 # API token is returned in the response)
+# Sets LAST_USER_CREATED=1 if created, 0 if skipped.
 create_api_only_user() {
   local data="$1"
   local name
@@ -92,6 +89,7 @@ create_api_only_user() {
   token=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('token',''))" 2>/dev/null)
   if echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'user' in d else 1)" 2>/dev/null; then
     echo "Created API-only user: $name"
+    LAST_USER_CREATED=1
     if [ -n "$token" ]; then
       echo ""
       echo "  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
@@ -101,6 +99,7 @@ create_api_only_user() {
       echo ""
     fi
   else
+    LAST_USER_CREATED=0
     local errmsg
     errmsg=$(echo "$result" | python3 -c "
 import sys, json
@@ -166,6 +165,16 @@ create_user '{
   "admin_forced_password_reset": false
 }'
 
+# Global technician
+create_user '{
+  "name": "Tessa G. Technician",
+  "email": "tessa@organization.com",
+  "password": "'"$SEED_PASSWORD"'",
+  "invited_by": 1,
+  "global_role": "technician",
+  "admin_forced_password_reset": false
+}'
+
 # Mixed roles (observer on Workstations, maintainer on Mobile devices)
 create_user "{
   \"name\": \"Marco Mixed Roles\",
@@ -226,15 +235,15 @@ create_user "{
 
 # API-only user (full access, created via /users/admin with api_only flag)
 create_user '{
-  "name": "Robbie Robot (API only)",
-  "email": "robbie@organization.com",
+  "name": "Apollo G. API-only",
+  "email": "apollo@organization.com",
   "password": "'"$SEED_PASSWORD"'",
   "invited_by": 1,
   "global_role": "maintainer",
   "api_only": true,
   "admin_forced_password_reset": false
 }'
-echo "  ^ API-only user — use fleetctl login or API token auth only, no UI access"
+[ "$LAST_USER_CREATED" -eq 1 ] && echo "  ^ API-only user — use fleetctl login or API token auth only, no UI access"
 
 # API-only user with restricted endpoints (created via /users/api_only)
 create_api_only_user '{
@@ -245,12 +254,10 @@ create_api_only_user '{
     {"method": "GET", "path": "/api/v1/fleet/hosts/{id}"}
   ]
 }'
-echo "  ^ Restricted API-only user — token auth only, no fleetctl or UI access"
+[ "$LAST_USER_CREATED" -eq 1 ] && echo "  ^ Restricted API-only user — token auth only, no fleetctl or UI access"
 
 echo ""
 echo "==> Applying global policies and reports..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FLEETCTL="${FLEETCTL:-./build/fleetctl}"
 
 $FLEETCTL apply -f "$SCRIPT_DIR/standard-policies.yml"
 echo "[+] applied global policies"
@@ -282,4 +289,4 @@ $FLEETCTL apply -f "$tmpdir/mobile-reports.yml"
 echo "[+] applied $FLEET_2_NAME reports"
 
 echo ""
-echo "==> Done! 11 users, fleet policies, and fleet reports seeded across Workstations and Personal mobile devices fleets."
+echo "==> Done! All users, policies, and reports seeded."

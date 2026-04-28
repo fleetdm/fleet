@@ -7,6 +7,7 @@ Scripts and YAML files to populate a local Fleet instance with realistic users, 
 - A running Fleet dev server (`make serve` or equivalent)
 - A premium license (required for fleets)
 - `fleetctl` built (`make build` or set `FLEETCTL` to your binary path)
+- `python3` (used for JSON parsing in the scripts)
 
 ## Quick start
 
@@ -47,15 +48,11 @@ bash tools/seed/clean-seed-data.sh
 
 ### 3. Run the seeds
 
-Log in to `fleetctl` first, then run the seed script:
-
 ```bash
-./build/fleetctl login
-
 bash tools/seed/seed-users-and-fleets.sh
 ```
 
-This seeds everything in one shot: users, fleets, global policies, global reports, fleet-scoped policies, and fleet-scoped reports.
+This seeds everything in one shot: users, fleets, global policies, global reports, fleet-scoped policies, and fleet-scoped reports. The script configures `fleetctl` with your API token automatically — no separate `fleetctl login` needed.
 
 The script expects `fleetctl` at `./build/fleetctl`. If yours is elsewhere:
 
@@ -69,7 +66,7 @@ Re-running is safe — existing users are skipped and policies/reports are upser
 
 ### Users (`seed-users-and-fleets.sh`)
 
-Creates 11 users across global, fleet-scoped, and API-only roles. Regular users use `$SEED_PASSWORD`.
+Creates 12 users across global, fleet-scoped, and API-only roles. Regular users use `$SEED_PASSWORD`.
 
 | User | Email | Role |
 |------|-------|------|
@@ -77,12 +74,13 @@ Creates 11 users across global, fleet-scoped, and API-only roles. Regular users 
 | Mary G. Maintainer | mary@organization.com | Global maintainer |
 | Oliver G. Observer | oliver@organization.com | Global observer |
 | Opal G. Observer+ | opal@organization.com | Global observer+ |
+| Tessa G. Technician | tessa@organization.com | Global technician |
 | Marco Mixed Roles | marco@organization.com | Observer (Workstations), Maintainer (Mobile devices) |
 | Anita T. Admin | anita@organization.com | Admin (Workstations) |
 | Manny T. Maintainer | manny@organization.com | Maintainer (Workstations) |
 | Toni T. Observer | toni@organization.com | Observer (Workstations) |
 | Topanga T. Observer+ | topanga@organization.com | Observer+ (Workstations) |
-| Robbie Robot (API only) | robbie@organization.com | Global maintainer, API-only (full access) |
+| Apollo G. API-only | apollo@organization.com | Global maintainer, API-only (full access) |
 | Rosie Restricted (API only) | auto-generated | Global admin, API-only (restricted to GET hosts) |
 
 API-only users created via `/users/api_only` have their API token printed once at creation. Save it — it cannot be retrieved later.

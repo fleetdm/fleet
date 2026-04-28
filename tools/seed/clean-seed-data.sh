@@ -12,9 +12,18 @@
 #   export FLEET_ENV_PATH=tools/seed/DO_NOT_COMMIT_ENV_FILE
 #   bash tools/seed/clean-seed-data.sh
 
-set -e
+set -euo pipefail
 
 source "$FLEET_ENV_PATH"
+
+# Validate required env vars
+missing=""
+[ -z "${TOKEN:-}" ] && missing="$missing TOKEN"
+[ -z "${SERVER_URL:-}" ] && missing="$missing SERVER_URL"
+if [ -n "$missing" ]; then
+  echo "ERROR: Missing required env vars:$missing. Check your env file." >&2
+  exit 1
+fi
 
 API="$SERVER_URL/api/latest/fleet"
 AUTH="Authorization: Bearer $TOKEN"
