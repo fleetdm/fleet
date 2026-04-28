@@ -16941,3 +16941,50 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
 }
+
+// TestLabelScopePremiumGate verifies that the new label scope fields are
+// premium-gated on all entry points for the free-tier (core) server, while
+// existing free-tier label fields (policy include/exclude_any) still work.
+func (s *integrationTestSuite) TestLabelScopePremiumGate() {
+	t := s.T()
+
+	// One label suffices to exercise the gate.
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	// LabelsIncludeAll on Global/TeamPolicyRequest is tagged `premium:"true"`, so
+	// the endpoint decoder rejects with 400 before reaching the service handler.
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "premium-gated-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAll: []string{lbl.Name},
+	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+
+	// Free-tier should still allow creating a policy with LabelsIncludeAny (existing field).
+	var freeOK fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "free-include-any-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAny: []string{lbl.Name},
+	}, http.StatusOK, &freeOK)
+	require.NotNil(t, freeOK.Policy)
+
+	// Free-tier should reject PATCHing a policy to add LabelsIncludeAll (middleware → 400).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: []string{lbl.Name}},
+	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+
+	s.DoRaw("PATCH",
+		fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID),
+		fmt.Appendf(nil, `{"labels_include_any":[%q]}`, lbl.Name),
+		http.StatusOK,
+	)
+
+	for _, payload := range []fleet.QueryPayload{
+		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
+		{Name: ptr.String("q-all-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
+	}
+}

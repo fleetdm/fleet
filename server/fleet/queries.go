@@ -43,9 +43,10 @@ type QueryPayload struct {
 	//
 	// If not set during creation of a query, then the default value is false.
 	DiscardData *bool `json:"discard_data"`
-	// LabelsIncludeAny is a list of labels that will be used to
-	// target a query
+	// LabelsIncludeAny scopes the query to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string `json:"labels_include_any"`
+	// LabelsIncludeAll scopes the query to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string `json:"labels_include_all"`
 }
 
 // Query represents a osquery query to run on devices.
@@ -104,9 +105,10 @@ type Query struct {
 	// DiscardData indicates if the scheduled query results should be discarded (true)
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
-	// LabelsIncludeAny is a list of labels that will be used to
-	// target a query
+	// LabelsIncludeAny scopes the query to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []LabelIdent `json:"labels_include_any"`
+	// LabelsIncludeAll scopes the query to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []LabelIdent `json:"labels_include_all"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -160,6 +162,10 @@ func (q *Query) Copy() *Query {
 	if q.LabelsIncludeAny != nil {
 		clone.LabelsIncludeAny = make([]LabelIdent, len(q.LabelsIncludeAny))
 		copy(clone.LabelsIncludeAny, q.LabelsIncludeAny)
+	}
+	if q.LabelsIncludeAll != nil {
+		clone.LabelsIncludeAll = make([]LabelIdent, len(q.LabelsIncludeAll))
+		copy(clone.LabelsIncludeAll, q.LabelsIncludeAll)
 	}
 	return &clone
 }
@@ -247,11 +253,16 @@ func (q *QueryPayload) Verify() error {
 			return err
 		}
 	}
-	return nil
+	return verifyQueryLabelScopeMutualExclusion(q.LabelsIncludeAny, q.LabelsIncludeAll)
 }
 
 // Verify verifies the query fields are valid.
-// Called when creating queries by spec
+// Called when creating queries by spec.
+//
+// At the struct level we treat empty (zero-length) slices as "no scope set"
+// — the request-level validator on QueryPayload is what rejects "user
+// explicitly sent an empty array AND another scope" because it distinguishes
+// nil from empty.
 func (q *Query) Verify() error {
 	if err := verifyQueryName(q.Name); err != nil {
 		return err
@@ -264,6 +275,9 @@ func (q *Query) Verify() error {
 	}
 	if err := verifyQueryPlatforms(q.Platform); err != nil {
 		return err
+	}
+	if len(q.LabelsIncludeAny) > 0 && len(q.LabelsIncludeAll) > 0 {
+		return ErrQueryConflictingLabels
 	}
 	return nil
 }
@@ -289,11 +303,20 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	errQueryEmptyName       = errors.New("report name cannot be empty")
-	errQueryEmptyQuery      = errors.New("report's SQL query cannot be empty")
-	ErrQueryInvalidPlatform = errors.New("report's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
-	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	errQueryEmptyName         = errors.New("report name cannot be empty")
+	errQueryEmptyQuery        = errors.New("report's SQL query cannot be empty")
+	ErrQueryInvalidPlatform   = errors.New("report's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
+	errInvalidLogging         = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	ErrQueryConflictingLabels = errors.New("report can include at most one of labels_include_any or labels_include_all")
 )
+
+// verifyQueryLabelScopeMutualExclusion enforces that at most scope rule is set.
+func verifyQueryLabelScopeMutualExclusion(includeAny, includeAll []string) error {
+	if len(includeAny) > 0 && len(includeAll) > 0 {
+		return ErrQueryConflictingLabels
+	}
+	return nil
+}
 
 func verifyQueryName(name string) error {
 	if emptyString(name) {
