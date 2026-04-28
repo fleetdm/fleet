@@ -446,7 +446,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Calendars">
+    <SettingsSection title="Calendars" className={baseClass}>
       <PageDescription
         content={
           <>
