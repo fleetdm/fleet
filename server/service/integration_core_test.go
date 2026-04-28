@@ -5284,6 +5284,31 @@ func (s *integrationTestSuite) TestLabels() {
 			assert.Contains(t, errMsg, key)
 		}
 
+		// all allowed order_key values must be accepted by the endpoint and return the
+		// hosts in lbl2.
+		for _, key := range []string{
+			"id", "osquery_host_id", "created_at", "updated_at", "detail_updated_at",
+			"hostname", "uuid", "platform", "osquery_version", "os_version", "build",
+			"platform_like", "code_name", "uptime", "memory", "cpu_type", "cpu_subtype",
+			"cpu_brand", "cpu_physical_cores", "cpu_logical_cores",
+			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
+			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
+			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
+			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
+			"team_id", "policy_updated_at", "public_ip",
+			"gigs_disk_space_available", "percent_disk_space_available",
+			"gigs_total_disk_space", "seen_time", "software_updated_at",
+			"last_restarted_at", "timezone", "team_name", "mdm_host_data",
+			"failing_policies_count", "critical_vulnerabilities_count",
+			"total_issues_count",
+			"issues", // supported as alias for "total_issues_count"
+			"device_mapping",
+		} {
+			listHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", key, "device_mapping", "true")
+			assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts), "order_key=%s", key)
+		}
+
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
@@ -5563,6 +5588,230 @@ func (s *integrationTestSuite) TestLabels() {
 				require.NoError(t, err)
 				assert.Equal(t, 1, label.HostCount)
 			})
+		})
+	})
+
+	t.Run("Sort by order_key", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Create three teams so each host has a distinct team_id and team_name.
+		// Names sort A < B < C and team IDs are assigned in creation order.
+		teamPrefix := strings.ReplaceAll(t.Name(), "/", "_")
+		teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-A"})
+		require.NoError(t, err)
+		teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-B"})
+		require.NoError(t, err)
+		teamC, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-C"})
+		require.NoError(t, err)
+		teamIDs := []*uint{&teamA.ID, &teamB.ID, &teamC.ID}
+
+		// Each sortHost[i] is set up with field values that sort in the same direction
+		// as the index: sortHost[0] is "smallest", sortHost[2] is "largest", for every
+		// orderable field below. This means ASC order is always [h0, h1, h2] and DESC
+		// order is always [h2, h1, h0], which keeps the per-field test cases compact.
+		base := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+		platforms := []string{"darwin", "linux", "windows"}
+		sortHosts := make([]*fleet.Host, 3)
+		for i := 0; i < 3; i++ {
+			h, err := s.ds.NewHost(ctx, &fleet.Host{
+				OsqueryHostID:               ptr.String(fmt.Sprintf("sort-osq-%d", i)),
+				NodeKey:                     ptr.String(fmt.Sprintf("sort-nk-%d", i)),
+				UUID:                        fmt.Sprintf("aaaaaaaa-0000-0000-0000-00000000000%d", i+1),
+				Hostname:                    fmt.Sprintf("sort-host-%d", i),
+				ComputerName:                fmt.Sprintf("sort-comp-%d", i),
+				HardwareSerial:              fmt.Sprintf("sort-ser-%d", i),
+				Platform:                    platforms[i],
+				PlatformLike:                fmt.Sprintf("sort-plike-%d", i),
+				OsqueryVersion:              fmt.Sprintf("%d.0.0", i+1),
+				OSVersion:                   fmt.Sprintf("OS-%d.0", i+1),
+				Uptime:                      time.Duration(i+1) * time.Hour,
+				Memory:                      int64(i+1) * 1024,
+				DistributedInterval:         uint(i+1) * 10,
+				LoggerTLSPeriod:             uint(i+1) * 100,
+				ConfigTLSRefresh:            uint(i+1) * 5,
+				DetailUpdatedAt:             base.Add(time.Duration(i+1) * time.Hour),
+				LabelUpdatedAt:              base.Add(time.Duration(i+1) * 2 * time.Hour),
+				PolicyUpdatedAt:             base.Add(time.Duration(i+1) * 3 * time.Hour),
+				RefetchCriticalQueriesUntil: ptr.Time(base.Add(time.Duration(i+1) * 4 * time.Hour)),
+				RefetchRequested:            i == 2, // only the "largest" host has refetch_requested = true
+				TeamID:                      teamIDs[i],
+			})
+			require.NoError(t, err)
+			sortHosts[i] = h
+		}
+
+		// Set columns not handled by NewHost via direct UPDATEs.
+		for i, h := range sortHosts {
+			i, h := i, h
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					UPDATE hosts SET
+						created_at = ?,
+						updated_at = ?,
+						last_enrolled_at = ?,
+						last_restarted_at = ?,
+						primary_ip_id = ?,
+						primary_ip = ?,
+						primary_mac = ?,
+						public_ip = ?,
+						timezone = ?,
+						build = ?,
+						code_name = ?,
+						cpu_type = ?,
+						cpu_subtype = ?,
+						cpu_brand = ?,
+						cpu_physical_cores = ?,
+						cpu_logical_cores = ?,
+						hardware_vendor = ?,
+						hardware_model = ?,
+						hardware_version = ?
+					WHERE id = ?`,
+					base.Add(time.Duration(i+1)*5*time.Hour),
+					base.Add(time.Duration(i+1)*6*time.Hour),
+					base.Add(time.Duration(i+1)*7*time.Hour),
+					base.Add(time.Duration(i+1)*8*time.Hour),
+					uint(i+1)*100,
+					fmt.Sprintf("10.0.0.%d", i+1),
+					fmt.Sprintf("aa:bb:cc:00:00:0%d", i+1),
+					fmt.Sprintf("8.0.0.%d", i+1),
+					fmt.Sprintf("UTC-%d", i),
+					fmt.Sprintf("sort-build-%d", i),
+					fmt.Sprintf("sort-code-%d", i),
+					fmt.Sprintf("sort-ct-%d", i),
+					fmt.Sprintf("sort-cs-%d", i),
+					fmt.Sprintf("sort-cb-%d", i),
+					i+1,
+					(i+1)*2,
+					fmt.Sprintf("sort-hv-%d", i),
+					fmt.Sprintf("sort-hm-%d", i),
+					fmt.Sprintf("sort-hver-%d", i),
+					h.ID,
+				)
+				return err
+			})
+		}
+
+		// Populate joined tables (host_disks, host_seen_times, host_updates,
+		// host_issues, host_emails) with values that also sort by host index.
+		for i, h := range sortHosts {
+			i, h := i, h
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space)
+					VALUES (?, ?, ?, ?)`,
+					h.ID, float64((i+1)*100), float64((i+1)*10), float64((i+1)*1000))
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`UPDATE host_seen_times SET seen_time = ? WHERE host_id = ?`,
+					base.Add(time.Duration(i+1)*9*time.Hour), h.ID)
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`INSERT INTO host_updates (host_id, software_updated_at) VALUES (?, ?)`,
+					h.ID, base.Add(time.Duration(i+1)*10*time.Hour))
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count)
+					VALUES (?, ?, ?, ?)`,
+					h.ID, uint(i+1), uint(i+1)*2, uint(i+1)*3)
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+					h.ID, fmt.Sprintf("sort-%d@example.com", i), "src")
+				return err
+			})
+		}
+
+		// Create a dynamic label and add the three hosts to it.
+		var createResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels",
+			&fleet.LabelPayload{Name: teamPrefix + "-sort", Query: "select 1"}, http.StatusOK, &createResp)
+		sortLabel := createResp.Label.Label
+		for _, h := range sortHosts {
+			require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, h,
+				map[uint]*bool{sortLabel.ID: ptr.Bool(true)}, time.Now(), false))
+		}
+
+		ascIDs := []uint{sortHosts[0].ID, sortHosts[1].ID, sortHosts[2].ID}
+		descIDs := []uint{sortHosts[2].ID, sortHosts[1].ID, sortHosts[0].ID}
+		labelHostsURL := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", sortLabel.ID)
+
+		// orderKeys lists every field for which sortHosts is set up to produce a
+		// strict, deterministic ASC ordering of [h0, h1, h2]. Each field gets its
+		// own subtest verifying both ASC and DESC orderings.
+		orderKeys := []string{
+			"id", "osquery_host_id", "created_at", "updated_at", "detail_updated_at",
+			"hostname", "uuid", "platform", "osquery_version", "os_version", "build",
+			"platform_like", "code_name", "uptime", "memory", "cpu_type", "cpu_subtype",
+			"cpu_brand", "cpu_physical_cores", "cpu_logical_cores",
+			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
+			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
+			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
+			"last_enrolled_at", "refetch_critical_queries_until", "team_id",
+			"policy_updated_at", "public_ip",
+			"gigs_disk_space_available", "percent_disk_space_available",
+			"gigs_total_disk_space", "seen_time", "software_updated_at",
+			"last_restarted_at", "timezone", "team_name",
+			"failing_policies_count", "critical_vulnerabilities_count",
+			"total_issues_count", "issues",
+			"device_mapping",
+		}
+		for _, key := range orderKeys {
+			key := key
+			t.Run(key, func(t *testing.T) {
+				params := []string{"order_key", key, "order_direction", "asc"}
+				if key == "device_mapping" {
+					params = append(params, "device_mapping", "true")
+				}
+
+				var resp listHostsResponse
+				s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp, params...)
+				require.Len(t, resp.Hosts, 3)
+				gotAsc := []uint{resp.Hosts[0].ID, resp.Hosts[1].ID, resp.Hosts[2].ID}
+				assert.Equal(t, ascIDs, gotAsc, "asc order mismatch")
+
+				params[3] = "desc"
+				resp = listHostsResponse{}
+				s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp, params...)
+				require.Len(t, resp.Hosts, 3)
+				gotDesc := []uint{resp.Hosts[0].ID, resp.Hosts[1].ID, resp.Hosts[2].ID}
+				assert.Equal(t, descIDs, gotDesc, "desc order mismatch")
+			})
+		}
+
+		// refetch_requested is a bool, so only h2 (true) has a unique value. ASC must
+		// place h2 last; DESC must place h2 first. The order between h0 and h1 (both
+		// false) is not deterministic, so we only assert the position of h2.
+		t.Run("refetch_requested", func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "refetch_requested", "order_direction", "asc")
+			require.Len(t, resp.Hosts, 3)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[2].ID, "asc: h2 should be last")
+
+			resp = listHostsResponse{}
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "refetch_requested", "order_direction", "desc")
+			require.Len(t, resp.Hosts, 3)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[0].ID, "desc: h2 should be first")
+		})
+
+		// mdm_host_data is a JSON object built from joined MDM tables; for hosts
+		// without MDM data, the JSON value is identical, so order is not
+		// deterministic. Only verify the endpoint accepts the order_key and returns
+		// all three hosts.
+		t.Run("mdm_host_data", func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "mdm_host_data", "order_direction", "asc")
+			assert.Len(t, resp.Hosts, 3)
 		})
 	})
 }
