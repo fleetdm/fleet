@@ -465,7 +465,7 @@ software:
       categories:
         - Developer tools
     - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
-      self_service: true
+      self_service: false
       categories:
         - Productivity
     # Windows apps
@@ -515,6 +515,6 @@ software:
       categories:
         - Developer tools
     - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
-      self_service: true
+      self_service: false
       categories:
         - Productivity
