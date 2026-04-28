@@ -16,6 +16,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -33,22 +34,69 @@ import (
 // Used for overriding the env var value in testing
 var testSetEmptyPrivateKey bool
 
+// vppTokenInfo bundles the encoded VPP token bytes and the country code of
+// the storefront associated with the token, for callers that need both.
+type vppTokenInfo struct {
+	Secret  string
+	Country string
+}
+
+// ensureVPPTokenCountry lazily backfills the country_code column for a token
+// row that was uploaded before the column existed. It calls Apple's
+// /client/config endpoint, persists the resulting country to the database,
+// and mutates the in-memory token so the caller can use the populated value
+// without a re-read. Errors propagate to the caller — backfill is required
+// for callers that depend on the country.
+func ensureVPPTokenCountry(ctx context.Context, ds fleet.Datastore, token *fleet.VPPTokenDB) error {
+	if token == nil || token.CountryCode != "" {
+		return nil
+	}
+	cfg, err := vpp.GetConfig(token.Token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "backfilling country for vpp token")
+	}
+	if cfg.CountryCode == "" {
+		return ctxerr.New(ctx, "Apple /client/config returned empty country code")
+	}
+	if err := ds.UpdateVPPTokenCountryCode(ctx, token.ID, cfg.CountryCode); err != nil {
+		return ctxerr.Wrap(ctx, err, "persisting backfilled vpp token country")
+	}
+	token.CountryCode = cfg.CountryCode
+	return nil
+}
+
 // getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
-// It returns an error if the token is expired.
+// It returns an error if the token is expired. The token's country_code is
+// lazy-backfilled if missing.
 func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
+	info, err := svc.getVPPTokenInfo(ctx, teamID)
+	if err != nil {
+		return "", err
+	}
+	return info.Secret, nil
+}
+
+// getVPPTokenInfo returns both the secret and the storefront country for the
+// VPP token associated with teamID. It lazy-backfills country_code if the
+// row was uploaded before the column existed.
+func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppTokenInfo, error) {
 	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+			return vppTokenInfo{}, fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
 		}
-		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
+		return vppTokenInfo{}, ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return vppTokenInfo{}, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return token.Token, nil
+	if err := ensureVPPTokenCountry(ctx, svc.ds, token); err != nil {
+		return vppTokenInfo{}, err
+	}
+
+	return vppTokenInfo{Secret: token.Token, Country: token.CountryCode}, nil
 }
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
@@ -1255,7 +1303,39 @@ func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, erro
 		return nil, err
 	}
 
-	return svc.ds.ListVPPTokens(ctx)
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Eagerly backfill country_code for any token uploaded before the column
+	// existed. Run in parallel so a settings page load with N tokens doesn't
+	// fan out to N sequential Apple round-trips. Partial failures are logged
+	// as warnings and the row stays NULL until the next call.
+	var needsBackfill []*fleet.VPPTokenDB
+	for _, t := range tokens {
+		if t.CountryCode == "" {
+			needsBackfill = append(needsBackfill, t)
+		}
+	}
+	if len(needsBackfill) > 0 {
+		var wg sync.WaitGroup
+		for _, t := range needsBackfill {
+			wg.Add(1)
+			go func(token *fleet.VPPTokenDB) {
+				defer wg.Done()
+				if err := ensureVPPTokenCountry(ctx, svc.ds, token); err != nil {
+					svc.logger.WarnContext(ctx, "failed to backfill VPP token country",
+						"vpp_token_id", token.ID,
+						"err", err,
+					)
+				}
+			}(t)
+		}
+		wg.Wait()
+	}
+
+	return tokens, nil
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
