@@ -88,9 +88,12 @@ func GetConfig(token string) (ClientConfig, error) {
 			return nil
 		}
 
+		// Apple's /client/config response uses countryISO2ACode for the ISO
+		// 3166-1 alpha-2 storefront country (e.g. "US", "DE"). Verified
+		// empirically — the developer docs aren't loaded here.
 		var respJSON struct {
-			LocationName string `json:"locationName"`
-			CountryCode  string `json:"countryCode"`
+			LocationName     string `json:"locationName"`
+			CountryISO2ACode string `json:"countryISO2ACode"`
 		}
 
 		if err := do(req, token, &respJSON); err != nil {
@@ -109,7 +112,7 @@ func GetConfig(token string) (ClientConfig, error) {
 
 		cfg = ClientConfig{
 			LocationName: respJSON.LocationName,
-			CountryCode:  strings.ToLower(respJSON.CountryCode),
+			CountryCode:  strings.ToLower(respJSON.CountryISO2ACode),
 		}
 		returnErr = nil
 		return nil

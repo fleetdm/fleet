@@ -37,7 +37,7 @@ func TestGetConfig(t *testing.T) {
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprintln(w, `{"locationName": "Test Location", "countryCode": "US"}`)
+				fmt.Fprintln(w, `{"locationName": "Test Location", "countryISO2ACode": "US"}`)
 			},
 			wantName:       "Test Location",
 			wantCountry:    "us",
@@ -50,7 +50,7 @@ func TestGetConfig(t *testing.T) {
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprintln(w, `{"locationName": "DE Org", "countryCode": "DE"}`)
+				fmt.Fprintln(w, `{"locationName": "DE Org", "countryISO2ACode": "DE"}`)
 			},
 			wantName:       "DE Org",
 			wantCountry:    "de",
@@ -121,7 +121,7 @@ func TestGetConfig(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, `{"locationName": "Recovered", "countryCode": "FR"}`)
+			fmt.Fprintln(w, `{"locationName": "Recovered", "countryISO2ACode": "FR"}`)
 		})
 
 		cfg, err := GetConfig("token")
