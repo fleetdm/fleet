@@ -185,7 +185,7 @@ func (ds *Datastore) ListMDMCommands(
 		listOpts.OrderDirection = fleet.OrderDescending
 	}
 	if listOpts.PerPage == 0 {
-		listOpts.PerPage = 10
+		listOpts.PerPage = fleet.DefaultMDMCommandsPerPage
 	}
 
 	appleStmt, windowsStmt, baseParams := getMDMCommandsSubqueries(ds)
@@ -507,7 +507,7 @@ WHERE
 	// 	listOpts.OrderDirection = fleet.OrderDescending
 	// }
 	if listOpts.PerPage == 0 {
-		listOpts.PerPage = 10
+		listOpts.PerPage = fleet.DefaultMDMCommandsPerPage
 	}
 	// Validate order_key against the closed allowlist before it reaches
 	// ORDER BY (defense against SQL injection / information disclosure
