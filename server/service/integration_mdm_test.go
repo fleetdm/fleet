@@ -18065,10 +18065,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	profileUUID2 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
 	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
 
-	// Expire the challenge so that the next PKIOperation fails
+	// Expire the challenge so that the next PKIOperation fails. Backdate beyond
+	// fleet.OneTimeChallengeTTL so this stays correct as the constant evolves.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "UPDATE challenges SET created_at = ? WHERE challenge = ?"
-		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-2*time.Hour), gotChallenge2)
+		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-fleet.OneTimeChallengeTTL-time.Hour), gotChallenge2)
 		require.NoError(t, err, "Failed to expire the challenge in the database")
 		rowsAffected, _ := res.RowsAffected()
 		require.Equal(t, int64(1), rowsAffected, "Expected to update 1 row for the challenge")
