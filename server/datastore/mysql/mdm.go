@@ -46,7 +46,7 @@ END AS platform
 // inner LIMIT) before merging them with UNION ALL. Doing the pagination
 // inside each branch instead of around the UNION ALL bounds per-tick work
 // to O(page_size) per branch rather than O(total commands per branch).
-func getMDMCommandsSubqueries(ds *Datastore, hostFilter string) (appleStmt, windowsStmt string, params []interface{}) {
+func getMDMCommandsSubqueries(ds *Datastore, hostFilter string) (appleStmt, windowsStmt string, params []any) {
 	appleStmt = `
 SELECT
     nvq.id as host_uuid,
@@ -67,6 +67,16 @@ WHERE
    nvq.active = 1
 `
 
+	// The Windows sub-statement is itself a UNION ALL of two branches: one
+	// driven by windows_mdm_command_queue (any command pending or in
+	// flight), the other driven by windows_mdm_command_results (any
+	// command that produced a result). Branch B's NOT EXISTS clause
+	// excludes (command_uuid, enrollment_id) pairs already covered by
+	// branch A so the union does not double-count a single command/host
+	// pair. This shape replaces the previous single SELECT that joined
+	// mdm_windows_enrollments with `wmcq.enrollment_id = mwe.id OR
+	// wmcr.enrollment_id = mwe.id`; the OR forced a nested-loop plan
+	// because no single index covers both sides of the disjunction.
 	windowsStmt = `
 SELECT
     mwe.host_uuid,
@@ -78,11 +88,32 @@ SELECT
     h.team_id,
     NULL as name
 FROM windows_mdm_commands wmc
-LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
-LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
-INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
+INNER JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
+LEFT JOIN windows_mdm_command_results wmcr
+    ON wmcr.command_uuid = wmc.command_uuid AND wmcr.enrollment_id = mwe.id
 WHERE TRUE
+
+UNION ALL
+
+SELECT
+    mwe.host_uuid,
+    wmc.command_uuid,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
+    COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
+    wmc.target_loc_uri as request_type,
+    h.hostname,
+    h.team_id,
+    NULL as name
+FROM windows_mdm_commands wmc
+INNER JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+INNER JOIN mdm_windows_enrollments mwe ON wmcr.enrollment_id = mwe.id
+INNER JOIN hosts h ON h.uuid = mwe.host_uuid
+WHERE NOT EXISTS (
+    SELECT 1 FROM windows_mdm_command_queue wmcq2
+    WHERE wmcq2.command_uuid = wmc.command_uuid AND wmcq2.enrollment_id = mwe.id
+)
 `
 
 	appleStmt, params = ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
@@ -94,7 +125,7 @@ WHERE TRUE
 // (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
 // single-command lookups; the list-commands path builds its own form
 // (see getMDMCommandsSubqueries).
-func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
+func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []any) {
 	appleStmt, windowsStmt, params := getMDMCommandsSubqueries(ds, hostFilter)
 	return fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
@@ -128,7 +159,7 @@ func (ds *Datastore) ListMDMCommands(
 	innerOpts.Page = 0
 	innerOpts.IncludeMetadata = true
 
-	paginateBranch := func(branch string, params []interface{}) (string, []interface{}) {
+	paginateBranch := func(branch string, params []any) (string, []any) {
 		wrapped := fmt.Sprintf("SELECT * FROM (%s) AS branch WHERE ", branch)
 		wrapped += ds.whereFilterHostsByTeams(tmFilter, "branch")
 		wrapped, params = addRequestTypeFilter(wrapped, &listOpts.Filters, params)
@@ -138,8 +169,8 @@ func (ds *Datastore) ListMDMCommands(
 
 	// Each branch needs its own params slice; sqlx.SelectContext binds
 	// placeholders left-to-right across the merged statement.
-	appleParams := append([]interface{}{}, baseParams...)
-	windowsParams := append([]interface{}{}, baseParams...)
+	appleParams := append([]any{}, baseParams...)
+	windowsParams := append([]any{}, baseParams...)
 	appleStmt, appleParams = paginateBranch(appleStmt, appleParams)
 	windowsStmt, windowsParams = paginateBranch(windowsStmt, windowsParams)
 
@@ -147,7 +178,7 @@ func (ds *Datastore) ListMDMCommands(
 		"SELECT * FROM ((%s) UNION ALL (%s)) AS combined_commands",
 		appleStmt, windowsStmt,
 	)
-	mergedParams := append([]interface{}{}, appleParams...)
+	mergedParams := append([]any{}, appleParams...)
 	mergedParams = append(mergedParams, windowsParams...)
 
 	// Outer pagination: ORDER BY + LIMIT + OFFSET only. The cursor
