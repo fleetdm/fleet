@@ -116,6 +116,7 @@ fleet_tables_*.ext
 
 # Local dev files
 .env
+tools/seed/DO_NOT_COMMIT_ENV_FILE
 .tool-versions
 .zed/
 third_party/vuln-check/go.sum

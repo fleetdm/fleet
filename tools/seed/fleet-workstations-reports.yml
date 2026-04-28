@@ -1,0 +1,53 @@
+---
+# Reports for the Workstations fleet (macOS-focused)
+#
+# Note: The "fleet" field must match the exact fleet name. The seed script
+# substitutes FLEET_NAME automatically. To apply manually, replace FLEET_NAME
+# with your fleet's exact name.
+apiVersion: v1
+kind: report
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get crashes
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Retrieve application, system, and mobile app crash logs.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  purpose: Informational
+  tags: troubleshooting
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get laptops with failing batteries
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Lists all laptops with under-performing or failing batteries.
+  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  purpose: Informational
+  tags: troubleshooting, hardware, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get installed macOS software
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages.
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass

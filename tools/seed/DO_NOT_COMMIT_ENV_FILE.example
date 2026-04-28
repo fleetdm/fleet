@@ -1,0 +1,5 @@
+# Copy this file and fill in your values. Do not commit with real credentials.
+export SERVER_URL=https://localhost:8080 #update if needed
+export CURL_FLAGS='-k -s'
+export TOKEN=<your-api-token-here>
+export SEED_PASSWORD=<your-password-here>

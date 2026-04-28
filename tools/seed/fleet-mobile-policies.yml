@@ -1,0 +1,49 @@
+---
+# Policies for the Personal mobile devices fleet (personal laptops)
+#
+# Usage:
+#   fleetctl apply -f tools/seed/fleet-mobile-policies.yml --policies-fleet "Personal mobile devices"
+apiVersion: v1
+kind: policy
+spec:
+  name: SSH keys encrypted
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');
+  description: "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present."
+  resolution: "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file"
+  platform: darwin,linux,windows
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Full disk encryption enabled (Linux)
+  query: SELECT 1 FROM mounts m, disk_encryption d WHERE m.device_alias = d.name AND d.encrypted = 1 AND m.path = '/';
+  description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
+  resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
+  platform: linux
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Antivirus healthy (Linux)
+  query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
+  description: Checks that both ClamAV's daemon and its updater service (freshclam) are running.
+  resolution: "Ensure ClamAV and Freshclam are installed and running."
+  platform: linux
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: No 1Password emergency kit stored in desktop, documents, or downloads folders (macOS)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename LIKE '%Emergency Kit%.pdf' AND (path LIKE '/Users/%/Desktop/%' OR path LIKE '/Users/%/Documents/%' OR path LIKE '/Users/%/Downloads/%' OR path LIKE '/Users/Shared/%'));
+  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders."
+  resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Docker application is up to date or not present (macOS)
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');
+  description: "Checks if Docker Desktop is installed and up to date, or not installed. Fails if installed on a lower version."
+  resolution: "Update Docker or remove it if not used."
+  platform: darwin
