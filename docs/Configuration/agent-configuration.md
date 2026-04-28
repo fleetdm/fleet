@@ -310,7 +310,7 @@ agent_options:
 
 The `orbit` block configures the orbit agent itself (as opposed to osquery). It's kept separate from `command_line_flags` so orbit-specific settings don't need to satisfy the osquery flag schema.
 
-See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design. To learn where to find fleetd logs on each platform, see [Finding fleetd logs](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#finding-fleetd-logs).
+To learn where to find fleetd logs on each platform, see [Finding fleetd logs](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#finding-fleetd-logs).
 
 ### debug_logging (_Coming soon_)
 
