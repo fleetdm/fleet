@@ -3668,7 +3668,8 @@ SELECT
 	st.bundle_identifier AS bundle_identifier,
 	st.name AS title,
 	si.package_ids AS package_ids,
-	si.http_etag AS http_etag
+	si.http_etag AS http_etag,
+	si.install_script_content_id AS install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
