@@ -457,13 +457,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// Check if Windows host is in Autopilot setup experience. When
 	// awaiting_configuration is Pending or Active, orbit should run
-	// the setup experience to install software during the ESP.
+	// the setup experience to install software during the ESP. We use
+	// the lightweight reader-backed lookup here because /orbit/config is
+	// a hot polling endpoint; eventual consistency is acceptable since
+	// the ESP state machine reconciles on subsequent management sessions.
 	if host.Platform == "windows" && isConnectedToFleetMDM {
-		winDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
 		}
-		if winDevice != nil && winDevice.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone {
+		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
+			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
 			notifs.RunSetupExperience = true
 		}
 	}

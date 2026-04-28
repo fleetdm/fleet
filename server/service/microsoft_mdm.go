@@ -2149,6 +2149,26 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 		svc.logger.DebugContext(ctx, "ESP: setup experience check",
 			"host_uuid", device.HostUUID, "results_count", len(results))
+
+		// Empty results is ambiguous: it can mean "no setup experience is
+		// configured for this team" (safe to release) or "setup is configured
+		// but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit
+		// links the host UUID to the MDM enrollment independently of when it
+		// calls init, so on the first Active checkin after link we can hit
+		// this race. Disambiguate by checking whether items are configured
+		// for the host's team.
+		if len(results) == 0 {
+			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, device.HostUUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for host")
+			}
+			if hasItems {
+				svc.logger.DebugContext(ctx, "ESP: setup experience configured but not yet initialized; waiting",
+					"host_uuid", device.HostUUID)
+				return nil, nil
+			}
+		}
+
 		for _, r := range results {
 			// IsTerminalStatus() returns true for success/failure. Cancelled
 			// is also a completed outcome and must not block ESP release.
@@ -2171,13 +2191,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 	// We're past the wait gate or timed out. Look up the team's
 	// require_all_software_windows setting to decide between block and
-	// release. Default to false on lookup error: better to release than to
-	// block on a transient DB error.
+	// release. Return the error on lookup failure so the device stays
+	// Active and retries on the next management session: failing open
+	// here would permanently bypass the policy after the Active->None
+	// transition below.
 	requireAll, err := svc.ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, device.HostUUID)
 	if err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to look up require_all_software_windows, defaulting to false",
-			"err", err, "host_uuid", device.HostUUID)
-		requireAll = false
+		return nil, ctxerr.Wrap(ctx, err, "lookup require_all_software_windows for ESP finalization")
 	}
 
 	// CAS Active -> None first so only one concurrent checkin does the
@@ -2223,12 +2243,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		cmds = buildESPReleaseCommands(provID, errorText)
 	}
 
-	// Persist the most user-visible command as a backup so it's resent on
-	// the next session if this response is dropped. For the block path we
-	// persist BlockInStatusPage (overrides the hold-phase value of 2). For
-	// the release path we persist ServerHasFinishedProvisioning (signals
-	// the device to leave the ESP).
-	svc.persistESPFinalCommand(ctx, device.HostUUID, provID, shouldBlock)
+	// Persist all the finalization commands as a backup so they're resent
+	// on the next session if this response is dropped. The block path
+	// includes CustomErrorText / BlockInStatusPage / AllowCollectLogsButton;
+	// the release-with-error path includes CustomErrorText alongside the
+	// release commands. Persisting the full payload ensures the user sees
+	// the configured error UI even if the inline response is lost.
+	svc.persistESPFinalCommands(ctx, device.HostUUID, cmds)
 
 	svc.logger.InfoContext(ctx, "ESP: finalizing",
 		"device_id", device.MDMDeviceID,
@@ -2323,32 +2344,44 @@ func (svc *Service) emitCanceledSetupExperienceActivity(ctx context.Context, hos
 	}
 }
 
-// persistESPFinalCommand stores a backup copy of the most user-visible
-// finalization command so the existing command-retry infrastructure can
-// resend it if this response is dropped.
-func (svc *Service) persistESPFinalCommand(ctx context.Context, hostUUID, provID string, shouldBlock bool) {
-	var primaryURI string
-	var primaryCmd *mdm_types.SyncMLCmd
-	if shouldBlock {
-		primaryURI = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID)
-		primaryCmd = newSyncMLCmdInt(fleet.CmdReplace, primaryURI, "4")
-	} else {
-		primaryURI = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
-		primaryCmd = newSyncMLCmdBool(fleet.CmdReplace, primaryURI, "true")
-	}
-	primaryCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
-	rawXML, err := xml.Marshal(primaryCmd)
-	if err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to marshal final command for persistence", "err", err)
-		return
-	}
-	persistCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  primaryCmd.CmdID.Value,
-		RawCommand:   rawXML,
-		TargetLocURI: primaryURI,
-	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, persistCmd); err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to persist final command", "err", err)
+// persistESPFinalCommands stores backup copies of every finalization command
+// so the existing command-retry infrastructure can resend them if this
+// response is dropped. We persist clones with fresh UUIDs (rather than the
+// inline cmds themselves) so that an in-flight ack for one of the inline
+// commands doesn't accidentally mark the persisted backup as delivered.
+// All commands are idempotent Replaces, so duplicate delivery is safe.
+func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) {
+	for _, cmd := range cmds {
+		// Skip commands without a target URI -- shouldn't happen for the
+		// commands we build, but guard against nil-deref.
+		targetURI := cmd.GetTargetURI()
+		if targetURI == "" || len(cmd.Items) == 0 {
+			continue
+		}
+		// Clone the command with a fresh UUID. We don't reuse the inline
+		// cmd's UUID because the device may ack it inline, in which case
+		// MDMWindowsSaveResponse would log the persisted command as
+		// "unmatched" (no harm, but noisy).
+		clone := *cmd
+		cloneItems := make([]mdm_types.CmdItem, len(cmd.Items))
+		copy(cloneItems, cmd.Items)
+		clone.Items = cloneItems
+		clone.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+		rawXML, err := xml.Marshal(&clone)
+		if err != nil {
+			svc.logger.WarnContext(ctx, "ESP: failed to marshal final command for persistence",
+				"err", err, "target_uri", targetURI)
+			continue
+		}
+		persistCmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  clone.CmdID.Value,
+			RawCommand:   rawXML,
+			TargetLocURI: targetURI,
+		}
+		if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, persistCmd); err != nil {
+			svc.logger.WarnContext(ctx, "ESP: failed to persist final command",
+				"err", err, "target_uri", targetURI)
+		}
 	}
 }
 

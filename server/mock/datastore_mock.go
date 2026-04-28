@@ -1269,6 +1269,10 @@ type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceI
 
 type GetWindowsHostSetupExperienceRequireAllSoftwareFunc func(ctx context.Context, hostUUID string) (bool, error)
 
+type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
+
+type HasWindowsSetupExperienceItemsForHostUUIDFunc func(ctx context.Context, hostUUID string) (bool, error)
+
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
@@ -3764,6 +3768,12 @@ type DataStore struct {
 
 	GetWindowsHostSetupExperienceRequireAllSoftwareFunc        GetWindowsHostSetupExperienceRequireAllSoftwareFunc
 	GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked bool
+
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
+
+	HasWindowsSetupExperienceItemsForHostUUIDFunc        HasWindowsSetupExperienceItemsForHostUUIDFunc
+	HasWindowsSetupExperienceItemsForHostUUIDFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -9066,6 +9076,20 @@ func (s *DataStore) GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.
 	s.GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetWindowsHostSetupExperienceRequireAllSoftwareFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HasWindowsSetupExperienceItemsForHostUUID(ctx context.Context, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.HasWindowsSetupExperienceItemsForHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasWindowsSetupExperienceItemsForHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {

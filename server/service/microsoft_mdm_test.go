@@ -1411,6 +1411,11 @@ func TestGetESPCommands(t *testing.T) {
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
+		// Default: no setup experience items configured. Tests that
+		// expect waiting due to items configured override this.
+		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1447,6 +1452,8 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"should transition awaiting_configuration out of Active")
 	})
 
 	t.Run("active waits when setup experience software is pending", func(t *testing.T) {
@@ -1509,6 +1516,8 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should release device when all setup items are terminal (cancelled or success)")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"should transition awaiting_configuration out of Active")
 	})
 
 	t.Run("active with no profiles releases device", func(t *testing.T) {
@@ -1534,6 +1543,8 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands when no profiles configured")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"should transition awaiting_configuration out of Active")
 	})
 
 	// findCmdByLocURI returns the first SyncMLCmd whose target LocURI contains
@@ -1584,7 +1595,9 @@ func TestGetESPCommands(t *testing.T) {
 			cancelled = true
 			return nil
 		}
+		var persistedURIs []string
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			persistedURIs = append(persistedURIs, cmd.TargetLocURI)
 			return nil
 		}
 
@@ -1592,6 +1605,13 @@ func TestGetESPCommands(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return block commands")
 		assert.True(t, cancelled, "should cancel pending setup experience steps")
+
+		// Block path must persist all three commands so the retry path
+		// preserves CustomErrorText / AllowCollectLogsButton on dropped responses.
+		joined := strings.Join(persistedURIs, ",")
+		assert.Contains(t, joined, "CustomErrorText", "must persist CustomErrorText")
+		assert.Contains(t, joined, "BlockInStatusPage", "must persist BlockInStatusPage")
+		assert.Contains(t, joined, "AllowCollectLogsButton", "must persist AllowCollectLogsButton")
 
 		// Block path must include CustomErrorText, BlockInStatusPage=4, AllowCollectLogsButton.
 		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
@@ -1681,6 +1701,9 @@ func TestGetESPCommands(t *testing.T) {
 		}
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
+		}
+		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
 		}
 		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
 			return true, nil
@@ -1808,5 +1831,71 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
 			"success path should not set error text")
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+	})
+
+	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
+		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, errors.New("transient db error")
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must NOT transition to None on lookup failure")
+	})
+
+	t.Run("active waits when results empty but setup experience configured", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		// Setup experience is configured for the team but orbit hasn't
+		// called SetupExperienceInit yet, so results are empty.
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
+		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return true, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait for orbit to initialize setup experience")
+		// Must NOT have proceeded to require_all lookup or state transition.
+		assert.False(t, ds.GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked,
+			"must not look up require_all when waiting for orbit init")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must not transition state while waiting for orbit init")
 	})
 }

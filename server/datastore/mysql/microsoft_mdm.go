@@ -133,6 +133,73 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
+// HasWindowsSetupExperienceItemsForHostUUID returns true if any setup
+// experience items (Windows software installers with install_during_setup
+// or setup experience scripts) are configured for the team that the host
+// with the given UUID belongs to. The host_id lookup uses the writer for
+// consistency with GetWindowsHostSetupExperienceRequireAllSoftware: this is
+// called from the security-relevant ESP release gate, where a transient
+// ErrNoRows from the read replica could otherwise let the device release
+// even though setup experience is configured.
+func (ds *Datastore) HasWindowsSetupExperienceItemsForHostUUID(ctx context.Context, hostUUID string) (bool, error) {
+	var teamID sql.NullInt64
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &teamID,
+		`SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID))
+		}
+		return false, ctxerr.Wrap(ctx, err, "get host team_id for setup experience items check")
+	}
+
+	// global_or_team_id uses 0 for "no team / global", matching the value
+	// EnqueueSetupExperienceItems passes in for hosts on no team.
+	var globalOrTeamID uint
+	if teamID.Valid {
+		globalOrTeamID = uint(teamID.Int64) //nolint:gosec // dismiss G115; team_id is a non-negative DB primary key
+	}
+
+	const stmt = `
+SELECT EXISTS (
+	SELECT 1 FROM software_installers
+	WHERE platform = 'windows'
+		AND install_during_setup = TRUE
+		AND global_or_team_id = ?
+		AND is_active = TRUE
+	UNION
+	SELECT 1 FROM setup_experience_scripts
+	WHERE global_or_team_id = ?
+)`
+	var hasItems bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasItems, stmt, globalOrTeamID, globalOrTeamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check setup experience items configured")
+	}
+	return hasItems, nil
+}
+
+// GetMDMWindowsAwaitingConfigurationByHostUUID returns just the
+// awaiting_configuration value for the Windows MDM enrollment of the host
+// with the given UUID. This is a lightweight read intended for the hot
+// /orbit/config polling path; it uses the read replica and returns
+// notFound if the host isn't enrolled. Eventual consistency is acceptable
+// here because RunSetupExperience just signals orbit to call init; the ESP
+// state machine is reconciled on subsequent management sessions.
+func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+	const stmt = `SELECT awaiting_configuration
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1`
+	var awaiting fleet.WindowsMDMAwaitingConfiguration
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get MDMWindowsAwaitingConfigurationByHostUUID")
+	}
+	return awaiting, nil
+}
+
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the
 // database.
 func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
@@ -210,8 +277,14 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
 		delSetupExpStmt = "DELETE FROM setup_experience_status_results WHERE host_uuid = ?"
-		// Use a JOIN on hosts so the cleanup runs in a single statement and
-		// can never be silently skipped on a host lookup failure.
+		// Clear ALL queued upcoming activities for this host on
+		// re-enrollment (software_install, software_uninstall, script,
+		// vpp_app_install, etc). The unified queue can hold any
+		// activity_type; on Autopilot re-enrollment any pending work
+		// from the previous enrollment is stale because the device
+		// state has been wiped or reset. Use a JOIN on hosts so this
+		// runs in a single statement and can't be silently skipped on
+		// a host lookup failure.
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
@@ -234,7 +307,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				if _, err := tx.ExecContext(ctx, delSetupExpStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete setup_experience_status_results for host")
 				}
-				// Clear stale upcoming activities (software installs, scripts)
+				// Clear ALL stale upcoming activities (any activity_type)
 				// so they don't block new activities on re-enrollment.
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
@@ -980,9 +1053,14 @@ func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdm
 // require_all_software_windows setting for the team that the host with the
 // given UUID belongs to. Falls back to the app config when the host is on no
 // team.
+//
+// The host_id lookup uses the writer because this is a security-relevant
+// check on the ESP release path: a transient ErrNoRows from the read
+// replica during the brief enrollment window could otherwise let the
+// caller fall through to the host-not-found error and bypass require_all.
 func (ds *Datastore) GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.Context, hostUUID string) (bool, error) {
 	var teamID sql.NullInt64
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID,
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &teamID,
 		`SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
