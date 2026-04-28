@@ -2053,17 +2053,15 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 }
 
 // handleESPRelease handles awaiting_configuration=Active. It checks if all
-// profiles have been delivered and releases the device when ready.
+// profiles have been delivered and all setup experience software/scripts have
+// completed, then releases the device when ready.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
 	}
 
 	// Check timeout first: if we've exceeded the 3-hour window, release
-	// regardless of profile status.
-	// TODO(phase 3): check require_all_software_windows. If true, send
-	// BlockInStatusPage to force "Try again"/reboot instead of releasing.
-	// If false, release with error text via CustomErrorText. See #42850.
+	// regardless of profile/software status.
 	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
 	if timedOut {
 		svc.logger.WarnContext(ctx, "ESP: timeout reached, releasing device", "device_id", device.MDMDeviceID)
@@ -2100,6 +2098,37 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			}
 			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
 				return nil, nil
+			}
+		}
+
+		// Stage 3: setup experience software/scripts still running.
+		// Orbit calls SetupExperienceInit when it sees RunSetupExperience=true,
+		// which enqueues items into setup_experience_status_results. Wait for
+		// all of them to reach a terminal state (success/failure).
+		hostLite, err := svc.ds.HostLiteByIdentifier(ctx, device.HostUUID)
+		if err != nil {
+			if !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get host for ESP release check")
+			}
+			svc.logger.DebugContext(ctx, "ESP: host not found for setup experience check, skipping",
+				"host_uuid", device.HostUUID)
+		} else {
+			var teamID uint
+			if hostLite.TeamID != nil {
+				teamID = *hostLite.TeamID
+			}
+			results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
+			}
+			svc.logger.DebugContext(ctx, "ESP: setup experience check",
+				"host_uuid", device.HostUUID, "results_count", len(results))
+			for _, r := range results {
+				if !r.Status.IsTerminalStatus() {
+					svc.logger.DebugContext(ctx, "ESP: waiting for setup experience item",
+						"name", r.Name, "status", r.Status)
+					return nil, nil
+				}
 			}
 		}
 	}

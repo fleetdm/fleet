@@ -195,8 +195,11 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
+		loadHostIDStmt  = "SELECT id FROM hosts WHERE uuid = ? LIMIT 1"
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
+		delSetupExpStmt = "DELETE FROM setup_experience_status_results WHERE host_uuid = ?"
+		delUpcomingStmt = "DELETE FROM upcoming_activities WHERE host_id = ?"
 	)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -212,6 +215,19 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				// on the new enrollment.
 				if _, err := tx.ExecContext(ctx, delProfilesStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
+				}
+				// Clear setup experience results so they get re-enqueued
+				// on the new enrollment.
+				if _, err := tx.ExecContext(ctx, delSetupExpStmt, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "delete setup_experience_status_results for host")
+				}
+				// Clear stale upcoming activities (software installs, scripts)
+				// so they don't block new activities on re-enrollment.
+				var hostID uint
+				if err := sqlx.GetContext(ctx, tx, &hostID, loadHostIDStmt, hostUUID.String); err == nil {
+					if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostID); err != nil {
+						return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
+					}
 				}
 			}
 

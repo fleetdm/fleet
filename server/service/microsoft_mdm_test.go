@@ -1224,6 +1224,20 @@ func TestGetESPCommands(t *testing.T) {
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
 	})
 
+	// setReleaseMocks sets up mocks needed for tests that reach the release path
+	// (all profiles delivered + setup experience done).
+	setReleaseMocks := func(ds *mock.Store) {
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: hostUUID}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+	}
+
 	t.Run("active with all profiles delivered releases device", func(t *testing.T) {
 		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -1241,9 +1255,7 @@ func TestGetESPCommands(t *testing.T) {
 				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			return true, nil
-		}
+		setReleaseMocks(ds)
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			return nil
 		}
@@ -1251,6 +1263,35 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands")
+	})
+
+	t.Run("active waits when setup experience software is pending", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil // no profiles
+		}
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: hostUUID}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusRunning},
+			}, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait while setup experience software is running")
 	})
 
 	t.Run("active with no profiles releases device", func(t *testing.T) {
@@ -1268,9 +1309,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
 		}
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			return true, nil
-		}
+		setReleaseMocks(ds)
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			return nil
 		}
