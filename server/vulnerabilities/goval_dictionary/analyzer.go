@@ -41,7 +41,7 @@ func Analyze(
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
-			logger.Error("failed to close goval dictionary database", "platform", platform, "vuln_path", vulnPath, "err", err)
+			logger.ErrorContext(ctx, "failed to close goval dictionary database", "platform", platform, "vuln_path", vulnPath, "err", err)
 		}
 	}()
 
