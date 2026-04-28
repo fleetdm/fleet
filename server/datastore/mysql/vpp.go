@@ -2084,6 +2084,79 @@ FROM vpp_apps WHERE platform IN (?)`
 	return apps, nil
 }
 
+// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+// (adam_id, platform), or a NotFound error if no row exists. Used by the
+// anchoring logic to decide whether to use the row's anchored country or to
+// treat the operation as a first-add.
+func (ds *Datastore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+	const stmt = `
+SELECT
+	adam_id,
+	title_id,
+	bundle_identifier,
+	icon_url,
+	name,
+	latest_version,
+	platform,
+	COALESCE(country_code, '') AS country_code
+FROM vpp_apps
+WHERE adam_id = ? AND platform = ?`
+
+	var app fleet.VPPApp
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, adamID, platform); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "getting vpp app by adam id")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting vpp app by adam id")
+	}
+	return &app, nil
+}
+
+// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code matches
+// the given country and which owns the (adam_id, platform) app via a row in
+// vpp_apps_teams. When multiple tokens are eligible, the one with the lowest
+// id is returned (deterministic). Returns NotFound if no eligible token
+// exists — callers may treat this as a re-anchor signal.
+func (ds *Datastore) GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+	const stmt = `
+SELECT
+	v.id,
+	v.organization_name,
+	v.location,
+	v.renew_at,
+	v.token,
+	COALESCE(v.country_code, '') AS country_code
+FROM vpp_tokens v
+INNER JOIN vpp_apps_teams vat ON vat.vpp_token_id = v.id
+WHERE vat.adam_id = ?
+  AND vat.platform = ?
+  AND v.country_code = ?
+ORDER BY v.id ASC
+LIMIT 1`
+
+	var tokEnc fleet.VPPTokenDB
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, adamID, platform, country); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "no vpp token owns app in country")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token owning app in country")
+	}
+
+	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	return &fleet.VPPTokenDB{
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
+	}, nil
+}
+
 func (ds *Datastore) GetUnverifiedVPPInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT

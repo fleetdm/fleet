@@ -1211,6 +1211,10 @@ type UpdateVPPTokenCountryCodeFunc func(ctx context.Context, tokenID uint, count
 
 type UpdateVPPAppCountryCodeFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error
 
+type GetVPPAppByAdamIDPlatformFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error)
+
+type GetVPPTokenOwningAppInCountryFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error)
+
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
@@ -3685,6 +3689,12 @@ type DataStore struct {
 
 	UpdateVPPAppCountryCodeFunc        UpdateVPPAppCountryCodeFunc
 	UpdateVPPAppCountryCodeFuncInvoked bool
+
+	GetVPPAppByAdamIDPlatformFunc        GetVPPAppByAdamIDPlatformFunc
+	GetVPPAppByAdamIDPlatformFuncInvoked bool
+
+	GetVPPTokenOwningAppInCountryFunc        GetVPPTokenOwningAppInCountryFunc
+	GetVPPTokenOwningAppInCountryFuncInvoked bool
 
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
@@ -8883,6 +8893,20 @@ func (s *DataStore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, 
 	s.UpdateVPPAppCountryCodeFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPAppCountryCodeFunc(ctx, adamID, platform, countryCode)
+}
+
+func (s *DataStore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppByAdamIDPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppByAdamIDPlatformFunc(ctx, adamID, platform)
+}
+
+func (s *DataStore) GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenOwningAppInCountryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenOwningAppInCountryFunc(ctx, adamID, platform, country)
 }
 
 func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {

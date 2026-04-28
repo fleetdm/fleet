@@ -1863,6 +1863,16 @@ type Datastore interface {
 	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
 	// path when the original anchored country has no Fleet-known token left.
 	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
+	// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+	// (adam_id, platform), or a NotFound error if no row exists. Used by the
+	// anchoring logic to decide whether the next add is a first-add or a
+	// subsequent add.
+	GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform InstallableDevicePlatform) (*VPPApp, error)
+	// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code
+	// matches the given country and which owns the (adam_id, platform) app
+	// via vpp_apps_teams. Returns NotFound when no eligible token exists —
+	// callers may treat this as a re-anchor signal.
+	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
