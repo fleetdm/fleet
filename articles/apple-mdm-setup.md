@@ -84,7 +84,7 @@ macOS, iOS, and iPadOS hosts listed in AB and associated to a Fleet instance wit
 
 When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
 
-The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. For the full list of keys and their values [here](https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web).
+The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. See the full list of keys and their values [here](https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web).
 
 #### Where to view the default profile
 
