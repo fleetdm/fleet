@@ -3151,7 +3151,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				ProfileIdentifier: "com.add.profile.five",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
-				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host.",
 				Status:            &fleet.MDMDeliveryFailed,
 				Scope:             fleet.PayloadScopeUser,
 			},
@@ -3450,7 +3450,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryFailed,
-				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host.",
 				Scope:             fleet.PayloadScopeUser,
 			},
 			{
