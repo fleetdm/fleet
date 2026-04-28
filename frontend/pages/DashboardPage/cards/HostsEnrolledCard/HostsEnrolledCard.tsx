@@ -114,6 +114,8 @@ const HostsEnrolledCard = ({
     count: counts[platform],
   }));
 
+  // Given a platform, find the corresponding built-in label ID for linking to the
+  // hosts list.
   const getLabelId = (platform: PlatformKey): number | undefined => {
     const labelName = PLATFORM_NAME_TO_LABEL_NAME[platform];
     return builtInLabels?.find((l) => l.name === labelName)?.id;
