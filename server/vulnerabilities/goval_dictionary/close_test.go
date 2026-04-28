@@ -47,6 +47,7 @@ func TestDatabaseCloseReleasesFileHandle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open: %v", err)
 	}
+	t.Cleanup(func() { _ = sqlite.Close() })
 	db := Database{sqlite: sqlite}
 
 	// Run a real query to force the pool to allocate a connection on
