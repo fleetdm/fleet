@@ -8066,6 +8066,35 @@ func (s *integrationTestSuite) TestAppConfig() {
 	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 
+	// preserve_host_activities_on_reenrollment round-trip.
+	initialPreserve := acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": true
+    }
+  }`), http.StatusOK, &acResp)
+	require.True(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": false
+    }
+  }`), http.StatusOK, &acResp)
+	require.False(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	// Restore initial value to keep subsequent tests order-independent.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": %t
+    }
+  }`, initialPreserve)), http.StatusOK, &acResp)
+	require.Equal(t, initialPreserve, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
 	// Disable AI features.
 	acResp = appConfigResponse{}
 	s.DoJSON(
