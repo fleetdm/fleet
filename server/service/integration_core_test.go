@@ -5303,6 +5303,7 @@ func (s *integrationTestSuite) TestLabels() {
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
 			"device_mapping",
+			"display_name",
 		} {
 			listHostsResp = listHostsResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", key, "device_mapping", "true")
@@ -5612,7 +5613,7 @@ func (s *integrationTestSuite) TestLabels() {
 		base := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
 		platforms := []string{"darwin", "linux", "windows"}
 		sortHosts := make([]*fleet.Host, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			h, err := s.ds.NewHost(ctx, &fleet.Host{
 				OsqueryHostID:               ptr.String(fmt.Sprintf("sort-osq-%d", i)),
 				NodeKey:                     ptr.String(fmt.Sprintf("sort-nk-%d", i)),
@@ -5642,7 +5643,6 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// Set columns not handled by NewHost via direct UPDATEs.
 		for i, h := range sortHosts {
-			i, h := i, h
 			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx, `
 					UPDATE hosts SET
@@ -5670,7 +5670,7 @@ func (s *integrationTestSuite) TestLabels() {
 					base.Add(time.Duration(i+1)*6*time.Hour),
 					base.Add(time.Duration(i+1)*7*time.Hour),
 					base.Add(time.Duration(i+1)*8*time.Hour),
-					uint(i+1)*100,
+					uint(i+1)*100, //nolint:gosec // ignore G115
 					fmt.Sprintf("10.0.0.%d", i+1),
 					fmt.Sprintf("aa:bb:cc:00:00:0%d", i+1),
 					fmt.Sprintf("8.0.0.%d", i+1),
@@ -5694,7 +5694,6 @@ func (s *integrationTestSuite) TestLabels() {
 		// Populate joined tables (host_disks, host_seen_times, host_updates,
 		// host_issues, host_emails) with values that also sort by host index.
 		for i, h := range sortHosts {
-			i, h := i, h
 			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx, `
 					INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space)
@@ -5718,7 +5717,7 @@ func (s *integrationTestSuite) TestLabels() {
 				_, err := db.ExecContext(ctx, `
 					INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count)
 					VALUES (?, ?, ?, ?)`,
-					h.ID, uint(i+1), uint(i+1)*2, uint(i+1)*3)
+					h.ID, uint(i+1), uint(i+1)*2, uint(i+1)*3) //nolint:gosec // ignore G115
 				return err
 			})
 			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
@@ -5736,7 +5735,7 @@ func (s *integrationTestSuite) TestLabels() {
 		sortLabel := createResp.Label.Label
 		for _, h := range sortHosts {
 			require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, h,
-				map[uint]*bool{sortLabel.ID: ptr.Bool(true)}, time.Now(), false))
+				map[uint]*bool{sortLabel.ID: new(true)}, time.Now(), false))
 		}
 
 		ascIDs := []uint{sortHosts[0].ID, sortHosts[1].ID, sortHosts[2].ID}
@@ -5762,9 +5761,9 @@ func (s *integrationTestSuite) TestLabels() {
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
+			"display_name",
 		}
 		for _, key := range orderKeys {
-			key := key
 			t.Run(key, func(t *testing.T) {
 				params := []string{"order_key", key, "order_direction", "asc"}
 				if key == "device_mapping" {
