@@ -86,14 +86,33 @@ Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app
 
 > VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
 
+#### iOS and iPadOS managed configuration
+
+Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+
+Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+##### Example (Zoom)
+
+This configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+
+```xml
+<dict>
+  <key>ForceLoginWithSSO</key>
+  <true />
+  <key>SetSSOURL</key>
+  <string>example</string>
+</dict>
+```
+
 ### Google Play (Android)
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
 
-#### Configuration
+#### Managed configuration
 
-Currently, editing configurations is only supported for Android apps. Only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are currently supported.
+Currently, only the `managedConfiguration` and `workProfileWidgets` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 
