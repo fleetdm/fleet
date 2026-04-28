@@ -52,7 +52,7 @@ All creatives must map to one or more: high-agency device management; infrastruc
 | Content Specialist (Marketing DRI) | Campaign Manager day-to-day, daily health checks, promote/pause/retest decisions, budget pacing, \#help-marketing monitoring, Social Media Manager coordination. |
 | Social Media Manager | Daily posting, boosting per calendar or direction, content calendar updates, tagging Fleeties for engagement in \#help-marketing, LinkedIn comment response. |
 | CMO | Ad strategy and creative direction, monthly performance review, final call on budget allocation, and major strategy changes. |
-| CEO | Early monthly reviews (transitioning out by the end of Q2 2026), directing specific experiments or spend pushes, and owning saved audience definitions. |
+| CEO | Saved audience definitions |
 | Sales | Triggers ABM campaigns via Salesforce. |
 | Ad agency | Executes daily/weekly operations per this page, produces creative, provides weekly reports, and flags anomalies to CMO. |
 | Head of Design | Approves images/designs before they go live. |
