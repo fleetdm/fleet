@@ -831,12 +831,6 @@ type Datastore interface {
 
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
-	// BatchCancelAllHostUpcomingActivities cancels every upcoming activity
-	// (queued and already-activated) for the given host in a single
-	// transaction and returns the canceled activity details for audit-log
-	// emission. Unlike CancelHostUpcomingActivity, this bypasses the
-	// lock/wipe service-layer guard intentionally — callers (e.g. wipe) need
-	// a clean slate.
 	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)

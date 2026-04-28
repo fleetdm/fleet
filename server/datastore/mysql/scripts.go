@@ -593,8 +593,6 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "selecting upcoming script executions")
 	}
 
-	// TODO: pass activateNext: false until the last iteration to avoid
-	// activating activities that are about to be canceled.
 	for _, upcomingExecution := range upcomingExecutions {
 		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
@@ -2692,8 +2690,6 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "selecting hosts to cancel")
 			}
 
-			// TODO: pass activateNext: false until the last iteration to avoid
-			// activating activities that are about to be canceled.
 			for _, host := range toCancel {
 				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "canceling upcoming activity")

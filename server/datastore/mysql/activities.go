@@ -399,12 +399,11 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	return details, nil
 }
 
-// BatchCancelAllHostUpcomingActivities cancels every upcoming activity (queued
-// and already-activated) for the given host in a single transaction. Unlike
-// the public single-cancel API, this bypasses the lock/wipe service-layer
-// guard intentionally — callers (e.g. wipe) need a clean slate. Returns the
-// canceled activities so the service layer can record per-activity audit
-// entries.
+// BatchCancelAllHostUpcomingActivities cancels every upcoming activity (both queued
+// and already-activated) for the given host in a single transaction. Unlike the public
+// single-cancel API, this bypasses the lock/wipe service-layer guard intentionally -
+// this is called after a Wipe so there's no need for this check. Returns the canceled
+// activities.
 func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
 	var canceled []fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -416,9 +415,10 @@ func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, h
 
 		canceled = make([]fleet.ActivityDetails, 0, len(execIDs))
 		for i, execID := range execIDs {
-			// only the last cancellation triggers activation of the next
-			// activity; the others would activate something that is about to
-			// be canceled in the next iteration.
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			// Technically we could always pass "false" as there shouldn't be any activity
+			// at the end, but there's no harm in doing it just in case a race could happen.
 			activateNext := i == len(execIDs)-1
 			details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
 			if err != nil {
