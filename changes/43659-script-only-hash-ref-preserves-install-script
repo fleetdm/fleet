@@ -1,0 +1,1 @@
+- Fixed a bug where applying GitOps to a script-only package by `hash_sha256` reference would wipe the install script, causing self-service installs to silently no-op.
