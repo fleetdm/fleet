@@ -5268,6 +5268,22 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
 		assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
 
+		// invalid order_key returns 422 (sensitive columns must not be sortable to prevent
+		// information disclosure via binary search extraction).
+		for _, key := range []string{
+			"node_key", "h.node_key",
+			"orbit_node_key", "h.orbit_node_key",
+			"invalid_column", "h.invalid_column",
+			// computer_name is a valid field, but must not contain the table alias
+			// (previous version of the endpoint allowed setting aliases here).
+			"h.computer_name",
+		} {
+			res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusUnprocessableEntity, "order_key", key)
+			errMsg := extractServerErrorText(res.Body)
+			assert.Contains(t, errMsg, "invalid order_key")
+			assert.Contains(t, errMsg, key)
+		}
+
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)

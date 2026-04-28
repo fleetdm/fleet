@@ -1247,7 +1247,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if opt.ListOptions.OrderKey == "issues" {
 		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
 	}
-	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
+	query, whereParams, err = appendListOptionsWithCursorToSQLSecure(query, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "apply host list options")
+	}
 	return query, append(joinParams, whereParams...), nil
 }
 
