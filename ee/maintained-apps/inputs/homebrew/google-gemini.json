@@ -1,0 +1,9 @@
+{
+  "name": "Gemini",
+  "unique_identifier": "com.google.GeminiMacOS",
+  "token": "google-gemini",
+  "installer_format": "dmg",
+  "frozen": true,
+  "slug": "google-gemini/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -342,6 +342,27 @@ func gitopsCommand() *cli.Command {
 				return fmt.Errorf("global config must be provided alongside %s", noTeamFilename)
 			}
 
+			// Fail fast if two YAML files in this run resolve to the same
+			// team name under MySQL's utf8mb4_unicode_ci collation.
+			seenTeamNames := make(map[string]string, len(configs)) // key -> filename
+			for _, cf := range configs {
+				if cf.IsGlobalConfig || cf.Config.TeamName == nil {
+					continue
+				}
+				name := strings.TrimSpace(*cf.Config.TeamName)
+				key := norm.NFC.String(strings.ToLower(name))
+				if key == "" {
+					continue
+				}
+				if prev, ok := seenTeamNames[key]; ok {
+					return fmt.Errorf(
+						"duplicate fleet names in GitOps files: %q and %q both resolve to the same fleet name. Fleet names must differ by more than letter case.",
+						prev, cf.Filename,
+					)
+				}
+				seenTeamNames[key] = cf.Filename
+			}
+
 			labelMoves, err := computeLabelMoves(labelChanges)
 			if err != nil {
 				return err

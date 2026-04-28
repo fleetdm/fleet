@@ -1,0 +1,1 @@
+- Fixed a UI bug where editing an existing global user to enable two-factor authentication failed with a 422 error.
