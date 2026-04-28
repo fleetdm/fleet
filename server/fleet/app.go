@@ -1239,6 +1239,12 @@ type HostExpirySettings struct {
 type ActivityExpirySettings struct {
 	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
 	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+
+	// PreserveHostActivitiesOnReenrollment controls whether existing host
+	// activities, MDM commands, etc. are kept when a managed host re-enrolls.
+	// Defaults to true for upgraded installs (preserves prior behavior) and
+	// false for fresh installs.
+	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
 }
 
 type Features struct {

@@ -1278,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// enqueue a script run, so the VPP app installs are pending in the unified
 	// queue
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// trigger install of both apps on the host
@@ -2814,7 +2814,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// enqueue a script execution first, so that when it's marked as executed, both
 	// vpp app installs activate at the same time (VPP app installs get batch-activated
 	// when they are consecutive in the upcoming queue)
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost2.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, appXcodeTitleID), &installSoftwareRequest{},
