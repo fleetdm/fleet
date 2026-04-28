@@ -586,19 +586,20 @@ func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
-	PackageIDList    string  `db:"package_ids"`
-	PackageIDs       []string
-	StorageID        string  `db:"storage_id"`
-	HTTPETag         *string `db:"http_etag"`
+	InstallerID            uint    `db:"installer_id"`
+	TeamID                 *uint   `db:"team_id"`
+	Filename               string  `db:"filename"`
+	Extension              string  `db:"extension"`
+	Version                string  `db:"version"`
+	Platform               string  `db:"platform"`
+	Source                 string  `db:"source"`
+	BundleIdentifier       *string `db:"bundle_identifier"`
+	Title                  string  `db:"title"`
+	PackageIDList          string  `db:"package_ids"`
+	PackageIDs             []string
+	StorageID              string  `db:"storage_id"`
+	HTTPETag               *string `db:"http_etag"`
+	InstallScriptContentID uint    `db:"install_script_content_id"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
