@@ -5,6 +5,19 @@
     margin: 0 0 $pad-medium !important;
   }
 
+  // Theme-aware axis tick text. CSS fill overrides the inline fill attribute
+  // recharts adds to its default <text> elements. Font size stays inline
+  // (recharts measures it via getComputedStyle to lay out the axis).
+  .recharts-cartesian-axis text {
+    fill: $ui-fleet-black-75;
+  }
+
+  // Y-axis labels and bars are clickable.
+  .recharts-yAxis .recharts-cartesian-axis-tick,
+  .recharts-bar-rectangle {
+    cursor: pointer;
+  }
+
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
   // <rect> and the chart surface itself is focusable when interactive.

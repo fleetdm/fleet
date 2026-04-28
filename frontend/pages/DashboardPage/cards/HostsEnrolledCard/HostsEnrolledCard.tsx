@@ -17,10 +17,9 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 const baseClass = "hosts-enrolled-card";
 
-// Use design-system color tokens via CSS custom properties so recharts picks
-// up the themed value for SVG fill / text colors.
+// Use design-system color token via CSS custom property so recharts picks
+// up the themed value for the bar fill.
 const BAR_COLOR = "var(--core-fleet-green)";
-const TICK_COLOR = "var(--ui-fleet-black-75)";
 
 export interface IHostPlatformCounts {
   darwin: number;
@@ -82,10 +81,9 @@ const ClickableYAxisTick = ({
   return (
     <g
       transform={`translate(${x},${y})`}
-      style={{ cursor: "pointer", outline: "none" }}
       onClick={() => onLabelClick(payload.index)}
     >
-      <text x={0} y={0} dy={4} textAnchor="end" fill={TICK_COLOR} fontSize={14}>
+      <text x={0} y={0} dy={4} textAnchor="end" fontSize={14}>
         {payload.value}
       </text>
     </g>
@@ -146,7 +144,7 @@ const HostsEnrolledCard = ({
             tickFormatter={formatTick}
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 14, fill: TICK_COLOR }}
+            tick={{ fontSize: 14 }}
           />
           <YAxis
             type="category"
@@ -161,7 +159,6 @@ const HostsEnrolledCard = ({
             radius={[0, 4, 4, 0]}
             barSize={16}
             onClick={(d) => handleBarClick(d as IPlatformDatum)}
-            style={{ cursor: "pointer", outline: "none" }}
           >
             {data.map((entry) => (
               <Cell key={entry.label} fill={BAR_COLOR} />
