@@ -113,7 +113,8 @@ import {
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { getDeleteLabelErrorMessages, isAcceptableStatus } from "./helpers";
+import { isAcceptableStatus } from "./helpers";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
 
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";

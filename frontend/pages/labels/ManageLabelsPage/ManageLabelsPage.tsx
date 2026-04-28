@@ -9,7 +9,7 @@ import { NotificationContext } from "context/notification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import { getDeleteLabelErrorMessages } from "pages/hosts/ManageHostsPage/helpers";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
 
 import { ILabel } from "interfaces/label";
 
