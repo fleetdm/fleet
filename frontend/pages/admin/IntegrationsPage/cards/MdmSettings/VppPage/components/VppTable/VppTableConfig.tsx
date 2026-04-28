@@ -94,6 +94,16 @@ export const generateTableConfig = (
       ),
     },
     {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell
+          value={cellProps.cell.value ? cellProps.cell.value.toUpperCase() : ""}
+        />
+      ),
+    },
+    {
       accessor: "renew_date",
       Header: "Renew date",
       disableSortBy: true,
