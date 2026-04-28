@@ -326,6 +326,7 @@
       gap: 8px;
       align-self: stretch;
       color: #515774;
+      border-left: 1px solid #E2E4EA;
 
       /* Body/Emphasis/SM */
       font-family: Inter;
@@ -335,9 +336,14 @@
     }
     tr {
       border-bottom: 1px solid #E2E4EA;
-      td:nth-of-type(3) {
-        border-left: 1px solid #E2E4EA;
-        background: #F9FAFC;
+      td:nth-of-type(1) {
+        border-left: none;
+      }
+    }
+    tr {
+      border-bottom: 1px solid #E2E4EA;
+      td:nth-of-type(1) {
+        font-weight: 700;
       }
     }
   }
