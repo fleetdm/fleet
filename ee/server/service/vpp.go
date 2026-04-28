@@ -982,13 +982,13 @@ func (svc *Service) getVPPConfig(ctx context.Context) apple_apps.Config {
 	return apple_apps.Configure(ctx, svc.ds, svc.config.License.Key, svc.config.MDM.AppleConnectJWT)
 }
 
-// getAnchoredVPPAppsMetadata is the anchoring-aware companion to
-// getVPPAppsMetadata. For each (adam_id, platform) in ids, it consults
-// resolveAddAnchor to decide which token+storefront to use, bundles
-// adamIDs by their resolved (region, secret) so that each unique pair
-// produces at most one Apple call, and returns the constructed VPPApp
-// slice along with the list of (adam_id, platform, country) tuples that
-// need a re-anchor UPDATE after insert.
+// getAnchoredVPPAppsMetadata is the anchoring-aware metadata fetcher used by
+// the batch (GitOps) path. For each (adam_id, platform) in ids it consults
+// resolveAddAnchor to decide which token+storefront to use, bundles adamIDs
+// by their resolved (region, secret) so each unique pair produces at most one
+// Apple call, and returns the constructed VPPApp slice along with the list
+// of (adam_id, platform, country) tuples that need a re-anchor UPDATE after
+// insert.
 type vppReAnchor struct {
 	AdamID      string
 	Platform    fleet.InstallableDevicePlatform
@@ -1087,88 +1087,6 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 	}
 
 	return apps, reAnchors, nil
-}
-
-func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam, vppToken string, vppConfig apple_apps.Config) ([]*fleet.VPPApp, error) {
-	var apps []*fleet.VPPApp
-
-	// Map of adamID to platform, then to whether it's available as self-service
-	// and installed during setup.
-	adamIDMap := make(map[string]map[fleet.InstallableDevicePlatform]fleet.VPPAppTeam)
-	for _, id := range ids {
-		if _, ok := adamIDMap[id.AdamID]; !ok {
-			adamIDMap[id.AdamID] = make(map[fleet.InstallableDevicePlatform]fleet.VPPAppTeam, 1)
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
-				SelfService:         id.SelfService,
-				InstallDuringSetup:  id.InstallDuringSetup,
-				ValidatedLabels:     id.ValidatedLabels,
-				AppTeamID:           id.AppTeamID,
-				Categories:          id.Categories,
-				CategoryIDs:         id.CategoryIDs,
-				DisplayName:         id.DisplayName,
-				AutoUpdateEnabled:   id.AutoUpdateEnabled,
-				AutoUpdateStartTime: id.AutoUpdateStartTime,
-				AutoUpdateEndTime:   id.AutoUpdateEndTime,
-			}
-		} else {
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
-				SelfService:         id.SelfService,
-				InstallDuringSetup:  id.InstallDuringSetup,
-				ValidatedLabels:     id.ValidatedLabels,
-				AppTeamID:           id.AppTeamID,
-				Categories:          id.Categories,
-				CategoryIDs:         id.CategoryIDs,
-				DisplayName:         id.DisplayName,
-				AutoUpdateEnabled:   id.AutoUpdateEnabled,
-				AutoUpdateStartTime: id.AutoUpdateStartTime,
-				AutoUpdateEndTime:   id.AutoUpdateEndTime,
-			}
-		}
-	}
-
-	var adamIDs []string
-	for adamID := range adamIDMap {
-		adamIDs = append(adamIDs, adamID)
-	}
-	assetMetadata, err := apple_apps.GetMetadata(adamIDs, "", vppToken, vppConfig)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
-	}
-
-	for adamID, metadata := range assetMetadata {
-		platforms := apple_apps.ToVPPApps(metadata)
-		for platform, retrievedApp := range platforms {
-			if props, ok := adamIDMap[adamID][platform]; ok {
-				app := &fleet.VPPApp{
-					VPPAppTeam: fleet.VPPAppTeam{
-						VPPAppID: fleet.VPPAppID{
-							AdamID:   adamID,
-							Platform: platform,
-						},
-						SelfService:         props.SelfService,
-						InstallDuringSetup:  props.InstallDuringSetup,
-						ValidatedLabels:     props.ValidatedLabels,
-						AppTeamID:           props.AppTeamID,
-						Categories:          props.Categories,
-						CategoryIDs:         props.CategoryIDs,
-						DisplayName:         props.DisplayName,
-						AutoUpdateEnabled:   props.AutoUpdateEnabled,
-						AutoUpdateStartTime: props.AutoUpdateStartTime,
-						AutoUpdateEndTime:   props.AutoUpdateEndTime,
-					},
-					BundleIdentifier: retrievedApp.BundleIdentifier,
-					IconURL:          retrievedApp.IconURL,
-					Name:             retrievedApp.Name,
-					LatestVersion:    retrievedApp.LatestVersion,
-				}
-				apps = append(apps, app)
-			} else {
-				continue
-			}
-		}
-	}
-
-	return apps, nil
 }
 
 func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
