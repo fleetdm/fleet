@@ -135,17 +135,16 @@ WHERE NOT EXISTS (
 // appendListOptionsWithCursorToSQLSecure, which prevents arbitrary
 // columns from reaching ORDER BY.
 //
-// hostname is intentionally NOT in the allowlist: path A does not
-// project it in SQL (it is merged from byUUID after the SELECT runs),
-// so allowing it here would error on path A. Sorting by hostname is
-// also low-value — a single host_identifier yields one hostname, and
-// the unscoped path would otherwise need a separate allowlist.
+// Both paths project these columns identically in their SELECTs (path A
+// JOINs hosts to surface hostname; path B's subqueries already include
+// it), so a single allowlist works at every level.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",
 	"status":       "status",
 	"updated_at":   "updated_at",
 	"request_type": "request_type",
+	"hostname":     "hostname",
 }
 
 // getCombinedMDMCommandsQuery returns the legacy combined statement
@@ -363,10 +362,12 @@ SELECT
         ELSE 'pending'
     END AS command_status,
 	request_type,
-	nc.name
+	nc.name,
+	h.hostname
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
+	JOIN hosts h ON h.uuid = nq.id
 	LEFT JOIN nano_command_results ncr ON nq.id = ncr.id
 		AND nc.command_uuid = ncr.command_uuid
 WHERE
@@ -390,11 +391,13 @@ WHERE
 		'101' AS status,
 		'pending' AS command_status,
 		wc.target_loc_uri AS request_type,
-		NULL AS name
+		NULL AS name,
+		h.hostname
 	FROM
 		windows_mdm_command_queue wq
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
 		JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+		JOIN hosts h ON h.uuid = mwe.host_uuid
 
 	WHERE
 		mwe.host_uuid IN (?)
@@ -427,11 +430,13 @@ WHERE
         ) >= 400 THEN 'failed'
     END AS command_status,
 		wc.target_loc_uri AS request_type,
-		NULL AS name
+		NULL AS name,
+		h.hostname
 	FROM
 		windows_mdm_command_results wcr
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
 		JOIN windows_mdm_commands wc ON wc.command_uuid = wcr.command_uuid
+		JOIN hosts h ON h.uuid = mwe.host_uuid
 	WHERE
 		mwe.host_uuid IN (?)
 
@@ -513,10 +518,10 @@ WHERE
 		}
 	}
 
-	// Add hostname and team info to the results based on the host UUIDs.
+	// Hostname is now projected in SQL on both branches; only team_id
+	// still needs to be merged from the prefetched host lookup.
 	for i := range results {
 		if host, ok := byUUID[results[i].HostUUID]; ok {
-			results[i].Hostname = host.Hostname
 			results[i].TeamID = host.TeamID
 		}
 	}
