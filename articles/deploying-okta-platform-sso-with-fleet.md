@@ -2,7 +2,7 @@
 
 Apple's Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
 
-This guide details how to deploy Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts.
+This guide details how to deploy Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts. It covers both the standard Platform SSO setup (macOS 13+) and the newer [Simplified Platform SSO](#simplified-platform-sso-macos-26) workflow introduced in macOS 26.
 
 If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
@@ -347,6 +347,70 @@ Once registration is complete, the user's local macOS password will sync with th
 - Experience seamless authentication to Okta-protected apps in web browsers
 - No longer need to enter passwords or complete MFA challenges for Okta-protected resources
 
+## Simplified Platform SSO (macOS 26+)
+
+Apple introduced Simplified Platform SSO in macOS 26. It streamlines the Platform SSO setup by presenting a **Mac Single Sign On** page during Setup Assistant, allowing users to authenticate with their IdP right out of the box — no post-enrollment registration step required.
+
+> As of April 2026, Simplified Platform SSO with Entra ID is only available in private preview. The instructions below are specific to Okta. Entra ID support should be coming soon.
+
+### Prerequisites (Simplified Platform SSO)
+
+In addition to the [standard prerequisites](#prerequisites) above, Simplified Platform SSO requires:
+
+- Devices running **macOS 26** or later
+- Devices enrolled via **Apple Business Manager (ABM)**
+- Fleet's **Setup Experience** configured for the target team
+- The latest **Okta Verify** installer downloaded from your Okta tenant (not the App Store version)
+
+### Step 1: Configure profiles
+
+Simplified Platform SSO uses the same Extensible SSO / Platform SSO profile and Okta Device Access SCEP profile described in the sections above. Follow the existing instructions to create:
+
+- An **Extensible Single Sign-On** profile with Platform SSO settings (see [Build the Platform SSO Configuration Profiles](#build-the-platform-sso-configuration-profiles))
+- An **Okta Device Access SCEP** certificate profile (see [Set Up Device Access SCEP Certificates](#set-up-device-access-scep-certificates-macos-14-only))
+
+<!-- TODO: Add example Simplified Platform SSO profiles once finalized. -->
+
+Upload both profiles to the target team in Fleet under **Controls** → **OS Settings** → **Custom settings**.
+
+### Step 2: Add Okta Verify as a Setup Experience app
+
+Download the latest `OktaVerify-Installer.pkg` from your Okta Admin Console (**Settings** → **Downloads**). Don't use the App Store version — it lacks the required MDM integration features.
+
+In Fleet, navigate to the target team and go to **Controls** → **Setup experience** → **Software**. Upload the Okta Verify installer so that it is installed on the device during Setup Experience, before the user reaches the Mac Single Sign On screen.
+
+### Step 3: Enroll via ABM
+
+Enroll the Mac through Apple Business Manager. After Setup Experience completes (profiles are delivered and Okta Verify is installed), the user is presented with a new **Mac Single Sign On** page containing an Okta login prompt.
+
+### End user experience (Simplified Platform SSO)
+
+1. **Mac Single Sign On screen:** After Setup Experience, the user sees an Okta login page. They enter their Okta credentials to authenticate.
+2. **Create account screen:** After authenticating, the standard macOS create-account screen appears, but all fields are locked — the user can only edit the **password hint**. The local account password is automatically set to match their Okta password.
+3. **Okta Verify setup:** Later in Setup Assistant, the user logs into Okta a second time to finalize the Okta Verify registration on the device.
+
+### Password syncing behavior
+
+With Simplified Platform SSO, the user's local macOS password is tied to their Okta password:
+
+- Users **cannot** set a local password that differs from their Okta password.
+- If the Okta password is changed via the Okta web UI, the user may not immediately receive a notification to sync. Locking the screen and unlocking with the **new** Okta password triggers the sync — the old password stops working at that point.
+- If the user never enters the new password, the old password may continue to work for some time. Further research is needed to determine whether there is a way to proactively prompt the user to sync.
+
+### Multiple credential prompts
+
+When Fleet's **End User Authentication** is also enabled, the user enters IdP credentials **three times** during enrollment:
+
+1. MDM enrollment end user authentication
+2. Platform SSO authentication (Mac Single Sign On screen)
+3. Okta Verify setup
+
+> It may be possible to reduce this to two prompts by leveraging Apple's customized authentication flow (using `com.apple.psso.required` error, HTTP 403, and a customized authentication URL). As of April 2026, it is unclear whether Okta supports this flow. Jamf has indicated the feature is still in development on their side.
+
+### Managing mixed macOS versions
+
+If your fleet includes devices running macOS versions older than macOS 26, carefully review Apple's Platform SSO documentation to understand which features are supported on each version. Consider assigning devices on older macOS versions to a **separate team** in Fleet so they receive the standard Platform SSO profiles (described earlier in this guide) rather than the Simplified Platform SSO configuration.
+
 ## Troubleshooting
 
 ### Platform SSO 2.0 Considerations
@@ -360,6 +424,20 @@ To verify SCEP certificates were deployed correctly on macOS:
 2. Select **System** keychain
 3. Confirm the client certificate and private key exist
 4. Verify the certificate has a custom extension with OID `1.3.6.1.4.1.51150.13.1`
+
+### Simplified Platform SSO: Okta Verify factor on a wiped device
+
+If a user's only Okta Verify factor is registered on the device being set up, and that device is wiped and re-enrolled, the final Okta Verify setup step will fail. Okta's logs do not surface a clear error for this scenario.
+
+**Fix:** Before re-enrolling a wiped device, revoke both the device and the user's Okta Verify registrations in the Okta Admin Console.
+
+### Simplified Platform SSO: SCEP or Okta Verify install failure
+
+If the Okta SCEP certificate enrollment fails or the Okta Verify installation fails during Setup Experience, the user gets stuck at the Mac Single Sign On screen with no clean way to proceed. Verify that the SCEP profile is correctly configured and that the Okta Verify package uploaded to Fleet is the latest version from your Okta tenant.
+
+### Simplified Platform SSO: Static vs. dynamic SCEP challenge
+
+The Simplified Platform SSO workflow has been validated with a static SCEP challenge. There is no technical reason a dynamic challenge cannot be used — ensure the SCEP profile is configured with the appropriate Fleet variables as described in [Option 1: Dynamic SCEP challenge via Fleet](#option-1-dynamic-scep-challenge-via-fleet-recommended).
 
 ## Additional Resources
 
