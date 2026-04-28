@@ -145,7 +145,7 @@
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.veertu.ankaview",
+      "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
