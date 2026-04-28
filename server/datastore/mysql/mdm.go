@@ -2887,18 +2887,23 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				)
 				continue
 			}
-			// This will trigger a resend next time profiles are checked
-			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
+			// This will trigger a resend next time profiles are checked. Restrict to settled
+			// statuses ('verified', 'failed') to avoid re-firing renewal while a previous
+			// delivery is still in flight ('pending', 'verifying') — that would generate a
+			// fresh challenge and InstallProfile command every cron tick for any host that
+			// hasn't yet picked up the renewal (e.g. offline laptop), creating orphan nano
+			// commands and challenge rows hourly. See issue #44111.
+			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IN (?, ?) AND operation_type = ? AND (`
 			hostProfileClause := ``
-			values := []any{fleet.MDMOperationTypeInstall}
+			values := []any{fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall}
 			hostCertsToRenew := []struct {
 				HostUUID       string    `db:"host_uuid"`
 				ProfileUUID    string    `db:"profile_uuid"`
 				NotValidAfter  time.Time `db:"not_valid_after"`
 				ValidityPeriod int       `db:"validity_period"`
 			}{}
-			// Fetch all MDM Managed certificates of the given type that aren't already queued for
-			// resend(hmap.status=null) and which
+			// Fetch all MDM Managed certificates of the given type that are in a settled
+			// status ('verified' or 'failed') and which
 			// * Have a validity period > 30 days and are expiring in the next 30 days
 			// * Have a validity period <= 30 days and are within half the validity period of expiration
 			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
@@ -2915,12 +2920,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		`+table+` hp
 		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
 	WHERE
-		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
+		hmmc.type = ? AND hp.status IN (?, ?) AND hp.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
+	LIMIT ?`, hostCertType, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall, limit)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}

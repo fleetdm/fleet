@@ -8811,6 +8811,60 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				require.NotNil(t, profile)
 			})
 
+			// Regression test for issue #44111: renewal cron must not flip the status of a
+			// profile that's still being delivered ('pending' or 'verifying'). Otherwise an
+			// offline host that hasn't picked up the renewal yet would have its profile
+			// re-rendered with a fresh challenge every cron tick, generating orphan nano
+			// commands and challenge rows hourly.
+			t.Run("Renewal cron skips in-flight statuses (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+
+				for _, inFlightStatus := range []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying} {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, inFlightStatus, host.UUID, initialCP.ProfileUUID)
+						return err
+					})
+
+					err = ds.RenewMDMManagedCertificates(ctx)
+					require.NoError(t, err)
+					profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+					require.NoError(t, err)
+					require.NotNil(t, profile.Status)
+					assert.Equalf(t, inFlightStatus, *profile.Status,
+						"renewal cron must not flip status away from %q (in-flight delivery)", inFlightStatus)
+				}
+
+				// Sanity check: 'failed' must still be picked up so the cron can recover
+				// from a transient SCEP server outage on the next tick.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryFailed, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status, "renewal cron must re-trigger 'failed' to recover from transient outages")
+			})
+
 			// Regression test for issue #44111: the reconcile re-render that fires after a
 			// renewal trigger calls BulkUpsertMDMManagedCertificates with a payload that has
 			// nil NotValidBefore/NotValidAfter/Serial (those fields aren't known at profile
