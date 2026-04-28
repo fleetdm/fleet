@@ -156,7 +156,7 @@ parasails.registerPage('contact', {
       } else {
         if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo'); }
       }
-      
+
       // Additional conversion tracking
       // =>Mike: Why is this here?  I checked a blame and I see that we added this based on a PDF we received from a vendor, but couldn't see why from the linked issue.
       if(typeof gtag !== 'undefined'){
