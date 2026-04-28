@@ -154,9 +154,10 @@ parasails.registerPage('contact', {
       if(typeof gtag !== 'undefined'){
         // Look at result from talking to api and decide what event to track.
         if(report.icp){
-          gtag('event','fleet_website__contact_forms__demo');
-        } else {
           gtag('event','fleet_website__contact_forms__demo__icp');
+          if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 27493081 }); }
+        } else {
+          gtag('event','fleet_website__contact_forms__demo');
         }
         // Additional conversion tracking
         gtag('event', 'conversion', {
