@@ -1,1 +1,2 @@
 - Fixed SCEP renewals not retying after initial failure
+- Extend SCEP enrollment credential validity period
