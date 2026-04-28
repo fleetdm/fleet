@@ -1919,6 +1919,12 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
+	// GetWindowsHostSetupExperienceRequireAllSoftware returns the value of the
+	// require_all_software_windows setting for the team that the host with
+	// the given UUID belongs to. Falls back to the global app config when the
+	// host is on no team.
+	GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.Context, hostUUID string) (bool, error)
+
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)

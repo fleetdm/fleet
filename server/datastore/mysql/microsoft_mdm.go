@@ -932,6 +932,36 @@ func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdm
 	return aff > 0, nil
 }
 
+// GetWindowsHostSetupExperienceRequireAllSoftware returns the
+// require_all_software_windows setting for the team that the host with the
+// given UUID belongs to. Falls back to the app config when the host is on no
+// team.
+func (ds *Datastore) GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.Context, hostUUID string) (bool, error) {
+	var teamID sql.NullInt64
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &teamID,
+		`SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID))
+		}
+		return false, ctxerr.Wrap(ctx, err, "get host team_id for require_all_software_windows lookup")
+	}
+
+	if !teamID.Valid {
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "get app config for require_all_software_windows lookup")
+		}
+		return ac.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
+	}
+
+	team, err := ds.TeamLite(ctx, uint(teamID.Int64)) //nolint:gosec // dismiss G115; team_id is a non-negative DB primary key
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get team lite for require_all_software_windows lookup")
+	}
+	return team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
+}
+
 // whereBitLockerStatus returns a string suitable for inclusion within a SQL WHERE clause to filter by
 // the given status. The caller is responsible for ensuring the status is valid. In the case of an invalid
 // status, the function will return the string "FALSE". The caller should also ensure that the query in

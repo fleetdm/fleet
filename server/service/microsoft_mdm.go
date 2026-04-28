@@ -2052,20 +2052,25 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	return []*mdm_types.SyncMLCmd{dpCmd}, nil
 }
 
-// handleESPRelease handles awaiting_configuration=Active. It checks if all
-// profiles have been delivered and all setup experience software/scripts have
-// completed, then releases the device when ready.
+// handleESPRelease handles awaiting_configuration=Active. It waits for all
+// profiles and setup experience items to reach a terminal state, then either
+// releases the device or, when require_all_software_windows is true and any
+// item failed (or the 3-hour timeout was hit), blocks the device on the ESP
+// failure screen.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
 	}
 
-	// Check timeout first: if we've exceeded the 3-hour window, release
+	// Check timeout first: if we've exceeded the 3-hour window, finalize
 	// regardless of profile/software status.
 	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
 	if timedOut {
-		svc.logger.WarnContext(ctx, "ESP: timeout reached, releasing device", "device_id", device.MDMDeviceID)
+		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
 	}
+
+	var hasFailure bool
+	var firstFailedSoftware *fleet.SetupExperienceStatusResult
 
 	if !timedOut {
 		// Profile delivery has two stages, each covered by a different query:
@@ -2099,6 +2104,9 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
 				return nil, nil
 			}
+			if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
+				hasFailure = true
+			}
 		}
 
 		// Stage 3: setup experience software/scripts still running.
@@ -2128,61 +2136,196 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 					"name", r.Name, "status", r.Status)
 				return nil, nil
 			}
+			if r.Status == fleet.SetupExperienceStatusFailure {
+				hasFailure = true
+				if firstFailedSoftware == nil && r.IsForSoftware() {
+					firstFailedSoftware = r
+				}
+			}
 		}
 	}
 
-	// Transition Active -> None. The CAS ensures only one concurrent
-	// checkin wins and enqueues the release command.
+	// We're past the wait gate or timed out. Look up the team's
+	// require_all_software_windows setting to decide between block and
+	// release. Default to false on lookup error: better to release than to
+	// block on a transient DB error.
+	requireAll, err := svc.ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, device.HostUUID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to look up require_all_software_windows, defaulting to false",
+			"err", err, "host_uuid", device.HostUUID)
+		requireAll = false
+	}
+
+	// CAS Active -> None first so only one concurrent checkin does the
+	// cancel/activity/persist work.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
 	}
 	if !transitioned {
-		// Another concurrent checkin already released the device.
+		// Another concurrent checkin already finalized.
 		return nil, nil
 	}
 
-	// Build release commands and send them inline in this response.
-	// Also persist via MDMWindowsInsertCommandForHosts so the existing
-	// command retry infrastructure resends if this response is dropped.
+	failed := timedOut || hasFailure
+	shouldBlock := failed && requireAll
+
+	// On timeout (regardless of require_all) and on failure+require_all=true,
+	// cancel any pending items. Emit the canceled_setup_experience activity
+	// when there is a failed software item to attribute it to.
+	if timedOut || (hasFailure && requireAll) {
+		if cancelErr := svc.ds.CancelPendingSetupExperienceSteps(ctx, device.HostUUID); cancelErr != nil {
+			svc.logger.WarnContext(ctx, "ESP: failed to cancel pending setup experience steps",
+				"err", cancelErr, "host_uuid", device.HostUUID)
+		}
+
+		if firstFailedSoftware != nil {
+			svc.emitCanceledSetupExperienceActivity(ctx, device.HostUUID, firstFailedSoftware)
+		}
+	}
+
+	// Build commands for the response.
 	provID := syncml.DocProvisioningAppProviderID
-	releaseCmds := []*mdm_types.SyncMLCmd{
+	var cmds []*mdm_types.SyncMLCmd
+	if shouldBlock {
+		cmds = buildESPBlockCommands(provID, microsoft_mdm.ESPSoftwareFailureErrorText)
+	} else {
+		var errorText *string
+		if failed {
+			t := microsoft_mdm.ESPSoftwareFailureErrorText
+			errorText = &t
+		}
+		cmds = buildESPReleaseCommands(provID, errorText)
+	}
+
+	// Persist the most user-visible command as a backup so it's resent on
+	// the next session if this response is dropped. For the block path we
+	// persist BlockInStatusPage (overrides the hold-phase value of 2). For
+	// the release path we persist ServerHasFinishedProvisioning (signals
+	// the device to leave the ESP).
+	svc.persistESPFinalCommand(ctx, device.HostUUID, provID, shouldBlock)
+
+	svc.logger.InfoContext(ctx, "ESP: finalizing",
+		"device_id", device.MDMDeviceID,
+		"host_uuid", device.HostUUID,
+		"timed_out", timedOut,
+		"has_failure", hasFailure,
+		"require_all", requireAll,
+		"blocking", shouldBlock)
+
+	return cmds, nil
+}
+
+// buildESPBlockCommands builds SyncML commands that put the device's ESP into
+// a failed state with a "Reset device" button and "Collect logs" button.
+// Used when require_all_software_windows is true and a software install
+// failed (or the ESP timed out).
+func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
+	cmds := []*mdm_types.SyncMLCmd{
+		// CustomErrorText: shown in the ESP failure UI.
+		newSyncMLCmdText(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
+			errorText),
+		// BlockInStatusPage=4: show only the "Reset device" button. Reset
+		// triggers an Autopilot wipe and re-enrollment, which is the only
+		// reliable in-product recovery path for a failed ESP.
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
+			"4"),
+		// AllowCollectLogsButton: also show the "Collect logs" button so IT
+		// can gather diagnostics from the failure screen.
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
+			"true"),
+	}
+	for _, cmd := range cmds {
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	}
+	return cmds
+}
+
+// buildESPReleaseCommands builds SyncML commands that release the device
+// from the ESP. If errorText is non-nil it's set as CustomErrorText (used
+// when items failed but require_all_software_windows is false, or on
+// timeout with require_all=false).
+func buildESPReleaseCommands(provID string, errorText *string) []*mdm_types.SyncMLCmd {
+	var cmds []*mdm_types.SyncMLCmd
+	if errorText != nil {
+		cmds = append(cmds, newSyncMLCmdText(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
+			*errorText))
+	}
+	cmds = append(cmds,
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
-	}
-	for _, cmd := range releaseCmds {
+	)
+	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
+	return cmds
+}
 
-	// Persist the ServerHasFinishedProvisioning command as a backup.
-	// If the inline response is delivered, the device acks and the
-	// persisted command is cleared. If the response is dropped, the
-	// command is resent automatically on the next management session.
-	finishedProvisioningURI := fmt.Sprintf(
-		"./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
-	releaseCmd := newSyncMLCmdBool(fleet.CmdReplace, finishedProvisioningURI, "true")
-	releaseCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
-	rawXML, err := xml.Marshal(releaseCmd)
-	if err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to marshal release command for persistence", "err", err)
-	} else {
-		persistCmd := &fleet.MDMWindowsCommand{
-			CommandUUID:  releaseCmd.CmdID.Value,
-			RawCommand:   rawXML,
-			TargetLocURI: finishedProvisioningURI,
-		}
-		if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, persistCmd); err != nil {
-			svc.logger.WarnContext(ctx, "ESP: failed to persist release command", "err", err)
-		}
+// emitCanceledSetupExperienceActivity loads the host (best-effort) and emits
+// the canceled_setup_experience activity. Failures here are logged but do
+// not abort the ESP finalization.
+func (svc *Service) emitCanceledSetupExperienceActivity(ctx context.Context, hostUUID string, failedSoftware *fleet.SetupExperienceStatusResult) {
+	if svc.activitySvc == nil {
+		// Activity service not wired up (test environment). Skip silently.
+		return
 	}
+	host, err := svc.ds.HostLiteByIdentifier(ctx, hostUUID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to load host for canceled_setup_experience activity",
+			"err", err, "host_uuid", hostUUID)
+		return
+	}
+	var titleID uint
+	if failedSoftware.SoftwareTitleID != nil {
+		titleID = *failedSoftware.SoftwareTitleID
+	}
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+		HostID:          host.ID,
+		HostDisplayName: host.Hostname,
+		SoftwareTitle:   failedSoftware.Name,
+		SoftwareTitleID: titleID,
+	}); err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to create canceled_setup_experience activity",
+			"err", err, "host_uuid", hostUUID)
+	}
+}
 
-	svc.logger.InfoContext(ctx, "ESP: releasing device from setup", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "timed_out", timedOut)
-	return releaseCmds, nil
+// persistESPFinalCommand stores a backup copy of the most user-visible
+// finalization command so the existing command-retry infrastructure can
+// resend it if this response is dropped.
+func (svc *Service) persistESPFinalCommand(ctx context.Context, hostUUID, provID string, shouldBlock bool) {
+	var primaryURI string
+	var primaryCmd *mdm_types.SyncMLCmd
+	if shouldBlock {
+		primaryURI = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID)
+		primaryCmd = newSyncMLCmdInt(fleet.CmdReplace, primaryURI, "4")
+	} else {
+		primaryURI = fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
+		primaryCmd = newSyncMLCmdBool(fleet.CmdReplace, primaryURI, "true")
+	}
+	primaryCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	rawXML, err := xml.Marshal(primaryCmd)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to marshal final command for persistence", "err", err)
+		return
+	}
+	persistCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  primaryCmd.CmdID.Value,
+		RawCommand:   rawXML,
+		TargetLocURI: primaryURI,
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, persistCmd); err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to persist final command", "err", err)
+	}
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled

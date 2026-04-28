@@ -1233,6 +1233,12 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
 	}
 
 	t.Run("active with all profiles delivered releases device", func(t *testing.T) {
@@ -1312,6 +1318,9 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			return nil
 		}
@@ -1344,5 +1353,279 @@ func TestGetESPCommands(t *testing.T) {
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands when no profiles configured")
+	})
+
+	// findCmdByLocURI returns the first SyncMLCmd whose target LocURI contains
+	// the given substring, or nil if none match.
+	findCmdByLocURI := func(cmds []*fleet.SyncMLCmd, substr string) *fleet.SyncMLCmd {
+		for _, c := range cmds {
+			if c.GetTargetURI() != "" && strings.Contains(c.GetTargetURI(), substr) {
+				return c
+			}
+		}
+		return nil
+	}
+
+	t.Run("software failure with require_all=true sends block commands", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			titleID := uint(42)
+			return []*fleet.SetupExperienceStatusResult{
+				{
+					Name:                "Critical App",
+					Status:              fleet.SetupExperienceStatusFailure,
+					SoftwareInstallerID: new(uint(7)),
+					SoftwareTitleID:     &titleID,
+				},
+			}, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return true, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		var cancelled bool
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			cancelled = true
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should return block commands")
+		assert.True(t, cancelled, "should cancel pending setup experience steps")
+
+		// Block path must include CustomErrorText, BlockInStatusPage=4, AllowCollectLogsButton.
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd, "block commands must include CustomErrorText")
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "block commands must include BlockInStatusPage")
+		require.NotNil(t, blockCmd.Items[0].Data)
+		assert.Equal(t, "4", blockCmd.Items[0].Data.Content)
+
+		logsCmd := findCmdByLocURI(cmds, "AllowCollectLogsButton")
+		require.NotNil(t, logsCmd, "block commands must include AllowCollectLogsButton")
+
+		// Block path must NOT release the device.
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"block commands must not release the device")
+	})
+
+	t.Run("software failure with require_all=false releases with error text", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should return release commands with error text")
+
+		// Release-with-error path must include CustomErrorText AND ServerHasFinishedProvisioning.
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd, "release-with-error must include CustomErrorText")
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content)
+
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"release-with-error must include ServerHasFinishedProvisioning")
+		// Should NOT include BlockInStatusPage (we're not blocking).
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+
+		// Cancel should NOT have been called: items are already terminal.
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"cancel should not be called for require_all=false failure (items already terminal)")
+	})
+
+	t.Run("profile failure with require_all=true sends block commands", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return true, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "profile failure with require_all=true should return block commands")
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"))
+	})
+
+	t.Run("timeout with require_all=true sends block and cancels", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:             deviceID,
+				HostUUID:                hostUUID,
+				AwaitingConfiguration:   fleet.WindowsMDMAwaitingConfigurationActive,
+				AwaitingConfigurationAt: &past,
+			}, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return true, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		var cancelled bool
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			cancelled = true
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "timeout with require_all=true should return block commands")
+		assert.True(t, cancelled, "timeout should cancel pending steps")
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+
+		// Wait gates should be skipped on timeout.
+		assert.False(t, ds.ListMDMWindowsProfilesToInstallForHostFuncInvoked)
+		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
+		assert.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked)
+	})
+
+	t.Run("timeout with require_all=false releases with error text and cancels", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:             deviceID,
+				HostUUID:                hostUUID,
+				AwaitingConfiguration:   fleet.WindowsMDMAwaitingConfigurationActive,
+				AwaitingConfigurationAt: &past,
+			}, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return false, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		var cancelled bool
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			cancelled = true
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+		assert.True(t, cancelled, "timeout cancels pending steps regardless of require_all")
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"timeout with require_all=false releases the device")
+		assert.NotNil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"release-with-error includes CustomErrorText")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+	})
+
+	t.Run("success path does not include error text", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusSuccess},
+			}, nil
+		}
+		setReleaseMocks(ds)
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"))
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"success path should not set error text")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
 	})
 }
