@@ -212,4 +212,4 @@ FleetImporter is a community project. For questions and issues:
 <meta name="authorFullName" value="Kitzy">
 <meta name="publishedOn" value="2026-04-28">
 <meta name="articleTitle" value="Use AutoPkg with Fleet">
-<meta name="description" value="Learn how to use the community-maintained FleetImporter AutoPkg processor to automatically upload packages to Fleet in direct or GitOps mode.">
+<meta name="description" value="Learn how to use the community-maintained FleetImporter AutoPkg processor to automatically upload packages to Fleet.">
