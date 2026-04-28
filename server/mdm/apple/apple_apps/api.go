@@ -86,6 +86,18 @@ func StubbedConfig() Config {
 	}
 }
 
+// TestConfigWithBaseURLForRegion is a test-only constructor that lets external
+// packages build a Config with a custom region-aware base URL function and a
+// dummy authenticator. It is exported so refresh tests can drive
+// per-storefront fetches against a httptest server without the apple_apps
+// package's dev_mode plumbing.
+func TestConfigWithBaseURLForRegion(baseURLForRegion func(region string) string) Config {
+	return Config{
+		baseURLForRegion: baseURLForRegion,
+		authenticator:    func(forceRenew bool) (string, error) { return "test-bearer", nil },
+	}
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
