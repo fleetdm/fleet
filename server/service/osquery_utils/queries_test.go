@@ -2857,6 +2857,7 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 	}
 
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
 
@@ -2942,6 +2943,7 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 3)
 
 		// We expect that the ingest function will deduplicate certs based on SHA1+username
