@@ -91,7 +91,7 @@ SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
-    COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
+    COALESCE(wmcr.updated_at, wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
     h.team_id,
@@ -110,7 +110,7 @@ SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
-    COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
+    COALESCE(wmcr.updated_at, wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
     h.team_id,
@@ -145,6 +145,7 @@ var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"updated_at":   "updated_at",
 	"request_type": "request_type",
 	"hostname":     "hostname",
+	"name":         "name",
 }
 
 // getCombinedMDMCommandsQuery returns the legacy combined statement
@@ -164,7 +165,13 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
-	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
+	if listOpts == nil {
+		// Callers that bypass the endpoint may pass nil; treat as a
+		// zero-valued options object so the defaulting block below sets
+		// reasonable bounds instead of panicking.
+		listOpts = &fleet.MDMCommandListOptions{}
+	}
+	if listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
 	}
@@ -190,10 +197,15 @@ func (ds *Datastore) ListMDMCommands(
 	// 1). Without this, the UNION ALL would materialize every command on
 	// both sides before pagination, which times out at scale (#44170).
 	innerOpts := listOpts.ListOptions
-	// Inner LIMIT = page*per_page + per_page; the secure helper adds +1
-	// because IncludeMetadata is true. Inner Page=0 suppresses the inner
-	// OFFSET; the outer wrapper handles offset slicing.
-	innerOpts.PerPage = innerOpts.PerPage*innerOpts.Page + innerOpts.PerPage
+	// For page-based pagination, inner LIMIT = page*per_page + per_page;
+	// the secure helper adds +1 because IncludeMetadata is true. For
+	// cursor-based pagination (After != ""), the helper ignores Page, so
+	// don't inflate the inner LIMIT — per_page+1 is sufficient. Inner
+	// Page=0 suppresses the inner OFFSET; the outer wrapper handles
+	// offset slicing.
+	if innerOpts.After == "" {
+		innerOpts.PerPage = innerOpts.PerPage*innerOpts.Page + innerOpts.PerPage
+	}
 	innerOpts.Page = 0
 	innerOpts.IncludeMetadata = true
 
