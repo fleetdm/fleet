@@ -25,7 +25,8 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
 			command_uuid = VALUES(command_uuid),
-			status = NULL
+			status = NULL,
+			account_uuid = NULL
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, commandUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host managed local account")

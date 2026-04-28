@@ -1640,7 +1640,8 @@ type Datastore interface {
 	// Managed local account
 
 	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
-	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE.
+	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE. Clears the existing account_uuid
+	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
