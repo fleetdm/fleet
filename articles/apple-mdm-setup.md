@@ -2,7 +2,7 @@
 
 To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
-To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
+To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business (AB).
 
 To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup).
 
@@ -27,29 +27,29 @@ How to connect Fleet to APNs:
 ### Renew APNs
 
 1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Apple Business Manager** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**
+2. Under **Apple Business** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
 4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
 5. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
 6. Upload your CSR and download new APNs certificate.
 7. Upload APNs certificate (.pem file) in Fleet.
 
-## Apple Business Manager (ABM)
+## Apple Business (AB)
 
 > Available in Fleet Premium
 
-Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
-### To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
+### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Automatic enrollment**, select **Add ABM**, and then follow the instructions in the modal to upload an ABM token to Fleet.
+2. Under **Automatic enrollment**, select **Add AB**, and then follow the instructions in the modal to upload an AB token to Fleet.
 
-When one of your uploaded ABM tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
+When one of your uploaded AB tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
 
-### To renew an ABM token:
+### To renew an AB token:
 
-1. Sign in to [Apple Business Manager](https://business.apple.com/)
+1. Sign in to [Apple Business](https://business.apple.com/)
 2. Select your **account name** at the bottom left of the screen, then select **Preferences**.
 3. In the **Your MDM Servers** section, select your Fleet server, then select **Download Token** at the top.
 4. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
@@ -59,21 +59,21 @@ When one of your uploaded ABM tokens has expired or is within 30 days of expirin
 > **Note:** Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 6. Upload the downloaded token (.p7m file).
    
-### After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
+### After connecting Fleet to AB, set Fleet to be the MDM for all Macs:
 
-1. Log in to [Apple Business Manager](https://business.apple.com)
+1. Log in to [Apple Business](https://business.apple.com)
 2. Select your profile icon in the bottom left
 3. Select **Preferences**
 4. Select **MDM Server Assignment** and select **Edit** next to **Default Server Assignment**.
 5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
-macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+macOS, iOS, and iPadOS hosts listed in AB and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
 ### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
 2. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page and select **Edit** under **Automatic enrollment**.
-3. Select the **Actions** dropdown for the ABM token you want to update, and then select **Edit fleets**.
+3. Select the **Actions** dropdown for the AB token you want to update, and then select **Edit fleets**.
 4. Select the default fleet for each platform, and select **Save** to save your selections.
 
 > If no default fleet is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
@@ -82,9 +82,9 @@ macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance wi
 
 ### Default automatic enrollment profile
 
-When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business Manager, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
+When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
 
-The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. For the full list of keys and their values, see the [Get Fleet default MDM setup enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-default-mdm-setup-enrollment-profile) API endpoint.
+The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. For the full list of keys and their values [here](https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web).
 
 #### Where to view the default profile
 
@@ -93,7 +93,7 @@ The default profile sets options such as whether enrollment is mandatory, which 
 
 #### Stored once, never auto-refreshed
 
-The default profile is stored once per Fleet instance — at the time of your first automatic enrollment registration with Apple — and is **not** refreshed by Fleet upgrades, by adding or removing ABM tokens, or by any other normal operation. This means that even if a newer version of Fleet ships updated default values, existing Fleet instances will continue using the default profile that was originally stored.
+The default profile is stored once per Fleet instance — at the time of your first automatic enrollment registration with Apple — and is **not** refreshed by Fleet upgrades, by adding or removing AB tokens, or by any other normal operation. This means that even if a newer version of Fleet ships updated default values, existing Fleet instances will continue using the default profile that was originally stored.
 
 #### Updating to Fleet's latest defaults
 
@@ -109,17 +109,17 @@ Fleet supports manually turning on MDM for macOS hosts that are already enrolled
 
 End users can turn on MDM from their **Fleet Desktop > My device** page.
 
-### Host is in Apple Business Manager (ABM)
+### Host is in Apple Business (AB)
 
-#### If a macOS host is listed in ABM:
+#### If a macOS host is listed in AB:
 
 1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
 2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their host.
 3. After completing the steps, the host has MDM features turned on.
 
-### Host isn't in ABM
+### Host isn't in AB
 
-#### If the host isn’t in ABM, users can still turn on MDM:
+#### If the host isn’t in AB, users can still turn on MDM:
 
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
 2. Clicking **Turn on MDM** opens a new tab.
@@ -134,7 +134,7 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
 
-2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business Manager, and then select the **Upload** button at the bottom to upload it to Fleet.
+2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business, and then select the **Upload** button at the bottom to upload it to Fleet.
 
 3. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
@@ -142,39 +142,39 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
 
-2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business Manager and then upload the new token to Fleet.
+2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business and then upload the new token to Fleet.
 
 ## Best practice
 
-Most organizations only need one ABM token and one VPP token to manage their macOS, iOS, and iPadOS hosts.
+Most organizations only need one AB token and one VPP token to manage their macOS, iOS, and iPadOS hosts.
 
-These organizations may need multiple ABM and VPP tokens:
+These organizations may need multiple AB and VPP tokens:
 
 - Managed Service Providers (MSPs)
 - Enterprises that acquire new businesses and as a result inherit new hosts
 - Umbrella organizations that preside over entities with separated purchasing authority (i.e. a hospital or university)
 
-For **MSPs**, the best practice is to have one ABM and VPP connection per client.
+For **MSPs**, the best practice is to have one AB and VPP connection per client.
 
-The default fleets for each client's ABM token will look like this:
+The default fleets for each client's AB token will look like this:
 - macOS: 💻 Client A - Workstations
 - iOS: 📱🏢 Client A - Company-owned iPhones
 - iPadOS:🔳🏢 Client A - Company-owned iPads
 
 Client A's VPP token will be assigned to the above fleets.
 
-For **enterprises that acquire**, the best practice is to add a new ABM and VPP connection for each acquisition.
+For **enterprises that acquire**, the best practice is to add a new AB and VPP connection for each acquisition.
 
 These will be the default fleets:
 
-Enterprise ABM token:
+Enterprise AB token:
 - macOS: 💻 Enterprise - Workstations
 - iOS: 📱🏢 Enterprise - Company-owned iPhones
 - iPadOS:🔳🏢 Enterprise - Company-owned iPads
 
 The enterprises's VPP token will be assigned to the above fleets.
 
-Acquisition ABM token:
+Acquisition AB token:
 - macOS: 💻 Acquisition - Workstations
 - iOS: 📱🏢 Acquisition - Company-owned iPhones
 - iPadOS:🔳🏢 Acquisition - Company-owned iPads
