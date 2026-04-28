@@ -29141,19 +29141,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: "desc"})
 	require.NoError(t, err)
 
-	scriptPath := filepath.Join("testdata", "software-installers", "script.sh")
-	scriptBytes, err := os.ReadFile(scriptPath)
+	scriptBytes, err := os.ReadFile(filepath.Join("testdata", "software-installers", "script.sh"))
 	require.NoError(t, err)
-
-	installerFile, err := fleet.NewKeepFileReader(scriptPath)
-	require.NoError(t, err)
-	defer installerFile.Close()
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
-		TeamID:        &tm.ID,
-		Filename:      "script.sh",
-		InstallerFile: installerFile,
-		SelfService:   true,
+		TeamID:      &tm.ID,
+		Filename:    "script.sh",
+		SelfService: true,
 	}, http.StatusOK, "")
 
 	var listResp listSoftwareTitlesResponse
