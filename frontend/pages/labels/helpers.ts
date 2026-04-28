@@ -1,13 +1,4 @@
-import { getErrorReason } from "interfaces/errors";
-
-const hasStatusKey = (value: unknown): value is { status: number } => {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "status" in value &&
-    typeof (value as any).status === "number"
-  );
-};
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 
 const getDeleteLabelErrorMessages = (error: unknown): string => {
   // unprocessable content status. Label is used in a custom profile

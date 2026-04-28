@@ -22,12 +22,3 @@ export const isValidPemCertificate = (cert: string): boolean => {
 
   return regexPemHeader.test(cert) && regexPemFooter.test(cert);
 };
-
-export const hasStatusKey = (value: unknown): value is { status: number } => {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "status" in value &&
-    typeof (value as any).status === "number"
-  );
-};
