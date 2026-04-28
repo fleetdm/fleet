@@ -208,7 +208,15 @@ func (r *Runner) handleInstallerNotFound(execID string, logger zerolog.Logger) *
 	r.installerNotFoundMu.Lock()
 	defer r.installerNotFoundMu.Unlock()
 
-	now := r.nowFn()
+	nowFn := r.nowFn
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	if r.installerNotFoundFirstSeen == nil {
+		r.installerNotFoundFirstSeen = make(map[string]time.Time)
+	}
+
+	now := nowFn()
 	firstSeen, ok := r.installerNotFoundFirstSeen[execID]
 	if !ok {
 		r.installerNotFoundFirstSeen[execID] = now

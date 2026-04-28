@@ -1255,10 +1255,9 @@ func tempDirFn(t *testing.T) func(string, string) (string, error) {
 }
 
 // TestInstallSoftwareNotFoundRetryWindow covers the retry-window behavior for
-// orphaned installer 404s (#44084).
+// orphaned installer 404s (#44084). Not parallel: it mutates the package-level
+// installerNotFoundRetryWindow.
 func TestInstallSoftwareNotFoundRetryWindow(t *testing.T) {
-	t.Parallel()
-
 	prevWindow := installerNotFoundRetryWindow
 	installerNotFoundRetryWindow = time.Minute
 	t.Cleanup(func() { installerNotFoundRetryWindow = prevWindow })
