@@ -1152,7 +1152,7 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	locName, err := vpp.GetConfig(string(tokenBytes))
+	clientCfg, err := vpp.GetConfig(string(tokenBytes))
 	if err != nil {
 		var vppErr *vpp.ErrorResponse
 		if errors.As(err, &vppErr) {
@@ -1165,8 +1165,9 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 	}
 
 	data := fleet.VPPTokenData{
-		Token:    string(tokenBytes),
-		Location: locName,
+		Token:       string(tokenBytes),
+		Location:    clientCfg.LocationName,
+		CountryCode: clientCfg.CountryCode,
 	}
 
 	tok, err := svc.ds.InsertVPPToken(ctx, &data)
@@ -1175,7 +1176,7 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEnabledVPP{
-		Location: locName,
+		Location: clientCfg.LocationName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
 	}
@@ -1206,7 +1207,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	locName, err := vpp.GetConfig(string(tokenBytes))
+	clientCfg, err := vpp.GetConfig(string(tokenBytes))
 	if err != nil {
 		var vppErr *vpp.ErrorResponse
 		if errors.As(err, &vppErr) {
@@ -1219,8 +1220,9 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 	}
 
 	data := fleet.VPPTokenData{
-		Token:    string(tokenBytes),
-		Location: locName,
+		Token:       string(tokenBytes),
+		Location:    clientCfg.LocationName,
+		CountryCode: clientCfg.CountryCode,
 	}
 
 	tok, err := svc.ds.UpdateVPPToken(ctx, tokenID, &data)

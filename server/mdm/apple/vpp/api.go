@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -62,25 +63,63 @@ type ResponseErrorInfo struct {
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
+// ClientConfig is the subset of Apple's /client/config response that Fleet
+// uses. CountryCode is the lowercase ISO 3166-1 alpha-2 code (e.g. "us",
+// "de") of the storefront associated with the token.
+type ClientConfig struct {
+	LocationName string
+	CountryCode  string
+}
+
 // GetConfig fetches the VPP config from Apple's VPP API. This doubles as a
-// verification that the user-provided VPP token is valid.
+// verification that the user-provided VPP token is valid. The call is wrapped
+// in a 3-attempt retry; the returned country code is lowercased.
 //
 // https://developer.apple.com/documentation/devicemanagement/client_config-a40
-func GetConfig(token string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, getBaseURL()+"/client/config", nil)
-	if err != nil {
-		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
-	}
+func GetConfig(token string) (ClientConfig, error) {
+	var cfg ClientConfig
+	var returnErr error
 
-	var respJSON struct {
-		LocationName string `json:"locationName"`
-	}
+	_ = retry.Do(func() error {
+		req, err := http.NewRequest(http.MethodGet, getBaseURL()+"/client/config", nil)
+		if err != nil {
+			returnErr = fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+			// don't retry on request construction errors
+			return nil
+		}
 
-	if err := do(req, token, &respJSON); err != nil {
-		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
-	}
+		var respJSON struct {
+			LocationName string `json:"locationName"`
+			CountryCode  string `json:"countryCode"`
+		}
 
-	return respJSON.LocationName, nil
+		if err := do(req, token, &respJSON); err != nil {
+			returnErr = fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+
+			// Don't retry on Apple application errors (e.g. invalid token);
+			// only on transient transport-level failures.
+			var appleErr *ErrorResponse
+			if errors.As(err, &appleErr) {
+				return nil
+			}
+
+			// retry on other errors
+			return err
+		}
+
+		cfg = ClientConfig{
+			LocationName: respJSON.LocationName,
+			CountryCode:  strings.ToLower(respJSON.CountryCode),
+		}
+		returnErr = nil
+		return nil
+	},
+		retry.WithBackoffMultiplier(2),
+		retry.WithInterval(500*time.Millisecond),
+		retry.WithMaxAttempts(3),
+	)
+
+	return cfg, returnErr
 }
 
 // AssociateAssetsRequest is the request for asset management.
