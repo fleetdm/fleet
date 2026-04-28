@@ -2570,9 +2570,9 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 }
 
 // captureManagedLocalAccountUUID persists the osquery-reported UUID for the
-// managed local admin account when a row exists and the column is still NULL.
-// Errors are logged and swallowed so host-detail ingestion is not blocked by
-// this secondary concern.
+// managed local admin account when a row exists and the stored value is NULL
+// or differs from the latest reported UUID. Errors are logged and swallowed
+// so host-detail ingestion is not blocked by this secondary concern.
 func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
 	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
 	if fleet.IsNotFound(err) {
