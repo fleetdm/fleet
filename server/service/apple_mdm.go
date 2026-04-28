@@ -3385,6 +3385,30 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 	return nil, fleet.ErrMissingLicense
 }
 
+type getDefaultMDMAppleSetupAssistantProfileResponse struct {
+	Profile   godep.Profile `json:"enrollment_profile" db:"profile"`
+	UpdatedAt *time.Time    `json:"updated_at"`
+	Err       error         `json:"error,omitempty"`
+}
+
+func (r getDefaultMDMAppleSetupAssistantProfileResponse) Error() error { return r.Err }
+
+func getDefaultMDMAppleSetupAssistantProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	profile, updatedAt, err := svc.GetDefaultMDMAppleSetupAssistantProfile(ctx)
+	if err != nil {
+		return getDefaultMDMAppleSetupAssistantProfileResponse{Err: err}, nil
+	}
+	return getDefaultMDMAppleSetupAssistantProfileResponse{Profile: profile, UpdatedAt: updatedAt}, nil
+}
+
+func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (godep.Profile, *time.Time, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return godep.Profile{}, nil, fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Delete an MDM Apple Setup Assistant
 ////////////////////////////////////////////////////////////////////////////////
