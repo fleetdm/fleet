@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260424200449(t *testing.T) {
+func TestUp_20260428125634(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert a row before the migration to verify the ALTER works on existing data.
