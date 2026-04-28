@@ -3590,7 +3590,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids
+	si.package_ids,
+	si.install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3611,7 +3612,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	'' AS package_ids
+	'' AS package_ids,
+	0 AS install_script_content_id
 FROM
 	in_house_apps iha
 	JOIN software_titles st ON iha.title_id = st.id

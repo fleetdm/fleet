@@ -595,6 +595,12 @@ type ExistingSoftwareInstaller struct {
 	PackageIDs       []string
 	StorageID        string  `db:"storage_id"`
 	HTTPETag         *string `db:"http_etag"`
+	// InstallScriptContentID points to the script_contents row holding this
+	// installer's install_script. Used to lazily fetch script bytes for
+	// script-only packages (.sh/.ps1) when matching by hash, so the caller
+	// can preserve them across an upsert that would otherwise wipe the row.
+	// Zero for in-house apps (no install script in this table).
+	InstallScriptContentID uint `db:"install_script_content_id"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
