@@ -27,6 +27,8 @@ $FLEETCTL config set --address "$SERVER_URL" --token "$TOKEN" 2>/dev/null
 
 # Helper: get fleet ID and exact name by partial match (to handle emoji prefixes),
 # creating the fleet if it doesn't exist. Returns "id|exact_name".
+# SECURITY: $name is interpolated into inline Python. Only pass hardcoded strings,
+# never user input, to avoid code injection.
 get_fleet_id() {
   local name="$1"
   local result
@@ -233,9 +235,41 @@ create_user "{
   \"teams\": [{\"id\": $FLEET_1_ID, \"role\": \"observer_plus\"}]
 }"
 
+# Fleet technician (Workstations)
+create_user "{
+  \"name\": \"Terry T. Technician\",
+  \"email\": \"terry@organization.com\",
+  \"password\": \"$SEED_PASSWORD\",
+  \"invited_by\": 1,
+  \"global_role\": null,
+  \"admin_forced_password_reset\": false,
+  \"teams\": [{\"id\": $FLEET_1_ID, \"role\": \"technician\"}]
+}"
+
+# Global GitOps
+create_user '{
+  "name": "Gina G. GitOps",
+  "email": "gina@organization.com",
+  "password": "'"$SEED_PASSWORD"'",
+  "invited_by": 1,
+  "global_role": "gitops",
+  "admin_forced_password_reset": false
+}'
+
+# Fleet GitOps (Workstations)
+create_user "{
+  \"name\": \"Gordon T. GitOps\",
+  \"email\": \"gordon@organization.com\",
+  \"password\": \"$SEED_PASSWORD\",
+  \"invited_by\": 1,
+  \"global_role\": null,
+  \"admin_forced_password_reset\": false,
+  \"teams\": [{\"id\": $FLEET_1_ID, \"role\": \"gitops\"}]
+}"
+
 # API-only user (full access, created via /users/admin with api_only flag)
 create_user '{
-  "name": "Apollo G. API-only",
+  "name": "Apollo G. API-only (full access)",
   "email": "apollo@organization.com",
   "password": "'"$SEED_PASSWORD"'",
   "invited_by": 1,
@@ -247,7 +281,7 @@ create_user '{
 
 # API-only user with restricted endpoints (created via /users/api_only)
 create_api_only_user '{
-  "name": "Rosie Restricted (API only)",
+  "name": "Reggie G. API-only (restricted)",
   "global_role": "admin",
   "api_endpoints": [
     {"method": "GET", "path": "/api/v1/fleet/hosts"},
@@ -280,11 +314,11 @@ echo "==> Applying fleet-scoped reports..."
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
-sed "s/fleet: FLEET_NAME/fleet: $FLEET_1_NAME/" "$SCRIPT_DIR/fleet-workstations-reports.yml" > "$tmpdir/workstations-reports.yml"
+sed "s|fleet: FLEET_NAME|fleet: $FLEET_1_NAME|" "$SCRIPT_DIR/fleet-workstations-reports.yml" > "$tmpdir/workstations-reports.yml"
 $FLEETCTL apply -f "$tmpdir/workstations-reports.yml"
 echo "[+] applied $FLEET_1_NAME reports"
 
-sed "s/fleet: FLEET_NAME/fleet: $FLEET_2_NAME/" "$SCRIPT_DIR/fleet-mobile-reports.yml" > "$tmpdir/mobile-reports.yml"
+sed "s|fleet: FLEET_NAME|fleet: $FLEET_2_NAME|" "$SCRIPT_DIR/fleet-mobile-reports.yml" > "$tmpdir/mobile-reports.yml"
 $FLEETCTL apply -f "$tmpdir/mobile-reports.yml"
 echo "[+] applied $FLEET_2_NAME reports"
 

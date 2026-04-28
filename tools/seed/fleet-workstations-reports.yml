@@ -1,53 +1,54 @@
 ---
-# Reports for the Workstations fleet (macOS-focused)
+# Reports for the Workstations fleet (managed corporate macOS)
 #
 # Note: The "fleet" field must match the exact fleet name. The seed script
 # substitutes FLEET_NAME automatically. To apply manually, replace FLEET_NAME
 # with your fleet's exact name.
+#
+# These are unique to this fleet — not duplicates of global reports.
 apiVersion: v1
 kind: report
 spec:
-  name: Detect if Apple Intelligence is enabled
+  name: Get installed Safari extensions
   platform: darwin
   fleet: FLEET_NAME
-  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
-  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  description: Retrieves the list of installed Safari Extensions for all users in the target system.
+  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
   purpose: Informational
-  tags: inventory
-  contributors: allenhouchins
----
-apiVersion: v1
-kind: report
-spec:
-  name: Get crashes
-  platform: darwin
-  fleet: FLEET_NAME
-  description: Retrieve application, system, and mobile app crash logs.
-  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
-  purpose: Informational
-  tags: troubleshooting
+  tags: browser, built-in, inventory
   contributors: zwass
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Get laptops with failing batteries
+  name: Get Crowdstrike Falcon network content filter status
   platform: darwin
   fleet: FLEET_NAME
-  description: Lists all laptops with under-performing or failing batteries.
-  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
   purpose: Informational
-  tags: troubleshooting, hardware, inventory
+  tags: crowdstrike, plist, network, content filter
   contributors: zwass
 ---
 apiVersion: v1
 kind: report
 spec:
-  name: Get installed macOS software
+  name: Identify Apple development secrets (macOS)
+  fleet: FLEET_NAME
+  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
+  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
+  tags: compliance, inventory, built-in
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Get local administrator accounts on macOS
   platform: darwin
   fleet: FLEET_NAME
-  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages.
-  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  description: The query allows you to check macOS systems for local administrator accounts.
+  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
   purpose: Informational
-  tags: inventory, built-in
-  contributors: zwass
+  tags: hunting, inventory
+  contributors: alphabrevity

@@ -66,7 +66,7 @@ Re-running is safe — existing users are skipped and policies/reports are upser
 
 ### Users (`seed-users-and-fleets.sh`)
 
-Creates 12 users across global, fleet-scoped, and API-only roles. Regular users use `$SEED_PASSWORD`.
+Creates 15 users across global, fleet-scoped, and API-only roles. Regular users use `$SEED_PASSWORD`.
 
 | User | Email | Role |
 |------|-------|------|
@@ -75,13 +75,16 @@ Creates 12 users across global, fleet-scoped, and API-only roles. Regular users 
 | Oliver G. Observer | oliver@organization.com | Global observer |
 | Opal G. Observer+ | opal@organization.com | Global observer+ |
 | Tessa G. Technician | tessa@organization.com | Global technician |
+| Gina G. GitOps | gina@organization.com | Global gitops |
 | Marco Mixed Roles | marco@organization.com | Observer (Workstations), Maintainer (Mobile devices) |
 | Anita T. Admin | anita@organization.com | Admin (Workstations) |
 | Manny T. Maintainer | manny@organization.com | Maintainer (Workstations) |
 | Toni T. Observer | toni@organization.com | Observer (Workstations) |
 | Topanga T. Observer+ | topanga@organization.com | Observer+ (Workstations) |
-| Apollo G. API-only | apollo@organization.com | Global maintainer, API-only (full access) |
-| Rosie Restricted (API only) | auto-generated | Global admin, API-only (restricted to GET hosts) |
+| Terry T. Technician | terry@organization.com | Technician (Workstations) |
+| Gordon T. GitOps | gordon@organization.com | GitOps (Workstations) |
+| Apollo G. API-only (full access) | apollo@organization.com | Global maintainer, API-only (full access) |
+| Reggie G. API-only (restricted) | auto-generated | Global admin, API-only (restricted to GET hosts) |
 
 API-only users created via `/users/api_only` have their API token printed once at creation. Save it — it cannot be retrieved later.
 
@@ -97,12 +100,12 @@ Reports extracted from `docs/queries.yml`. Covers inventory, detection, and info
 
 Applied automatically by `seed-users-and-fleets.sh` using `--policies-fleet`:
 
-- **`fleet-workstations-policies.yml`** — 5 macOS policies (Gatekeeper, FileVault, SIP, Firewall, Screen lock)
-- **`fleet-mobile-policies.yml`** — 5 personal laptop policies (SSH keys, Linux FDE, Linux antivirus, 1Password emergency kit, Docker up to date)
+- **`fleet-workstations-policies.yml`** — 5 managed corporate macOS policies (MDM enrolled, automatic login disabled, guest account disabled, iCloud sync disabled, password length)
+- **`fleet-mobile-policies.yml`** — 5 personal laptop/BYOD policies (suspicious autostart, SMBv1 disabled, secure keyboard entry, ad tracking limited, LLMNR disabled)
 
 ### Fleet-scoped reports
 
 Applied automatically by `seed-users-and-fleets.sh`:
 
-- **`fleet-workstations-reports.yml`** — 4 macOS reports (Apple Intelligence, crashes, battery health, installed software)
-- **`fleet-mobile-reports.yml`** — 4 personal laptop reports (Chrome extensions, memory hogs, unencrypted SSH keys, VS Code extensions)
+- **`fleet-workstations-reports.yml`** — 4 corporate macOS reports (Safari extensions, Crowdstrike Falcon status, Apple dev secrets, local admin accounts)
+- **`fleet-mobile-reports.yml`** — 4 personal laptop/BYOD reports (running Docker containers, apps outside /Applications, TLS certificates, fileless processes)
