@@ -27,7 +27,7 @@ func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
 }
 
-func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 	type certSourceToSet struct {
 		Source   fleet.HostCertificateSource
 		Username string
@@ -36,6 +36,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	incomingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(certs))
 	incomingSourcesBySHA1 := make(map[string][]certSourceToSet, len(certs))
 	for _, cert := range certs {
+		// Tag every incoming cert with the calling ingestion source. We trust the
+		// caller for this — origin scopes deletion semantics, not data integrity.
+		cert.Origin = origin
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
 			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
@@ -154,6 +157,12 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	toDelete := make([]uint, 0, len(existingBySHA1))
 	for sha1, existing := range existingBySHA1 {
 		if _, ok := incomingBySHA1[sha1]; !ok {
+			// Source-scoped delete: only remove rows whose origin matches the
+			// calling ingestion source. An osquery sync omitting an MDM-only cert
+			// must not delete that cert, and vice versa.
+			if existing.Origin != origin {
+				continue
+			}
 			toDelete = append(toDelete, existing.ID)
 		}
 	}
@@ -311,6 +320,7 @@ SELECT
 	hc.issuer_org,
 	hc.issuer_org_unit,
 	hc.issuer_common_name,
+	hc.origin,
 	hcs.source,
 	hcs.username
 	%s`, fromWhereClause)
@@ -458,19 +468,25 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	origin
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	const singleRowPlaceholderCount = 19
+	const singleRowPlaceholderCount = 20
 	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		origin := cert.Origin
+		if origin == "" {
+			origin = fleet.HostCertificateOriginOsquery
+		}
 		args = append(args,
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName,
+			origin)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))

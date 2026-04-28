@@ -445,7 +445,10 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean

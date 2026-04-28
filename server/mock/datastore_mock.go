@@ -341,7 +341,7 @@ type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
 
-type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
@@ -5850,11 +5850,11 @@ func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
-func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 	s.mu.Lock()
 	s.UpdateHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs)
+	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
