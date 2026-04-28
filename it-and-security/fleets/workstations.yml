@@ -464,6 +464,10 @@ software:
         - Macs with Cursor installed
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+      categories:
+        - Productivity
     # Windows apps
     - slug: 1password/windows # 1Password for Windows
       self_service: true
@@ -510,3 +514,7 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
+      self_service: true
+      categories:
+        - Productivity
