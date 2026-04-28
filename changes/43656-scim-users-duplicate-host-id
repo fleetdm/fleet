@@ -1,0 +1,1 @@
+* Fixed 500 errors on `/api/v1/fleet/scim/Users` when the matched host already had a SCIM user mapping.
