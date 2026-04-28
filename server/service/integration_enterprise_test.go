@@ -29188,3 +29188,118 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	})
 	require.Equal(t, string(scriptBytes), installScript)
 }
+
+// TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
+// catalog includes every route invoked by fleetctl gitops and
+// fleetctl generate-gitops. The test runs as an api-only admin user so any
+// 403 observed here comes from the api_only middleware (catalog miss), never
+// from service-level authz. Regression test for #44279.
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	assertNot403 := func(verb, path string, body any) {
+		t.Helper()
+		var raw []byte
+		if body != nil {
+			j, err := json.Marshal(body)
+			require.NoError(t, err)
+			raw = j
+		}
+		req, err := http.NewRequest(verb, s.server.URL+path, bytes.NewReader(raw))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.NotEqualf(t, http.StatusForbidden, resp.StatusCode,
+			"%s %s returned 403 for an api-only admin user; the route is likely missing from server/api_endpoints/api_endpoints.yml",
+			verb, path)
+	}
+
+	// Create an api-only admin (no endpoint restrictions). Admins pass every
+	// service-level authz check, so the only remaining source of 403 is the
+	// api_only middleware's catalog check — exactly what we want to verify.
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "api-only-admin-gitops-catalog",
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Endpoints invoked by fleetctl gitops / generate-gitops. Status codes vary
+	// per endpoint based on payload validity; we only care that 403 never comes
+	// from the catalog check.
+	emptySpecs := map[string]any{"specs": []any{}}
+	assertNot403("GET", "/api/latest/fleet/me", nil)
+	assertNot403("GET", "/api/latest/fleet/config", nil)
+	assertNot403("GET", "/api/latest/fleet/version", nil)
+	assertNot403("GET", "/api/latest/fleet/fleets", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/labels", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/labels", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
+	assertNot403("PUT", "/api/latest/fleet/spec/secret_variables", map[string]any{"secret_variables": []any{}})
+	assertNot403("GET", "/api/latest/fleet/policies", nil)
+	assertNot403("GET", "/api/latest/fleet/configuration_profiles", nil)
+	assertNot403("GET", "/api/latest/fleet/scripts", nil)
+	assertNot403("GET", "/api/latest/fleet/software/titles", nil)
+	assertNot403("GET", "/api/latest/fleet/software/fleet_maintained_apps", nil)
+	assertNot403("GET", "/api/latest/fleet/setup_experience/script", nil)
+	assertNot403("GET", "/api/latest/fleet/vpp_tokens", nil)
+	assertNot403("GET", "/api/latest/fleet/certificates", nil)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestrictions() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	allowedEndpoints := []map[string]any{
+		{"method": "GET", "path": "/api/v1/fleet/me"},
+		{"method": "GET", "path": "/api/v1/fleet/config"},
+		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
+		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
+	}
+
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":          "api-only-gitops-restricted",
+		"global_role":   fleet.RoleGitOps,
+		"api_endpoints": allowedEndpoints,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Allowed endpoints reach the handler.
+	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	// Apply a real policy spec; an empty specs list short-circuits before authz
+	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
+	// middleware behavior we want to verify.
+	s.Do("POST", "/api/latest/fleet/spec/policies", map[string]any{
+		"specs": []map[string]any{
+			{"name": t.Name() + "-policy", "query": "SELECT 1;", "platform": "darwin"},
+		},
+	}, http.StatusOK)
+
+	// Other gitops endpoints are in the catalog but not in the allow list, so
+	// the middleware rejects them with 403.
+	s.Do("GET", "/api/latest/fleet/version", nil, http.StatusForbidden)
+	s.Do("GET", "/api/latest/fleet/fleets", nil, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/labels", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/reports", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{}}, http.StatusForbidden)
+}
