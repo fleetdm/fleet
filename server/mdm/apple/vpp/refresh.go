@@ -45,7 +45,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 	var appsToUpdate []*fleet.VPPApp
 
 	for _, vppToken := range vppTokens {
-		meta, err := apple_apps.GetMetadata(adamIDsToQuery, vppToken.Token, vppAppsConfig)
+		meta, err := apple_apps.GetMetadata(adamIDsToQuery, "", vppToken.Token, vppAppsConfig)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting VPP app metadata from Apple API")
 		}
