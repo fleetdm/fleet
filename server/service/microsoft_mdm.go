@@ -2592,7 +2592,22 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+// reconcileWindowsProfilesBatchSize bounds how many distinct hosts the
+// Windows MDM reconciliation cron processes per tick. The cron uses a
+// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
+// page through the pending-work universe in batches, smoothing the
+// writer pressure that an unbounded reconciliation generates during
+// bulk events like team transfers.
+//
+// var rather than const so property-based tests can shrink the batch size
+var reconcileWindowsProfilesBatchSize = 2000
+
+// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
+// Named return so the deferred SetCursor block below sees the actual
+// function exit error. With a named return, every `return X`
+// assigns X to the named err before the defer fires, so any failure
+// path correctly skips the cursor write.
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2601,15 +2616,88 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return nil
 	}
 
-	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	// Read the cursor; on error, treat as start-of-pass and continue. A
+	// stale or missing cursor is harmless because the listing predicates
+	// filter out hosts whose state already matches desired state.
+	cursor, err := ds.GetMDMWindowsReconcileCursor(ctx)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning",
+			"err", err)
+		cursor = ""
+	}
+
+	hostUUIDs, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, cursor, reconcileWindowsProfilesBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing next pending Windows MDM hosts")
+	}
+
+	if len(hostUUIDs) == 0 {
+		// Either no work, or we've reached the end of the cursor pass.
+		// Reset to "" so the next tick starts from the beginning.
+		//
+		// Decision: cursor write failures here (and in the deferred
+		// advance below) are logged-and-swallowed rather than returned
+		// as tick failures.
+		if cursor != "" {
+			logger.InfoContext(ctx, "windows MDM reconcile pass complete; resetting cursor",
+				"cursor", cursor)
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
+				// We assume a transient Redis failure here.
+				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+		return nil
+	}
+
+	// Compute the next cursor before processing so we can advance after a
+	// successful pass. If we got fewer than the batch size, the next tick
+	// should restart from the beginning.
+	var nextCursor string
+	if len(hostUUIDs) >= reconcileWindowsProfilesBatchSize {
+		nextCursor = hostUUIDs[len(hostUUIDs)-1]
+	}
+
+	// Only log when the cursor is actually in play - i.e. the pending
+	// universe didn't fit in a single tick. The four state combos:
+	//   cursor=="", nextCursor!=""  - starting a multi-tick pass
+	//   cursor!="", nextCursor!=""  - continuing mid-pass
+	//   cursor!="", nextCursor==""  - completing the final tick of a pass
+	//   cursor=="", nextCursor==""  - silent: the entire universe fit in
+	//                                 this one tick, no cursor needed
+	if cursor != "" || nextCursor != "" {
+		logger.InfoContext(ctx, "windows MDM reconcile tick using cursor",
+			"cursor", cursor,
+			"next_cursor", nextCursor,
+			"batch_size", reconcileWindowsProfilesBatchSize,
+			"hosts_in_batch", len(hostUUIDs),
+		)
+	}
+
+	toInstall, err := ds.ListMDMWindowsProfilesToInstallForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
-	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
 	}
+
+	// On any error during the body below, leave the cursor where it was.
+	// The next tick will retry the same host window. The body's writes
+	// flip status from NULL to 'pending' on success, which removes those
+	// rows from the listing on retry, so a partial failure converges.
+	//
+	// Skip the write when the cursor isn't changing (steady-state ticks
+	// where the entire pending universe fit in one batch: cursor="",
+	// nextCursor=""). Mirrors the empty-result branch's `cursor != ""`
+	// guard above.
+	defer func() {
+		if err == nil && cursor != nextCursor {
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, nextCursor); cerr != nil {
+				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+	}()
 
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
@@ -2718,11 +2806,53 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
+	// Guard against a race where an admin deletes a profile between the
+	// initial ListMDMWindowsProfilesToInstall/GetMDMWindowsProfilesContents
+	// calls above and the per-profile upsert below. If we missed the
+	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
+	// command) for a profile that no longer exists in
+	// mdm_windows_configuration_profiles. The remove path couldn't clean
+	// that row up later — <Delete> command generation needs the original
+	// SyncML, which is gone — and the host would be stuck with an
+	// un-removable install. Re-query existence right before the upsert
+	// loops to shrink the race window to just the loop body.
+	installProfileUUIDs := make([]string, 0, len(installTargets))
+	for profUUID := range installTargets {
+		installProfileUUIDs = append(installProfileUUIDs, profUUID)
+	}
+	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
+	}
+
 	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
+		}
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// this should never happen
-			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
+			// Insert-lag race: GetMDMWindowsProfilesContents earlier in
+			// this function reads from the replica, while
+			// GetExistingMDMWindowsProfileUUIDs above reads from the
+			// primary (it has to, to defeat the delete-race). For a
+			// profile that was inserted on primary just before this tick
+			// fired, the existence check sees it but profileContents
+			// (replica) misses it until replication catches up.
+			//
+			// Skip the install for now and let a later tick pick it up
+			// after replication catches up. With the host cursor
+			// advancing past this batch, the affected hosts won't be
+			// revisited until the cursor cycles back to the start of
+			// the host space; for large host populations that can be
+			// many ticks rather than the next one. The hosts stay in
+			// the listing's pending universe because no
+			// host_mdm_windows_profiles row was written for them, so
+			// no state is lost.
+			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry on a later tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
 		}
 
 		if !variables.ContainsBytes(p.SyncML) {

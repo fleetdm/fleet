@@ -641,8 +641,28 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
-	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// Cursor stubs: tests don't care about cursor state, just need the
+	// reconciler not to panic on the calls.
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+		return "", nil
+	}
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+		return nil
+	}
+
+	// The cron's batched path picks a host window first, then calls the
+	// scoped listings for that window. For the mock, return all host UUIDs
+	// from hostToProfile so the rest of the reconciler runs against the
+	// same set the test wants.
+	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		hostUUIDs := make([]string, 0, len(hostToProfile))
+		for hostUUID := range hostToProfile {
+			hostUUIDs = append(hostUUIDs, hostUUID)
+		}
+		return hostUUIDs, nil
+	}
+
+	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
 		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
 		for hostUUID, profile := range hostToProfile {
 			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
@@ -655,8 +675,19 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		}
 		return profilesToInstall, nil
 	}
+	// Mock both the legacy global listing (kept for tests still using it
+	// directly) and the new scoped listing the cron now calls.
+	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
+	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
 
 	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
+	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
 		return nil, nil
 	}
 
@@ -669,6 +700,16 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 			}
 		}
 		return profileContentsMap, nil
+	}
+
+	// Default: every requested profile still exists. Tests that want to
+	// exercise the deletion-race guard can override this with their own Func.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		out := make(map[string]struct{}, len(profileUUIDs))
+		for _, u := range profileUUIDs {
+			out[u] = struct{}{}
+		}
+		return out, nil
 	}
 
 	capturedUpdates = &[]*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
@@ -917,6 +958,143 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		}
 	}
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
+}
+
+// TestReconcileWindowsProfilesSkipsDeletedProfile covers the race where an
+// admin deletes a Windows profile between the cron's initial list and the
+// per-profile upsert. Without the guard, the cron would insert a
+// host_mdm_windows_profiles row + enqueue an install command for a profile
+// that no longer exists in mdm_windows_configuration_profiles; later the
+// remove path can't build a <Delete> command (SyncML is gone) and the row
+// is stuck. The fix: GetExistingMDMWindowsProfileUUIDs pre-filter right
+// before the upsert loop.
+func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	deletedProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "deleted-profile-uuid",
+		Name:        "Deleted Before Upsert",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+	}
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		"host-a": deletedProfile,
+	}
+	setupReconcilerTest(ds, hostToProfile)
+
+	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// GetMDMWindowsProfilesContents already ran (both set up by
+	// setupReconcilerTest to include the profile). Between those and the
+	// upsert, the admin deleted the profile, so
+	// GetExistingMDMWindowsProfileUUIDs returns an empty set.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err)
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked, "existence pre-check must run")
+	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
+		"no zombie row should be written when the profile is gone")
+}
+
+// TestReconcileWindowsProfilesSkipsInsertLag covers the asymmetric race
+// where a profile was just inserted on the primary but the replica
+// hasn't caught up: GetMDMWindowsProfilesContents (replica) misses the
+// row even though GetExistingMDMWindowsProfileUUIDs (primary) sees it.
+// Without the skip-and-continue, the cron would error out with
+// "missing profile content", leave the cursor unchanged, and re-fire the
+// same race every 30s until the replica converges. The fix: log + skip
+// + advance the cursor; the hosts stay in the listing universe and the
+// next tick picks them up after replication catches up.
+func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	freshProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "fresh-profile-uuid",
+		Name:        "Just-Inserted-On-Primary",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+	}
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		"host-a": freshProfile,
+	}
+	setupReconcilerTest(ds, hostToProfile)
+
+	// Simulate insert-lag: the existence pre-check (primary) finds the
+	// profile, but the content fetch (replica) returns nothing because
+	// replication hasn't caught up to the just-committed insert.
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{}, nil
+	}
+
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err, "insert-lag must not fail the tick; the cursor must advance so the next tick can retry")
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
+		"existence pre-check still runs (it confirms the profile exists on primary)")
+	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
+		"no install command should be enqueued when content is not yet visible")
+}
+
+// TestReconcileWindowsProfilesEmptyPopulation covers the cron's two
+// terminating branches when there is no pending Windows MDM work.
+// A fresh ("") cursor stays empty and writes nothing. A non-empty cursor
+// (left over from a prior partial pass) is reset to "" exactly once. In
+// both cases the cron returns nil and the per-host / per-profile mocks
+// are never reached, so leaving them nil on the mock store is itself an
+// implicit assertion.
+func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
+	cases := []struct {
+		name            string
+		initialCursor   string
+		wantSetCalls    int
+		wantFinalCursor string
+	}{
+		{
+			name:            "fresh cursor and no work is a no-op",
+			initialCursor:   "",
+			wantSetCalls:    0,
+			wantFinalCursor: "",
+		},
+		{
+			name:            "non-empty cursor is reset to empty once",
+			initialCursor:   "left-over-host-uuid",
+			wantSetCalls:    1,
+			wantFinalCursor: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ds := new(mock.Store)
+			logger := slog.New(slog.DiscardHandler)
+			cursor := tc.initialCursor
+			var setCalls int
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.WindowsEnabledAndConfigured = true
+				return cfg, nil
+			}
+			ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+				return cursor, nil
+			}
+			ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+				cursor = c
+				setCalls++
+				return nil
+			}
+			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
+				return nil, nil
+			}
+
+			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+			require.Equal(t, tc.wantSetCalls, setCalls)
+			require.Equal(t, tc.wantFinalCursor, cursor)
+		})
+	}
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -1505,10 +1506,12 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	// the previous per-profile loop, which under-utilized batches when profiles
 	// affected fewer than batchSize hosts.
 	//
-	// Profile UUIDs are iterated in sorted order so that the generated SQL text
-	// (IN-tuple order within a batch and CASE-arm order) is deterministic across
-	// runs; that keeps MySQL plan-cache entries and observability query digests
-	// stable.
+	// Profile UUIDs are iterated in sorted order so concurrent callers
+	// acquire InnoDB row locks on host_mdm_windows_profiles in the same
+	// order, reducing the deadlock surface on this path. The SQL text
+	// itself is placeholder-only and already deterministic for a given
+	// batch size, so iteration order does not affect plan-cache / query
+	// digest stability.
 	type pendingRemoveRow struct {
 		hostUUID    string
 		profileUUID string
@@ -2244,7 +2247,7 @@ func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, t
 
 func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
+	tx sqlx.QueryerContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
@@ -2313,6 +2316,90 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fle
 	return result, err
 }
 
+// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
+// ListMDMWindowsProfilesToInstall: it returns only rows for the given host
+// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
+// work; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+	return ds.listMDMWindowsProfilesToInstallDB(ctx, ds.reader(ctx), hostUUIDs, nil)
+}
+
+// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
+// ListMDMWindowsProfilesToRemove: it returns only rows for the given host
+// UUIDs. Used by the cron's batched reconciliation path to bound per-tick
+// work; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+	return ds.listMDMWindowsProfilesToRemoveDB(ctx, ds.reader(ctx), hostUUIDs, nil)
+}
+
+// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
+// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
+// the host has any pending Windows MDM profile reconciliation work
+// (install or remove). If afterHostUUID is empty, scanning starts from
+// the beginning. The cron uses this to slice its per-tick work into a
+// bounded host window; see ReconcileWindowsProfiles.
+func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	// Push the cursor predicate (host_uuid > ?) into each branch of the
+	// UNION so the optimizer applies it before deduplication. The install
+	// query has 4 host-filter slots, one per UNION branch in the
+	// desired-state subquery; each gets h.uuid > ?. The remove query
+	// inverts desired-state membership (it keeps rows where ds.host_uuid
+	// IS NULL), so its 4 desired-state slots stay TRUE; the cursor goes
+	// in the 5th slot, which filters hmwp.host_uuid after the RIGHT JOIN
+	// to host_mdm_windows_profiles. hmwp.host_uuid is the leading column
+	// of that table's PK, so this is a clean PK range scan.
+	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "hmwp.host_uuid > ?")
+
+	stmt := fmt.Sprintf(`
+		SELECT host_uuid FROM (
+			SELECT host_uuid FROM (%s) AS install_set
+			UNION
+			SELECT host_uuid FROM (%s) AS remove_set
+		) AS combined
+		ORDER BY host_uuid
+		LIMIT %d
+	`, toInstall, toRemove, batchSize)
+
+	// Placeholder order in stmt:
+	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
+	//   remove branches:  1 cursor (hmwp.host_uuid > ?)
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
+		afterHostUUID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
+	}
+	return hostUUIDs, nil
+}
+
+// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
+// used by the Windows MDM reconciliation cron to bound per-tick work.
+// Returns "" if no cursor is set or if the underlying datastore does not
+// support cursor persistence (the bare mysql.Datastore in unit tests
+// returns "" here; the mysqlredis wrapper backs it with Redis).
+//
+// See ReconcileWindowsProfiles.
+func (ds *Datastore) GetMDMWindowsReconcileCursor(_ context.Context) (string, error) {
+	return "", nil
+}
+
+// SetMDMWindowsReconcileCursor persists the host_uuid cursor used by the
+// Windows MDM reconciliation cron. The bare mysql.Datastore is a no-op
+// here; the mysqlredis wrapper writes to Redis. See
+// GetMDMWindowsReconcileCursor.
+func (ds *Datastore) SetMDMWindowsReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
 // The query below is a set difference between:
 //
 // - Set A (ds), the desired state, can be obtained from a JOIN between
@@ -2374,7 +2461,7 @@ func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx
 
 func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
+	tx sqlx.QueryerContext,
 	hostUUIDs []string,
 	onlyProfileUUIDs []string,
 ) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
@@ -2495,6 +2582,39 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 		}
 	}
 	return nil
+}
+
+// GetExistingMDMWindowsProfileUUIDs returns a set of the given profile UUIDs
+// that still exist in mdm_windows_configuration_profiles. The cron
+// reconciler uses this just before upserting host_mdm_windows_profiles rows
+// to skip profiles that an admin deleted between the initial list and the
+// upsert; without this guard a <Delete> command could never be built later
+// (SyncML is gone), leaving a zombie install row.
+func (ds *Datastore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+	if len(profileUUIDs) == 0 {
+		return map[string]struct{}{}, nil
+	}
+	stmt, args, err := sqlx.In(
+		`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)`,
+		profileUUIDs,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building IN for existing Windows profile UUIDs")
+	}
+	var rows []string
+	// Force a primary read: the guard exists to catch admin deletes that
+	// happened seconds ago (between the cron's initial list and the upsert).
+	// Replica lag could show a just-deleted profile as still present and
+	// defeat the guard.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting existing Windows profile UUIDs")
+	}
+	result := make(map[string]struct{}, len(rows))
+	for _, u := range rows {
+		result[u] = struct{}{}
+	}
+	return result, nil
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
@@ -3090,182 +3210,6 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	return updatedDB || updatedLabels, nil
-}
-
-func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostUUIDs []string,
-	onlyProfileUUIDs []string,
-) (updatedDB bool, err error) {
-	if len(hostUUIDs) == 0 {
-		return false, nil
-	}
-
-	profilesToInstall, err := ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "list profiles to install")
-	}
-
-	profilesToRemove, err := ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "list profiles to remove")
-	}
-
-	if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
-		return false, nil
-	}
-
-	if len(profilesToRemove) > 0 {
-		// Mark profiles for removal instead of deleting them. The reconciler
-		// will pick these up (status=NULL, operation_type='remove') and generate <Delete> SyncML commands.
-		err := common_mysql.BatchProcessSimple(profilesToRemove, 1000, func(batch []*fleet.MDMWindowsProfilePayload) error {
-			var sb strings.Builder
-			sb.WriteString(`UPDATE host_mdm_windows_profiles
-				SET operation_type = ?, status = NULL, command_uuid = '', detail = ''
-				WHERE (profile_uuid, host_uuid) IN (`)
-			args := make([]any, 0, 1+len(batch)*2)
-			args = append(args, fleet.MDMOperationTypeRemove)
-			for j, p := range batch {
-				if j > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString("(?, ?)")
-				args = append(args, p.ProfileUUID, p.HostUUID)
-			}
-			sb.WriteString(")")
-			if _, err := tx.ExecContext(ctx, sb.String(), args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "marking profiles for removal")
-			}
-			return nil
-		})
-		if err != nil {
-			return false, err
-		}
-		updatedDB = true
-	}
-	if len(profilesToInstall) == 0 {
-		return updatedDB, nil
-	}
-
-	var (
-		pargs            []any
-		profilesToInsert = make(map[string]*fleet.MDMWindowsProfilePayload)
-		psb              strings.Builder
-		batchCount       int
-	)
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
-	resetBatch := func() {
-		batchCount = 0
-		pargs = pargs[:0]
-		clear(profilesToInsert)
-		psb.Reset()
-	}
-
-	executeUpsertBatch := func(valuePart string, args []any) error {
-		// Check if the update needs to be done at all.
-		selectStmt := fmt.Sprintf(`
-			SELECT
-				profile_uuid,
-				host_uuid,
-				status,
-				checksum,
-				COALESCE(operation_type, '') AS operation_type,
-				COALESCE(detail, '') AS detail,
-				COALESCE(command_uuid, '') AS command_uuid,
-				COALESCE(profile_name, '') AS profile_name
-			FROM host_mdm_windows_profiles WHERE (profile_uuid, host_uuid) IN (%s)`,
-			strings.TrimSuffix(strings.Repeat("(?,?),", len(profilesToInsert)), ","))
-		var selectArgs []any
-		for _, p := range profilesToInsert {
-			selectArgs = append(selectArgs, p.ProfileUUID, p.HostUUID)
-		}
-		var existingProfiles []fleet.MDMWindowsProfilePayload
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, selectStmt, selectArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status select existing")
-		}
-		var updateNeeded bool
-		if len(existingProfiles) == len(profilesToInsert) {
-			for _, exist := range existingProfiles {
-				insert, ok := profilesToInsert[fmt.Sprintf("%s\n%s", exist.ProfileUUID, exist.HostUUID)]
-				if !ok || !exist.Equal(*insert) {
-					updateNeeded = true
-					break
-				}
-			}
-		} else {
-			updateNeeded = true
-		}
-		if !updateNeeded {
-			// All profiles are already in the database, no need to update.
-			return nil
-		}
-
-		baseStmt := fmt.Sprintf(`
-				INSERT INTO host_mdm_windows_profiles (
-					profile_uuid,
-					host_uuid,
-					profile_name,
-					operation_type,
-					status,
-					command_uuid,
-					checksum
-				)
-				VALUES %s
-				ON DUPLICATE KEY UPDATE
-					operation_type = VALUES(operation_type),
-					status = NULL,
-					command_uuid = VALUES(command_uuid),
-					detail = '',
-					checksum = VALUES(checksum)
-			`, strings.TrimSuffix(valuePart, ","))
-
-		_, err := tx.ExecContext(ctx, baseStmt, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute batch")
-		}
-		updatedDB = true
-		return nil
-	}
-
-	for _, p := range profilesToInstall {
-		profilesToInsert[fmt.Sprintf("%s\n%s", p.ProfileUUID, p.HostUUID)] = &fleet.MDMWindowsProfilePayload{
-			ProfileUUID:   p.ProfileUUID,
-			ProfileName:   p.ProfileName,
-			HostUUID:      p.HostUUID,
-			Status:        nil,
-			OperationType: fleet.MDMOperationTypeInstall,
-			Detail:        p.Detail,
-			CommandUUID:   p.CommandUUID,
-			Retries:       p.Retries,
-			Checksum:      p.Checksum,
-		}
-		pargs = append(
-			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
-			fleet.MDMOperationTypeInstall, p.Checksum)
-		psb.WriteString("(?, ?, ?, ?, NULL, '', ?),")
-		batchCount++
-		if batchCount >= batchSize {
-			if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-				return false, err
-			}
-			resetBatch()
-		}
-	}
-
-	if batchCount > 0 {
-		if err := executeUpsertBatch(psb.String(), pargs); err != nil {
-			return false, err
-		}
-	}
-
-	return updatedDB, nil
 }
 
 func (ds *Datastore) GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {

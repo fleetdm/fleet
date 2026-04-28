@@ -1503,6 +1503,19 @@ type Datastore interface {
 	// remove for each affected host to pending for the provided criteria, which
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
+	//
+	// This reconciles Apple profiles, Apple declarations, and Android profiles
+	// synchronously. Windows profile reconciliation is deferred: the
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
+	// populations may require multiple 30s ticks to converge. Callers must not
+	// assume host_mdm_windows_profiles rows are written by the time this
+	// function returns; if a caller needs immediate Windows state (e.g. a
+	// test, or a synchronous UX flow), it must trigger reconciliation
+	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
+	// production: the BatchSetMDMProfiles flow that consumes this field
+	// already gets an accurate transactional signal from BatchSetMDMProfiles
+	// itself, and no other caller reads the field.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -2025,6 +2038,36 @@ type Datastore interface {
 	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
+	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
+	// (sorted ascending) where host_uuid > afterHostUUID and the host has
+	// any pending Windows MDM profile reconciliation work. Used by the
+	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
+	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+
+	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
+	// used by the Windows MDM reconciliation cron to bound per-tick work.
+	// Returns "" if no cursor is set or if the implementation does not
+	// support cursor persistence (the bare mysql.Datastore returns "" here;
+	// the mysqlredis wrapper backs it with Redis). See
+	// ReconcileWindowsProfiles.
+	GetMDMWindowsReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMWindowsReconcileCursor persists the host_uuid cursor used by
+	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
+	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
@@ -2032,6 +2075,15 @@ type Datastore interface {
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
 	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
+
+	// GetExistingMDMWindowsProfileUUIDs returns the subset of the given
+	// profile UUIDs that still exist in mdm_windows_configuration_profiles.
+	// Callers use this to detect profiles deleted by a concurrent admin
+	// action between listing and a downstream upsert (e.g. the
+	// mdm_windows_profile_manager cron's reconciliation loop); installing a
+	// profile that has since been deleted would create an unremovable zombie
+	// row because the <Delete> builder needs the now-missing SyncML.
+	GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
