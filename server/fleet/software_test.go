@@ -139,6 +139,17 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "non-pending status with installer not found exit code",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeInstallerNotFound),
+				Output:                ptr.String(""),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(SoftwareInstallerNotFoundCopy),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-pending status with failed install script",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,

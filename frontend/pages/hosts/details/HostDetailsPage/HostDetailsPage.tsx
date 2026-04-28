@@ -1547,7 +1547,6 @@ const HostDetailsPage = ({
                   isLoading={isLoadingHost}
                   togglePolicyDetailsModal={togglePolicyDetailsModal}
                   hostPlatform={host.platform}
-                  router={router}
                   currentTeamId={currentTeam?.id}
                 />
               </TabPanel>

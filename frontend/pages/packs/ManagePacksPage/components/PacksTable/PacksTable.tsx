@@ -73,7 +73,6 @@ const PacksTable = ({
       ),
     };
     if (searchString) {
-      delete emptyPacks.graphicName;
       emptyPacks.header = "No packs match the current search criteria";
       emptyPacks.info =
         "Expecting to see packs? Try again in a few seconds as the system catches up.";
@@ -131,7 +130,6 @@ const PacksTable = ({
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() => (
           <EmptyState
-            graphicName={emptyState().graphicName}
             header={emptyState().header}
             info={emptyState().info}
             primaryButton={emptyState().primaryButton}

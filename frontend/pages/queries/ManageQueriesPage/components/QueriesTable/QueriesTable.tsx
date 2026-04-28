@@ -194,7 +194,6 @@ const QueriesTable = ({
   }
 
   if (searchQuery || curTargetedPlatformFilter !== "all") {
-    delete emptyParams.graphicName;
     emptyParams.header = "No matching reports";
     emptyParams.info = "No reports match the current filters.";
   } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
