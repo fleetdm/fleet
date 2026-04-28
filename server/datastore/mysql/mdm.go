@@ -267,9 +267,9 @@ func (ds *Datastore) listMDMCommandsByHostIdentifier(
 
 	// First, search for host by identifier (hostname, uuid, or hardware_serial).
 	//
-	// NOTE: We're not using existing methods like ds.whereFilterHostsByIdentifier,
-	// ds.HostIDsByIdentifier, ds.HostLiteByIdentifier because those methods are poorly
-	// optimized for the indexes we currently have on the hosts table.
+	// NOTE: We're not using existing methods like ds.HostIDsByIdentifier or
+	// ds.HostLiteByIdentifier because those methods are poorly optimized for
+	// the indexes we currently have on the hosts table.
 	// They filter with disjunctive conditions like `hostname = ? OR uuid = ?` as well as
 	// `? IN(hostname, uuid)`. These existing queries aren't really suited for either composite
 	// indexes or indexes on individual columns, and the optimizer ends up with executions that
