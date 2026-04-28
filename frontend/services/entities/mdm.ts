@@ -54,8 +54,10 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
 interface IUpdateSetupExperienceBody {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
-  enable_release_device_manually?: boolean;
-  manual_agent_install?: boolean;
+  lock_end_user_info?: boolean;
+  apple_enable_release_device_manually?: boolean;
+  macos_manual_agent_install?: boolean;
+  enable_managed_local_account?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
@@ -252,19 +254,6 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
-  updateEndUserAuthentication: (
-    teamId: number,
-    isEnabled: boolean,
-    canLockEndUserInfo: boolean
-  ) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
-      fleet_id: teamId,
-      enable_end_user_authentication: isEnabled,
-      lock_end_user_info: canLockEndUserInfo,
-    });
-  },
-
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP } = endpoints;
     return sendRequest("PATCH", MDM_SETUP, {
@@ -291,7 +280,7 @@ const mdmService = {
 
     const body: IUpdateSetupExperienceBody = {
       fleet_id: teamId,
-      enable_release_device_manually: isEnabled,
+      apple_enable_release_device_manually: isEnabled,
     };
 
     if (teamId === API_NO_TEAM_ID) {

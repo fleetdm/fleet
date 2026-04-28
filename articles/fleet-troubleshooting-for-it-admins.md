@@ -67,3 +67,4 @@ fleetctl debug errors
 <meta name="authorGitHubUsername" value="spalmesano0">
 <meta name="publishedOn" value="2026-02-13">
 <meta name="articleTitle" value="Fleet troubleshooting for IT admins">
+<meta name="description" value="Basic troubleshooting steps for when things go wrong.">

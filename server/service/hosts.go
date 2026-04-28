@@ -280,8 +280,27 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
-		if err != nil && !fleet.IsNotFound(err) { // ignore not found, just return nil for the software in that case
+
+		sw, err := svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
+		switch {
+		case err == nil:
+			software = sw
+
+		case fleet.IsNotFound(err):
+			// Look for lite summary data as admin
+			systemCtx := viewer.NewSystemContext(ctx)
+			swLite, errLite := svc.SoftwareLiteByID(systemCtx, *id)
+			if errLite != nil && !fleet.IsNotFound(errLite) {
+				return listHostsResponse{Err: errLite}, nil
+			}
+			if errLite == nil {
+				software = &fleet.Software{
+					ID:      *id,
+					Name:    swLite.Name,
+					Version: swLite.Version,
+				}
+			}
+		default:
 			return listHostsResponse{Err: err}, nil
 		}
 	}
@@ -412,6 +431,19 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	return hosts, nil
 }
 
+// sanitizeNonPremiumHostListOptions clears filter fields that are only valid
+// on a Fleet Premium license so that free-tier callers see unfiltered results.
+func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOptions) {
+	if isPremium {
+		return
+	}
+	opt.LowDiskSpaceFilter = nil
+	opt.MDMBootstrapPackageFilter = nil
+	opt.PopulateSoftwareVulnerabilityDetails = false
+	opt.DEPProfileErrorFilter = nil
+	opt.DEPAssignProfileResponseFilter = nil
+}
+
 func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
@@ -423,16 +455,8 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	// TODO(Sarah): Are we missing any other filters here?
 	premiumLicense := license.IsPremium(ctx)
-	if !premiumLicense {
-		// the low disk space filter is premium-only
-		opt.LowDiskSpaceFilter = nil
-		// the bootstrap package filter is premium-only
-		opt.MDMBootstrapPackageFilter = nil
-		// including vulnerability details on software is premium-only
-		opt.PopulateSoftwareVulnerabilityDetails = false
-	}
+	sanitizeNonPremiumHostListOptions(premiumLicense, &opt)
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opt)
 	if err != nil {
@@ -708,10 +732,7 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	if !license.IsPremium(ctx) {
-		// the low disk space filter is premium-only
-		opt.LowDiskSpaceFilter = nil
-	}
+	sanitizeNonPremiumHostListOptions(license.IsPremium(ctx), &opt)
 
 	var count int
 	var err error
@@ -1666,6 +1687,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
+	var mdmHardwareAttested bool
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1756,6 +1778,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						rlpStatus.PopulateStatus()
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
+
+					acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+					if err != nil && !fleet.IsNotFound(err) {
+						return nil, ctxerr.Wrap(ctx, err, "get host local managed account status")
+					}
+					if acct != nil {
+						host.MDM.OSSettings.ManagedLocalAccount = *acct
+					}
 				}
 
 				for _, p := range profs {
@@ -1768,7 +1798,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				details, err := svc.ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+				if details != nil {
+					mdmLastCheckedIn = details.LastMDMSeenTime
+					mdmLastEnrollment = details.LastMDMEnrollmentTime
+					mdmHardwareAttested = details.HardwareAttested
+				}
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1840,15 +1875,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
 	return &fleet.HostDetail{
-		Host:                      *host,
-		Labels:                    labels,
-		Packs:                     packs,
-		Batteries:                 &bats,
-		MaintenanceWindow:         nextMw,
-		EndUsers:                  endUsers,
-		LastMDMEnrolledAt:         mdmLastEnrollment,
-		LastMDMCheckedInAt:        mdmLastCheckedIn,
-		ConditionalAccessBypassed: conditionalAccessBypassed,
+		Host:                          *host,
+		Labels:                        labels,
+		Packs:                         packs,
+		Batteries:                     &bats,
+		MaintenanceWindow:             nextMw,
+		EndUsers:                      endUsers,
+		LastMDMEnrolledAt:             mdmLastEnrollment,
+		LastMDMCheckedInAt:            mdmLastCheckedIn,
+		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
+		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
 }
 
@@ -3548,23 +3584,12 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 	return nil
 }
 
-type removeLabelsFromHostRequest struct {
-	ID     uint     `url:"id"`
-	Labels []string `json:"labels"`
-}
-
-type removeLabelsFromHostResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r removeLabelsFromHostResponse) Error() error { return r.Err }
-
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*removeLabelsFromHostRequest)
+	req := request.(*fleet.RemoveLabelsFromHostRequest)
 	if err := svc.RemoveLabelsFromHost(ctx, req.ID, req.Labels); err != nil {
-		return removeLabelsFromHostResponse{Err: err}, nil
+		return fleet.RemoveLabelsFromHostResponse{Err: err}, nil
 	}
-	return removeLabelsFromHostResponse{}, nil
+	return fleet.RemoveLabelsFromHostResponse{}, nil
 }
 
 func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelNames []string) error {
@@ -4021,4 +4046,37 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// Get Host Managed Account Password
+// //////////////////////////////////////////////////////////////////////////////
+
+type getHostManagedAccountPasswordRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostManagedAccountPasswordResponse struct {
+	HostID              uint                                   `json:"host_id"`
+	ManagedLocalAccount *fleet.HostManagedLocalAccountPassword `json:"managed_account_password"`
+	Err                 error                                  `json:"error,omitempty"`
+}
+
+func (r getHostManagedAccountPasswordResponse) Error() error { return r.Err }
+
+func getHostManagedAccountPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostManagedAccountPasswordRequest)
+	pwd, err := svc.GetHostManagedAccountPassword(ctx, req.ID)
+	if err != nil {
+		return getHostManagedAccountPasswordResponse{Err: err}, nil
+	}
+	return getHostManagedAccountPasswordResponse{HostID: req.ID, ManagedLocalAccount: pwd}, nil
+}
+
+func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

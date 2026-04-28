@@ -8,6 +8,9 @@
     &-label {
       line-height: 38px;
       font-size: $x-small;
+      // Override react-select's hardcoded `.Select-value { color: #aaa; }` so
+      // the selected value uses themed text color (esp. needed for dark mode).
+      color: $core-fleet-black;
     }
   }
 
@@ -141,9 +144,16 @@
     }
   }
 
+  // Override react-select's hardcoded white background on focus/open so the
+  // control stays themed (critical for dark mode).
+  &.is-focused > .Select-control {
+    background-color: $core-fleet-white;
+  }
+
   &.is-focused:not(.is-open) > .Select-control {
     box-shadow: none;
     border-color: $ui-fleet-black-75; // Override blue border on focus
+    background-color: $core-fleet-white;
   }
 
   &.is-open {
@@ -161,8 +171,10 @@
         fill: $ui-fleet-black-75-over;
       }
     }
-    .Select-control {
+    > .Select-control {
       border-radius: $border-radius;
+      // Override react-select's hardcoded white background when open.
+      background-color: $core-fleet-white;
     }
   }
   :hover {
@@ -206,16 +218,16 @@
 
     &.is-disabled {
       > .Select-control .Select-value .Select-value-label {
-        color: $ui-fleet-black-5;
+        color: $ui-fleet-black-50;
       }
     }
   }
 
   .Select-menu-outer {
-    position: relative;
-    box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
+    background-color: $core-fleet-white;
+    box-shadow: 0 0 0 1px $ui-fleet-black-10;
     z-index: 6;
-    overflow: auto;
+    overflow: hidden;
     max-height: 198px; // Fits 4 options without scrolling
     border: 0;
     margin: 1px 0 0;
@@ -224,8 +236,8 @@
   }
 
   .Select-menu {
-    max-height: none; // Important to scroll in .Select-menu-outer
-    overflow: visible;
+    max-height: 182px; // Scrollable within .Select-menu-outer
+    overflow-y: auto;
   }
 
   .Select-noresults {
@@ -234,6 +246,7 @@
 
   .Select-option {
     color: $core-fleet-black;
+    background-color: transparent;
     font-size: $x-small;
     margin: 0;
     padding: 10px;
@@ -288,6 +301,12 @@
     font-size: $x-small;
     box-sizing: border-box;
     height: 34px;
+
+    // Override react-select's hardcoded `.Select-control .Select-input:focus
+    // { background: #fff; }` so the input stays themed when the menu is open.
+    &:focus {
+      background: $core-fleet-white;
+    }
 
     > input {
       line-height: 34px;

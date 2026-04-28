@@ -20,6 +20,30 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+
+    .input-icon-field .input-with-icon {
+      min-width: 300px;
+    }
+  }
+
+  &__sort-dropdown {
+    min-width: 160px;
+  }
+
+  @media screen and (max-width: $break-md) {
+    &__controls {
+      flex-direction: column-reverse;
+      align-items: stretch;
+      gap: $pad-smedium;
+    }
+
+    &__controls-right &__sort-dropdown {
+      width: auto;
+    }
+
+    &__controls-right .search-field__tooltip-container {
+      flex: 1;
+    }
   }
 
   &__count {
@@ -31,10 +55,6 @@
   &__toggle {
     margin: 0;
     width: auto;
-  }
-
-  &__sort-dropdown {
-    min-width: 160px;
   }
 
   &__reports-list {
@@ -98,6 +118,7 @@
     font-size: $xx-small;
     color: $ui-fleet-black-75;
     margin: $pad-xsmall 0 0;
+    overflow-wrap: anywhere;
   }
 
   &__clipped-badge {

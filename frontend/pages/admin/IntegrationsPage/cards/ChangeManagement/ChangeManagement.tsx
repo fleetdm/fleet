@@ -13,7 +13,6 @@ import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import validUrl from "components/forms/validators/valid_url";
@@ -32,6 +31,9 @@ const baseClass = "change-management";
 interface IChangeManagementFormData {
   gitOpsModeEnabled: boolean;
   repoURL: string;
+  exceptLabels: boolean;
+  exceptSoftware: boolean;
+  exceptSecrets: boolean;
 }
 
 interface IChangeManagementFormErrors {
@@ -58,9 +60,12 @@ const ChangeManagement = () => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
-    // dummy 0 values, will be populated with fresh config API response
+    // dummy values, will be populated with fresh config API response
     gitOpsModeEnabled: false,
     repoURL: "",
+    exceptLabels: false,
+    exceptSoftware: false,
+    exceptSecrets: true,
   });
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
@@ -70,14 +75,22 @@ const ChangeManagement = () => {
     Error,
     IConfig
   >(["integrations"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
     onSuccess: (data) => {
       const {
         gitops: {
           gitops_mode_enabled: gitOpsModeEnabled,
           repository_url: repoURL,
+          exceptions,
         },
       } = data;
-      setFormData({ gitOpsModeEnabled, repoURL });
+      setFormData({
+        gitOpsModeEnabled,
+        repoURL,
+        exceptLabels: exceptions.labels,
+        exceptSoftware: exceptions.software,
+        exceptSecrets: exceptions.secrets,
+      });
       setConfig(data);
     },
   });
@@ -91,7 +104,13 @@ const ChangeManagement = () => {
       </SettingsSection>
     );
 
-  const { gitOpsModeEnabled, repoURL } = formData;
+  const {
+    gitOpsModeEnabled,
+    repoURL,
+    exceptLabels,
+    exceptSoftware,
+    exceptSecrets,
+  } = formData;
 
   if (isLoadingConfig) {
     return <Spinner />;
@@ -114,12 +133,20 @@ const ChangeManagement = () => {
         gitops: {
           gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
+          exceptions: {
+            labels: formData.exceptLabels,
+            software: formData.exceptSoftware,
+            secrets: formData.exceptSecrets,
+          },
         },
       });
 
       setFormData({
         gitOpsModeEnabled: updatedConfig.gitops.gitops_mode_enabled,
         repoURL: updatedConfig.gitops.repository_url,
+        exceptLabels: updatedConfig.gitops.exceptions.labels,
+        exceptSoftware: updatedConfig.gitops.exceptions.software,
+        exceptSecrets: updatedConfig.gitops.exceptions.secrets,
       });
 
       setConfig(updatedConfig);
@@ -195,6 +222,40 @@ const ChangeManagement = () => {
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
           disabled={!gitOpsModeEnabled}
         />
+        <div className={`form-field`}>
+          <div className="form-field__label">
+            <TooltipWrapper tipContent="Opt-in to managing outside of git. Running GitOps won’t override changes made in the UI or API.">
+              Exceptions
+            </TooltipWrapper>
+          </div>
+          <div className="form-field">
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptLabels"
+              value={exceptLabels}
+              parseTarget
+            >
+              Labels
+            </Checkbox>
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptSoftware"
+              value={exceptSoftware}
+              parseTarget
+            >
+              Software
+            </Checkbox>
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptSecrets"
+              value={exceptSecrets}
+              parseTarget
+            >
+              Enroll secrets
+            </Checkbox>
+          </div>
+        </div>
+
         <div className="button-wrap">
           <Button
             type="submit"

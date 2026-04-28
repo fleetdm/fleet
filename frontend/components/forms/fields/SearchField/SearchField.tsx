@@ -59,7 +59,6 @@ const SearchField = ({
           onChange={onInputChange}
           onClick={onClick}
           clearButton={clearButton}
-          iconPosition="start"
           iconSvg={icon}
           disabled={disabled}
         />

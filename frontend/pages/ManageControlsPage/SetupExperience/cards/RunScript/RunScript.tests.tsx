@@ -28,15 +28,13 @@ describe("RunScript", () => {
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText(/turn on automatic enrollment/)
     ).not.toBeInTheDocument();
-    await waitFor(async () => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
-    });
     expect(
-      screen.getByText(/turn on automatic enrollment/)
+      await screen.findByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
 
@@ -57,15 +55,13 @@ describe("RunScript", () => {
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText(/turn on automatic enrollment/)
     ).not.toBeInTheDocument();
-    await waitFor(async () => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
-    });
     expect(
-      screen.getByText(/turn on automatic enrollment/)
+      await screen.findByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
 
@@ -78,7 +74,8 @@ describe("RunScript", () => {
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
     await waitFor(async () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
@@ -96,7 +93,8 @@ describe("RunScript", () => {
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText("Script will run during setup:")
     ).not.toBeInTheDocument();

@@ -7,10 +7,11 @@ set -e
 # ./enroll.sh my-branch 8 240
 
 BRANCH_NAME=$1
-START_INDEX=$2
-END_INDEX=$3
-INCREMENT=${5:-8}
-SLEEP_TIME_SECONDS=${4:-60}
+TASK_SIZE=${2:?}
+START_INDEX=$3
+END_INDEX=$4
+SLEEP_TIME_SECONDS=${5:-60}
+INCREMENT=${6:-8}
 
 if [ -z "$BRANCH_NAME" ]; then
 	echo "Missing BRANCH_NAME"
@@ -21,6 +22,9 @@ fi
 if [ -z "$END_INDEX" ]; then
 	echo "Missing END_INDEX"
 fi
+if [ -z "$TASK_SIZE" ]; then
+	echo "Missing TASK_SIZE"
+fi
 
 # We add this check to avoid terraform (error-prone) locking in case of typos.
 # read -p "You will use BRANCH_NAME=$BRANCH_NAME. Continue? "
@@ -28,6 +32,11 @@ fi
 set -x
 
 for (( c=$START_INDEX; c<=$END_INDEX; c+=$INCREMENT )); do
-        terraform apply -var git_tag_branch=$BRANCH_NAME -var loadtest_containers=$c -auto-approve
+    terraform apply -var git_tag_branch=$BRANCH_NAME -var task_size="$TASK_SIZE" -var loadtest_containers=$c -auto-approve
 	sleep $SLEEP_TIME_SECONDS
 done
+
+# Apply the remainder if the loop didn't land exactly on END_INDEX.
+if (( $c - $INCREMENT != $END_INDEX )); then
+	terraform apply -var git_tag_branch=$BRANCH_NAME -var task_size="$TASK_SIZE" -var loadtest_containers=$END_INDEX -auto-approve
+fi

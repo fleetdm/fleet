@@ -25,12 +25,20 @@ defaultConfig {
 
 ## 3. Update CHANGELOG.md
 
-Add an entry for the new version with changes since the last release.
+From the repo root, run the changelog generator to pull entries from `android/changes/`:
+
+```bash
+make changelog-android version=1.X.X
+```
+
+This collects all entries from `android/changes/`, prepends them to `android/CHANGELOG.md` with a dated header, and stages the change files for deletion.
+
+Review the generated changelog and manually add any additional entries that are not covered by the `android/changes/` directory.
 
 ## 4. Commit and push RC branch
 
 ```bash
-git add app/build.gradle.kts CHANGELOG.md
+git add android/app/build.gradle.kts android/CHANGELOG.md android/changes/
 git commit -m "Prepare release v1.X.X"
 git push origin rc-minor-fleetd-android-v1.X.X
 ```
@@ -127,10 +135,11 @@ git checkout main
 git pull origin main
 git checkout -b bring-fleetd-android-v1.X.X-to-main
 git checkout rc-minor-fleetd-android-v1.X.X -- android/app/build.gradle.kts android/CHANGELOG.md
+git diff --name-only --diff-filter=D main...rc-minor-fleetd-android-v1.X.X -- android/changes/ | xargs git rm --ignore-unmatch
 git commit -m "Update version and CHANGELOG for fleetd-android-v1.X.X"
 git push origin bring-fleetd-android-v1.X.X-to-main
 ```
 
 Then open a PR to merge `bring-fleetd-android-v1.X.X-to-main` into `main`.
 
-This brings only the version bump and CHANGELOG updates to main, not other RC changes.
+This brings the version bump and CHANGELOG updates to main and removes only the changelog entries that were processed in the RC, preserving any new entries added to main after the RC branch was cut.

@@ -200,13 +200,13 @@ For this to work correctly make sure that:
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
 - `FLEET_JIT_USER_ROLE_GLOBAL`: Specifies the global role to use when creating the user.
-- `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>`: Specifies fleet role for fleet with ID `<TEAM_ID>` to use when creating the user.
+- `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>`: Specifies fleet-level role for fleet with ID `<FLEET_ID>` to use when creating the user.
 
 Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
-NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` will cause an error during login as Fleet users cannot be Global users and belong to fleets.
+NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both global users and belong to fleets.
 
 Following is the behavior that will take place on every SSO login:
 
@@ -256,10 +256,10 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fle
   </saml2:Subject>
   [...]
   <saml2:AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
-    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_1" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
       <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">observer</saml2:AttributeValue>
     </saml2:Attribute>
-    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_TEAM_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
+    <saml2:Attribute Name="FLEET_JIT_USER_ROLE_FLEET_2" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified">
       <saml2:AttributeValue xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="xs:string">maintainer</saml2:AttributeValue>
     </saml2:Attribute>
   </saml2:AttributeStatement>
@@ -268,6 +268,18 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fle
 ```
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
+
+
+## Automatically deprovision Fleet users
+
+When SCIM is configured with your IdP, Fleet automatically deletes a user's Fleet account when the user is deleted or deactivated in the IdP.
+
+Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
+
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+
+No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
 
 ## Email two-factor authentication (2FA)
 

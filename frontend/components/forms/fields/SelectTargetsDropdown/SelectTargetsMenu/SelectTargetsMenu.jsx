@@ -152,7 +152,6 @@ const SelectTargetsMenuWrapper = (
     valueArray: PropTypes.arrayOf(targetInterface),
     valueKey: PropTypes.string,
     onOptionRef: PropTypes.func,
-    isPremiumTier: PropTypes.bool,
   };
 
   return SelectTargetsMenu;

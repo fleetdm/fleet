@@ -255,7 +255,8 @@ const ManageHostsPage = ({
   // ========= queryParams
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus = queryParams?.macos_settings;
+  const macSettingsStatus =
+    queryParams?.apple_settings ?? queryParams?.macos_settings;
   const softwareId =
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
@@ -302,7 +303,7 @@ const ManageHostsPage = ({
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.bootstrap_package;
+    queryParams?.macos_bootstrap_package ?? queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
@@ -836,7 +837,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: { ...queryParams, bootstrap_package: newStatus },
+        queryParams: { ...queryParams, macos_bootstrap_package: newStatus },
       })
     );
   };
@@ -872,6 +873,8 @@ const ManageHostsPage = ({
   const handleStatusDropdownChange = (
     statusName: SingleValue<CustomOptionType>
   ) => {
+    const value = statusName?.value;
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -879,7 +882,14 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName?.value,
+          ...(value !== "pending" && {
+            status: value,
+            mdm_enrollment_status: undefined,
+          }),
+          ...(value === "pending" && {
+            mdm_enrollment_status: value,
+            status: undefined,
+          }),
           page: 0, // resets page index
         },
       })
@@ -896,7 +906,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          macos_settings: newMacSettingsStatus,
+          apple_settings: newMacSettingsStatus,
           page: 0, // resets page index
         },
       })
@@ -1054,7 +1064,7 @@ const ManageHostsPage = ({
         newQueryParams.policy_id = policyId;
         newQueryParams.policy_response = policyResponse;
       } else if (macSettingsStatus) {
-        newQueryParams.macos_settings = macSettingsStatus;
+        newQueryParams.apple_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
@@ -1096,7 +1106,7 @@ const ManageHostsPage = ({
         // Premium feature only
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
-        newQueryParams.bootstrap_package = bootstrapPackageStatus;
+        newQueryParams.macos_bootstrap_package = bootstrapPackageStatus;
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;
@@ -1410,9 +1420,7 @@ const ManageHostsPage = ({
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
-      const successMessage = `${
-        selectedHostIds.length === 1 ? "Host" : "Hosts"
-      } successfully deleted.`;
+      const successMessage = "Hosts successfully deleted.";
 
       renderFlash("success", successMessage);
       setResetSelectedRows(true);
@@ -1422,12 +1430,7 @@ const ManageHostsPage = ({
       setSelectedHostIds([]);
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
-      renderFlash(
-        "error",
-        `Could not delete ${
-          selectedHostIds.length === 1 ? "host" : "hosts"
-        }. Please try again.`
-      );
+      renderFlash("error", "Could not delete hosts. Please try again.");
     } finally {
       setIsUpdating(false);
     }
@@ -1680,9 +1683,9 @@ const ManageHostsPage = ({
       <div className={`${baseClass}__filter-dropdowns`}>
         <DropdownWrapper
           name="status-filter"
-          value={status || ""}
+          value={status || mdmEnrollmentStatus || ""}
           className={`${baseClass}__status-filter`}
-          options={hostSelectStatuses}
+          options={hostSelectStatuses(isPremiumTier || false)}
           onChange={handleStatusDropdownChange}
           variant="table-filter"
         />
@@ -1931,8 +1934,15 @@ const ManageHostsPage = ({
         >
           <div>
             <span>
-              You have no enroll secrets. Manage enroll secrets to enroll hosts
-              to <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
+              You have no enroll secrets.{" "}
+              <Button
+                variant="link"
+                onClick={() => setShowEnrollSecretModal(true)}
+              >
+                Manage enroll secrets
+              </Button>{" "}
+              to enroll hosts to{" "}
+              <b>{isAnyTeamSelected ? currentTeamName : "Fleet"}</b>.
             </span>
           </div>
         </InfoBanner>

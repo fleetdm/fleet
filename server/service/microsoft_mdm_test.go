@@ -728,12 +728,13 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	capturedUpdates, managedCerts := setupReconcilerTest(ds, hostToProfile)
 
 	var receivedCommand *fleet.MDMWindowsCommand
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		receivedCommand = cmd
 		// Simulate error only for commands with substituted UUID (to test error handling)
 		if strings.Contains(string(cmd.RawCommand), testHostUUID) {
 			return errors.New("command insert failed after preprocessing")
 		}
+		*capturedUpdates = append(*capturedUpdates, updates...)
 		return nil
 	}
 
@@ -750,7 +751,7 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	require.Empty(t, managedCerts, "No managed certificates should have been added")
 
 	// Verify that the error was captured and the profile was marked as failed
-	require.True(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, "MDMWindowsInsertCommandForHosts should have been called")
+	require.True(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked, "MDMWindowsInsertCommandAndUpsertHostProfilesForHosts should have been called")
 	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
 
 	// Find the error status update
@@ -804,7 +805,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		return "secret", nil
 	}
 
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		return errors.New("fake error to check managed certificate")
 	}
 
@@ -871,7 +872,8 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		return "secret", nil
 	}
 
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		*capturedUpdates = append(*capturedUpdates, updates...)
 		return nil
 	}
 
@@ -925,8 +927,10 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	})
 
 	var credsHash *[]byte
+	const testEnrollmentID uint = 123
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
+			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
 			HostUUID:        "host-uuid-123",
 			CredentialsHash: credsHash,
@@ -1041,7 +1045,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	// Now respond with credentials to ack the rekey
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		require.Equal(t, testEnrollmentID, enrollmentID)
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {

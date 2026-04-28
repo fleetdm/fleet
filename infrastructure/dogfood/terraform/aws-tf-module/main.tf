@@ -73,6 +73,7 @@ locals {
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+    FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
@@ -80,6 +81,8 @@ locals {
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"
+    # https://github.com/fleetdm/fleet/issues/38366
+    FLEET_MDM_ALLOW_ALL_DECLARATIONS = "true"
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path

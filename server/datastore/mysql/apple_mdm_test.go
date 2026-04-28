@@ -102,7 +102,7 @@ func TestMDMApple(t *testing.T) {
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
-		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
+		{"GetNanoMDMEnrollmentDetails", testGetNanoMDMEnrollmentDetails},
 		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 		{"TestDeleteMDMAppleDeclarationWithPendingInstalls", testDeleteMDMAppleDeclarationWithPendingInstalls},
 		{"TestUpdateNanoMDMUserEnrollmentUsername", testUpdateNanoMDMUserEnrollmentUsername},
@@ -113,6 +113,7 @@ func TestMDMApple(t *testing.T) {
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
 		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
 		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
@@ -123,7 +124,14 @@ func TestMDMApple(t *testing.T) {
 		{"GetHostRecoveryLockPasswordStatus", testGetHostRecoveryLockPasswordStatus},
 		{"ClaimHostsForRecoveryLockClear", testClaimHostsForRecoveryLockClear},
 		{"RecoveryLockRotation", testRecoveryLockRotation},
+		{"CleanupStaleNanoRefetchCommands", testCleanupStaleNanoRefetchCommands},
+		{"CleanupOrphanedNanoRefetchCommands", testCleanupOrphanedNanoRefetchCommands},
 		{"RecoveryLockAutoRotation", testRecoveryLockAutoRotation},
+		{"RecoveryLockResetOnMDMReEnrollment", testRecoveryLockResetOnMDMReEnrollment},
+		{"DeleteHostPreservesRecoveryLockPassword", testDeleteHostPreservesRecoveryLockPassword},
+		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
+		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
+		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 	}
 
 	for _, c := range cases {
@@ -408,7 +416,7 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	testDecl := declForTest("D1", "D1", "{}")
-	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl)
+	dbDecl, err := ds.NewMDMAppleDeclaration(ctx, testDecl, nil)
 	require.NoError(t, err)
 
 	// delete for a non-existing team does nothing
@@ -1029,7 +1037,7 @@ func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
 
-	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business Manager)
+	// simulate a host that is first ingested via DEP (e.g., the device was added via Apple Business)
 	n, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, []godep.Device{
 		{SerialNumber: testSerial, Model: testModel, OS: "OSX", OpType: "added"},
 	}, abmToken.ID, nil, nil, nil)
@@ -5408,6 +5416,17 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
+	// Fake the hardware attested flag to true
+	_, err = ds.writer(ctx).Exec(`
+		  UPDATE nano_enrollments SET hardware_attested = true
+		  WHERE id = ?
+	`, host.UUID)
+	require.NoError(t, err)
+
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.True(t, details.HardwareAttested)
+
 	// host has no boostrap package command yet
 	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.Error(t, err)
@@ -5418,10 +5437,10 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// add a record of the host DEP assignment
 	_, err = ds.writer(ctx).Exec(`
-		INSERT INTO host_dep_assignments (host_id)
-		VALUES (?)
+		INSERT INTO host_dep_assignments (host_id, hardware_serial)
+		VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP, deleted_at = NULL
-	`, host.ID)
+	`, host.ID, host.HardwareSerial)
 	require.NoError(t, err)
 	cmd, err := ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.NoError(t, err)
@@ -5458,6 +5477,10 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.Zero(t, sum.Failed)
 	require.Zero(t, sum.Installed)
 	require.Zero(t, sum.Pending)
+
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, details.HardwareAttested)
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
@@ -5500,7 +5523,7 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				return sqlx.SelectContext(
 					ctx, q, &got,
-					`SELECT hardware_serial FROM hosts h
+					`SELECT h.hardware_serial FROM hosts h
                                          JOIN host_dep_assignments hda ON hda.host_id = h.id
                                          WHERE hda.deleted_at IS NULL`,
 				)
@@ -5574,6 +5597,21 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	err = ds.CleanAppleMDMLock(ctx, host.UUID)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// backdate unlock_ref to simulate the device having been locked for more than 5 minutes
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
 
 	// execute CleanAppleMDMLock to simulate successful unlock
 	err = ds.CleanAppleMDMLock(ctx, host.UUID)
@@ -5934,7 +5972,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
 	require.NoError(t, err)
@@ -5973,7 +6011,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Identifier: "decl-2",
 		Name:       "decl-2",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-2"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
@@ -6011,7 +6049,7 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 			Identifier: fmt.Sprintf("decl-%d", i),
 			Name:       fmt.Sprintf("decl-%d", i),
 			RawJSON:    json.RawMessage(fmt.Sprintf(`{"Identifier": "decl-%d"}`, i)),
-		})
+		}, nil)
 		require.NoError(t, err)
 	}
 
@@ -6062,7 +6100,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// try to create same name, different identifier fails
@@ -6070,7 +6108,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1b",
 		Name:       "d1",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-	})
+	}, nil)
 	require.Error(t, err)
 	var existsErr *existsError
 	require.ErrorAs(t, err, &existsErr)
@@ -6080,7 +6118,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Identifier: "i1",
 		Name:       "d1b",
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
@@ -6090,7 +6128,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:       "d1",
 		TeamID:     &tm1.ID,
 		RawJSON:    json.RawMessage(`{"Identifier": "i1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6104,7 +6142,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 	require.NotEqual(t, d1.DeclarationUUID, d1tm1.DeclarationUUID)
@@ -6120,7 +6158,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		Name:             "d1",
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 
@@ -6136,7 +6174,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 		TeamID:           &tm1.ID,
 		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
 		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
 
@@ -6165,7 +6203,7 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 		Identifier: "decl-1",
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
@@ -9073,7 +9111,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	require.True(t, ts2b.After(ts2))
 }
 
-func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
+func testGetNanoMDMEnrollmentDetails(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -9085,19 +9123,19 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Nil(t, lastMDMEnrolledAt)
-	require.Nil(t, lastMDMSeenAt)
+	require.Nil(t, details.LastMDMEnrollmentTime)
+	require.Nil(t, details.LastMDMSeenTime)
 
 	// add user and device enrollment for this device. Timestamps should not be updated so nothing
 	// returned yet
 	nanoEnroll(t, ds, host, true)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
-	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
-	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
+	require.NotNil(t, details.LastMDMEnrollmentTime) // defaults to current time on creation
+	require.NotNil(t, details.LastMDMSeenTime)       // defaults to time 0 value
 
 	// Add a BYOD host
 	byodHost, err := ds.NewHost(ctx, &fleet.Host{
@@ -9111,10 +9149,10 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnrollUserDevice(t, ds, byodHost)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
-	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
-	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
+	require.NotNil(t, details.LastMDMEnrollmentTime) // defaults to current time on creation
+	require.NotNil(t, details.LastMDMSeenTime)       // defaults to time 0 value
 
 	authenticateTime := time.Now().Add(-1 * time.Hour).UTC().Round(time.Second)
 	deviceEnrollTime := time.Now().Add(-2 * time.Hour).UTC().Round(time.Second)
@@ -9147,19 +9185,19 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
-	require.NotNil(t, lastMDMEnrolledAt)
-	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
-	require.NotNil(t, lastMDMSeenAt)
-	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
+	require.NotNil(t, details)
+	assert.Equal(t, authenticateTime, *details.LastMDMEnrollmentTime)
+	require.NotNil(t, details.LastMDMSeenTime)
+	assert.Equal(t, deviceEnrollTime, *details.LastMDMSeenTime)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, byodHost.UUID)
+	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, byodHost.UUID)
 	require.NoError(t, err)
-	require.NotNil(t, lastMDMEnrolledAt)
-	assert.Equal(t, byodDeviceAuthenticateTime, *lastMDMEnrolledAt)
-	require.NotNil(t, lastMDMSeenAt)
-	assert.Equal(t, byodDeviceEnrollTime, *lastMDMSeenAt)
+	require.NotNil(t, details)
+	assert.Equal(t, byodDeviceAuthenticateTime, *details.LastMDMEnrollmentTime)
+	require.NotNil(t, details.LastMDMSeenTime)
+	assert.Equal(t, byodDeviceEnrollTime, *details.LastMDMSeenTime)
 }
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
@@ -9185,10 +9223,10 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	details, err := ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Nil(t, lastMDMEnrolledAt)
-	require.Nil(t, lastMDMSeenAt)
+	require.Nil(t, details.LastMDMEnrollmentTime)
+	require.Nil(t, details.LastMDMSeenTime)
 
 	userEnrollment, err = ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
@@ -9677,8 +9715,8 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		&profA,
 		&profB,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profA.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsernameLocalPart}},
-		{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsernameLocalPart}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)
@@ -9695,9 +9733,9 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		&profB,
 		&profD,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profA.Identifier, FleetVariables: nil},
-		{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
-		{Identifier: profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: nil},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)
@@ -9722,9 +9760,9 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 		},
 		nil,
 		[]fleet.MDMProfileIdentifierFleetVariables{
-			{Identifier: profA.Identifier, FleetVariables: nil},
-			{Identifier: profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
-			{Identifier: profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profA.Identifier, FleetVariables: nil},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profB.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
+			{Identifier: fleet.MDMAppleProfileUUIDPrefix + profD.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 		})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true, AppleDeclaration: true, WindowsConfigProfile: true}, updates)
@@ -9737,7 +9775,7 @@ func testSetMDMAppleProfilesWithVariables(t *testing.T, ds *Datastore) {
 	updates, err = ds.BatchSetMDMProfiles(ctx, &tm1.ID, []*fleet.MDMAppleConfigProfile{
 		&profE,
 	}, nil, nil, nil, []fleet.MDMProfileIdentifierFleetVariables{
-		{Identifier: profE.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{Identifier: fleet.MDMAppleProfileUUIDPrefix + profE.Identifier, FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, fleet.MDMProfilesUpdates{AppleConfigProfile: true}, updates)
@@ -9907,7 +9945,7 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	host := newTestHostWithPlatform(t, ds, "macos", "macos", nil)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid) VALUES (?, ?)`, host.ID, uuid.NewString())
+		_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, hardware_serial) VALUES (?, ?, ?)`, host.ID, uuid.NewString(), host.HardwareSerial)
 		return err
 	})
 
@@ -9937,7 +9975,7 @@ func testGetDEPAssignProfileExpiredCooldowns(t *testing.T, ds *Datastore) {
 	for i := range 200 {
 		h := newTestHostWithPlatform(t, ds, fmt.Sprintf("host-%d", i), "macos", nil)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depFailedCooldownPeriod.Seconds()+10)
+			_, err := q.ExecContext(ctx, `INSERT INTO host_dep_assignments (host_id, profile_uuid, assign_profile_response, response_updated_at, retry_job_id, hardware_serial) VALUES (?, ?, ?, DATE_SUB(NOW(), INTERVAL ? SECOND), 0, ?)`, h.ID, uuid.NewString(), fleet.DEPAssignProfileResponseFailed, depFailedCooldownPeriod.Seconds()+10, h.HardwareSerial)
 			return err
 		})
 	}
@@ -10080,6 +10118,96 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		// Deleting unexisting declaration should not fail.
 		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D3")
 		require.NoError(t, err)
+	}
+
+	t.Run("No team", func(t *testing.T) {
+		runTest(t, nil)
+	})
+
+	t.Run("Team", func(t *testing.T) {
+		team, err := ds.NewTeam(t.Context(), &fleet.Team{
+			Name: t.Name(),
+		})
+		require.NoError(t, err)
+		runTest(t, &team.ID)
+	})
+}
+
+func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	runTest := func(t *testing.T, teamID *uint) {
+		// Create a declaration with mixed-case name.
+		appleDecls := []*fleet.MDMAppleDeclaration{
+			declForTest("Software Update Settings", "SUS", "{}"),
+		}
+		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Read back and capture the declaration UUID.
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		origUUID := profs[0].ProfileUUID
+		require.Equal(t, "Software Update Settings", profs[0].Name)
+		origIdentifier := profs[0].Identifier
+
+		// Create two hosts and enroll them.
+		var opts []test.NewHostOption
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		host1 := test.NewHost(t, ds, "host1", "1"+t.Name(), "h1key"+t.Name(), "host1uuid"+t.Name(), time.Now(), opts...)
+		host2 := test.NewHost(t, ds, "host2", "2"+t.Name(), "h2key"+t.Name(), "host2uuid"+t.Name(), time.Now(), opts...)
+		nanoEnroll(t, ds, host1, false)
+		nanoEnroll(t, ds, host2, false)
+		for _, h := range []*fleet.Host{host1, host2} {
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			require.NoError(t, err)
+		}
+
+		// Force host1 to have a verified install, host2 to have a pending install.
+		forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, "")
+
+		// Batch-set again with only the name case changed (lowercase).
+		appleDecls = []*fleet.MDMAppleDeclaration{
+			declForTest("software update settings", "SUS", "{}"),
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Sub-test 1: case change preserves declaration UUID and updates name.
+		t.Run("preserves declaration UUID", func(t *testing.T) {
+			profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, profs, 1, "expected exactly 1 declaration, got %d (duplicate created)", len(profs))
+			require.Equal(t, origUUID, profs[0].ProfileUUID, "declaration UUID should not change on name case change")
+			require.Equal(t, "software update settings", profs[0].Name, "name should be updated to new case")
+			require.Equal(t, origIdentifier, profs[0].Identifier, "identifier should be unchanged")
+		})
+
+		// Sub-test 2: verified install is NOT turned into a remove+reinstall.
+		t.Run("verified install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host1.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 3: pending install is NOT turned into a remove.
+		t.Run("pending install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host2.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 4: host profile has updated name for the declaration.
+		t.Run("host profile reflects name change", func(t *testing.T) {
+			profs, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+			require.NoError(t, err)
+			require.Len(t, profs, 1)
+			require.Equal(t, "software update settings", profs[0].Name, "host profile should reflect declaration name change")
+		})
 	}
 
 	t.Run("No team", func(t *testing.T) {
@@ -11392,6 +11520,202 @@ func testRecoveryLockRotation(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testCleanupStaleNanoRefetchCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host and enroll it in nano MDM.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-cleanup-host",
+		OsqueryHostID:   ptr.String("cleanup-osquery-id"),
+		NodeKey:         ptr.String("cleanup-node-key"),
+		UUID:            "cleanup-test-uuid",
+		Platform:        "ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	enrollmentID := host.UUID
+
+	// Helper to insert a nano command with a specific created_at.
+	insertNanoCmd := func(cmdUUID, reqType string, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+			cmdUUID, reqType, createdAt)
+		require.NoError(t, err)
+	}
+
+	// Helper to insert a nano_enrollment_queue entry.
+	insertNEQ := func(id, cmdUUID string, createdAt time.Time) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 0, 0, ?)`,
+			id, cmdUUID, createdAt)
+		require.NoError(t, err)
+	}
+
+	// Helper to insert a nano_command_results entry.
+	insertNCR := func(id, cmdUUID, status string) {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`,
+			id, cmdUUID, status)
+		require.NoError(t, err)
+	}
+
+	now := time.Now()
+	oldTime := now.Add(-31 * 24 * time.Hour)   // 31 days ago
+	recentTime := now.Add(-1 * 24 * time.Hour) // 1 day ago
+
+	// Create old REFETCH-APPS- command (should be cleaned up).
+	cmdUUID := "REFETCH-APPS-old-acknowledged"
+	insertNanoCmd(cmdUUID, "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, cmdUUID, oldTime)
+	insertNCR(enrollmentID, cmdUUID, "Acknowledged")
+
+	// Create an old REFETCH-APPS- command that has Error status (should also be cleaned up).
+	insertNanoCmd("REFETCH-APPS-old-error", "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-old-error", oldTime)
+	insertNCR(enrollmentID, "REFETCH-APPS-old-error", "Error")
+
+	// Create an old REFETCH-APPS- command with no result (should NOT be cleaned up).
+	insertNanoCmd("REFETCH-APPS-old-noresult", "InstalledApplicationList", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-old-noresult", oldTime)
+
+	// Create a recent REFETCH-APPS- command (should NOT be cleaned up).
+	insertNanoCmd("REFETCH-APPS-recent", "InstalledApplicationList", recentTime)
+	insertNEQ(enrollmentID, "REFETCH-APPS-recent", recentTime)
+	insertNCR(enrollmentID, "REFETCH-APPS-recent", "Acknowledged")
+
+	// Create old REFETCH-DEVICE- commands (different prefix, should NOT be affected by APPS cleanup).
+	insertNanoCmd("REFETCH-DEVICE-old-0", "DeviceInformation", oldTime)
+	insertNEQ(enrollmentID, "REFETCH-DEVICE-old-0", oldTime)
+	insertNCR(enrollmentID, "REFETCH-DEVICE-old-0", "Acknowledged")
+
+	// The "current" command that triggered the cleanup.
+	currentCmdUUID := "REFETCH-APPS-current"
+	insertNanoCmd(currentCmdUUID, "InstalledApplicationList", now)
+	insertNEQ(enrollmentID, currentCmdUUID, now)
+	insertNCR(enrollmentID, currentCmdUUID, "Acknowledged")
+
+	// Run cleanup for REFETCH-APPS- prefix, scoped to this enrollment.
+	err = ds.CleanupStaleNanoRefetchCommands(ctx, enrollmentID, fleet.RefetchAppsCommandUUIDPrefix, currentCmdUUID)
+	require.NoError(t, err)
+
+	// Verify: old acknowledged/errored REFETCH-APPS- entries should be deleted from neq and ncr.
+	var neqCount int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid LIKE 'REFETCH-APPS-old-%'`)
+	require.NoError(t, err)
+	// Only the one with no result should remain.
+	assert.Equal(t, 1, neqCount, "only the no-result entry should remain in neq")
+
+	var ncrCount int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &ncrCount,
+		`SELECT COUNT(*) FROM nano_command_results WHERE command_uuid LIKE 'REFETCH-APPS-old-%'`)
+	require.NoError(t, err)
+	assert.Equal(t, 0, ncrCount, "all old acknowledged/errored ncr entries should be deleted")
+
+	// Verify: recent command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-APPS-recent'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "recent command should not be deleted")
+
+	// Verify: current command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?`, currentCmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "current command should not be deleted")
+
+	// Verify: REFETCH-DEVICE- command should not be affected.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &neqCount,
+		`SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = 'REFETCH-DEVICE-old-0'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, neqCount, "different prefix should not be affected")
+}
+
+func testCleanupOrphanedNanoRefetchCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host and enroll it for FK constraints.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-orphan-host",
+		OsqueryHostID:   ptr.String("orphan-osquery-id"),
+		NodeKey:         ptr.String("orphan-node-key"),
+		UUID:            "orphan-test-uuid",
+		Platform:        "ios",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	now := time.Now()
+	oldTime := now.Add(-31 * 24 * time.Hour)
+	recentTime := now.Add(-1 * 24 * time.Hour)
+
+	// Insert an old REFETCH command WITH a neq reference (should NOT be deleted).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-with-ref", "InstalledApplicationList", oldTime)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_enrollment_queue (id, command_uuid, active, priority, created_at) VALUES (?, ?, 1, 0, ?)`,
+		host.UUID, "REFETCH-APPS-with-ref", oldTime)
+	require.NoError(t, err)
+
+	// Insert an old REFETCH command WITHOUT neq reference (should be deleted).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-orphan", "InstalledApplicationList", oldTime)
+	require.NoError(t, err)
+
+	// Insert a recent REFETCH command WITHOUT neq reference (should NOT be deleted - too new).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"REFETCH-APPS-recent-orphan", "InstalledApplicationList", recentTime)
+	require.NoError(t, err)
+
+	// Insert an old non-REFETCH command WITHOUT neq reference (should NOT be deleted - wrong prefix).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, created_at) VALUES (?, ?, '<?xml', ?)`,
+		"OTHER-CMD-orphan", "ProfileList", oldTime)
+	require.NoError(t, err)
+
+	// Run cleanup.
+	err = ds.CleanupOrphanedNanoRefetchCommands(ctx)
+	require.NoError(t, err)
+
+	// Verify: old orphaned REFETCH command should be gone.
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count, "old orphaned REFETCH command should be deleted")
+
+	// Verify: old REFETCH command with reference should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-with-ref'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "REFETCH command with neq reference should not be deleted")
+
+	// Verify: recent orphaned REFETCH command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'REFETCH-APPS-recent-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "recent orphaned REFETCH command should not be deleted")
+
+	// Verify: non-REFETCH command should still exist.
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM nano_commands WHERE command_uuid = 'OTHER-CMD-orphan'`)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "non-REFETCH command should not be deleted")
+}
+
 func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -11613,4 +11937,540 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		require.NotNil(t, pw.AutoRotateAt)
 		assert.WithinDuration(t, rotateAt, *pw.AutoRotateAt, 1*time.Second)
 	})
+}
+
+// recoveryLockRawRow is the full row shape used by testRecoveryLockResetOnMDMReEnrollment's
+// raw reader, which bypasses the deleted=0 filter applied by production readers.
+type recoveryLockRawRow struct {
+	Status            *string    `db:"status"`
+	OperationType     string     `db:"operation_type"`
+	HasPassword       bool       `db:"has_password"`
+	HasPendingPw      bool       `db:"has_pending_pw"`
+	ErrorMessage      *string    `db:"error_message"`
+	PendingErrMessage *string    `db:"pending_error_message"`
+	AutoRotateAt      *time.Time `db:"auto_rotate_at"`
+	Deleted           bool       `db:"deleted"`
+}
+
+// testRecoveryLockResetOnMDMReEnrollment verifies that MDMResetEnrollment soft-deletes
+// the host's host_recovery_key_passwords row and nulls out rotation/view state that would
+// otherwise leak into a future re-enrolled password. The row is kept (deleted=1) as a
+// troubleshooting safeguard; all live readers filter deleted=0 so it behaves as absent.
+func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// readRaw returns the full row bypassing the deleted=0 filter used by production readers.
+	readRaw := func(t *testing.T, hostUUID string) *recoveryLockRawRow {
+		t.Helper()
+		var row recoveryLockRawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				status,
+				operation_type,
+				encrypted_password IS NOT NULL AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				error_message,
+				pending_error_message,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.7."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	t.Run("soft-deletes verified install row", func(t *testing.T) {
+		host := setupHost(t, "reset-verified", "resetverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 for support diagnostics.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.True(t, row.HasPassword, "encrypted_password preserved for diagnostics")
+	})
+
+	t.Run("soft-deletes stuck-pending install row (ClearQueue scenario)", func(t *testing.T) {
+		host := setupHost(t, "reset-stuck-pending", "resetstuckuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		// status is 'pending' after SetHostsRecoveryLockPasswords — simulates the command
+		// that was abandoned by nanomdm's ClearQueue before being acked.
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+	})
+
+	t.Run("nulls pending rotation fields on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-pending-rotation", "resetrotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "some rotation error"))
+
+		// Sanity: pending_encrypted_password and pending_error_message are set.
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.True(t, before.HasPendingPw)
+		require.NotNil(t, before.PendingErrMessage)
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.False(t, after.HasPendingPw, "pending_encrypted_password must be nulled to prevent re-animation leak")
+		assert.Nil(t, after.PendingErrMessage, "pending_error_message must be nulled to prevent re-animation leak")
+	})
+
+	t.Run("nulls auto_rotate_at on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-auto-rotate", "resetautorotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.NotNil(t, before.AutoRotateAt, "auto_rotate_at set after MarkRecoveryLockPasswordViewed")
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.Nil(t, after.AutoRotateAt, "auto_rotate_at must be nulled so cron does not fire auto-rotation against a freshly re-set password")
+	})
+
+	t.Run("re-animation after soft-delete yields clean state", func(t *testing.T) {
+		host := setupHost(t, "reset-reanimate", "resetreanuuid"[:13])
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Re-enroll wipes the row.
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Simulate the next recovery-lock cron tick re-enqueuing a fresh SetRecoveryLock.
+		newPw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: newPw}}))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.False(t, after.Deleted, "row re-animated with deleted=0")
+		assert.True(t, after.HasPassword)
+		assert.False(t, after.HasPendingPw, "rotation state must not leak across re-enrollment")
+		assert.Nil(t, after.PendingErrMessage)
+		assert.Nil(t, after.AutoRotateAt, "view state must not leak across re-enrollment")
+		assert.Nil(t, after.ErrorMessage, "old error_message is cleared by ON DUPLICATE KEY UPDATE")
+		require.NotNil(t, after.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *after.Status, "re-animated row is pending awaiting the new command")
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), after.OperationType)
+
+		// Live reader now sees the re-animated row.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.True(t, status.PasswordAvailable)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("preserves row during SCEP renewal", func(t *testing.T) {
+		host := setupHost(t, "reset-scep", "resetscepuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, true /* scepRenewalInProgress */))
+
+		// Row untouched: still visible to live readers as verified.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.False(t, row.Deleted)
+		assert.True(t, row.HasPassword)
+	})
+}
+
+// testDeleteHostPreservesRecoveryLockPassword locks in the intentional non-cascade of
+// host_recovery_key_passwords across host deletion. The device may still be enrolled in MDM
+// with the password intact, and Orbit re-enrollment recreates the host row and reuses the
+// existing password record.
+func testDeleteHostPreservesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "delete-rlp", "1.2.7.200", "deleterlpkey", "deletelppuuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	type rawRow struct {
+		Encrypted []byte `db:"encrypted_password"`
+		Deleted   bool   `db:"deleted"`
+	}
+
+	// Capture the encrypted bytes so we can assert the row survives untouched.
+	var before rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &before,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	require.NotEmpty(t, before.Encrypted)
+	require.False(t, before.Deleted)
+
+	require.NoError(t, ds.DeleteHost(ctx, host.ID))
+
+	// Row still there (bypass deleted=0 filter), and the encrypted_password is byte-identical.
+	var after rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &after,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	assert.Equal(t, before.Encrypted, after.Encrypted, "encrypted_password must survive host deletion byte-for-byte")
+	assert.False(t, after.Deleted, "deleted flag must not be flipped by DeleteHost")
+}
+
+// testHostRecoveryLockStatusMatrix locks in the host-detail API contract for every
+// observable (status, operation_type, encrypted_password, pending_encrypted_password, deleted)
+// state. This protects the UI from silent regressions in GetHostRecoveryLockPasswordStatus or
+// PopulateStatus.
+func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type matrixCase struct {
+		name                    string
+		status                  *fleet.MDMDeliveryStatus // nil = SQL NULL
+		operationType           fleet.MDMOperationType
+		hasPassword             bool
+		hasPendingPw            bool
+		deleted                 bool
+		errorMessage            string
+		expectNilFromDatastore  bool
+		expectPopulatedStatus   *fleet.RecoveryLockStatus
+		expectPasswordAvailable bool
+		expectDetail            string
+	}
+
+	cases := []matrixCase{
+		{
+			name:                   "soft-deleted row is invisible to readers",
+			status:                 &fleet.MDMDeliveryVerified,
+			operationType:          fleet.MDMOperationTypeInstall,
+			hasPassword:            true,
+			deleted:                true,
+			expectNilFromDatastore: true,
+		},
+		{
+			name:                    "NULL status, install, password stored -> pending",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "pending install, no rotation -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified install -> verified",
+			status:                  &fleet.MDMDeliveryVerified,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusVerified),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install -> failed with detail",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			errorMessage:            "device rejected",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "device rejected",
+		},
+		{
+			name:                    "pending install + rotation in flight -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install + rotation in flight -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			errorMessage:            "set failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "set failed",
+		},
+		{
+			name:                    "pending remove -> removing_enforcement",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "NULL status remove -> removing_enforcement (clear retry)",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed remove -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			errorMessage:            "clear failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "clear failed",
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			uuid := fmt.Sprintf("matrixuuid%d", i)
+			host := test.NewHost(t, ds, fmt.Sprintf("matrix-host-%d", i), fmt.Sprintf("1.2.8.%d", i+1), fmt.Sprintf("matrixkey%d", i), uuid, time.Now())
+
+			var encryptedPw, pendingPw any
+			if tc.hasPassword {
+				var err error
+				encryptedPw, err = encrypt([]byte("password-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+			if tc.hasPendingPw {
+				var err error
+				pendingPw, err = encrypt([]byte("pending-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+
+			var statusArg any
+			if tc.status != nil {
+				statusArg = string(*tc.status)
+			}
+
+			var errMsgArg any
+			if tc.errorMessage != "" {
+				errMsgArg = tc.errorMessage
+			}
+
+			_, err := ds.writer(ctx).ExecContext(ctx, `
+				INSERT INTO host_recovery_key_passwords
+					(host_uuid, encrypted_password, pending_encrypted_password, status, operation_type, error_message, deleted)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, encryptedPw, pendingPw, statusArg, string(tc.operationType), errMsgArg, tc.deleted)
+			require.NoError(t, err)
+
+			got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+			require.NoError(t, err)
+
+			if tc.expectNilFromDatastore {
+				require.Nil(t, got, "readers must filter deleted=0 and return nil")
+				return
+			}
+
+			require.NotNil(t, got)
+			assert.Equal(t, tc.expectPasswordAvailable, got.PasswordAvailable)
+			assert.Equal(t, tc.expectDetail, got.Detail)
+
+			got.PopulateStatus()
+			if tc.expectPopulatedStatus == nil {
+				assert.Nil(t, got.Status)
+			} else {
+				require.NotNil(t, got.Status)
+				assert.Equal(t, *tc.expectPopulatedStatus, *got.Status)
+			}
+		})
+	}
+}
+
+// testMDMTurnOffSoftDeletesRecoveryLockPassword verifies that MDMTurnOff (the explicit
+// per-host MDM unenroll path used by both device CheckOut and the admin API) soft-deletes
+// the recovery-lock row. Apple removes the device-side lock when the MDM profile is
+// removed, so Fleet's stored copy is no longer valid.
+func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type rawRow struct {
+		Encrypted    []byte     `db:"encrypted_password"`
+		HasPendingPw bool       `db:"has_pending_pw"`
+		AutoRotateAt *time.Time `db:"auto_rotate_at"`
+		Deleted      bool       `db:"deleted"`
+	}
+	readRaw := func(t *testing.T, hostUUID string) *rawRow {
+		t.Helper()
+		var row rawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				encrypted_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupEnrolledHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.9."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+		return host
+	}
+
+	t.Run("soft-deletes verified recovery lock and clears volatile state", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-verified", "turnoffverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 and volatile state nulled.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.NotEmpty(t, row.Encrypted, "encrypted_password preserved for diagnostics")
+		assert.False(t, row.HasPendingPw, "pending rotation must be nulled")
+		assert.Nil(t, row.AutoRotateAt, "view state must be nulled")
+	})
+
+	t.Run("idempotent: second MDMTurnOff is a no-op on the already-soft-deleted row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-idempotent", "turnoffidempuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		first := readRaw(t, host.UUID)
+		require.NotNil(t, first)
+		require.True(t, first.Deleted)
+		firstBytes := first.Encrypted
+
+		// Without re-enrolling (just calling MDMTurnOff again), the deleted=0 guard in
+		// the helper makes the soft-delete a true no-op — the row is unchanged.
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		second := readRaw(t, host.UUID)
+		require.NotNil(t, second)
+		assert.True(t, second.Deleted)
+		assert.Equal(t, firstBytes, second.Encrypted, "second turn-off must not modify the encrypted_password kept for diagnostics")
+	})
+
+	t.Run("no-op when host has no recovery lock row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-no-row", "turnoffnorouuid")
+		// No SetHostsRecoveryLockPasswords call — row never existed.
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		row := readRaw(t, host.UUID)
+		assert.Nil(t, row, "no row should be created by MDMTurnOff")
+	})
+}
+
+// testRecoveryLockReadersReturnNotFoundForSoftDeleted verifies that view-password and
+// rotation-status readers surface notFound for soft-deleted rows. The EE rotate endpoint
+// depends on the notFound-from-GetRecoveryLockRotationStatus branch to return
+// "Host does not have a recovery lock password to rotate."
+func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "softdel-read", "1.2.8.250", "softdelreadkey", "softdelreaduuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	// Soft-delete directly (simulates MDMResetEnrollment without the full lifecycle setup).
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_recovery_key_passwords SET deleted = 1 WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	// GetHostRecoveryLockPassword (view password endpoint source) must surface notFound.
+	_, err = ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "view-password reader must surface notFound so the UI treats it as absent")
+
+	// GetRecoveryLockRotationStatus (rotation endpoint prerequisite) must surface notFound so
+	// the EE service returns BadRequest "Host does not have a recovery lock password to rotate."
+	_, err = ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "rotation-status reader must surface notFound")
+
+	// HasPendingRecoveryLockRotation returns (false, nil) for missing/deleted rows.
+	hasPending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, hasPending)
+
+	// GetHostRecoveryLockPasswordStatus (host detail API source) returns nil so the JSON
+	// field is omitted entirely.
+	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }

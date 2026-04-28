@@ -1,6 +1,7 @@
 package com.fleetdm.agent
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -10,17 +11,18 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.math.BigInteger
 import java.net.HttpURLConnection
 import java.net.URL
-import java.text.SimpleDateFormat
+import java.net.UnknownHostException
 import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -61,9 +63,17 @@ interface CertificateApiClient {
 
 object ApiClient : CertificateApiClient {
     private const val TAG = "fleet-ApiClient"
+
+    // Retry DNS resolution failures that occur when Android wakes from Doze mode.
+    // The active network may be reported as connected before its DNS servers are fully operational.
+    // Uses exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s, 64s between attempts (127s total retry window, 8 attempts).
+    private const val DNS_MAX_RETRIES = 7
+    private const val DNS_INITIAL_RETRY_DELAY_MS = 1000L
+
     private val json = Json { ignoreUnknownKeys = true }
 
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var appContext: Context
     private val API_KEY = stringPreferencesKey("api_key")
     private val SERVER_URL_KEY = stringPreferencesKey("server_url")
     private val ENROLL_SECRET = stringPreferencesKey("enroll_secret")
@@ -74,8 +84,9 @@ object ApiClient : CertificateApiClient {
 
     fun initialize(context: Context) {
         Log.d(TAG, "initializing api client")
+        appContext = context.applicationContext
         if (!::dataStore.isInitialized) {
-            dataStore = context.applicationContext.prefDataStore
+            dataStore = appContext.prefDataStore
         }
     }
 
@@ -116,76 +127,99 @@ object ApiClient : CertificateApiClient {
         responseSerializer: KSerializer<T>,
         authorized: Boolean = true,
     ): Result<T> = withContext(Dispatchers.IO) {
-        var connection: HttpURLConnection? = null
-        try {
-            val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
-                Exception("Base URL not configured"),
-            )
+        require(method != "GET" || body == null) { "GET requests must not include a body" }
 
-            // Validate base URL format and scheme
-            try {
-                val parsedUrl = URL(baseUrl)
-                if (parsedUrl.protocol !in listOf("https", "http")) {
-                    return@withContext Result.failure(
-                        Exception("Base URL must use HTTP or HTTPS scheme"),
-                    )
-                }
-            } catch (e: Exception) {
+        val baseUrl = getBaseUrl() ?: return@withContext Result.failure(
+            Exception("Base URL not configured"),
+        )
+
+        // Validate base URL format and scheme
+        try {
+            val parsedUrl = URL(baseUrl)
+            if (parsedUrl.protocol !in listOf("https", "http")) {
                 return@withContext Result.failure(
-                    Exception("Invalid base URL format: ${e.message}"),
+                    Exception("Base URL must use HTTP or HTTPS scheme"),
                 )
             }
-
-            val url = URL("$baseUrl$endpoint")
-            connection = url.openConnection() as HttpURLConnection
-
-            connection.apply {
-                requestMethod = method
-                useCaches = false
-                doInput = true
-                setRequestProperty("Content-Type", "application/json")
-                if (authorized) {
-                    getNodeKeyOrEnroll().fold(
-                        onFailure = { throwable -> return@withContext Result.failure(throwable) },
-                        onSuccess = { nodeKey ->
-                            setRequestProperty("Authorization", "Node key $nodeKey")
-                        },
-                    )
-                }
-                connectTimeout = 15000
-                readTimeout = 15000
-
-                if (body != null && method != "GET") {
-                    requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
-                    doOutput = true
-                    val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
-                    outputStream.use { it.write(bodyJson.toByteArray()) }
-                }
-            }
-
-            val responseCode = connection.responseCode
-            val response = if (responseCode in 200..299) {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                connection.errorStream?.bufferedReader()?.use { it.readText() }
-                    ?: "HTTP $responseCode"
-            }
-
-            Log.d(TAG, "server response from $method $endpoint ($responseCode)")
-
-            if (responseCode in 200..299) {
-                val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
-                Result.success(parsed)
-            } else if (responseCode == 401) {
-                Result.failure(UnauthorizedException(response))
-            } else {
-                Result.failure(Exception("HTTP $responseCode: $response"))
-            }
         } catch (e: Exception) {
-            Result.failure(e)
-        } finally {
-            connection?.disconnect()
+            return@withContext Result.failure(
+                Exception("Invalid base URL format: ${e.message}"),
+            )
         }
+
+        val url = URL("$baseUrl$endpoint")
+
+        for (dnsAttempt in 0..DNS_MAX_RETRIES) {
+            var connection: HttpURLConnection? = null
+            try {
+                if (dnsAttempt > 0) {
+                    val delayMs = DNS_INITIAL_RETRY_DELAY_MS shl (dnsAttempt - 1)
+                    Log.w(TAG, "retrying $method $endpoint after DNS failure (attempt ${dnsAttempt + 1}, delay ${delayMs}ms)")
+                    delay(delayMs)
+                }
+
+                connection = openConnectionOnActiveNetwork(url)
+
+                connection.apply {
+                    requestMethod = method
+                    useCaches = false
+                    doInput = true
+                    if (authorized) {
+                        getNodeKeyOrEnroll().fold(
+                            onFailure = { throwable -> return@withContext Result.failure(throwable) },
+                            onSuccess = { nodeKey ->
+                                setRequestProperty("Authorization", "Node key $nodeKey")
+                            },
+                        )
+                    }
+                    connectTimeout = 15000
+                    readTimeout = 15000
+
+                    if (body != null) {
+                        requireNotNull(bodySerializer) { "bodySerializer required when body is provided" }
+                        setRequestProperty("Content-Type", "application/json")
+                        doOutput = true
+                        val bodyJson = json.encodeToString(value = body, serializer = bodySerializer)
+                        outputStream.use { it.write(bodyJson.toByteArray()) }
+                    }
+                }
+
+                val responseCode = connection.responseCode
+                val response = if (responseCode in 200..299) {
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } else {
+                    connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        ?: "HTTP $responseCode"
+                }
+
+                Log.d(TAG, "server response from $method $endpoint ($responseCode)")
+
+                return@withContext if (responseCode in 200..299) {
+                    val parsed = json.decodeFromString(string = response, deserializer = responseSerializer)
+                    Result.success(parsed)
+                } else if (responseCode == 401) {
+                    Result.failure(UnauthorizedException(response))
+                } else if (responseCode == 404) {
+                    Result.failure(NotFoundException(response))
+                } else {
+                    Result.failure(Exception("HTTP $responseCode: $response"))
+                }
+            } catch (e: UnknownHostException) {
+                Log.w(TAG, "DNS resolution failed for $method $endpoint: ${e.message}")
+                if (dnsAttempt >= DNS_MAX_RETRIES) {
+                    return@withContext Result.failure(e)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return@withContext Result.failure(e)
+            } finally {
+                connection?.disconnect()
+            }
+        }
+
+        // Unreachable: the loop always returns. Required by the compiler since it can't prove the range is non-empty.
+        Result.failure(Exception("Exhausted DNS retries for $method $endpoint"))
     }
 
     /**
@@ -193,6 +227,26 @@ object ApiClient : CertificateApiClient {
      * This typically indicates the node key has been invalidated (e.g., host was deleted).
      */
     class UnauthorizedException(message: String) : Exception("HTTP 401: $message")
+    class NotFoundException(message: String) : Exception("HTTP 404: $message")
+
+    /**
+     * Opens an HTTP connection bound to the active network when available. This ensures DNS resolution uses
+     * the active network's DNS servers, avoiding failures when Android reports connectivity before DNS is ready.
+     * Falls back to a default connection if no active network is available.
+     */
+    internal fun openConnectionOnActiveNetwork(url: URL): HttpURLConnection {
+        if (useActiveNetworkBinding) {
+            val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java)
+            val activeNetwork = connectivityManager?.activeNetwork
+            if (activeNetwork != null) {
+                return activeNetwork.openConnection(url) as HttpURLConnection
+            }
+        }
+        return url.openConnection() as HttpURLConnection
+    }
+
+    // Disabled in tests where Network.openConnection is not available (Robolectric)
+    internal var useActiveNetworkBinding = true
 
     /**
      * Executes a request block with automatic re-enrollment on 401 Unauthorized.
@@ -262,19 +316,12 @@ object ApiClient : CertificateApiClient {
     }
 
     override suspend fun getCertificateTemplate(certificateId: Int): Result<CertificateTemplateResult> = withReenrollOnUnauthorized {
-        val nodeKeyResult = getNodeKeyOrEnroll()
-        val orbitNodeKey = nodeKeyResult.getOrElse { error ->
-            return@withReenrollOnUnauthorized Result.failure(error)
-        }
-
         val credentials = getEnrollmentCredentials()
             ?: return@withReenrollOnUnauthorized Result.failure(Exception("enroll credentials not set"))
 
-        makeRequest(
+        makeRequest<Unit, GetCertificateTemplateResponseWrapper>(
             endpoint = "/api/fleetd/certificates/$certificateId",
             method = "GET",
-            body = GetCertificateTemplateRequest(orbitNodeKey = orbitNodeKey),
-            bodySerializer = GetCertificateTemplateRequest.serializer(),
             responseSerializer = GetCertificateTemplateResponseWrapper.serializer(),
         ).fold(
             onSuccess = { wrapper ->
@@ -326,8 +373,14 @@ object ApiClient : CertificateApiClient {
                 }
             },
             onFailure = { throwable ->
-                FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
-                Result.failure(throwable)
+                if (throwable is NotFoundException) {
+                    // Certificate template was deleted from the server -- nothing to report to
+                    Log.i(TAG, "certificate template $certificateId no longer exists on server, nothing to report")
+                    Result.success(Unit)
+                } else {
+                    FleetLog.e(TAG, "failed to update certificate status $certificateId: ${throwable.message}")
+                    Result.failure(throwable)
+                }
             },
         )
     }
@@ -386,6 +439,9 @@ object ApiClient : CertificateApiClient {
     )
 }
 
+// @EncodeDefault is marked @ExperimentalSerializationApi, but it has shipped in kotlinx.serialization since 1.3 (2022)
+// and is widely used and reliable in production. The opt-in only acknowledges that the API shape could change in a future version.
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable
 data class EnrollRequest(
     @SerialName("enroll_secret")
@@ -394,6 +450,7 @@ data class EnrollRequest(
     val hardwareUUID: String,
     @SerialName("hardware_serial")
     val hardwareSerial: String,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("platform")
     val platform: String = "android",
     @SerialName("computer_name")
@@ -479,12 +536,6 @@ data class OrbitUpdateChannels(
 
     @SerialName("desktop")
     val desktop: String = "",
-)
-
-@Serializable
-private data class GetCertificateTemplateRequest(
-    @SerialName("orbit_node_key")
-    val orbitNodeKey: String,
 )
 
 @Serializable
