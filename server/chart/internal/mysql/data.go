@@ -95,6 +95,9 @@ func (ds *Datastore) recordAccumulate(
 			HostBitmap []byte `db:"host_bitmap"`
 		}
 		var rows []row
+		// Using writer here since a stale read would OR-merge against an older
+		// bitmap, then ODKU would overwrite the row with the partial merge — silently
+		// dropping hosts from any sample the replica hadn't replicated yet.
 		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch in-bucket bitmaps")
 		}
@@ -151,7 +154,10 @@ func (ds *Datastore) recordSnapshot(
 		ValidFrom  time.Time `db:"valid_from"`
 	}
 	var openRows []openRow
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &openRows,
+	// Reader is safe here: the close UPDATE filters by valid_to = sentinel and the
+	// insert uses ODKU on uniq_entity_bucket, so a stale read at worst produces
+	// idempotent re-work (a no-op close or a same-bucket overwrite).
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &openRows,
 		`SELECT entity_id, host_bitmap, valid_from
 		 FROM host_scd_data
 		 WHERE dataset = ? AND valid_to = ?`,
