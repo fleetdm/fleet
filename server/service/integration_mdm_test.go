@@ -4017,6 +4017,14 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	res = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&command_status=ran", h.UUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Currently, "command_status" filter is only available for macOS, iOS, and iPadOS hosts.`)
+
+	// per_page above the documented maximum is rejected with a clear message.
+	res = s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1001", nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Please set a per_page limit of 1000 or less")
+
+	// per_page at the cap is accepted.
+	s.DoRaw("GET", "/api/latest/fleet/mdm/commands?per_page=1000", nil, http.StatusOK)
 }
 
 func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
