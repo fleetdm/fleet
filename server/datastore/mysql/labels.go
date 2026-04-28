@@ -1066,8 +1066,9 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 
 	"last_restarted_at": "h.last_restarted_at",
 	"timezone":          "h.timezone",
-	"team_name":         "team_name",
-	"mdm_host_data":     "mdm_host_data",
+	// must match SELECT clause subquery so cursor pagination (WHERE) and
+	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
+	"team_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent

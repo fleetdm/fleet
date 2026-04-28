@@ -5286,7 +5286,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// all allowed order_key values must be accepted by the endpoint and return the
 		// hosts in lbl2.
-		for _, key := range []string{
+		allowedOrderKeys := []string{
 			"id", "osquery_host_id", "created_at", "updated_at", "detail_updated_at",
 			"hostname", "uuid", "platform", "osquery_version", "os_version", "build",
 			"platform_like", "code_name", "uptime", "memory", "cpu_type", "cpu_subtype",
@@ -5298,16 +5298,26 @@ func (s *integrationTestSuite) TestLabels() {
 			"team_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name", "mdm_host_data",
+			"last_restarted_at", "timezone", "team_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
 			"device_mapping",
 			"display_name",
-		} {
+		}
+		for _, key := range allowedOrderKeys {
 			listHostsResp = listHostsResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", key, "device_mapping", "true")
 			assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts), "order_key=%s", key)
+		}
+
+		// every allowed order_key must also accept the `after` cursor without
+		// erroring — guards against SELECT-list aliases leaking into the WHERE
+		// clause (MySQL disallows aliases in WHERE).
+		for _, key := range allowedOrderKeys {
+			listHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp,
+				"order_key", key, "order_direction", "asc", "after", "0", "device_mapping", "true")
 		}
 
 		// delete a label by id
@@ -5802,15 +5812,18 @@ func (s *integrationTestSuite) TestLabels() {
 			assert.Equal(t, sortHosts[2].ID, resp.Hosts[0].ID, "desc: h2 should be first")
 		})
 
-		// mdm_host_data is a JSON object built from joined MDM tables; for hosts
-		// without MDM data, the JSON value is identical, so order is not
-		// deterministic. Only verify the endpoint accepts the order_key and returns
-		// all three hosts.
-		t.Run("mdm_host_data", func(t *testing.T) {
+		// Cursor pagination (`after`) injects the order_key into the WHERE
+		// clause; SELECT-list aliases like team_name would error there. Verify
+		// that paging through team_name with a cursor returns the expected
+		// hosts and does not error.
+		t.Run("team_name with after cursor", func(t *testing.T) {
 			var resp listHostsResponse
 			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
-				"order_key", "mdm_host_data", "order_direction", "asc")
-			assert.Len(t, resp.Hosts, 3)
+				"order_key", "team_name", "order_direction", "asc",
+				"after", teamA.Name, "per_page", "10")
+			require.Len(t, resp.Hosts, 2)
+			assert.Equal(t, sortHosts[1].ID, resp.Hosts[0].ID)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[1].ID)
 		})
 	})
 }
