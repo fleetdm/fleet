@@ -2104,7 +2104,21 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// Release the device from the ESP.
+	// Transition Active -> None. The CAS ensures only one concurrent
+	// checkin wins and enqueues the release command.
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
+	}
+	if !transitioned {
+		// Another concurrent checkin already released the device.
+		return nil, nil
+	}
+
+	// Build release commands and send them inline in this response.
+	// Also persist via MDMWindowsInsertCommandForHosts so the existing
+	// command retry infrastructure resends if this response is dropped.
 	provID := syncml.DocProvisioningAppProviderID
 	releaseCmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
@@ -2118,15 +2132,26 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
 
-	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	// Persist the ServerHasFinishedProvisioning command as a backup.
+	// If the inline response is delivered, the device acks and the
+	// persisted command is cleared. If the response is dropped, the
+	// command is resent automatically on the next management session.
+	finishedProvisioningURI := fmt.Sprintf(
+		"./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
+	releaseCmd := newSyncMLCmdBool(fleet.CmdReplace, finishedProvisioningURI, "true")
+	releaseCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	rawXML, err := xml.Marshal(releaseCmd)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
-	}
-	if !transitioned {
-		// Another concurrent checkin already released the device. Skip
-		// re-sending release commands to avoid churn.
-		return nil, nil
+		svc.logger.WarnContext(ctx, "ESP: failed to marshal release command for persistence", "err", err)
+	} else {
+		persistCmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  releaseCmd.CmdID.Value,
+			RawCommand:   rawXML,
+			TargetLocURI: finishedProvisioningURI,
+		}
+		if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, persistCmd); err != nil {
+			svc.logger.WarnContext(ctx, "ESP: failed to persist release command", "err", err)
+		}
 	}
 
 	svc.logger.InfoContext(ctx, "ESP: releasing device from setup", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "timed_out", timedOut)
