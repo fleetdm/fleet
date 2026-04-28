@@ -12,9 +12,10 @@
     fill: $ui-fleet-black-75;
   }
 
-  // Y-axis labels and bars are clickable.
-  .recharts-yAxis .recharts-cartesian-axis-tick,
-  .recharts-bar-rectangle {
+  // Pointer cursor only on rows with hosts. The component adds these classes
+  // to the y-axis <text> and <Cell> elements when count > 0.
+  &__tick--clickable,
+  &__bar--clickable {
     cursor: pointer;
   }
 

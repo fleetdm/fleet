@@ -17,8 +17,8 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 const baseClass = "hosts-enrolled-card";
 
-// Use design-system color token via CSS custom property so recharts picks
-// up the themed value for the bar fill.
+// Use the design-system color token via CSS custom property so recharts
+// picks up the themed value for the SVG fill.
 const BAR_COLOR = "var(--core-fleet-green)";
 
 export interface IHostPlatformCounts {
@@ -46,6 +46,8 @@ interface IPlatformDatum {
   platform: PlatformKey;
 }
 
+// Make a map of platform to label for use in linking to the correct hosts list
+// when clicked.
 const PLATFORM_ROWS: { platform: PlatformKey; label: string }[] = [
   { platform: "darwin", label: "macOS" },
   { platform: "windows", label: "Windows" },
@@ -68,6 +70,7 @@ interface IYAxisTickProps {
   x?: number;
   y?: number;
   payload?: { value: string; index: number };
+  isClickable: (index: number) => boolean;
   onLabelClick: (index: number) => void;
 }
 
@@ -75,15 +78,24 @@ const ClickableYAxisTick = ({
   x = 0,
   y = 0,
   payload,
+  isClickable,
   onLabelClick,
 }: IYAxisTickProps): JSX.Element => {
   if (!payload) return <g />;
+  const clickable = isClickable(payload.index);
   return (
     <g
       transform={`translate(${x},${y})`}
-      onClick={() => onLabelClick(payload.index)}
+      onClick={clickable ? () => onLabelClick(payload.index) : undefined}
     >
-      <text x={0} y={0} dy={4} textAnchor="end" fontSize={14}>
+      <text
+        x={0}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fontSize={14}
+        className={clickable ? `${baseClass}__tick--clickable` : undefined}
+      >
         {payload.value}
       </text>
     </g>
@@ -127,6 +139,12 @@ const HostsEnrolledCard = ({
     if (datum) navigateToPlatform(datum.platform, datum.count);
   };
 
+  const isTickClickable = (index: number) => {
+    const datum = data[index];
+    if (!datum || !datum.count) return false;
+    return getLabelId(datum.platform) !== undefined;
+  };
+
   return (
     <div className={baseClass}>
       <h2 className={`${baseClass}__title`}>Hosts enrolled</h2>
@@ -152,16 +170,27 @@ const HostsEnrolledCard = ({
             axisLine={false}
             tickLine={false}
             width={80}
-            tick={<ClickableYAxisTick onLabelClick={handleTickClick} />}
+            tick={
+              <ClickableYAxisTick
+                isClickable={isTickClickable}
+                onLabelClick={handleTickClick}
+              />
+            }
           />
           <Bar
             dataKey="count"
             radius={[0, 4, 4, 0]}
             barSize={16}
-            onClick={(d) => handleBarClick(d as IPlatformDatum)}
+            onClick={(d) => handleBarClick(d.payload as IPlatformDatum)}
           >
             {data.map((entry) => (
-              <Cell key={entry.label} fill={BAR_COLOR} />
+              <Cell
+                key={entry.label}
+                fill={BAR_COLOR}
+                className={
+                  entry.count > 0 ? `${baseClass}__bar--clickable` : undefined
+                }
+              />
             ))}
           </Bar>
         </BarChart>
