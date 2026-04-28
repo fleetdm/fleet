@@ -55,7 +55,7 @@ All creatives must map to one or more: high-agency device management; infrastruc
 | CEO | Saved audience definitions |
 | Sales | Triggers ABM campaigns via Salesforce. |
 | Ad agency | Executes daily/weekly operations per this page, produces creative, provides weekly reports, and flags anomalies to CMO. |
-| Head of Design | Approves images/designs before they go live. |
+| Head of Design | Approves new images/designs on creatives posted by the company page before they receive significant spending |
 
 ## Campaign structure
 
