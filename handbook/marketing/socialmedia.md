@@ -65,7 +65,7 @@ Fleet runs three campaign types in LinkedIn Campaign Manager.
 
 Always-on. Only proven creatives. Engagement objective.
 
-- **Entry requirement:** Every creative must first earn 2%+ CTR in Targeting Experiments.  
+- **Entry requirement:** Every creative must first earn 1%+ CTR (4%+ for non-company page posts) in "Targeting experiments".  
 - **Refresh:** quarterly — remove stale, add new proven, align to current messaging.  
 - **Budget split:** unaware.elf.it-major-mdm.strict 60%,  unaware.santa.it-major-mdm.strict, unaware.elf.it-gapfiller 20%.
 
