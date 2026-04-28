@@ -1863,6 +1863,12 @@ type Datastore interface {
 	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
 	// path when the original anchored country has no Fleet-known token left.
 	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
+	// BackfillVPPAppCountriesFromTokens populates `vpp_apps.country_code` for
+	// any rows that are still NULL, by joining through `vpp_apps_teams` to
+	// the `vpp_tokens` row whose `country_code` is set. Returns the number of
+	// rows updated. Used by the one-shot legacy backfill that runs at server
+	// startup. Becomes a no-op once all rows are populated.
+	BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error)
 	// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
 	// (adam_id, platform), or a NotFound error if no row exists. Used by the
 	// anchoring logic to decide whether the next add is a first-add or a

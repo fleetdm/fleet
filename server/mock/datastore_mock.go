@@ -1211,6 +1211,8 @@ type UpdateVPPTokenCountryCodeFunc func(ctx context.Context, tokenID uint, count
 
 type UpdateVPPAppCountryCodeFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error
 
+type BackfillVPPAppCountriesFromTokensFunc func(ctx context.Context) (int64, error)
+
 type GetVPPAppByAdamIDPlatformFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error)
 
 type GetVPPTokenOwningAppInCountryFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error)
@@ -3689,6 +3691,9 @@ type DataStore struct {
 
 	UpdateVPPAppCountryCodeFunc        UpdateVPPAppCountryCodeFunc
 	UpdateVPPAppCountryCodeFuncInvoked bool
+
+	BackfillVPPAppCountriesFromTokensFunc        BackfillVPPAppCountriesFromTokensFunc
+	BackfillVPPAppCountriesFromTokensFuncInvoked bool
 
 	GetVPPAppByAdamIDPlatformFunc        GetVPPAppByAdamIDPlatformFunc
 	GetVPPAppByAdamIDPlatformFuncInvoked bool
@@ -8893,6 +8898,13 @@ func (s *DataStore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, 
 	s.UpdateVPPAppCountryCodeFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPAppCountryCodeFunc(ctx, adamID, platform, countryCode)
+}
+
+func (s *DataStore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.BackfillVPPAppCountriesFromTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.BackfillVPPAppCountriesFromTokensFunc(ctx)
 }
 
 func (s *DataStore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {

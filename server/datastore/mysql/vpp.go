@@ -1506,6 +1506,30 @@ func (ds *Datastore) UpdateVPPAppCountryCode(ctx context.Context, adamID string,
 	return nil
 }
 
+// BackfillVPPAppCountriesFromTokens fills in `vpp_apps.country_code` for any
+// rows that are still NULL, by joining through `vpp_apps_teams` to the
+// `vpp_tokens` row whose `country_code` is set. Used by the one-shot legacy
+// backfill that runs at server startup; becomes a no-op once every row has
+// been populated.
+func (ds *Datastore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
+	const stmt = `
+UPDATE vpp_apps va
+JOIN vpp_apps_teams vat
+    ON vat.adam_id = va.adam_id AND vat.platform = va.platform
+JOIN vpp_tokens vt
+    ON vt.id = vat.vpp_token_id
+SET va.country_code = vt.country_code
+WHERE va.country_code IS NULL
+  AND vt.country_code IS NOT NULL
+`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "backfilling vpp app countries from tokens")
+	}
+	rows, _ := res.RowsAffected()
+	return rows, nil
+}
+
 func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
 	tokRawBytes, err := base64.StdEncoding.DecodeString(tok.Token)
 	if err != nil {

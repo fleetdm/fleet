@@ -16,7 +16,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -1439,39 +1438,7 @@ func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, erro
 		return nil, err
 	}
 
-	tokens, err := svc.ds.ListVPPTokens(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Eagerly backfill country_code for any token uploaded before the column
-	// existed. Run in parallel so a settings page load with N tokens doesn't
-	// fan out to N sequential Apple round-trips. Partial failures are logged
-	// as warnings and the row stays NULL until the next call.
-	var needsBackfill []*fleet.VPPTokenDB
-	for _, t := range tokens {
-		if t.CountryCode == "" {
-			needsBackfill = append(needsBackfill, t)
-		}
-	}
-	if len(needsBackfill) > 0 {
-		var wg sync.WaitGroup
-		for _, t := range needsBackfill {
-			wg.Add(1)
-			go func(token *fleet.VPPTokenDB) {
-				defer wg.Done()
-				if err := ensureVPPTokenCountry(ctx, svc.ds, token); err != nil {
-					svc.logger.WarnContext(ctx, "failed to backfill VPP token country",
-						"vpp_token_id", token.ID,
-						"err", err,
-					)
-				}
-			}(t)
-		}
-		wg.Wait()
-	}
-
-	return tokens, nil
+	return svc.ds.ListVPPTokens(ctx)
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {
