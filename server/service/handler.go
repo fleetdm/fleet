@@ -1398,6 +1398,13 @@ func WithMDMSSOCallbackRedirect(svc fleet.Service, logger *slog.Logger, next htt
 			next.ServeHTTP(w, r)
 			return
 		}
+		// First check if the cookie is set on the current domain, if it is, just serve as is.
+		_, err := r.Cookie(cookieNameSSOSession)
+		if err == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Check for custom apple URL set and does not match the current request URL, then do a redirect to the custom URL, where the Cookie is set.
 		appCfg, err := svc.AppConfigUrls(r.Context())
 		if err != nil {
