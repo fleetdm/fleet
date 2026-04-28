@@ -2639,6 +2639,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		// advance below) are logged-and-swallowed rather than returned
 		// as tick failures.
 		if cursor != "" {
+			logger.InfoContext(ctx, "windows MDM reconcile pass complete; resetting cursor",
+				"cursor", cursor)
 			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
 				// We assume a transient Redis failure here.
 				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
@@ -2655,6 +2657,22 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		nextCursor = hostUUIDs[len(hostUUIDs)-1]
 	}
 
+	// Only log when the cursor is actually in play - i.e. the pending
+	// universe didn't fit in a single tick. The four state combos:
+	//   cursor=="", nextCursor!=""  - starting a multi-tick pass
+	//   cursor!="", nextCursor!=""  - continuing mid-pass
+	//   cursor!="", nextCursor==""  - completing the final tick of a pass
+	//   cursor=="", nextCursor==""  - silent: the entire universe fit in
+	//                                 this one tick, no cursor needed
+	if cursor != "" || nextCursor != "" {
+		logger.InfoContext(ctx, "windows MDM reconcile tick using cursor",
+			"cursor", cursor,
+			"next_cursor", nextCursor,
+			"batch_size", reconcileWindowsProfilesBatchSize,
+			"hosts_in_batch", len(hostUUIDs),
+		)
+	}
+
 	toInstall, err := ds.ListMDMWindowsProfilesToInstallForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
@@ -2668,8 +2686,13 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// The next tick will retry the same host window. The body's writes
 	// flip status from NULL to 'pending' on success, which removes those
 	// rows from the listing on retry, so a partial failure converges.
+	//
+	// Skip the write when the cursor isn't changing (steady-state ticks
+	// where the entire pending universe fit in one batch: cursor="",
+	// nextCursor=""). Mirrors the empty-result branch's `cursor != ""`
+	// guard above.
 	defer func() {
-		if err == nil {
+		if err == nil && cursor != nextCursor {
 			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, nextCursor); cerr != nil {
 				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", cerr)
 			}
