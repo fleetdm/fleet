@@ -316,7 +316,7 @@ When `true`, orbit runs at debug log level and passes `--verbose` and `--tls_dum
 
 Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/rest-api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
 
-See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design.
+See [Orbit debug logging](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/orbit-debug-logging.md) for the full design. To learn where to find fleetd logs on each platform, see [Finding fleetd logs](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#finding-fleetd-logs).
 
 #### Example
 
