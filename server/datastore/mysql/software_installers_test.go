@@ -62,6 +62,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
 		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
+		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 	}
 
 	for _, c := range cases {
@@ -297,6 +298,81 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, setupExperienceInstallDetails.HostID)
 	require.Equal(t, setupExperienceInstallID, setupExperienceInstallDetails.ExecutionID)
 	require.Equal(t, setupExperienceSoftwareInstallsRetries, setupExperienceInstallDetails.MaxRetries, "Setup experience install should have MaxRetries = %d", setupExperienceSoftwareInstallsRetries)
+}
+
+// testSetHostSoftwareInstallResultResolvesOrphanedActivity covers #44084: an
+// install whose software_installer_id was nulled by FK SET NULL must still be
+// resolvable by SetHostSoftwareInstallResult so the install loop stops.
+func testSetHostSoftwareInstallResultResolvesOrphanedActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host-orphan", "1", "host-orphan-key", "host-orphan-uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice-orphan@example.com", true)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo install",
+		InstallerFile:   tfr,
+		StorageID:       "storage-orphan",
+		Filename:        "orphan.pkg",
+		Title:           "orphan",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	executionID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.GetSoftwareInstallDetails(ctx, executionID)
+	require.NoError(t, err)
+
+	// Simulate the FK SET NULL outcome directly so the test isn't coupled to
+	// DeleteSoftwareInstaller's own cleanup side-effects.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET software_installer_id = NULL
+		WHERE execution_id = ?`, executionID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE software_install_upcoming_activities siua
+		JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		SET siua.software_installer_id = NULL
+		WHERE ua.execution_id = ?`, executionID)
+	require.NoError(t, err)
+
+	_, err = ds.GetSoftwareInstallDetails(ctx, executionID)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           executionID,
+		InstallScriptExitCode: ptr.Int(fleet.ExitCodeInstallerNotFound),
+		InstallScriptOutput:   ptr.String("Installer no longer exists on the server. Abandoning install after retry window."),
+	}, nil)
+	require.NoError(t, err)
+
+	var exitCode sql.NullInt64
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &exitCode, `
+		SELECT install_script_exit_code
+		FROM host_software_installs
+		WHERE execution_id = ?`, executionID)
+	require.NoError(t, err)
+	require.True(t, exitCode.Valid)
+	require.EqualValues(t, fleet.ExitCodeInstallerNotFound, exitCode.Int64)
+
+	var remaining int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &remaining, `
+		SELECT COUNT(*)
+		FROM upcoming_activities
+		WHERE host_id = ? AND execution_id = ?`, host.ID, executionID)
+	require.NoError(t, err)
+	require.Zero(t, remaining, "stale upcoming_activities row should be deleted so orbit's loop stops")
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
