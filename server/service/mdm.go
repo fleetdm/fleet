@@ -1001,6 +1001,14 @@ func (svc *Service) getHostIdentifierMDMCommandResults(ctx context.Context, comm
 // GET /mdm/commands
 ////////////////////////////////////////////////////////////////////////////////
 
+// Pagination bounds for GET /mdm/commands. Both paths (host-identifier
+// scoped and unscoped) get the same client-facing limits; the cap rejects
+// unbounded scans, the default keeps a no-per_page request small.
+const (
+	defaultMDMCommandsPerPage uint = 10
+	maxMDMCommandsPerPage     uint = 1000
+)
+
 type listMDMCommandsRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
 	HostIdentifier string            `query:"host_identifier,optional"`
@@ -1047,6 +1055,12 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 		}
 	}
 
+	if req.ListOptions.PerPage > maxMDMCommandsPerPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", maxMDMCommandsPerPage),
+		}
+	}
+
 	return nil
 }
 
@@ -1061,6 +1075,9 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
+	if req.ListOptions.PerPage == 0 {
+		req.ListOptions.PerPage = defaultMDMCommandsPerPage
+	}
 	req.ListOptions.IncludeMetadata = true
 
 	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
