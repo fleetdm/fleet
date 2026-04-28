@@ -189,7 +189,7 @@ module.exports = {
     *                                                                          *
     ***************************************************************************/
     adapter: '@sailshq/connect-redis',
-    url: process.env.REDIS_TLS_URL,
+    url: process.env.REDIS_URL,
     tls: {
       rejectUnauthorized: false
     },
