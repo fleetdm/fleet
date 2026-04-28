@@ -1,5 +1,6 @@
 import React from "react";
 import FileSaver from "file-saver";
+import classnames from "classnames";
 
 import { uploadedFromNow } from "utilities/date_format";
 
@@ -32,9 +33,12 @@ type ISetupAssistantProfileCardProps =
   | ICustomProfileProps;
 
 const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
-  const baseClass = `setup-assistant-profile-card${
-    props.defaultProfile ? "-default-profile" : ""
-  }`;
+  const baseClass = "setup-assistant-profile-card";
+
+  const cardClassName = classnames(baseClass, {
+    [`${baseClass}--default-profile`]: props.defaultProfile,
+  });
+
   const onDownload = () => {
     const date = new Date();
     const filename = `${date.toISOString().split("T")[0]}_${
@@ -51,7 +55,7 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
   };
 
   return (
-    <Card paddingSize="medium" className={baseClass}>
+    <Card paddingSize="medium" className={cardClassName}>
       <Graphic name="file-configuration-profile" />
       <div className={`${baseClass}__info`}>
         {props.defaultProfile ? (
