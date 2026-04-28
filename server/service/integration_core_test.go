@@ -5320,6 +5320,29 @@ func (s *integrationTestSuite) TestLabels() {
 				"order_key", key, "order_direction", "asc", "after", "0", "device_mapping", "true")
 		}
 
+		// issue-related order_keys are rejected when disable_issues=true.
+		for _, key := range []string{"issues", "failing_policies_count", "critical_vulnerabilities_count", "total_issues_count"} {
+			res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+				"order_key", key, "disable_issues", "true")
+			errMsg := extractServerErrorText(res.Body)
+			assert.Contains(t, errMsg, "Invalid order_key")
+			assert.Contains(t, errMsg, key)
+		}
+
+		// device_mapping order_key is rejected when device_mapping is not enabled.
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+			"order_key", "device_mapping")
+		errMsg = extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Invalid order_key")
+		assert.Contains(t, errMsg, "device_mapping")
+
+		// device_mapping=false is also rejected.
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+			"order_key", "device_mapping", "device_mapping", "false")
+		errMsg = extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Invalid order_key")
+		assert.Contains(t, errMsg, "device_mapping")
+
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
