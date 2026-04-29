@@ -77,7 +77,7 @@ kind: policy
 spec:
   name: Secure keyboard entry for Terminal application enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to enabled secure keyboard entry for the Terminal application."
+  description: "Checks that a mobile device management (MDM) solution configures the Mac to enable secure keyboard entry for the Terminal application."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables secure keyboard entry for the Terminal application."
   platform: darwin
 ---
@@ -358,7 +358,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: SMBv1 server disabled (Windows)
-  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1
+  query: SELECT 1 FROM windows_optional_features WHERE name = 'SMB1Protocol-Server' AND state != 1;
   description: "Checks that the SMBv1 server is disabled."
   resolution: "Contact your IT administrator to discuss disabling SMBv1 on your system."
   platform: windows

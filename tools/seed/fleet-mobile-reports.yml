@@ -31,10 +31,10 @@ spec:
 apiVersion: v1
 kind: report
 spec:
-  name: Personal devices - SSH agent keys
+  name: Personal devices - SSH client configuration
   platform: darwin, linux
   fleet: FLEET_NAME
-  description: Lists keys currently loaded in the SSH agent on personal devices.
+  description: Lists SSH client configuration options on personal devices.
   query: SELECT * FROM ssh_configs;
   purpose: Informational
   tags: ssh, inventory

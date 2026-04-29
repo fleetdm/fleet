@@ -10,7 +10,7 @@ kind: policy
 spec:
   name: Personal devices - No plaintext passwords in common dotfiles
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/.bashrc' OR path LIKE '/Users/%/.zshrc' OR path LIKE '/Users/%/.bash_profile' OR path LIKE '/Users/%/.profile' OR path LIKE '/home/%/.bashrc' OR path LIKE '/home/%/.zshrc') AND size > 0);
-  description: "Checks that common shell dotfiles exist. This is a lightweight proxy to encourage auditing dotfiles on personal devices — manual review of contents is still recommended."
+  description: "Checks that no common shell dotfiles with content exist on personal devices. This is a lightweight proxy to flag dotfiles that may contain hardcoded passwords or secrets — manual review is still recommended."
   resolution: "Review your shell configuration files for any hardcoded passwords or secrets."
   platform: darwin,linux
 ---
@@ -45,7 +45,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Personal devices - No world-writable files in home directory
-  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/Desktop/%%' OR path LIKE '/Users/%/Documents/%%' OR path LIKE '/Users/%/Downloads/%%') AND mode LIKE '%7' AND type = 'regular' LIMIT 1);
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/Desktop/%%' OR path LIKE '/Users/%/Documents/%%' OR path LIKE '/Users/%/Downloads/%%') AND (mode LIKE '%2' OR mode LIKE '%3' OR mode LIKE '%6' OR mode LIKE '%7') AND type = 'regular' LIMIT 1);
   description: "Checks that there are no world-writable files in common user directories on personal devices."
   resolution: "Fix file permissions with: chmod o-w <file>"
   platform: darwin

@@ -237,7 +237,7 @@ spec:
   name: Get Nmap scanner
   platform: darwin, linux, windows
   description: Get Nmap scanner process, as well as its user, parent, and process details.
-  query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
+  query: SELECT p.pid, p.name, p.path, p.cmdline, p.cwd, p.start_time, p.parent, u.username AS user, pp.path AS parent_path, pp.cmdline AS parent_cmdline FROM processes p LEFT JOIN users u ON p.uid = u.uid LEFT JOIN processes pp ON p.parent = pp.pid WHERE p.name = 'nmap'
   purpose: Informational
   tags: hunting, ATTACK, t1046
   contributors: anelshaer
