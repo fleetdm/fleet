@@ -312,9 +312,9 @@ func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
 	require.Len(t, cmds, 3)
 	wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
 	require.NotNil(t, wipeCmd)
-	require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
+	require.Equal(t, fleet.CmdExec, wipeCmd.Verb)
 	require.Len(t, wipeCmd.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+	require.Equal(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
 
 	msgID, err := winMDMClient.GetCurrentMsgID()
 	require.NoError(t, err)
