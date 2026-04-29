@@ -9181,28 +9181,29 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err := d.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
@@ -9248,8 +9249,16 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err = d.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands
@@ -9270,6 +9279,88 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
 	checkinAndAck(false)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set up enroll secret and Entra tenant
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
+	// Enroll device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending)
+	azureMail := "esp-test@example.com"
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	require.NoError(t, d.Enroll())
+
+	// First checkin: receive fleetd install commands (and possibly ESP hold
+	// commands), ack all of them.
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := d.GetCurrentMsgID()
+	require.NoError(t, err)
+	for _, c := range cmds {
+		if c.Verb == "Status" {
+			continue
+		}
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID, CmdRef: &c.Cmd.CmdID.Value,
+			Cmd: &c.Verb, Data: ptr.String("200"),
+			CmdID: fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	_, err = d.SendResponse()
+	require.NoError(t, err)
+
+	// Create a team first, then simulate fleetd installed on that team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "esp-h1", s.ds)
+	// Transfer host to the team via the API
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
+	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
+	require.NoError(t, err)
+
+	// No profiles added to the team -- the test verifies state transitions
+	// (Pending → Active → None) without needing profile delivery.
+
+	// First management checkin after orbit links: device transitions to Active.
+	_, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
+
+	// Second checkin: all profiles delivered, device should be released.
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	var foundRelease bool
+	for _, c := range cmds {
+		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
+			foundRelease = true
+			break
+		}
+	}
+	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+
+	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
@@ -9365,30 +9456,31 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err := device.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
 		// Enrollment via settings app or autopilot always results in a fleetd install command, even if already installed,
 		// as there's no way to tell at point of MDM enrollment if fleetd is already installed.
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
@@ -9430,8 +9522,16 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err = device.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands

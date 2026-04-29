@@ -76,6 +76,13 @@ cherry-pick-<PR_NUMBER>-to-<target-branch>
 
 Example: `cherry-pick-41914-to-rc-minor-fleet-v4.83.0`
 
+**Never create a branch whose name matches a protected pattern.** See
+[`.kilocode/rules/protected-branches.md`](../../rules/protected-branches.md).
+The cherry-pick branch name above is safe because it starts with `cherry-pick-`,
+which does not match any protected pattern. Do **not** drop the `cherry-pick-`
+prefix or rename the working branch to something starting with `feature-`,
+`patch-`, `minor-`, `fleet-v`, `rc-patch-`, or `rc-minor-`.
+
 ## Common issues
 
 - **Duplicate PRs** — never run multiple agent sessions for the same cherry-pick.
