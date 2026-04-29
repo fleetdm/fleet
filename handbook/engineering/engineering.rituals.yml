@@ -61,42 +61,42 @@
   startedOn: "2023-08-09" 
   frequency: "Triweekly"
   description: "Go through the process of creating a release candidate."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#create-a-release-candidate"
   dri: "lukeheath"
-- 
+-
   task: "Minor version release ritual"
-  startedOn: "2023-08-09" 
+  startedOn: "2023-08-09"
   frequency: "Triweekly"
   description: "Go through the process of releasing the next minor version of Fleet."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#prepare-fleet-release"
   dri: "lukeheath"
-- 
+-
   task: "Patch version release candidate ritual"
   startedOn: "2023-08-19"
   frequency: "Triweekly"
   description: "Go through the process of creating a patch release candidate."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#create-a-release-candidate"
   dri: "georgekarrv"
 -
   task: "Patch version release ritual"
   startedOn: "2023-08-19"
   frequency: "Triweekly"
   description: "Go through the process of releasing the next patch version of Fleet."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleet-release"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#prepare-fleet-release"
   dri: "lukeheath"
 -
   task: "Fleetd release candidate ritual"
   startedOn: "2023-08-19"
   frequency: "As needed"
   description: "Go through the process of creating a fleetd release candidate."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#create-a-release-candidate"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#create-a-release-candidate"
   dri: "sharon-fdm"
 -
   task: "Fleetd release ritual"
   startedOn: "2023-08-19"
   frequency: "As needed"
   description: "Go through the process of releasing the next version of fleetd."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#prepare-fleetd-agent-release"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#prepare-fleetd-agent-release"
   dri: "sharon-fdm"
 - 
   task: "QA report"
@@ -117,14 +117,14 @@
   startedOn: "2025-07-29" 
   frequency: "Triweekly"
   description: "After each sprint, review merged work and submit automation candidates to QA Wolf using the coverage request form."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#submit-test-coverage-requests-to-qa-wolf"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf"
   dri: "AndreyKizimenko"
 -
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
   frequency: "Weekly"
   description: "Check for vulnerabilities on the production dependencies of fleetdm.com."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-production-dependencies-of-fleetdm-com"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#check-production-dependencies-of-fleetdm-com"
   dri: "eashaw"
   autoIssue:  
     labels: [ "#g-website" ] 
@@ -134,7 +134,7 @@
   startedOn: "2024-03-06" 
   frequency: "Monthly"
   description: "Use Browserstack to manually QA pages on fleetdm.com in each of the earliest supported browser versions"
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-browser-compatibility-for-fleetdm-com"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#check-browser-compatibility-for-fleetdm-com"
   dri: "eashaw"
   autoIssue:   
     labels: [ "#g-website" ]
@@ -154,7 +154,7 @@
   startedOn: "2025-06-03"
   frequency: "Monthly"
   description: "Make sure the website is using the latest version of the osquery schema."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#check-for-new-versions-of-osquery-schema"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#check-for-new-versions-of-osquery-schema"
   dri: "eashaw"
   autoIssue:  
     labels: [ "#g-website" ] 
@@ -164,7 +164,7 @@
   startedOn: "2024-09-10"
   frequency: "Quarterly"
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering#change-the-integrations-admin-salesforce-account-password"
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
 -
   task: "Pre-sprint prioritization"
