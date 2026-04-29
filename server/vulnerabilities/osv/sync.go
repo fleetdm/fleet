@@ -167,6 +167,9 @@ func RefreshAll(ctx context.Context, vulnPath string) ([]string, error) {
 			return downloaded, fmt.Errorf("syncing Ubuntu OSV artifacts: %w", err)
 		}
 		downloaded = append(downloaded, result.Downloaded...)
+		if len(result.Failed) > 0 {
+			return downloaded, fmt.Errorf("failed to download OSV for Ubuntu versions: %v", result.Failed)
+		}
 	}
 
 	if len(rhelVers) > 0 {
@@ -175,6 +178,9 @@ func RefreshAll(ctx context.Context, vulnPath string) ([]string, error) {
 			return downloaded, fmt.Errorf("syncing RHEL OSV artifacts: %w", err)
 		}
 		downloaded = append(downloaded, result.Downloaded...)
+		if len(result.Failed) > 0 {
+			return downloaded, fmt.Errorf("failed to download OSV for RHEL versions: %v", result.Failed)
+		}
 	}
 
 	return downloaded, nil

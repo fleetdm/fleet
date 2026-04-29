@@ -445,6 +445,37 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 	require.Empty(t, result.Failed)
 }
 
+func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
+	// Documents the behavior RefreshAll guards against: SyncOSV reports per-
+	// version failures via SyncResult.Failed but does NOT return an error when
+	// some downloads succeed.
+	tmpDir := t.TempDir()
+	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	good := "osv-ubuntu-2204-2026-04-01.json.gz"
+	bad := "osv-ubuntu-2404-2026-04-01.json.gz"
+
+	release := &ReleaseInfo{
+		TagName: "cve-202604010000",
+		Assets: map[string]*AssetInfo{
+			good: {Name: good, ID: 1},
+			bad:  {Name: bad, ID: 2},
+		},
+	}
+
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		if assetID == 2 {
+			return errors.New("simulated download failure")
+		}
+		return os.WriteFile(dstPath, []byte("ok"), 0o644)
+	}
+
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, []string{"2204", "2404"}, date, release, mockDownload, osvFilename)
+	require.NoError(t, err, "SyncOSV does not return error on partial failure")
+	require.Contains(t, result.Downloaded, "2204")
+	require.Contains(t, result.Failed, "2404")
+}
+
 func TestVersionsFromRelease(t *testing.T) {
 	release := &ReleaseInfo{
 		TagName: "cve-202604270000",
