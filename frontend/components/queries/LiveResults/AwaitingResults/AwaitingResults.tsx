@@ -8,8 +8,13 @@ const AwaitingResults = () => {
   return (
     <EmptyState
       header="Phoning home..."
-      info=" There are currently no results to your report. Please wait while we talk
-        to more hosts."
+      info={
+        <>
+          There are currently no results to your report.
+          <br />
+          Please wait while we talk to more hosts.
+        </>
+      }
       className={baseClass}
     />
   );
