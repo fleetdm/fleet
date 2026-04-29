@@ -420,6 +420,8 @@ type Datastore interface {
 	CleanupHostMDMCommands(ctx context.Context) error
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
+	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue.
+	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
 	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error

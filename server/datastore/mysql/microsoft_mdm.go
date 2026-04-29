@@ -542,7 +542,18 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmen
 	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
 	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
 	// idle path does not go through a sql.ErrNoRows branch.
-	const probe = `SELECT EXISTS(SELECT 1 FROM windows_mdm_command_queue WHERE enrollment_id = ?)`
+	// Queue rows now persist after ACK (cleaned by periodic GC), so the probe
+	// must also exclude rows that already have a result in
+	// windows_mdm_command_results.
+	const probe = `SELECT EXISTS(
+		SELECT 1 FROM windows_mdm_command_queue wmcq
+		WHERE wmcq.enrollment_id = ?
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results wmcr
+			WHERE wmcr.enrollment_id = wmcq.enrollment_id
+			AND wmcr.command_uuid = wmcq.command_uuid
+		)
+	)`
 	var hasPending bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "probe pending Windows MDM commands")
@@ -751,19 +762,11 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// dequeue the commands
-		var matchingUUIDs []string
-		for _, cmd := range matchingCmds {
-			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
-		}
-		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
-		}
-		if _, err = tx.ExecContext(ctx, stmt, params...); err != nil {
-			return ctxerr.Wrap(ctx, err, "dequeuing commands")
-		}
+		// Queue rows are no longer deleted on ACK. The dispatch query
+		// (MDMWindowsGetPendingCommands) already uses NOT EXISTS against
+		// windows_mdm_command_results to skip ACKed commands, so stale
+		// queue rows are invisible. Periodic GC via
+		// CleanupWindowsMDMCommandQueue handles table hygiene.
 
 		return nil
 	}); err != nil {
@@ -3430,4 +3433,31 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 		deviceId,
 	)
 	return err
+}
+
+func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
+	const batchSize = 1000
+	// Multi-table DELETE does not support LIMIT directly, so we use a
+	// subquery to select the rows to delete in batches.
+	const stmt = `
+DELETE q FROM windows_mdm_command_queue q
+INNER JOIN (
+    SELECT q2.enrollment_id, q2.command_uuid
+    FROM windows_mdm_command_queue q2
+    INNER JOIN windows_mdm_command_results r
+        ON r.enrollment_id = q2.enrollment_id AND r.command_uuid = q2.command_uuid
+    WHERE r.created_at < NOW() - INTERVAL 1 HOUR
+    LIMIT ?
+) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
+		}
+		n, _ := res.RowsAffected()
+		if n < int64(batchSize) {
+			break
+		}
+	}
+	return nil
 }
