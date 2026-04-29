@@ -43,12 +43,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Resolve the most recent published (non-draft, non-prerelease) Fleet
+          # release tag, e.g. "fleet-v4.84.0", and strip the prefix so we end
+          # up with a bare semver like "4.84.0" for comparison.
           latest=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
           latest_ver=${latest#fleet-v}
 
+          # List every branch on the repo and keep only those that strictly
+          # match the canonical RC naming pattern. The anchors filter out
+          # cherry-pick branches and "-suffix" variants (e.g.
+          # rc-minor-fleet-v4.65.0-cherry-helm), leaving just the real RCs.
+          # `|| true` keeps the step from failing when grep finds no matches.
           candidates=$(gh api "repos/${{ github.repository }}/branches" --paginate --jq '.[].name' \
             | grep -E '^rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' || true)
 
+          # Keep only the RC branches whose version is strictly greater than
+          # the latest released version (i.e. an in-flight release). `sort -V`
+          # gives semver-aware ordering; if the branch's version sorts last
+          # and isn't equal to the released version, it's still active.
           active=()
           for b in $candidates; do
             v=$(echo "$b" | sed -E 's/^rc-(minor|patch)-fleet-v//')
@@ -58,6 +70,8 @@ jobs:
             fi
           done
 
+          # Emit a JSON array (e.g. ["main","rc-minor-fleet-v4.85.0"]) for
+          # the downstream matrix to consume via fromJSON.
           branches=$(printf '%s\n' "main" "${active[@]}" | jq -Rnc '[inputs]')
           echo "branches=$branches" >> "$GITHUB_OUTPUT"
           echo "Will scan: $branches"
