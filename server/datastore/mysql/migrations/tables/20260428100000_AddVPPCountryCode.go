@@ -24,11 +24,11 @@ func Up_20260428100000(tx *sql.Tx) error {
 	//
 	// Both columns are nullable so existing rows survive the migration; values
 	// are then populated lazily by the API/service layer.
-	if _, err := tx.Exec(`ALTER TABLE vpp_tokens ADD COLUMN country_code VARCHAR(4) NULL DEFAULT NULL`); err != nil {
+	if _, err := tx.Exec(`ALTER TABLE vpp_tokens ADD COLUMN country_code VARCHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL`); err != nil {
 		return fmt.Errorf("add country_code to vpp_tokens: %w", err)
 	}
 
-	if _, err := tx.Exec(`ALTER TABLE vpp_apps ADD COLUMN country_code VARCHAR(4) NULL DEFAULT NULL`); err != nil {
+	if _, err := tx.Exec(`ALTER TABLE vpp_apps ADD COLUMN country_code VARCHAR(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL`); err != nil {
 		return fmt.Errorf("add country_code to vpp_apps: %w", err)
 	}
 
