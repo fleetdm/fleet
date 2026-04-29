@@ -1054,7 +1054,7 @@ var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"policy_updated_at":              "h.policy_updated_at",
 	"public_ip":                      "h.public_ip",
 
-	"display_name": "display_name",
+	"display_name": "hdn.display_name",
 
 	// COALESCE required on the following:
 	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
