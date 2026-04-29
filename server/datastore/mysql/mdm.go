@@ -44,18 +44,12 @@ END AS platform
 // sub-statements separately. The caller is responsible for wrapping each
 // branch with the per-branch pagination (team filter, request_type filter,
 // cursor predicate, ORDER BY, inner LIMIT) before merging them with
-// UNION ALL. Doing the pagination inside each branch instead of around
-// the UNION ALL bounds per-tick work to O(page_size) per branch rather
-// than O(total commands per branch).
+// UNION ALL. Paginating inside each branch keeps work per branch at
+// O(page_size) instead of O(total commands).
 //
-// No host-identifier filter is applied here: ListMDMCommands dispatches
-// host-scoped requests to listMDMCommandsByHostIdentifier, and the
-// single-command lookup at getMDMCommand filters on command_uuid only.
-// Past versions of this function accepted a host filter; it was always
-// "" in practice and the application would have been incorrect against
-// the new Windows UNION ALL anyway (only the second branch would have
-// been filtered).
-func getMDMCommandsSubqueries(ds *Datastore) (appleStmt, windowsStmt string, params []any) {
+// These subqueries are only used for the all-hosts listing; host-scoped
+// requests go through listMDMCommandsByHostIdentifier instead.
+func getMDMCommandsSubqueries() (appleStmt, windowsStmt string) {
 	appleStmt = `
 SELECT
     nvq.id as host_uuid,
@@ -82,10 +76,7 @@ WHERE
 	// command that produced a result). Branch B's NOT EXISTS clause
 	// excludes (command_uuid, enrollment_id) pairs already covered by
 	// branch A so the union does not double-count a single command/host
-	// pair. This shape replaces the previous single SELECT that joined
-	// mdm_windows_enrollments with `wmcq.enrollment_id = mwe.id OR
-	// wmcr.enrollment_id = mwe.id`; the OR forced a nested-loop plan
-	// because no single index covers both sides of the disjunction.
+	// pair.
 	windowsStmt = `
 SELECT
     mwe.host_uuid,
@@ -125,19 +116,11 @@ WHERE NOT EXISTS (
 )
 `
 
-	return appleStmt, windowsStmt, nil
+	return appleStmt, windowsStmt
 }
 
 // mdmCommandsOrderAllowlist is the closed set of order_key values accepted
-// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands. Both
-// the unscoped path (ListMDMCommands path B) and the host-scoped path
-// (listMDMCommandsByHostIdentifier, path A) use it to feed
-// appendListOptionsWithCursorToSQLSecure, which prevents arbitrary
-// columns from reaching ORDER BY.
-//
-// Both paths project these columns identically in their SELECTs (path A
-// JOINs hosts to surface hostname; path B's subqueries already include
-// it), so a single allowlist works at every level.
+// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
 var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 	"host_uuid":    "host_uuid",
 	"command_uuid": "command_uuid",
@@ -152,12 +135,12 @@ var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
 // (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
 // single-command lookups; the list-commands path builds its own form
 // (see getMDMCommandsSubqueries).
-func getCombinedMDMCommandsQuery(ds *Datastore) (string, []any) {
-	appleStmt, windowsStmt, params := getMDMCommandsSubqueries(ds)
+func getCombinedMDMCommandsQuery() string {
+	appleStmt, windowsStmt := getMDMCommandsSubqueries()
 	return fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
 		appleStmt, windowsStmt,
-	), params
+	)
 }
 
 func (ds *Datastore) ListMDMCommands(
@@ -165,42 +148,28 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
-	if listOpts == nil {
-		// Callers that bypass the endpoint may pass nil; treat as a
-		// zero-valued options object so the defaulting block below sets
-		// reasonable bounds instead of panicking.
-		listOpts = &fleet.MDMCommandListOptions{}
+	if listOpts == nil || listOpts.PerPage == 0 {
+		return nil, nil, nil, ctxerr.Wrap(ctx, errors.New("ListMDMCommands requires listOpts.PerPage > 0"))
 	}
 	if listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
 	}
 
-	// Defensive defaults for callers that bypass the endpoint (no
-	// non-endpoint callers exist today on path B, but matching path A's
-	// hygiene avoids reintroducing the unbounded-default trap if one is
-	// added later).
 	if listOpts.OrderKey == "" {
 		listOpts.OrderKey = "updated_at"
 		listOpts.OrderDirection = fleet.OrderDescending
 	}
-	if listOpts.PerPage == 0 {
-		listOpts.PerPage = fleet.DefaultMDMCommandsPerPage
-	}
 
-	appleStmt, windowsStmt, baseParams := getMDMCommandsSubqueries(ds)
+	appleStmt, windowsStmt := getMDMCommandsSubqueries()
 
-	// Per-branch pagination: each branch carries the team filter, the
-	// request_type filter, the cursor predicate (if any), the ORDER BY,
-	// and an inner LIMIT large enough to cover the requested page if all
-	// matching rows came from this branch alone (page*per_page + per_page +
-	// 1). Without this, the UNION ALL would materialize every command on
+	// Per-branch pagination: without this, the UNION ALL would materialize every command on
 	// both sides before pagination, which times out at scale (#44170).
 	innerOpts := listOpts.ListOptions
 	// For page-based pagination, inner LIMIT = page*per_page + per_page;
 	// the secure helper adds +1 because IncludeMetadata is true. For
 	// cursor-based pagination (After != ""), the helper ignores Page, so
-	// don't inflate the inner LIMIT — per_page+1 is sufficient. Inner
+	// don't inflate the inner LIMIT (per_page+1 is sufficient). Inner
 	// Page=0 suppresses the inner OFFSET; the outer wrapper handles
 	// offset slicing.
 	if innerOpts.After == "" {
@@ -218,8 +187,7 @@ func (ds *Datastore) ListMDMCommands(
 
 	// Each branch needs its own params slice; sqlx.SelectContext binds
 	// placeholders left-to-right across the merged statement.
-	appleParams := append([]any{}, baseParams...)
-	windowsParams := append([]any{}, baseParams...)
+	var appleParams, windowsParams []any
 	var err error
 	if appleStmt, appleParams, err = paginateBranch(appleStmt, appleParams); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate apple commands branch")
@@ -506,12 +474,9 @@ WHERE
 	// if listOpts.OrderDirection == "" {
 	// 	listOpts.OrderDirection = fleet.OrderDescending
 	// }
-	if listOpts.PerPage == 0 {
-		listOpts.PerPage = fleet.DefaultMDMCommandsPerPage
-	}
 	// Validate order_key against the closed allowlist before it reaches
 	// ORDER BY (defense against SQL injection / information disclosure
-	// via arbitrary column references). Path B uses the same allowlist.
+	// via arbitrary column references).
 	listStmt, params, err = appendListOptionsWithCursorToSQLSecure(listStmt, params, &listOpts.ListOptions, mdmCommandsOrderAllowlist)
 	if err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands pagination")
@@ -582,8 +547,7 @@ func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, p
 }
 
 func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
-	stmt, _ := getCombinedMDMCommandsQuery(ds)
-	stmt += "command_uuid = ?"
+	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
 
 	var cmd fleet.MDMCommand
 	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {

@@ -72,7 +72,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// no commands or devices enrolled => no results
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -130,7 +130,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
@@ -148,7 +148,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	cmds, total, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -168,7 +168,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
 		})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -207,7 +207,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
 		})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -251,6 +251,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: "non-existent",
 			},
@@ -264,6 +265,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType: "non-existent",
 			},
@@ -332,6 +334,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{PerPage: 100},
 					Filters: fleet.MDMCommandFilters{
 						HostIdentifier:  tc.identifier,
 						CommandStatuses: commandStatuses,
@@ -379,10 +382,10 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending, PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType: "InstallProfile",
 			},
-			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending},
 		},
 	)
 	require.NoError(t, err)
@@ -395,6 +398,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType:    "InstallProfile",
 				HostIdentifier: macH.UUID,
@@ -410,6 +414,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier:  "123456",
 				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
@@ -451,6 +456,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier:  macH.UUID,
 				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterRan, fleet.MDMCommandStatusFilterFailed},
@@ -524,7 +530,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -534,7 +540,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser, TeamID: &team.ID},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -562,7 +568,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -573,7 +579,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: adminUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -9206,7 +9212,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            test.UserAdmin,
 		IncludeObserver: true,
-	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
+	}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}, Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
@@ -9472,7 +9478,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Test Profile Name", storedName.String)
 
 	// Also verify via ListMDMCommands
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.NotNil(t, cmds[0].Name)
@@ -9493,7 +9499,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 
 	// Verify name is null in the API
 	// Verify ListMDMCommands also exposes nil Name for unnamed commands
-	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 
