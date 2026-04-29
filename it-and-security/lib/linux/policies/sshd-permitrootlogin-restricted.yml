@@ -1,0 +1,17 @@
+- name: Linux - SSH PermitRootLogin not set to yes
+  query: |-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM augeas
+      WHERE (path = '/etc/ssh/sshd_config' OR path LIKE '/etc/ssh/sshd_config.d/%')
+        AND label = 'PermitRootLogin'
+        AND value IN ('yes', 'true', '1')
+    );
+  critical: false
+  description: |-
+    Passes if sshd_config (including any drop-in files in /etc/ssh/sshd_config.d/) does not set PermitRootLogin to yes (absent or set to no/prohibit-password/without-password is OK).
+    Requires the augeas osquery table and augeas lenses on the host.
+  resolution: |-
+    Set `PermitRootLogin no` (or `prohibit-password`) in `/etc/ssh/sshd_config`, ensure no drop-in file in `/etc/ssh/sshd_config.d/` overrides it with `yes`, then restart `sshd`.
+
+    If you need help, please reach out in #help-it.
+  platform: linux
