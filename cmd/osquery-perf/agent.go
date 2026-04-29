@@ -3770,13 +3770,18 @@ func main() {
 	flag.Parse()
 	rand.Seed(*randSeed)
 
-	// Load software from database if path provided
+	// Load software from database if path provided. macOS / Windows / Ubuntu
+	// have embedded fallback fixtures, and RHEL kernels are embedded too — the
+	// DB only adds non-kernel RPM/DEB variety. Treat load failure as a warning
+	// rather than fatal so running from the repo root (where the default
+	// relative path doesn't resolve) still works.
 	if *softwareDatabasePath != "" {
 		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
 		if err != nil {
-			log.Fatalf("Failed to load software database: %v", err)
+			log.Printf("WARNING: failed to load software database (%v); falling back to embedded software data", err)
+		} else {
+			softwareDB = db
 		}
-		softwareDB = db
 	} else {
 		log.Println("No software database specified (--software_db_path). Using embedded software data.")
 	}
