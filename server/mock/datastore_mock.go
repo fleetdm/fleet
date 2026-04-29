@@ -1097,6 +1097,10 @@ type SetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID str
 
 type GetManagedLocalAccountByCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
 
+type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (accountUUID *string, err error)
+
+type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3506,6 +3510,12 @@ type DataStore struct {
 
 	GetManagedLocalAccountByCommandUUIDFunc        GetManagedLocalAccountByCommandUUIDFunc
 	GetManagedLocalAccountByCommandUUIDFuncInvoked bool
+
+	GetManagedLocalAccountUUIDFunc        GetManagedLocalAccountUUIDFunc
+	GetManagedLocalAccountUUIDFuncInvoked bool
+
+	SetManagedLocalAccountUUIDFunc        SetManagedLocalAccountUUIDFunc
+	SetManagedLocalAccountUUIDFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8464,6 +8474,20 @@ func (s *DataStore) GetManagedLocalAccountByCommandUUID(ctx context.Context, com
 	s.GetManagedLocalAccountByCommandUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetManagedLocalAccountByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID string, accountUUID string) error {
+	s.mu.Lock()
+	s.SetManagedLocalAccountUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetManagedLocalAccountUUIDFunc(ctx, hostUUID, accountUUID)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
