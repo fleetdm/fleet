@@ -2,6 +2,8 @@ github.com/fleetdm/fleet/v4/server/fleet/AppConfig	OrgInfo	fleet.OrgInfo
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgName	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURL	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightBackground	string
+github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLDarkMode	string
+github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightMode	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	ContactURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ServerSettings	fleet.ServerSettings
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ServerURL	string

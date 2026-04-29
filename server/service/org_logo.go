@@ -60,7 +60,7 @@ type putOrgLogoResponse struct {
 
 func (r putOrgLogoResponse) Error() error { return r.Err }
 
-func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
 	mode, err := parseLogoModeQuery(r.URL.Query().Get("mode"))
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (inte
 	return putOrgLogoRequest{Mode: mode, Body: body}, nil
 }
 
-func putOrgLogoEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func putOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(putOrgLogoRequest)
 	if err := svc.UploadOrgLogo(ctx, req.Mode, bytes.NewReader(req.Body)); err != nil {
 		return putOrgLogoResponse{Err: err}, nil
@@ -110,7 +110,7 @@ type deleteOrgLogoResponse struct {
 
 func (r deleteOrgLogoResponse) Error() error { return r.Err }
 
-func (deleteOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+func (deleteOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
 	mode, err := parseLogoModeQuery(r.URL.Query().Get("mode"))
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (deleteOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (i
 	return deleteOrgLogoRequest{Mode: mode}, nil
 }
 
-func deleteOrgLogoEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(deleteOrgLogoRequest)
 	if err := svc.DeleteOrgLogo(ctx, req.Mode); err != nil {
 		return deleteOrgLogoResponse{Err: err}, nil
@@ -158,7 +158,7 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	_, _ = w.Write(r.Body)
 }
 
-func (getOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+func (getOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
 	raw := mux.Vars(r)["mode"]
 	if raw == "" {
 		raw = r.URL.Query().Get("mode")
@@ -177,7 +177,7 @@ func (getOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (inte
 	return getOrgLogoRequest{Mode: m}, nil
 }
 
-func getOrgLogoEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(getOrgLogoRequest)
 	body, size, err := svc.GetOrgLogo(ctx, req.Mode)
 	if err != nil {
