@@ -545,7 +545,7 @@ it blank — readers otherwise assume it's a gap:
 `tools/cis/cis-test-runner.py` automates the full test cycle:
 
 ```bash
-# Test everything, skip policies without scripts
+# Test everything, skip manual policies / policies without test artifacts
 python3 tools/cis/cis-test-runner.py \
     --macos-version 14 --all --skip-manual \
     --fleet-url $FLEET_URL --fleet-token $FLEET_API_TOKEN
