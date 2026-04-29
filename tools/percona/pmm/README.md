@@ -40,7 +40,11 @@ docker exec pmm-client pmm-admin add mysql \
 
 ## Usage
 
-Open https://localhost in your browser. Default credentials: `admin` / `admin`.
+Open https://localhost in your browser.
+
+Note: this local PMM setup uses self-signed TLS, so your browser will typically show a certificate warning for `https://localhost`. This is expected for local development.
+
+Default credentials: `admin` / `admin`. These are development defaults only, not production-grade credentials. Change the default admin password in the PMM UI after signing in if you need stronger local access control.
 
 ## Troubleshooting
 
