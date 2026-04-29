@@ -38,11 +38,19 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 type CVEDataset struct{}
 
 func (c *CVEDataset) Name() string                       { return "cve" }
-func (c *CVEDataset) DefaultResolutionHours() int        { return 24 }
+func (c *CVEDataset) DefaultResolutionHours() int        { return 3 }
 func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategySnapshot }
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
-// @todo implement CVE dataset collection.
-func (c *CVEDataset) Collect(_ context.Context, _ api.DatasetStore, _ time.Time) error {
-	return nil
+func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
+	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx)
+	if err != nil {
+		return err
+	}
+	bitmaps := make(map[string][]byte, len(hostIDsByCVE))
+	for cve, hostIDs := range hostIDsByCVE {
+		bitmaps[cve] = HostIDsToBlob(hostIDs)
+	}
+	bucketStart := now.UTC().Truncate(time.Hour)
+	return store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps)
 }

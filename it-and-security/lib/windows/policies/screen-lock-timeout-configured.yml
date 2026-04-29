@@ -1,0 +1,14 @@
+- name: Windows - Interactive logon screen lock timeout configured
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+      AND name = 'InactivityTimeoutSecs'
+      AND CAST(data AS INTEGER) > 0
+      AND CAST(data AS INTEGER) <= 900;
+  critical: false
+  description: |-
+    Verifies the screen lock inactivity timeout is set to 15 minutes or less.
+  resolution: |-
+    Screen lock timeout should be automatically enforced by MDM. If this fails, restart your device and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: windows
