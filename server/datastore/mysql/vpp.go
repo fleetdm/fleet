@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/installapp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-sql-driver/mysql"
@@ -2610,102 +2611,78 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 		return nil
 	}
 
-	const getHostUUIDStmt = `
+	const getHostStmt = `
 SELECT
-	uuid, platform
+	h.uuid,
+	h.platform,
+	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 FROM
-	hosts
+	hosts h
+	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
-	id = ?
+	h.id = ?
 `
-	// get the host uuid, requires for the nano tables
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		Platform string `db:"platform"`
+		UUID                 string `db:"uuid"`
+		Platform             string `db:"platform"`
+		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for VPP install")
 	}
 
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
+	managementFlags := 0
+	if fleet.IsAppleMobilePlatform(hostData.Platform) {
+		// Mobile (iOS/iPadOS): remove app on MDM removal.
+		managementFlags = 1
+	}
+
+	// Pull each (execution_id, adam_id) so we can build per-row XML in Go;
+	// the previous SQL CONCAT can't branch on host enrollment type.
+	const getCmdRowsStmt = `
 SELECT
 	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
+	vaua.adam_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua
 		ON vaua.upcoming_activity_id = ua.id
 WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
+	ua.host_id = ? AND
+	ua.execution_id IN (?)
 `
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>`
-
-	const rawCmdPart2 = `</integer>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
-
-	// Set management flags based on platform
-	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
-	}
-
-	// insert the nano command
-	namedArgs := map[string]any{
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err := sqlx.Named(insCmdStmt, namedArgs)
+	stmt, args, err := sqlx.In(getCmdRowsStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+		return ctxerr.Wrap(ctx, err, "expand IN args for VPP install rows")
 	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+	var cmdRows []struct {
+		ExecutionID string `db:"execution_id"`
+		AdamID      string `db:"adam_id"`
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert nano commands")
+	if err := sqlx.SelectContext(ctx, tx, &cmdRows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select VPP install rows")
+	}
+
+	if len(cmdRows) > 0 {
+		insertSQL := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES `
+		placeholders := make([]string, 0, len(cmdRows))
+		insertArgs := make([]any, 0, len(cmdRows)*4)
+		for _, row := range cmdRows {
+			xml, err := installapp.BuildInstallApplicationXML(installapp.Input{
+				CommandUUID:      row.ExecutionID,
+				ITunesStoreID:    row.AdamID,
+				ManagementFlags:  managementFlags,
+				IsUserEnrollment: hostData.IsPersonalEnrollment,
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build VPP InstallApplication XML")
+			}
+			placeholders = append(placeholders, "(?, 'InstallApplication', ?, ?)")
+			insertArgs = append(insertArgs, row.ExecutionID, xml, mdm.CommandSubtypeNone)
+		}
+		if _, err := tx.ExecContext(ctx, insertSQL+strings.Join(placeholders, ", "), insertArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert nano commands")
+		}
 	}
 
 	const insNanoQueueStmt = `

@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/installapp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
 )
@@ -1305,65 +1306,18 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
+	const getHostStmt = `
 SELECT
-	uuid, team_id, platform
+	h.uuid,
+	h.team_id,
+	h.platform,
+	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 FROM
-	hosts
+	hosts h
+	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
-	id = ?
+	h.id = ?
 `
-
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, :manifest_url, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN in_house_app_upcoming_activities ihua
-		ON ihua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>ManifestURL</key>
-        <string>`
-
-	const rawCmdPart2 = `</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
 
 	const insNanoQueueStmt = `
 INSERT INTO
@@ -1387,23 +1341,20 @@ ORDER BY
 		return nil
 	}
 
-	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		TeamID   *uint  `db:"team_id"`
-		Platform string `db:"platform"`
+		UUID                 string `db:"uuid"`
+		TeamID               *uint  `db:"team_id"`
+		Platform             string `db:"platform"`
+		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
 	}
 
-	// Set management flags based on platform
+	managementFlags := 0
 	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+		// Mobile (iOS/iPadOS): remove app on MDM removal.
+		managementFlags = 1
 	}
 
 	// insert the host in-house app row
@@ -1450,25 +1401,24 @@ WHERE
 
 	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
-	// insert the nano command
-	namedArgs := map[string]any{
-		"manifest_url":  manifestURL,
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
+	// Build per-row XML in Go so we can branch on host enrollment type.
+	insertSQL := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES `
+	placeholders := make([]string, 0, len(execIDs))
+	insertArgs := make([]any, 0, len(execIDs)*4)
+	for _, execID := range execIDs {
+		xml, err := installapp.BuildInstallApplicationXML(installapp.Input{
+			CommandUUID:      execID,
+			ManifestURL:      manifestURL,
+			ManagementFlags:  managementFlags,
+			IsUserEnrollment: hostData.IsPersonalEnrollment,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build in-house InstallApplication XML")
+		}
+		placeholders = append(placeholders, "(?, 'InstallApplication', ?, ?)")
+		insertArgs = append(insertArgs, execID, xml, mdm.CommandSubtypeNone)
 	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
-	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, insertSQL+strings.Join(placeholders, ", "), insertArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
 	}
 
