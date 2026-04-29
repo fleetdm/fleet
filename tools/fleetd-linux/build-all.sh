@@ -29,4 +29,3 @@ echo "Building docker images..."
 docker build -t fleetd-ubuntu-24.04 --platform=linux/amd64 -f ./ubuntu-24.04/Dockerfile .
 docker build -t fleetd-fedora-43 --platform=linux/amd64 -f ./fedora-43/Dockerfile .
 docker build -t fleetd-debian-13.4 --platform=linux/amd64 -f ./debian-13.4/Dockerfile .
-docker build -t fleetd-amazonlinux-2023 --platform=linux/amd64 -f ./amazonlinux-2023/Dockerfile .
