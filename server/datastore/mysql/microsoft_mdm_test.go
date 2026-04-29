@@ -5213,6 +5213,17 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 			`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
 	})
 	require.Equal(t, 1, queueCount)
+
+	// Both hosts get profile rows upserted — d2's profile row is
+	// intentionally kept. It's harmless dead data: the EXISTS check in
+	// windowsProfilesToRemoveQuery prevents it from being selected for
+	// removal on the next cron cycle.
+	var profileCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileCount,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE command_uuid = ?`, cmdUUID)
+	})
+	require.Equal(t, 2, profileCount)
 }
 
 // testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every

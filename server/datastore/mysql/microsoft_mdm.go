@@ -407,16 +407,16 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 			resetBatch()
 		}
 
-		batchCount++
-		queueHostUUIDs = append(queueHostUUIDs, hostUUID)
-
 		// Host profile entry.
 		p := payloadByHostUUID[hostUUID]
 
 		if p == nil {
-			ds.logger.WarnContext(ctx, "windows MDM profile command enqueued without corresponding host profile", "host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
+			ds.logger.WarnContext(ctx, "skipping host with no corresponding profile payload", "host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
 			continue
 		}
+
+		batchCount++
+		queueHostUUIDs = append(queueHostUUIDs, hostUUID)
 		profileSB.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 		profileArgs = append(profileArgs, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
 
