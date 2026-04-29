@@ -1490,7 +1490,31 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			}
 		}
 
-		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		req := &vpp.AssociateAssetsRequest{Assets: assets}
+		// User-enrolled (BYOD) iOS/iPadOS hosts use Apple's user-scoped VPP
+		// licensing — Associate must address the Managed Apple ID (via Fleet's
+		// generated clientUserId), not the device serial. Falling back to
+		// SerialNumbers here is the silent-failure mode that this story fixes:
+		// Apple accepts the request but the install never lands on the device.
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
+		}
+		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
+			tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
+			}
+			clientUserID, err := svc.ensureVPPClientUser(ctx, host, tokenDB)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
+			}
+			req.ClientUserIds = []string{clientUserID}
+		} else {
+			req.SerialNumbers = []string{host.HardwareSerial}
+		}
+
+		eventID, err = vpp.AssociateAssets(token, req)
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
