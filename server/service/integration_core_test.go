@@ -612,11 +612,6 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 		LabelsIncludeAny: []string{"some-label"},
 	}, http.StatusPaymentRequired, &modifyResp)
 
-	// PATCH with an explicit empty labels_include_any (clearing labels) must also require premium
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
-		LabelsIncludeAny: []string{},
-	}, http.StatusPaymentRequired, &modifyResp)
-
 	// POST /api/latest/fleet/spec/queries with labels_include_any should fail with 402 on free tier
 	var applyResp fleet.ApplyQuerySpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
@@ -624,12 +619,6 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 			{Name: "test-labels-spec-query", Query: "SELECT 1", LabelsIncludeAny: []string{"some-label"}},
 		},
 	}, http.StatusPaymentRequired, &applyResp)
-
-	// POST /api/latest/fleet/spec/queries with an explicit empty labels_include_any must also require premium.
-	// We send raw JSON because QuerySpec.LabelsIncludeAny has omitempty, so a Go []string{} would be
-	// stripped during marshaling and never reach the server as a non-nil empty slice.
-	rawBody := []byte(`{"specs":[{"name":"test-labels-spec-query-empty","query":"SELECT 1","labels_include_any":[]}]}`)
-	s.DoRaw("POST", "/api/latest/fleet/spec/queries", rawBody, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {

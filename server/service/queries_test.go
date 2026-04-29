@@ -234,7 +234,7 @@ func TestModifyQueryEmptyLabelSlicesNotPremium(t *testing.T) {
 		LabelsIncludeAny: []string{},
 		LabelsIncludeAll: []string{},
 	})
-	require.NotErrorIs(t, err, fleet.ErrMissingLicense)
+	require.NoError(t, err)
 }
 
 func TestApplyQuerySpecsLabelsIncludeAnyRequiresPremium(t *testing.T) {
@@ -289,7 +289,7 @@ func TestApplyQuerySpecsEmptyLabelsNotPremium(t *testing.T) {
 			LabelsIncludeAny: []string{}, // explicit empty slice, not nil
 		},
 	})
-	require.NotErrorIs(t, err, fleet.ErrMissingLicense)
+	require.NoError(t, err)
 }
 
 // similar for modify

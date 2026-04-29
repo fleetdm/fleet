@@ -29397,21 +29397,25 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	require.Empty(t, createResp.Policy.LabelsExcludeAny)
 	require.Len(t, createResp.Policy.LabelsIncludeAll, 2)
 
-	// 2. Mutex rejection on POST: include_all + include_any.
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	// 2. Mutex rejection on POST: include_all + include_any. Assert on the
+	// specific validation error so a generic 400 (e.g., name required) cannot
+	// silently satisfy the test.
+	rej1Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
 		Name:             "rej1-" + t.Name(),
 		Query:            "SELECT 1",
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
-	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
 
 	// Mutex rejection on POST: include_all + exclude_any.
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+	rej2Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
 		Name:             "rej2-" + t.Name(),
 		Query:            "SELECT 1",
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsExcludeAny: []string{lblB.Name},
-	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rej2Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
 
 	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
 	switchAny := []string{lblA.Name}
@@ -29488,14 +29492,16 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	require.Len(t, createResp.Query.LabelsIncludeAll, 2)
 	require.Empty(t, createResp.Query.LabelsIncludeAny)
 
-	// Mutex rejection on create.
-	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+	// Mutex rejection on create. Assert on the specific validation error so a
+	// generic 400 (e.g., name required) cannot silently satisfy the test.
+	rejCreateResp := s.Do("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
 		Name:             ptr.String("q-rej-" + t.Name()),
 		Query:            ptr.String("SELECT 1"),
 		Logging:          ptr.String(fleet.LoggingSnapshot),
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
-	}, http.StatusBadRequest, &fleet.CreateQueryResponse{})
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejCreateResp.Body), fleet.ErrQueryConflictingLabels.Error())
 
 	// PATCH: switch from include_all to include_any (clears include_all).
 	includeAny := []string{lblA.Name}
@@ -29506,11 +29512,12 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	require.Empty(t, modifyResp.Query.LabelsIncludeAll)
 	require.Len(t, modifyResp.Query.LabelsIncludeAny, 1)
 
-	// PATCH mutex rejection.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+	// PATCH mutex rejection. Assert on the specific validation error.
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
 		LabelsIncludeAny: []string{lblA.Name},
 		LabelsIncludeAll: []string{lblB.Name},
-	}, http.StatusBadRequest, &fleet.ModifyQueryResponse{})
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrQueryConflictingLabels.Error())
 
 	// Switch back to include_all so the end-to-end test below uses it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
