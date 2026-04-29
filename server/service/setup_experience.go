@@ -113,9 +113,9 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:  content,
-			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
+		return fleet.DownloadFileResponse{
+			Content:  content,
+			Filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 

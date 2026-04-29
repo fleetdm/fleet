@@ -41,10 +41,25 @@ func TestMakeVersionShortener(t *testing.T) {
 func TestMakeVersionShortenerKeep3(t *testing.T) {
 	shortener := makeVersionShortener(3)
 
-	app := &maintained_apps.FMAManifestApp{Version: "25.11.1.42", Slug: "citrix-workspace"}
-	result, err := shortener(app)
-	require.NoError(t, err)
-	assert.Equal(t, "25.11.1", result.Version)
+	tcs := []struct {
+		name     string
+		version  string
+		slug     string
+		expected string
+	}{
+		{name: "citrix workspace", version: "25.11.1.42", slug: "citrix-workspace", expected: "25.11.1"},
+		{name: "grammarly desktop", version: "1.160.0.0", slug: "grammarly-desktop", expected: "1.160.0"},
+		{name: "anka virtualization", version: "3.8.6.212", slug: "anka-virtualization", expected: "3.8.6"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: tc.slug}
+			result, err := shortener(app)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
 }
 
 func TestSublimeVersionTransformer(t *testing.T) {

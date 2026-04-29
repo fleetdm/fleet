@@ -72,6 +72,9 @@ export default {
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
+  // Chart endpoints
+  CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
+
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
@@ -181,7 +184,8 @@ export default {
 
     return `/api/mdm/apple/enroll?${query}`;
   },
-  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic`,
+  MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic/default`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
@@ -197,6 +201,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
@@ -218,6 +224,7 @@ export default {
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
+  REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {
@@ -287,6 +294,7 @@ export default {
   },
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
+  USERS_API_ONLY: `/${API_VERSION}/fleet/users/api_only`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
   // Vulnerabilities endpoints

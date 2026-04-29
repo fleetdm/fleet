@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -209,6 +210,17 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		if err != nil {
 			svc.logger.DebugContext(ctx, "Error re-enrolling Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
+		}
+		// Re-fetch the host so the subsequent updateHost/updateHostSoftware calls have a
+		// non-nil host. Force primary: enrollHost just INSERTed the host on the writer,
+		// and the default reader can be on a replica that hasn't caught up yet.
+		host, err = svc.getExistingHost(ctxdb.RequirePrimary(ctx, true), &device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting re-enrolled Android host")
+		}
+		if host == nil {
+			return ctxerr.Errorf(ctx, "re-enrolled Android host not found: enterpriseSpecificId=%s",
+				device.HardwareInfo.EnterpriseSpecificId)
 		}
 	}
 	err = svc.updateHost(ctx, &device, host, false)
@@ -458,6 +470,14 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if fromEnroll {
+		// Delete any existing certificate template records for this host. The device has
+		// lost all certificates on re-enrollment (work profile removed and re-installed, or
+		// unenrolled/re-enrolled). This also clears stale rows from a previous team if the
+		// host is re-enrolling into a different team via a new enroll secret.
+		if err := svc.fleetDS.DeleteAllHostCertificateTemplates(ctx, host.Host.UUID); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to delete existing certificate templates for re-enrolled host", "host_uuid", host.Host.UUID, "err", err)
+			return ctxerr.Wrap(ctx, err, "deleting existing certificate templates for re-enrolled host")
+		}
 		// Create pending certificate templates for this re-enrolled host.
 		// Use teamID = 0 for hosts with no team (certificate_templates uses team_id = 0 for "no team").
 		teamID := uint(0)

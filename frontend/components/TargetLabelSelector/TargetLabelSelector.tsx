@@ -122,6 +122,7 @@ const LabelChooser = ({
     return <DataError />;
   }
 
+  // Not using <EmptyState/> here as we want to include short string only
   if (!labels.length) {
     return (
       <div className={`${baseClass}__no-labels`}>

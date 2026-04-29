@@ -36,6 +36,8 @@ var (
 	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
 	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
 	RoyalTSXVersionShortener            = makeVersionShortener(3) // "6.4.2.1000" → "6.4.2"
+	GrammarlyDesktopVersionShortener    = makeVersionShortener(3) // "1.160.0.0" → "1.160.0"
+	AnkaVersionShortener                = makeVersionShortener(3) // "3.8.6.212" → "3.8.6"
 )
 
 // SublimeVersionTransformer prepends "Build " to match what macOS reports as

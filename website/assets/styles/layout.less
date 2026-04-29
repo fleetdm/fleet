@@ -280,39 +280,12 @@ html, body {
   }
 
   [purpose='glass-header-btn'] {
-    color: #FFFFFF;
+    .cta-button();
     height: 36px;
-    position: relative;
     font-size: 14px;
-    font-weight: 700;
     line-height: 1;
     padding: 16px 12px;
     border-radius: 8px;
-    background-color: @core-vibrant-green;
-    text-decoration: none;
-    white-space: nowrap;
-    overflow: hidden;
-    &:hover {
-      color: #FFF;
-    }
-  }
-
-  [purpose='glass-header-btn']::before {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-    opacity: 1;
-    content: ' ';
-    position: absolute;
-    top: 0;
-    left: -5px;
-    width: 60%;
-    height: 100%;
-    transform: skew(-10deg);
-    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-  }
-  [purpose='glass-header-btn']:hover:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
   }
 
   [purpose='layout-animated-arrow-button'] {
@@ -794,6 +767,15 @@ html, body {
     font-weight: 600;
     margin-right: 30px;
   }
+}
+
+[purpose='hp-input'] {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  height: 0;
+  width: 0;
+  overflow: hidden;
 }
 
 // Footer styles

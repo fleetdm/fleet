@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -203,7 +205,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -272,12 +274,35 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableManagedLocalAccount != nil {
+		if !ac.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
+			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
+			didUpdateManagedLocalAccount = true
+			didUpdate = true
+		}
+	}
+
+	if payload.EndUserLocalAccountType != nil {
+		if *payload.EndUserLocalAccountType != "admin" {
+			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+		}
+		if !ac.MDM.MacOSSetup.EndUserLocalAccountType.Valid || ac.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
+			ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
 		if didUpdateMacOSEndUserAuth {
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
+				return err
+			}
+		}
+		if didUpdateManagedLocalAccount {
+			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
 				return err
 			}
 		}
@@ -302,6 +327,19 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
+func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	var act fleet.ActivityDetails
+	if enable {
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	} else {
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+	}
+	return nil
+}
+
 func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
@@ -312,7 +350,8 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	}
 
 	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
-	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil) && !ac.MDM.EnabledAndConfigured {
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
+		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
@@ -705,6 +744,55 @@ func (svc *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint)
 		return nil, err
 	}
 	return svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+}
+
+func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (godep.Profile, *time.Time, error) {
+	user := authz.UserFromContext(ctx)
+	if user != nil && user.HasAnyTeamRole() {
+		// Check each team role permission, since if the user has just one team level permission, they can use this endpoint
+		var authorized bool
+		var authErr error
+		for _, tm := range user.Teams {
+			err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: &tm.ID}, fleet.ActionRead)
+			if err == nil {
+				// Early skip, since we only need one team with permission
+				authorized = true
+				break
+			}
+
+			authErr = err
+		}
+
+		if !authorized {
+			return godep.Profile{}, nil, authErr
+		}
+	} else {
+		// Check the global role permissions
+		if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{}, fleet.ActionRead); err != nil {
+			return godep.Profile{}, nil, err
+		}
+	}
+
+	profile, err := svc.ds.GetMDMAppleEnrollmentProfileByType(ctx, fleet.MDMAppleEnrollmentTypeAutomatic)
+	if err != nil && !fleet.IsNotFound(err) {
+		return godep.Profile{}, nil, ctxerr.Wrap(ctx, err, "get default setup assistant enrollment profile")
+	}
+
+	if fleet.IsNotFound(err) {
+		// This can never be null
+		return *svc.depService.GetDefaultProfile(), nil, nil
+	}
+
+	if profile == nil || profile.DEPProfile == nil {
+		return godep.Profile{}, nil, ctxerr.New(ctx, "default setup assistant enrollment profile is nil")
+	}
+
+	var godepProfile godep.Profile
+	if err := json.Unmarshal(*profile.DEPProfile, &godepProfile); err != nil {
+		return godep.Profile{}, nil, ctxerr.Wrap(ctx, err, "unmarshal default setup assistant enrollment profile")
+	}
+
+	return godepProfile, &profile.UpdatedAt, nil
 }
 
 func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
@@ -1338,7 +1426,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d)
+	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
 	if err != nil {
 		return err
 	}

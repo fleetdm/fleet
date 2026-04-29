@@ -1174,6 +1174,10 @@ func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware 
 func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuringSetupKeys map[fleet.MacOSSetupSoftware]struct{}) ([]fleet.SoftwareInstallerPayload, error) {
 	softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(specs))
 	for i, si := range specs {
+		if si.AlwaysDownload && si.SHA256 != "" {
+			return nil, errors.New("Couldn't edit software. The 'always_download' option cannot be used with 'hash_sha256'.")
+		}
+
 		var qc string
 		var err error
 
@@ -1304,6 +1308,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			DisplayName:        si.DisplayName,
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
+			AlwaysDownload:     si.AlwaysDownload,
 		}
 
 		if si.Slug != nil {
@@ -1898,24 +1903,26 @@ func (c *Client) DoGitOps(
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
 	// Check GitOps exception enforcement. When an entity type is excepted:
-	// - If the key is present in the YAML, fail with an error.
+	// - If the key is present in the YAML, fail with an error (premium tier only)
 	// - If the key is absent, it's a no-op (existing entities preserved).
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
-		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, errors.New(
-				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, errors.New(
-				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-			return nil, errors.New(
-				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+		if appConfig.License.IsPremium() {
+			if exceptions.Labels && incoming.LabelsPresent {
+				return nil, errors.New(
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Secrets && incoming.SecretsPresent {
+				return nil, errors.New(
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+				return nil, errors.New(
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
 		}
 	}
 
@@ -1933,7 +1940,7 @@ func (c *Client) DoGitOps(
 		if !exceptions.Secrets && !incoming.SecretsPresent {
 			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
 		}
 		delete(incoming.OrgSettings, "secrets")
@@ -2177,7 +2184,7 @@ func (c *Client) DoGitOps(
 			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			team["secrets"] = teamSecrets
 		}
 

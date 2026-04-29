@@ -16,7 +16,7 @@ export default {
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
-  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
+  CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
   CONTROLS_SETUP_ASSISTANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
@@ -45,6 +45,10 @@ export default {
 
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_USERS_NEW_HUMAN: `${URL_PREFIX}/settings/users/new/human`,
+  ADMIN_USERS_NEW_API: `${URL_PREFIX}/settings/users/new/api`,
+  ADMIN_USERS_EDIT: (userId: number) =>
+    `${URL_PREFIX}/settings/users/${userId}/edit`,
 
   // Integrations pages
 

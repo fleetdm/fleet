@@ -18,7 +18,7 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -192,7 +192,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         currentPage === 0 &&
         !scripts?.length &&
         (isTechnician ? (
-          <Card className="empty-scripts">No scripts uploaded.</Card>
+          <EmptyState variant="header-list" header="No scripts uploaded" />
         ) : (
           <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
         ))}

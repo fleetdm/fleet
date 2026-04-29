@@ -142,6 +142,9 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil
 			}
@@ -190,6 +193,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
@@ -442,6 +448,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 				return []uint{}, nil

@@ -19,7 +19,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
@@ -158,7 +158,7 @@ const HostSoftwareLibraryTable = ({
 
   if (isAndroid(platform)) {
     return (
-      <EmptyTable
+      <EmptyState
         header="Installers are not supported for this host"
         info={
           <>

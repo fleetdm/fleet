@@ -8,6 +8,7 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import mdmAPI, {
   IAppleSetupEnrollmentProfileResponse,
+  IDefaultAppleSetupEnrollmentProfileResponse,
 } from "services/entities/mdm";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import PATHS from "router/paths";
@@ -15,7 +16,8 @@ import PATHS from "router/paths";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
 import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
@@ -65,6 +67,20 @@ const SetupAssistant = ({
       retry: false,
     }
   );
+  const enrollmentProfileNotFound = enrollmentProfileError?.status === 404;
+
+  const {
+    data: defaultEnrollmentProfileData,
+    isLoading: isLoadingDefaultEnrollmentProfile,
+  } = useQuery<IDefaultAppleSetupEnrollmentProfileResponse, AxiosError>(
+    ["default_enrollment_profile", currentTeamId],
+    () => mdmAPI.getDefaultSetupEnrollmentProfile(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+      enabled: enrollmentProfileNotFound, // only fetch the default profile if there is no team enrollment profile
+    }
+  );
 
   const getReleaseDeviceSetting = () => {
     if (currentTeamId === API_NO_TEAM_ID) {
@@ -91,21 +107,38 @@ const SetupAssistant = ({
   const defaultReleaseDeviceSetting = getReleaseDeviceSetting();
 
   const isLoading =
-    isLoadingGlobalConfig || isLoadingTeamConfig || isLoadingEnrollmentProfile;
-  const enrollmentProfileNotFound = enrollmentProfileError?.status === 404;
+    isLoadingGlobalConfig ||
+    isLoadingTeamConfig ||
+    isLoadingEnrollmentProfile ||
+    isLoadingDefaultEnrollmentProfile;
 
   const renderSetupAssistantView = () => {
     return (
       <SetupExperienceContentContainer>
         <div className={`${baseClass}__upload-container`}>
           <p className={`${baseClass}__section-description`}>
-            Add an automatic enrollment profile to customize Setup Assistant.
+            Add an automatic enrollment profile to customize Setup Assistant.{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/enrollment-profiles"
+              text="Learn more"
+              newTab
+            />
           </p>
           {enrollmentProfileNotFound || !enrollmentProfileData ? (
-            <SetupAssistantProfileUploader
-              currentTeamId={currentTeamId}
-              onUpload={onUpload}
-            />
+            <>
+              {defaultEnrollmentProfileData && (
+                <SetupAssistantProfileCard
+                  profile={
+                    defaultEnrollmentProfileData as IAppleSetupEnrollmentProfileResponse
+                  }
+                  defaultProfile
+                />
+              )}
+              <SetupAssistantProfileUploader
+                currentTeamId={currentTeamId}
+                onUpload={onUpload}
+              />
+            </>
           ) : (
             <SetupAssistantProfileCard
               profile={enrollmentProfileData}
@@ -133,12 +166,15 @@ const SetupAssistant = ({
       )
     ) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Additional configuration required"
           info="To customize, first turn on automatic enrollment."
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }

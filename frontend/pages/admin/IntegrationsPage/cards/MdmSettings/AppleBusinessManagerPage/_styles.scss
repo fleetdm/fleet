@@ -18,25 +18,6 @@
     }
   }
 
-  &__add-adm-message {
-    margin: 0 auto;
-    text-align: center;
-    width: 450px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    > h2 {
-      margin-bottom: $pad-small;
-      font-size: $small;
-    }
-
-    > p {
-      margin: 0 0 $pad-medium;
-    }
-  }
-
   &__url-inputs-wrapper {
     display: flex;
     flex-direction: column;

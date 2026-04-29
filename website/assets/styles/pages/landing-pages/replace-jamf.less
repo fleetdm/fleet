@@ -110,37 +110,13 @@
       white-space: nowrap;
     }
     [purpose='cta-button'] {
-      cursor: pointer;
-      background: @core-vibrant-green;
+      .cta-button();
       border-radius: 8px;
       padding: 8px 16px;
       height: 36px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #FFF;
-      position: relative;
-      text-decoration: none;
-      overflow: hidden;
       min-width: 140px;
     }
-    [purpose='cta-button']::before {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-      opacity: 1;
-      content: ' ';
-      position: absolute;
-      top: 0;
-      left: -5px;
-      width: 70%;
-      height: 100%;
-      transform: skew(-10deg);
-      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-    }
-    [purpose='cta-button']:hover:before {
-      opacity: 0;
-      left: 160px;
-      width: 110%;
-    }
+
     [purpose='video-button'] {
       display: flex;
       flex-direction: row;
@@ -519,9 +495,8 @@
 
 
   [purpose='three-column-features'] {
-    display: flex;
-    flex-direction: row;
-    gap: 64px;
+    .three-column-features();
+    max-width: unset;
     [purpose='feature'] {
       text-align: center;
       display: flex;
@@ -847,9 +822,6 @@
     [purpose='banner-container'] {
       padding: 48px;
     }
-    [purpose='three-column-features'] {
-      gap: 48px;
-    }
     [purpose='feature-list-with-image'] {
       flex-direction: column;
       gap: @inner-gap-l;
@@ -928,10 +900,6 @@
       flex-direction: column;
       align-items: flex-start;
       flex: 1 0 0;
-    }
-    [purpose='three-column-features'] {
-      flex-direction: column;
-      gap: @inner-gap-m;
     }
     [purpose='testimonial-cards'] {
       display: flex;

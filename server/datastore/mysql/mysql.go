@@ -36,7 +36,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 const (
@@ -85,6 +85,16 @@ type Datastore struct {
 	testUpsertMDMDesiredProfilesBatchSize int
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
+
+	// testWindowsEagerHook, when non-nil, is called by
+	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
+	// commits. It returns whether any host_mdm_windows_profiles rows
+	// changed; that bool is surfaced as updates.WindowsConfigProfile,
+	// matching Apple's semantics (idempotent second calls return false).
+	//
+	// Production binaries never set this. Tests opt in by calling
+	// Datastore.EnableTestWindowsEagerHook.
+	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next

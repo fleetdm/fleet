@@ -452,7 +452,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -696,27 +696,81 @@ ORDER BY
 	return labels, nil
 }
 
+func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		switch platform {
+		case "darwin", "ios", "ipados":
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
+			}
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_declarations`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
+			}
+		case "windows":
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
+			}
+		default:
+			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM profile cleanup", platform)
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) (updates fleet.MDMProfilesUpdates, err error) {
+	// Apple profiles, Apple declarations, and Android profiles reconcile
+	// eagerly inside one transaction here. Windows profile reconciliation is
+	// intentionally NOT performed synchronously in production: the
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// (see ReconcileWindowsProfiles) so large populations converge across
+	// multiple 30s ticks. Doing it synchronously on top of large team
+	// transfers ties up the writer for minutes and starves ambient
+	// MDM/osquery checkins of row locks on host_mdm_windows_profiles.
+	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		updates, err = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
-		return err
+		var innerErr error
+		updates, winHosts, innerErr = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+		return innerErr
 	})
-	return updates, err
+	if err != nil {
+		return updates, err
+	}
+
+	// updates.WindowsConfigProfile drives the "edited Windows profile"
+	// audit-log entry written by service/mdm.go's BatchSetMDMProfiles.
+	// We leave it false in production; BatchSetMDMProfiles ORs it with
+	// its own profUpdates.WindowsConfigProfile from
+	// batchSetMDMWindowsProfilesDB, which is the transactional source of
+	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
+	// get Apple-parity synchronous reconciliation here.
+	if ds.testWindowsEagerHook != nil {
+		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
+		if err != nil {
+			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
+		}
+	}
+	return updates, nil
 }
 
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
+//
+// This runs Apple profile, Apple declaration, and Android profile
+// reconciliation inside the caller-provided transaction. Windows profile
+// reconciliation is NOT performed here; the resolved Windows host UUIDs are
+// returned so the caller can optionally reconcile them (only the test path
+// does so; production relies on the mdm_windows_profile_manager cron).
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
-) (updates fleet.MDMProfilesUpdates, err error) {
+) (updates fleet.MDMProfilesUpdates, winHosts []string, err error) {
 	var (
 		countArgs        int
 		macProfUUIDs     []string
@@ -754,10 +808,10 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		countArgs++
 	}
 	if countArgs > 1 {
-		return updates, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
+		return updates, nil, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
-		return updates, nil
+		return updates, nil, nil
 	}
 
 	var countProfUUIDs int
@@ -774,7 +828,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		countProfUUIDs++
 	}
 	if countProfUUIDs > 1 {
-		return updates, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
+		return updates, nil, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
 	}
 
 	var (
@@ -867,22 +921,28 @@ OR
 	if len(hosts) == 0 && !hasAppleDecls {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			return updates, nil, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			return updates, nil, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 		}
 	}
 
 	var appleHosts []string
-	var winHosts []string
 	var androidHosts []string
+	// winHosts is consumed by the test-only eager hook in
+	// BulkSetPendingMDMHostProfiles. In production the hook is nil, so
+	// skip the per-host slice work for Windows hosts; the cron will
+	// reconcile them on its next tick.
+	collectWinHosts := ds.testWindowsEagerHook != nil
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
-			winHosts = append(winHosts, h.UUID)
+			if collectWinHosts {
+				winHosts = append(winHosts, h.UUID)
+			}
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
@@ -895,17 +955,12 @@ OR
 
 	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
-	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts, profileUUIDs)
-	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
 	}
 
 	const defaultBatchSize = 1000
@@ -924,10 +979,10 @@ OR
 	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
 	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
 
-	return updates, nil
+	return updates, winHosts, nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
@@ -2021,18 +2076,21 @@ func batchSetProfileVariableAssociationsDB(
 	tx sqlx.ExtContext,
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	platform string,
+	forAppleDeclarations bool,
 ) (didUpdate bool, err error) {
 	if len(profileVariablesByUUID) == 0 {
 		return false, nil
 	}
 
-	var platformPrefix string
-	switch platform {
-	case "darwin":
-		platformPrefix = "apple"
-	case "windows":
-		platformPrefix = "windows"
-	case "android":
+	var columnName string
+	switch {
+	case platform == "darwin" && forAppleDeclarations:
+		columnName = "apple_declaration_uuid"
+	case platform == "darwin":
+		columnName = "apple_profile_uuid"
+	case platform == "windows":
+		columnName = "windows_profile_uuid"
+	case platform == "android":
 		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
@@ -2050,7 +2108,7 @@ func batchSetProfileVariableAssociationsDB(
 	}
 
 	// delete variables associated with those profiles
-	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
+	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s IN (?)`, columnName)
 	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
@@ -2117,13 +2175,13 @@ func batchSetProfileVariableAssociationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`
 			INSERT INTO mdm_configuration_profile_variables (
-				%s_profile_uuid,
+				%s,
 				fleet_variable_id
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
 				fleet_variable_id = VALUES(fleet_variable_id)
-		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+		`, columnName, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
@@ -2574,12 +2632,23 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile label associations", platform))
 	}
 
-	// save fleet variables associated with Windows profiles (both new and updated)
+	// save fleet variables associated with profiles (both new and updated)
 	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
 	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
+	var varPrefix string
+	switch platform {
+	case "darwin":
+		varPrefix = fleet.MDMAppleProfileUUIDPrefix
+	case "windows":
+		varPrefix = fleet.MDMWindowsProfileUUIDPrefix
+	case "android":
+		varPrefix = fleet.MDMAndroidProfileUUIDPrefix
+	}
 	profileVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 	for _, pv := range profilesVariablesByIdentifier {
-		profileVariablesByName[pv.Identifier] = pv.FleetVariables
+		if name, ok := strings.CutPrefix(pv.Identifier, varPrefix); ok {
+			profileVariablesByName[name] = pv.FleetVariables
+		}
 	}
 
 	// collect ALL profile UUIDs, including those without variables (to clear stale associations)
@@ -2595,7 +2664,7 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 
 	if len(profilesVarsToUpsert) > 0 {
 		var didUpdateVariableAssociations bool
-		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform); err != nil {
+		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform, false); err != nil {
 			return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile variable associations", platform))
 		}
 

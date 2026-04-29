@@ -27,7 +27,7 @@ Secure onboarding starts before the device reaches the employee. The goal is zer
 
 ### Apple devices: Automated Device Enrollment
 
-Apple Business Manager (ABM) links device serial numbers to an organization's MDM server. When a new Mac powers on, it contacts Apple's activation servers, identifies the assigned MDM, and enrolls automatically during Setup Assistant. Devices enrolled through Automated Device Enrollment (ADE) can be configured as supervised, which prevents users from removing the MDM profile and enables additional management capabilities. Once enrolled, configuration profiles, encryption settings, and applications can deploy automatically.
+Apple Business (AB) links device serial numbers to an organization's MDM server. When a new Mac powers on, it contacts Apple's activation servers, identifies the assigned MDM, and enrolls automatically during Setup Assistant. Devices enrolled through Automated Device Enrollment (ADE) can be configured as supervised, which prevents users from removing the MDM profile and enables additional management capabilities. Once enrolled, configuration profiles, encryption settings, and applications can deploy automatically.
 
 A few details that often trip teams up: Apple Push Notification service (APNs) certificates need renewal before they expire or enrolled devices may stop receiving new commands, Setup Assistant flows should be tested on the same macOS version being shipped, and splitting profiles by function (security restrictions separate from VPN settings) reduces change risk.
 
@@ -105,7 +105,7 @@ In practice, teams get fewer surprises when access removal is separated from dev
 
 * **Revoke identity access first:** Disable the user in your identity provider and enforce conditional access so the laptop can't reach corporate resources even if it stays online.  
 * **Handle legal hold before wiping:** Decide whether data needs to be preserved for legal hold or investigation. A full wipe is final, so the wipe step should align with your HR and legal processes.  
-* **Reset for reassignment:** Prepare the laptop for reassignment. For Macs, this may involve a manual wipe-and-reenroll cycle, or the device can be reassigned through Apple Business Manager.
+* **Reset for reassignment:** Prepare the laptop for reassignment. For Macs, this may involve a manual wipe-and-reenroll cycle, or the device can be reassigned through Apple Business.
 
 If device management integrates with the identity provider, offboarding becomes less dependent on someone remembering a checklist. For example, disabling a user account in Microsoft Entra ID or Okta can trigger conditional access policies that block the device from corporate resources.
 

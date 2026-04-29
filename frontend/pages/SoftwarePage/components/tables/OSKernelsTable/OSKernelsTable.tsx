@@ -13,7 +13,7 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import generateTableConfig from "./OSKernelsTableConfig";
@@ -22,7 +22,7 @@ const baseClass = "os-kernels-table";
 
 const NoKernelsDetected = (): JSX.Element => {
   return (
-    <EmptyTable
+    <EmptyState
       header="No kernels detected"
       info={
         <>

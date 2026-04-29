@@ -333,6 +333,226 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	assertBodyContains(t, resp, `fleet with id 9999 does not exist`)
 }
 
+func (s *integrationTestSuite) TestCreateUserAPIEndpointsRejected() {
+	t := s.T()
+
+	// api_endpoints cannot be specified directly on this endpoint.
+	var resp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:         ptr.String("user1"),
+		Email:        ptr.String("apireject@example.com"),
+		Password:     &test.GoodPassword,
+		GlobalRole:   ptr.String(fleet.RoleObserver),
+		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
+	}, http.StatusUnprocessableEntity, &resp)
+
+	var apiOnlyResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("api-only-legacy"),
+		Email:      ptr.String("api-only-legacy@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		APIOnly:    new(true),
+	}, http.StatusOK, &apiOnlyResp)
+	require.True(t, apiOnlyResp.User.APIOnly)
+	require.Empty(t, apiOnlyResp.User.APIEndpoints) // nil/empty = full access
+}
+
+func (s *integrationTestSuite) TestModifyUserAPIOnlyRejected() {
+	t := s.T()
+
+	// Create a regular user to use as target.
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("regular-api-protect"),
+		Email:      ptr.String("regular-api-protect@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	regularID := createResp.User.ID
+
+	// Create an API-only user to use as target.
+	var createAPIResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "api-only-protect",
+		"global_role": "observer",
+	}, http.StatusOK, &createAPIResp)
+	require.NotZero(t, createAPIResp.User.ID)
+	apiOnlyID := createAPIResp.User.ID
+
+	cases := []struct {
+		name   string
+		userID uint
+		body   fleet.UserPayload
+	}{
+		{"regular user api_only false", regularID, fleet.UserPayload{APIOnly: new(false)}},
+		{"regular user api_only true", regularID, fleet.UserPayload{APIOnly: new(true)}},
+		{"api-only user api_only false", apiOnlyID, fleet.UserPayload{APIOnly: new(false)}},
+		{"api-only user api_only true", apiOnlyID, fleet.UserPayload{APIOnly: new(true)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var modResp modifyUserResponse
+			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", tc.userID), tc.body, http.StatusUnprocessableEntity, &modResp)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestCreateAPIOnlyUser() {
+	t := s.T()
+
+	type createAPIOnlyUserResponse struct {
+		User struct {
+			ID         uint    `json:"id"`
+			Name       string  `json:"name"`
+			Email      string  `json:"email"`
+			APIOnly    bool    `json:"api_only"`
+			GlobalRole *string `json:"global_role"`
+		} `json:"user"`
+		Token string `json:"token"`
+		Err   string `json:"error,omitempty"`
+	}
+
+	cases := []struct {
+		name       string
+		body       map[string]any
+		wantStatus int
+		verify     func(t *testing.T, resp createAPIOnlyUserResponse)
+	}{
+		{
+			name:       "missing name",
+			body:       map[string]any{"global_role": "observer"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name:       "neither global_role nor fleets",
+			body:       map[string]any{"name": "Jane Doe"},
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "fleets without premium",
+			body: map[string]any{
+				"name":   "Jane Doe",
+				"fleets": []map[string]any{{"id": 9999, "role": "observer"}},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "api_endpoints without premium",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+				"api_endpoints": []map[string]any{
+					{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
+				},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "both global_role and fleets without premium",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+				"fleets":      []map[string]any{{"id": 9999, "role": "observer"}},
+			},
+			wantStatus: http.StatusPaymentRequired,
+		},
+		{
+			name: "successful creation with global_role only",
+			body: map[string]any{
+				"name":        "Jane Doe",
+				"global_role": "observer",
+			},
+			wantStatus: http.StatusOK,
+			verify: func(t *testing.T, resp createAPIOnlyUserResponse) {
+				require.NotEmpty(t, resp.Token, "token must be set")
+				require.NotZero(t, resp.User.ID, "user ID must be set")
+				require.Equal(t, "Jane Doe", resp.User.Name)
+				require.NotEmpty(t, resp.User.Email)
+				require.True(t, resp.User.APIOnly, "user must be api_only")
+				require.NotNil(t, resp.User.GlobalRole)
+				require.Equal(t, "observer", *resp.User.GlobalRole)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var resp createAPIOnlyUserResponse
+			s.DoJSON("POST", "/api/latest/fleet/users/api_only", tc.body, tc.wantStatus, &resp)
+			if tc.verify != nil {
+				tc.verify(t, resp)
+			}
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
+	t := s.T()
+
+	var createResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+		Token string `json:"token"`
+		Err   string `json:"error,omitempty"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "API User",
+		"global_role": "observer",
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	require.NotEmpty(t, createResp.Token)
+	apiUserID := createResp.User.ID
+	apiUserToken := createResp.Token
+
+	s.DoRawNoAuth("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), []byte(`{}`), http.StatusUnauthorized)
+
+	s.Do("PATCH", "/api/latest/fleet/users/api_only/999999", map[string]any{
+		"name": "New Name",
+	}, http.StatusNotFound)
+
+	// Targeting a non-API-only user must be rejected.
+	admin := s.users["admin1@example.com"]
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", admin.ID), map[string]any{
+		"name": "New Name",
+	}, http.StatusUnprocessableEntity)
+
+	var createRegularResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       ptr.String("regular-modify-api-only"),
+		Email:      ptr.String("regular-modify-api-only@example.com"),
+		Password:   &test.GoodPassword,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}, http.StatusOK, &createRegularResp)
+	require.NotZero(t, createRegularResp.User.ID)
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", createRegularResp.User.ID), map[string]any{
+		"name": "New Name",
+	}, http.StatusUnprocessableEntity)
+
+	// An API-only user cannot reach this admin endpoint: the api_only middleware
+	// rejects it at the catalog check (the user-management endpoint is not in the catalog).
+	//
+	// This is to protect against privilege escalation vulnerability.
+	s.token = apiUserToken
+	defer func() { s.token = s.getTestAdminToken() }()
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
+		"name": "Self Update",
+	}, http.StatusForbidden)
+	s.token = s.getTestAdminToken()
+
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
+		"api_endpoints": []map[string]any{
+			{"method": "GET", "path": "/api/v1/fleet/config"},
+		},
+	}, http.StatusPaymentRequired)
+}
+
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 	t := s.T()
 
@@ -2690,6 +2910,17 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 				Password:    ptr.String("password"), // no number or symbol
 				Email:       ptr.String("a@b.c"),
 				InviteToken: ptr.String(invite.Token),
+			},
+			http.StatusUnprocessableEntity,
+		},
+		{
+			"api_endpoints not accepted",
+			fleet.UserPayload{
+				Name:         ptr.String("Name"),
+				Password:     &test.GoodPassword,
+				Email:        ptr.String("a@b.c"),
+				InviteToken:  ptr.String(invite.Token),
+				APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
 			},
 			http.StatusUnprocessableEntity,
 		},
@@ -7495,6 +7726,26 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
 
+	// uploading a DDM declaration with a Fleet variable returns a license error
+	// (single profile upload endpoint)
+	ddmWithFleetVar := []byte(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": "com.example.fleetvar-test",
+		"Payload": {"Value": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+	}`)
+	body, headers := generateNewProfileMultipartRequest(t, "fleetvar-test.json", ddmWithFleetVar, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusPaymentRequired, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
+	// uploading a DDM declaration with a Fleet variable returns a license error
+	// (batch profiles endpoint)
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: ddmWithFleetVar},
+	}}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
 	// software titles
 	// a normal request works fine
 	var resp listSoftwareTitlesResponse
@@ -7600,14 +7851,14 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	// for scripts endpoints are in the enterprise integrations tests.
 
 	// run a script
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// run a script sync
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// get script result
-	var scriptResultResp getScriptResultResponse
+	var scriptResultResp fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusNotFound, &scriptResultResp)
 
 	// create a saved script
@@ -7616,33 +7867,33 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 
 	// run a saved script by name without team id (should fail host not found)
-	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.RunScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Host was not found in the datastore")
 
 	// run a saved script by name with team id (should fail with license error)
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.RunScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
-	var delScriptResp deleteScriptResponse
+	var delScriptResp fleet.DeleteScriptResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)
 
 	// list saved scripts
-	var listScriptsResp listScriptsResponse
+	var listScriptsResp fleet.ListScriptsResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listScriptsResp, "per_page", "10")
 
 	// get a saved script
-	var getScriptResp getScriptResponse
+	var getScriptResp fleet.GetScriptResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &getScriptResp)
 
 	// get host script details
-	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	var getHostScriptDetailsResp fleet.GetHostScriptDetailsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
 
 	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusOK)
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -7814,6 +8065,35 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// preserve_host_activities_on_reenrollment round-trip.
+	initialPreserve := acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": true
+    }
+  }`), http.StatusOK, &acResp)
+	require.True(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": false
+    }
+  }`), http.StatusOK, &acResp)
+	require.False(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	// Restore initial value to keep subsequent tests order-independent.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": %t
+    }
+  }`, initialPreserve)), http.StatusOK, &acResp)
+	require.Equal(t, initialPreserve, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 
 	// Disable AI features.
 	acResp = appConfigResponse{}
@@ -9892,6 +10172,11 @@ func (s *integrationTestSuite) TestModifyUser() {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&loginResp))
 	resp.Body.Close()
 	require.Equal(t, u.ID, loginResp.User.ID)
+
+	// as an admin, api_endpoints must be rejected on this endpoint
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
+		APIEndpoints: &[]fleet.APIEndpointRef{{Method: "GET", Path: "/api/v1/fleet/config"}},
+	}, http.StatusUnprocessableEntity, &modResp)
 
 	// as an admin, create a new user with SSO authentication enabled
 	params = fleet.UserPayload{
@@ -13736,7 +14021,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	})
 	require.NoError(t, err)
 
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
@@ -14819,7 +15104,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 		Name:       "decl-1",
 		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_NAME1}"}`),
 		TeamID:     &foobarTeam.ID,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)

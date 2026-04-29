@@ -2,4 +2,4 @@ name: Unassigned
 policies:
 software:
 controls:
-  macos_settings:
+  apple_settings:
