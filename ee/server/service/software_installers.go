@@ -3154,11 +3154,10 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
-	if fleet.IsAppleMobilePlatform(host.Platform) &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == string(fleet.MDMEnrollStatusPersonal) {
-		return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
-	}
-
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked from
+	// self-service. The downstream VPP install flow handles user-scoped
+	// licensing via clientUserIds. End-to-end success still depends on the
+	// main install-gate removal landing (#31138 subtask 01).
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if !fleet.IsNotFound(err) {
