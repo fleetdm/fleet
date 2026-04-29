@@ -289,6 +289,42 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	})
 }
 
+// resolveWindowsEnrollmentIDs returns a map of host_uuid -> enrollment_id for
+// the given host UUIDs. Hosts without a current enrollment are omitted from the map.
+func (ds *Datastore) resolveWindowsEnrollmentIDs(ctx context.Context, hostUUIDs []string) (map[string]uint, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+		SELECT host_uuid, MAX(id) as id
+		FROM mdm_windows_enrollments
+		WHERE host_uuid IN (?)
+		GROUP BY host_uuid`
+
+	result := make(map[string]uint, len(hostUUIDs))
+	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(query, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN for resolveWindowsEnrollmentIDs")
+		}
+
+		var rows []struct {
+			HostUUID string `db:"host_uuid"`
+			ID       uint   `db:"id"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "selecting Windows enrollment IDs")
+		}
+
+		for _, r := range rows {
+			result[r.HostUUID] = r.ID
+		}
+		return nil
+	})
+	return result, err
+}
+
 // this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
 // We do the host-targeting pieces in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries,
 // which would previously cause issues when processing responses from the device if there was a long delay between enqueing the command and the host profile
@@ -322,6 +358,12 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 	payloadByHostUUID := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(payload))
 	for _, p := range payload {
 		payloadByHostUUID[p.HostUUID] = p
+	}
+
+	// Resolve enrollment IDs up front; hosts without a valid enrollment are skipped
+	enrollmentIDs, err := ds.resolveWindowsEnrollmentIDs(ctx, hostUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "resolving Windows enrollment IDs")
 	}
 
 	// Insert command queue entries and host profile entries in batches, each
@@ -399,12 +441,17 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 			resetBatch()
 		}
 
+		// Skip hosts without a valid enrollment — they can't receive MDM commands
+		enrollmentID, ok := enrollmentIDs[hostUUID]
+		if !ok {
+			ds.logger.WarnContext(ctx, "skipping Windows MDM command for host without enrollment",
+				"host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
+			continue
+		}
+
 		batchCount++
-		// Command queue entry: resolve enrollment_id via subquery.
-		queueSB.WriteString(
-			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1), ?),",
-		)
-		queueArgs = append(queueArgs, hostUUID, cmd.CommandUUID)
+		queueSB.WriteString("(?, ?),")
+		queueArgs = append(queueArgs, enrollmentID, cmd.CommandUUID)
 
 		// Host profile entry.
 		p := payloadByHostUUID[hostUUID]
@@ -2458,6 +2505,13 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- only target hosts that still have a valid Windows MDM enrollment;
+		-- orphaned host_mdm_windows_profiles rows (where the enrollment was
+		-- deleted) cannot receive MDM commands and must be skipped.
+		EXISTS (
+			SELECT 1 FROM mdm_windows_enrollments mwe
+			WHERE mwe.host_uuid = hmwp.host_uuid
+		) AND
 		-- exclude remove operations with non-NULL status (already processed;
 		-- matches the pattern used by Fleet's Apple MDM profile removal)
 		(hmwp.operation_type != 'remove' OR hmwp.status IS NULL) AND
