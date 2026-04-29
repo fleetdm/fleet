@@ -254,6 +254,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
 		androidService,
+		nil, // orgLogoStore
 	)
 	if err != nil {
 		panic(err)

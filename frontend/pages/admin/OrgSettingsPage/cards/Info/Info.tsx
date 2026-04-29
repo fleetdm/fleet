@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
-import isDataURI from "validator/lib/isDataURI";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -14,54 +14,74 @@ import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import logoAPI from "services/entities/logo";
+import { NotificationContext } from "context/notification";
+import {
+  ORG_LOGO_ACCEPT,
+  validateOrgLogoFile,
+} from "utilities/file/orgLogoFile";
+
 import { IAppConfigFormProps } from "../constants";
 
 interface IOrgInfoFormData {
-  orgLogoURL: string;
   orgName: string;
-  orgLogoURLLightBackground: string;
   orgSupportURL: string;
 }
 
 interface IOrgInfoFormErrors {
   org_name?: string | null;
-  org_logo_url?: string | null;
-  org_logo_url_light_background?: string | null;
   org_support_url?: string | null;
 }
 
-// TODO: change base classes to these cards to follow the same pattern as the
-// other components in the app.
+interface ILogoModeState {
+  pendingUpload: { file: File; url: string } | null;
+  pendingDelete: boolean;
+}
+
 const baseClass = "app-config-form";
 const cardClass = "org-info";
-
-const validateOrgLogoURL = (url: string) =>
-  isDataURI(url) || validUrl({ url, protocols: ["http", "https"] });
 
 const Info = ({
   appConfig,
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IOrgInfoFormData>({
     orgName: appConfig.org_info.org_name || "",
-    orgLogoURL: appConfig.org_info.org_logo_url || "",
-    orgLogoURLLightBackground:
-      appConfig.org_info.org_logo_url_light_background || "",
     orgSupportURL:
       appConfig.org_info.contact_url || "https://fleetdm.com/company/contact",
   });
 
-  const {
-    orgName,
-    orgLogoURL,
-    orgLogoURLLightBackground,
-    orgSupportURL,
-  } = formData;
-
+  const { orgName, orgSupportURL } = formData;
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
+
+  // The persisted logo URLs are derived from props on every render so the
+  // preview reflects the latest server state after a successful save (the
+  // parent refetches appConfig). Prefer new fields; fall back to deprecated.
+  const lightOriginalUrl =
+    appConfig.org_info.org_logo_url_light_mode ||
+    appConfig.org_info.org_logo_url_light_background ||
+    "";
+  const darkOriginalUrl =
+    appConfig.org_info.org_logo_url_dark_mode ||
+    appConfig.org_info.org_logo_url ||
+    "";
+
+  const [lightLogo, setLightLogo] = useState<ILogoModeState>({
+    pendingUpload: null,
+    pendingDelete: false,
+  });
+  const [darkLogo, setDarkLogo] = useState<ILogoModeState>({
+    pendingUpload: null,
+    pendingDelete: false,
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const lightInputRef = useRef<HTMLInputElement | null>(null);
+  const darkInputRef = useRef<HTMLInputElement | null>(null);
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
@@ -75,17 +95,6 @@ const Info = ({
       errors.org_name = "Organization name must be present";
     }
 
-    if (orgLogoURL && !validateOrgLogoURL(orgLogoURL)) {
-      errors.org_logo_url = `Logo URL for dark background is not a valid URL`;
-    }
-
-    if (
-      orgLogoURLLightBackground &&
-      !validateOrgLogoURL(orgLogoURLLightBackground)
-    ) {
-      errors.org_logo_url_light_background = `Logo URL for light background is not a valid URL`;
-    }
-
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
@@ -97,19 +106,187 @@ const Info = ({
     setFormErrors(errors);
   };
 
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const setLogoFile = (
+    setter: React.Dispatch<React.SetStateAction<ILogoModeState>>,
+    file: File
+  ) => {
+    const url = URL.createObjectURL(file);
+    setter((prev) => {
+      if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+      return {
+        ...prev,
+        pendingUpload: { file, url },
+        pendingDelete: false,
+      };
+    });
+  };
+
+  const onLightFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const result = await validateOrgLogoFile(file);
+    if (!result.valid) {
+      renderFlash("error", result.error || "Invalid logo file.");
+      return;
+    }
+    setLogoFile(setLightLogo, file);
+  };
+
+  const onDarkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const result = await validateOrgLogoFile(file);
+    if (!result.valid) {
+      renderFlash("error", result.error || "Invalid logo file.");
+      return;
+    }
+    setLogoFile(setDarkLogo, file);
+  };
+
+  const onLightDelete = () =>
+    setLightLogo((prev) => {
+      if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+      return { ...prev, pendingUpload: null, pendingDelete: true };
+    });
+  const onDarkDelete = () =>
+    setDarkLogo((prev) => {
+      if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+      return { ...prev, pendingUpload: null, pendingDelete: true };
+    });
+
+  // Resolve what to show in the preview area for a given mode.
+  const previewSrcFor = (
+    state: ILogoModeState,
+    originalUrl: string
+  ): string => {
+    if (state.pendingUpload) return state.pendingUpload.url;
+    if (state.pendingDelete) return "";
+    return originalUrl;
+  };
+
+  const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+    setIsSaving(true);
 
-    const formDataToSubmit = {
-      org_info: {
-        org_logo_url: orgLogoURL,
-        org_logo_url_light_background: orgLogoURLLightBackground,
-        org_name: orgName,
-        contact_url: orgSupportURL,
-      },
-    };
+    try {
+      const lightDeleted = lightLogo.pendingDelete && !!lightOriginalUrl;
+      const darkDeleted = darkLogo.pendingDelete && !!darkOriginalUrl;
+      const logoOps: (() => Promise<unknown>)[] = [];
 
-    handleSubmit(formDataToSubmit);
+      if (
+        lightDeleted &&
+        darkDeleted &&
+        !lightLogo.pendingUpload &&
+        !darkLogo.pendingUpload
+      ) {
+        logoOps.push(() => logoAPI.delete("all"));
+      } else {
+        if (lightLogo.pendingUpload) {
+          const f = lightLogo.pendingUpload.file;
+          logoOps.push(() => logoAPI.upload(f, "light"));
+        } else if (lightDeleted) {
+          logoOps.push(() => logoAPI.delete("light"));
+        }
+        if (darkLogo.pendingUpload) {
+          const f = darkLogo.pendingUpload.file;
+          logoOps.push(() => logoAPI.upload(f, "dark"));
+        } else if (darkDeleted) {
+          logoOps.push(() => logoAPI.delete("dark"));
+        }
+      }
+
+      // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+      for (const op of logoOps) {
+        // eslint-disable-next-line no-await-in-loop
+        await op();
+      }
+
+      const formDataToSubmit = {
+        org_info: {
+          org_name: orgName,
+          contact_url: orgSupportURL,
+        },
+      };
+
+      const ok = await handleSubmit(formDataToSubmit);
+      if (ok) {
+        const reset = (prev: ILogoModeState) => {
+          if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+          return { ...prev, pendingUpload: null, pendingDelete: false };
+        };
+        setLightLogo(reset);
+        setDarkLogo(reset);
+      }
+    } catch (e) {
+      renderFlash("error", "Couldn't update logo. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const renderLogoCard = (
+    label: string,
+    background: "light" | "dark",
+    state: ILogoModeState,
+    originalUrl: string,
+    onEdit: () => void,
+    onDelete: () => void,
+    inputRef: React.MutableRefObject<HTMLInputElement | null>,
+    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  ) => {
+    const previewSrc = previewSrcFor(state, originalUrl);
+
+    return (
+      <div className={`${cardClass}__logo-card`}>
+        <div className={`${cardClass}__logo-card-header`}>
+          <span className="form-field__label">{label}</span>
+          <div className={`${cardClass}__logo-card-actions`}>
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={4}
+              renderChildren={(disableChildren) => (
+                <Button
+                  variant="icon"
+                  onClick={onEdit}
+                  disabled={disableChildren}
+                  title="Replace logo"
+                >
+                  <Icon name="pencil" color="core-fleet-green" />
+                </Button>
+              )}
+            />
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={4}
+              renderChildren={(disableChildren) => (
+                <Button
+                  variant="icon"
+                  onClick={onDelete}
+                  disabled={disableChildren}
+                  title="Remove logo"
+                >
+                  <Icon name="trash" color="core-fleet-green" />
+                </Button>
+              )}
+            />
+          </div>
+        </div>
+        <div
+          className={`${cardClass}__icon-preview ${cardClass}__${background}-background`}
+        >
+          <OrgLogoIcon className={`${cardClass}__icon-img`} src={previewSrc} />
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={ORG_LOGO_ACCEPT}
+          onChange={onFileChange}
+          className={`${cardClass}__hidden-file-input`}
+        />
+      </div>
+    );
   };
 
   return (
@@ -129,49 +306,27 @@ const Info = ({
         }
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`${cardClass}__logo-field-set`}>
-          <InputField
-            label="Logo URL for dark background"
-            onChange={onInputChange}
-            name="orgLogoURL"
-            value={orgLogoURL}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.org_logo_url}
-            inputWrapperClass={`${cardClass}__logo-field`}
-            tooltip="Logo is displayed in Fleet on top of dark backgrounds."
-            disabled={gitOpsModeEnabled}
-          />
-          <div
-            className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
-          >
-            <OrgLogoIcon
-              className={`${cardClass}__icon-img`}
-              src={orgLogoURL}
-            />
-          </div>
-        </div>
-        <div className={`${cardClass}__logo-field-set`}>
-          <InputField
-            label="Logo URL for light background"
-            onChange={onInputChange}
-            name="orgLogoURLLightBackground"
-            value={orgLogoURLLightBackground}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.org_logo_url_light_background}
-            inputWrapperClass={`${cardClass}__logo-field`}
-            tooltip="Logo is displayed in Fleet on top of light backgrounds."
-            disabled={gitOpsModeEnabled}
-          />
-          <div
-            className={`${cardClass}__icon-preview ${cardClass}__light-background`}
-          >
-            <OrgLogoIcon
-              className={`${cardClass}__icon-img`}
-              src={orgLogoURLLightBackground}
-            />
-          </div>
+        <div className={`${cardClass}__logo-grid`}>
+          {renderLogoCard(
+            "Organization logo (light mode)",
+            "light",
+            lightLogo,
+            lightOriginalUrl,
+            () => lightInputRef.current?.click(),
+            onLightDelete,
+            lightInputRef,
+            onLightFileChange
+          )}
+          {renderLogoCard(
+            "Organization logo (dark mode)",
+            "dark",
+            darkLogo,
+            darkOriginalUrl,
+            () => darkInputRef.current?.click(),
+            onDarkDelete,
+            darkInputRef,
+            onDarkFileChange
+          )}
         </div>
         <InputField
           label="Organization name"
@@ -212,7 +367,7 @@ const Info = ({
               type="submit"
               disabled={Object.keys(formErrors).length > 0 || disableChildren}
               className="button-wrap"
-              isLoading={isUpdatingSettings}
+              isLoading={isUpdatingSettings || isSaving}
             >
               Save
             </Button>

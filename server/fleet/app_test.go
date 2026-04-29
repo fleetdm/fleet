@@ -549,3 +549,103 @@ func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
 		require.Contains(t, string(data), `"api_key_json":"********"`)
 	})
 }
+
+func TestOrgInfoNormalizeLogoFields(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      OrgInfo
+		want    OrgInfo
+		wantErr bool
+	}{
+		{
+			name: "all empty",
+			in:   OrgInfo{},
+			want: OrgInfo{},
+		},
+		{
+			name: "deprecated dark only -> mirrored to new",
+			in:   OrgInfo{OrgLogoURL: "https://example.com/d.png"},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "new dark only -> mirrored to deprecated",
+			in:   OrgInfo{OrgLogoURLDarkMode: "https://example.com/d.png"},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "deprecated light only -> mirrored to new",
+			in:   OrgInfo{OrgLogoURLLightBackground: "https://example.com/l.png"},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "new light only -> mirrored to deprecated",
+			in:   OrgInfo{OrgLogoURLLightMode: "https://example.com/l.png"},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "both modes via deprecated",
+			in: OrgInfo{
+				OrgLogoURL:                "https://example.com/d.png",
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+			},
+			want: OrgInfo{
+				OrgLogoURL:                "https://example.com/d.png",
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLDarkMode:        "https://example.com/d.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "matching dark old + new -> kept",
+			in: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "conflicting dark old + new -> error",
+			in: OrgInfo{
+				OrgLogoURL:         "https://example.com/d1.png",
+				OrgLogoURLDarkMode: "https://example.com/d2.png",
+			},
+			wantErr: true,
+		},
+		{
+			name: "conflicting light old + new -> error",
+			in: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l1.png",
+				OrgLogoURLLightMode:       "https://example.com/l2.png",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.in
+			err := got.NormalizeLogoFields()
+			if tc.wantErr {
+				require.NotNil(t, err)
+				return
+			}
+			require.Nil(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

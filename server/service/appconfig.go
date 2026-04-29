@@ -204,6 +204,11 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
+	// Mirror deprecated logo URL fields to new mode-aware fields (and vice
+	// versa) so the response is consistent for both old and new clients.
+	// Conflicts are not possible at this point since the persisted config
+	// has already been normalized on write.
+	_ = appConfig.OrgInfo.NormalizeLogoFields()
 
 	features := appConfig.Features
 	response := appConfigResponse{
@@ -400,6 +405,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
 	if fleetDesktopSettingsInvalidErr.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
+	}
+
+	// Reject conflicting deprecated/new logo URL pairs and mirror them so
+	// both forms are persisted with identical values. Done on the incoming
+	// payload before merge so we surface the conflict at the source field.
+	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -862,6 +874,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+	}
+
+	// Final logo-field mirror after the merge — guarantees the persisted
+	// config has both deprecated and new fields populated identically per
+	// mode. Surfaces a 422 if the merged state still has a conflict (e.g.
+	// corrupt or directly-edited DB row).
+	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
