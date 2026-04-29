@@ -739,6 +739,12 @@ If the action fails, please complete the following steps:
 4. A github admin must re-enable the branch `require linear history`
 5. A github admin must disable the `allow merge commits`
 
+## Runbooks
+
+Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
+
+- [AI coding tool outage](./runbooks/ai-coding-tool-outage.md) — fall back to GitHub Copilot when Claude Code is unavailable.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
