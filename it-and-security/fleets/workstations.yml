@@ -150,7 +150,6 @@ reports:
   - path: ../lib/all/reports/dex-queries.yml
   - path: ../lib/all/reports/collect-local-user-accounts.yml
   - path: ../lib/all/reports/collect-usb-devices.yml
-  - path: ../lib/all/reports/collect-disk-encryption-status.yml
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
   - path: ../lib/all/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
