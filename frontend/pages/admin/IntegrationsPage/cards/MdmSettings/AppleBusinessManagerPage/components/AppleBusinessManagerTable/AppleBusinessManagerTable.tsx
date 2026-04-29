@@ -1,6 +1,7 @@
 import React from "react";
 
 import { IMdmAbmToken } from "interfaces/mdm";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import TableContainer from "components/TableContainer";
 
@@ -21,6 +22,8 @@ const AppleBusinessManagerTable = ({
   onRenewToken,
   onDeleteToken,
 }: IAppleBusinessManagerTableProps) => {
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
+
   const onSelectAction = (action: string, abmToken: IMdmAbmToken) => {
     switch (action) {
       case "editTeams":
@@ -37,7 +40,11 @@ const AppleBusinessManagerTable = ({
     }
   };
 
-  const tableConfig = generateTableConfig(onSelectAction);
+  const tableConfig = generateTableConfig(
+    onSelectAction,
+    gitOpsModeEnabled,
+    repoURL
+  );
 
   return (
     <TableContainer<IMdmAbmToken>

@@ -11,6 +11,7 @@ import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
+import Gemini from "./Gemini";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
@@ -316,6 +317,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  gemini: Gemini,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   insyncclient: DruvaInSync,

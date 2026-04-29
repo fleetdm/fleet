@@ -1,0 +1,2 @@
+* Added `network_quality` table from https://github.com/macadmins/osquery-extension to macOS.
+* Bumped https://github.com/macadmins/osquery-extension to v1.4.1.

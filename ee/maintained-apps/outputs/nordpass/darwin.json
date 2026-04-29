@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "7.6.14",
+      "version": "7.6.18",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordsec.nordpass';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordsec.nordpass' AND version_compare(bundle_short_version, '7.6.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordsec.nordpass' AND version_compare(bundle_short_version, '7.6.18') < 0);"
       },
       "installer_url": "https://downloads.npass.app/mac/arm/NordPass.dmg",
       "install_script_ref": "1c8f6193",
