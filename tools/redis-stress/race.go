@@ -51,18 +51,8 @@ func runRace(args []string) {
 	// post-Parse error path to handle here.
 	_ = fs.Parse(args)
 
-	if *workers < 1 {
-		log.Fatalf("workers must be >= 1, got %d", *workers)
-	}
-	if *iterations < 1 {
-		log.Fatalf("iterations must be >= 1, got %d", *iterations)
-	}
-	// Redis PX requires a positive integer count of milliseconds; sub-ms
-	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
-	// "ERR invalid expire time in set" which would inflate set-error counts
-	// rather than test what we want.
-	if *ttl < time.Millisecond {
-		log.Fatalf("ttl must be >= 1ms, got %s", *ttl)
+	if err := validateRaceFlags(*workers, *iterations, *ttl); err != nil {
+		log.Fatal(err)
 	}
 
 	pool, err := redis.NewPool(redis.PoolConfig{
@@ -127,6 +117,26 @@ func runRace(args []string) {
 	}
 	fmt.Println()
 	fmt.Println("RESULT: no race observed under these conditions.")
+}
+
+// validateRaceFlags returns a non-nil error if any of the input bounds are
+// out of range. Pulled out of runRace so the validation can be unit-tested
+// without spinning up a Redis pool.
+func validateRaceFlags(workers, iterations int, ttl time.Duration) error {
+	if workers < 1 {
+		return fmt.Errorf("workers must be >= 1, got %d", workers)
+	}
+	if iterations < 1 {
+		return fmt.Errorf("iterations must be >= 1, got %d", iterations)
+	}
+	// Redis PX requires a positive integer count of milliseconds; sub-ms
+	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
+	// "ERR invalid expire time in set" which would inflate set-error counts
+	// rather than test what we want.
+	if ttl < time.Millisecond {
+		return fmt.Errorf("ttl must be >= 1ms, got %s", ttl)
+	}
+	return nil
 }
 
 // raceOnce mimics RedisKeyValue.Set immediately followed by RedisKeyValue.Get,

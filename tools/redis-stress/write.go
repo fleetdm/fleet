@@ -35,29 +35,18 @@ func runWrite(args []string) {
 	// post-Parse error path to handle here.
 	_ = fs.Parse(args)
 
+	// -wait is a legacy alias for -duration; copy its value rather than
+	// rebinding the pointer so the validation below sees the effective value.
 	if *wait > 0 {
-		duration = wait
-	}
-	if *workers < 1 {
-		log.Fatalf("workers must be >= 1, got %d", *workers)
-	}
-	if *rate <= 0 {
-		log.Fatalf("rate must be > 0, got %f", *rate)
-	}
-	// Redis PX requires a positive integer count of milliseconds; sub-ms
-	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
-	// "ERR invalid expire time in set" which would silently inflate the
-	// errors counter.
-	if *keyTTL < time.Millisecond {
-		log.Fatalf("key-ttl must be >= 1ms, got %s", *keyTTL)
-	}
-	// Guard against time.NewTicker(0) panic for very large rates.
-	period := time.Duration(float64(time.Second) / *rate)
-	if period <= 0 {
-		log.Fatalf("rate %.2f/s produces a non-positive ticker period (%s); choose a smaller rate", *rate, period)
+		*duration = *wait
 	}
 
-	pool, err := redis.NewPool(redis.PoolConfig{
+	period, err := validateWriteFlags(*workers, *rate, *duration, *keyTTL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pool, poolErr := redis.NewPool(redis.PoolConfig{
 		Server:                    *addr,
 		UseTLS:                    false,
 		ClusterFollowRedirections: *followRedirs,
@@ -68,8 +57,8 @@ func runWrite(args []string) {
 		ReadTimeout:               5 * time.Second,
 		WriteTimeout:              5 * time.Second,
 	})
-	if err != nil {
-		log.Fatalf("connect: %v", err)
+	if poolErr != nil {
+		log.Fatalf("connect: %v", poolErr)
 	}
 	defer pool.Close()
 
@@ -124,4 +113,32 @@ func runWrite(args []string) {
 	fmt.Printf("sets:        %d\n", sets.Load())
 	fmt.Printf("errors:      %d\n", errs.Load())
 	fmt.Printf("ops/sec:     %.1f\n", float64(sets.Load())/elapsed.Seconds())
+}
+
+// validateWriteFlags returns the per-worker ticker period and a non-nil error
+// if any of the input bounds are out of range. Pulled out of runWrite so the
+// validation can be unit-tested without spinning up a Redis pool.
+func validateWriteFlags(workers int, rate float64, duration, keyTTL time.Duration) (time.Duration, error) {
+	if workers < 1 {
+		return 0, fmt.Errorf("workers must be >= 1, got %d", workers)
+	}
+	if rate <= 0 {
+		return 0, fmt.Errorf("rate must be > 0, got %f", rate)
+	}
+	if duration <= 0 {
+		return 0, fmt.Errorf("duration must be > 0, got %s", duration)
+	}
+	// Redis PX requires a positive integer count of milliseconds; sub-ms
+	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
+	// "ERR invalid expire time in set" which would silently inflate the
+	// errors counter.
+	if keyTTL < time.Millisecond {
+		return 0, fmt.Errorf("key-ttl must be >= 1ms, got %s", keyTTL)
+	}
+	// Guard against time.NewTicker(0) panic for very large rates.
+	period := time.Duration(float64(time.Second) / rate)
+	if period <= 0 {
+		return 0, fmt.Errorf("rate %.2f/s produces a non-positive ticker period (%s); choose a smaller rate", rate, period)
+	}
+	return period, nil
 }
