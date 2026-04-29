@@ -18,6 +18,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// renewalFailedRetryBackoff bounds how often RenewMDMManagedCertificates re-triggers
+// renewal for a managed-cert profile sitting in the 'failed' state. Without this gate,
+// a permanent failure (CA deleted, IDP variables missing, license downgraded — anything
+// that fails at profile-render time via fleet.MarkProfilesFailed) would loop every cron
+// tick: cron flips status to NULL, reconcile re-renders and immediately fails again,
+// status returns to 'failed', repeat. The backoff is set well above the cron interval
+// (1h) so transient SCEP-server outages still recover within a day, but permanent
+// failures don't churn nano commands and profile renders hourly. See issue #44111.
+const renewalFailedRetryBackoff = 24 * time.Hour
+
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -2893,6 +2903,16 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 			// fresh challenge and InstallProfile command every cron tick for any host that
 			// hasn't yet picked up the renewal (e.g. offline laptop), creating orphan nano
 			// commands and challenge rows hourly. See issue #44111.
+			//
+			// 'failed' rows are additionally gated on hp.updated_at being older than
+			// renewalFailedRetryBackoff. Without that gate, a permanent failure (CA deleted,
+			// IDP variables missing, license downgraded — anything that fails at profile-render
+			// time via fleet.MarkProfilesFailed) would loop indefinitely: cron flips status to
+			// NULL, reconcile re-renders and immediately fails again, status returns to 'failed',
+			// next cron tick repeats. Pre-fix this was masked by bug #1's metadata wipe acting
+			// as an accidental circuit breaker; once metadata is preserved (COALESCE), the loop
+			// becomes visible. The backoff gives transient SCEP failures a chance to recover
+			// without spamming a fresh challenge + nano command per cron tick.
 			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IN (?, ?) AND operation_type = ? AND (`
 			hostProfileClause := ``
 			values := []any{fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall}
@@ -2920,12 +2940,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		`+table+` hp
 		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
 	WHERE
-		hmmc.type = ? AND hp.status IN (?, ?) AND hp.operation_type = ?
+		hmmc.type = ?
+		AND hp.operation_type = ?
+		AND (
+			hp.status = ?
+			OR (hp.status = ? AND hp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND))
+		)
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT ?`, hostCertType, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall, limit)
+	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, int(renewalFailedRetryBackoff.Seconds()), limit)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}

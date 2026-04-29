@@ -18300,18 +18300,20 @@ func (s *integrationMDMTestSuite) TestCustomSCEPRenewalPreservesCertMetadata() {
 
 	// 4) Simulate the offline-recovery loop: device eventually picks up the renewal
 	//    but the SCEP handshake fails (e.g. transient backend issue), so the profile
-	//    transitions to 'failed'.
+	//    transitions to 'failed'. Backdate updated_at past renewalFailedRetryBackoff
+	//    to skip past the permanent-failure circuit breaker; this models a transient
+	//    failure that has since cleared.
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			UPDATE host_mdm_apple_profiles SET status = ?
+			UPDATE host_mdm_apple_profiles SET status = ?, updated_at = ?
 			WHERE host_uuid = ? AND profile_uuid = ?`,
-			fleet.MDMDeliveryFailed, host.UUID, profileUUID)
+			fleet.MDMDeliveryFailed, time.Now().Add(-25*time.Hour), host.UUID, profileUUID)
 		return err
 	})
 
-	// 5) Renewal cron must re-fire on the next tick to recover. Before the COALESCE
-	//    fix, this would silently no-op because validity_period IS NULL excluded the
-	//    row from the renewal cron's HAVING clause.
+	// 5) Renewal cron must re-fire to recover. Before the COALESCE fix, this would
+	//    silently no-op because validity_period IS NULL excluded the row from the
+	//    renewal cron's HAVING clause.
 	require.NoError(t, s.ds.RenewMDMManagedCertificates(ctx))
 
 	var rawStatus sql.NullString

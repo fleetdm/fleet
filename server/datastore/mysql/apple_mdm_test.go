@@ -8966,11 +8966,15 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				}
 
 				// Sanity check: 'failed' must still be picked up so the cron can recover
-				// from a transient SCEP server outage on the next tick.
+				// from a transient SCEP server outage on the next tick — but only after
+				// renewalFailedRetryBackoff has elapsed since the failure (gate against
+				// permanent-failure looping). Backdate updated_at to simulate the row
+				// having been in 'failed' long enough to be eligible for retry.
 				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
-			`, fleet.MDMDeliveryFailed, host.UUID, initialCP.ProfileUUID)
+				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = ?
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryFailed, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
 					return err
 				})
 				err = ds.RenewMDMManagedCertificates(ctx)
@@ -8978,6 +8982,64 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.Nil(t, profile.Status, "renewal cron must re-trigger 'failed' to recover from transient outages")
+			})
+
+			// Regression test for the permanent-failure loop. Pre-PR, BulkUpsert wiped cert
+			// metadata on every reconcile, which inadvertently kept permanent failures from
+			// looping. After the COALESCE fix that's gone, so we need an explicit backoff:
+			// 'failed' rows that were just marked failed (e.g., this cron tick's reconcile
+			// just rendered them as failed because the CA was deleted) must NOT be picked up
+			// on the very next tick. They become eligible only after renewalFailedRetryBackoff.
+			t.Run("Permanent-failure backoff (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+
+				// Mark failed with updated_at set to NOW — the typical path when reconcile
+				// just rendered the profile as failed (e.g. CA deleted, IDP missing).
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = NOW(6)
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryFailed, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+
+				// Cron must NOT pick this up — would loop hourly otherwise.
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.NotNil(t, profile.Status,
+					"renewal cron must NOT re-fire on a freshly-failed row (would loop on permanent failures)")
+				assert.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
+
+				// Once the backoff window has passed, the cron is allowed to retry once.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET updated_at = ?
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status,
+					"renewal cron must re-fire 'failed' once renewalFailedRetryBackoff has elapsed")
 			})
 
 			// Regression test for issue #44111: the reconcile re-render that fires after a
