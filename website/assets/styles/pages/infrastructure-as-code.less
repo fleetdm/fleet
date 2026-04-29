@@ -348,7 +348,23 @@
       }
     }
 
-    td,
+    td {
+      width: 33%;
+      height: 54px;
+      padding: 12px 24px;
+      align-items: center;
+      gap: 8px;
+      align-self: stretch;
+      color: #515774;
+      border-left: 1px solid #E2E4EA;
+
+      /* Body/Emphasis/SM */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      line-height: 150%;
+    }
+
     th {
       width: 33%;
       height: 54px;
@@ -369,7 +385,11 @@
     tr {
       border-bottom: 1px solid #E2E4EA;
 
-      td:nth-of-type(1),
+      td:nth-of-type(1) {
+        border-left: none;
+        font-weight: 700;
+      }
+
       th:nth-of-type(1) {
         border-left: none;
         font-weight: 700;
