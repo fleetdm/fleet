@@ -569,16 +569,56 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			)
 		}
 
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,
-			)
-		}
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals && spec.HostVitalsCriteria == nil {
-			// Criteria is required for host vitals labels.
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "label %s is declared as host vitals but contains no `criteria` key", spec.Name), http.StatusUnprocessableEntity,
-			)
+		// Validate mutually exclusive field combinations per label membership type
+		switch spec.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
+			if spec.Query != "" {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as manual but contains a query", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if spec.HostVitalsCriteria != nil {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as manual but contains criteria", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if spec.Platform != "" {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as manual but contains a platform", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+		case fleet.LabelMembershipTypeDynamic:
+			if spec.HostVitalsCriteria != nil {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains criteria", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if len(spec.Hosts) > 0 {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains hosts", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+		case fleet.LabelMembershipTypeHostVitals:
+			if spec.HostVitalsCriteria == nil {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but contains no criteria", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if spec.Query != "" {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but contains a query", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if spec.Platform != "" {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but contains a platform", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if len(spec.Hosts) > 0 {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but contains hosts", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.

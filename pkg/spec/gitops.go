@@ -1369,8 +1369,46 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
 
-		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		// Validate mutually exclusive field combinations per label membership type
+		switch l.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
+			if l.Query != "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as manual but contains a query", l.Name))
+			}
+			if l.HostVitalsCriteria != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as manual but contains criteria", l.Name))
+			}
+			if l.Platform != "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as manual but contains a platform", l.Name))
+			}
+		case fleet.LabelMembershipTypeDynamic:
+			if l.Query == "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as dynamic but is missing a query", l.Name))
+			}
+			if l.HostVitalsCriteria != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as dynamic but contains criteria", l.Name))
+			}
+			if len(l.Hosts) > 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as dynamic but contains hosts", l.Name))
+			}
+			if l.Platform != "" {
+				if _, ok := fleet.ValidLabelPlatformVariants[l.Platform]; !ok {
+					multiError = multierror.Append(multiError, fmt.Errorf("label %q has invalid platform: %q", l.Name, l.Platform))
+				}
+			}
+		case fleet.LabelMembershipTypeHostVitals:
+			if l.HostVitalsCriteria == nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as host_vitals but is missing criteria", l.Name))
+			}
+			if l.Query != "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as host_vitals but contains a query", l.Name))
+			}
+			if l.Platform != "" {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as host_vitals but contains a platform", l.Name))
+			}
+			if len(l.Hosts) > 0 {
+				multiError = multierror.Append(multiError, fmt.Errorf("label %q is declared as host_vitals but contains hosts", l.Name))
+			}
 		}
 
 		// Don't use non-ASCII

@@ -766,7 +766,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		},
 	}, nil, nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "declared as dynamic but contains `hosts` key")
+	require.ErrorContains(t, err, "declared as dynamic but contains hosts")
 }
 
 func TestNewManualLabel(t *testing.T) {
