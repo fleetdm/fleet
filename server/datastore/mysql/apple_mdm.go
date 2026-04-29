@@ -1117,6 +1117,16 @@ WHERE
 	return results, nil
 }
 
+var mdmAppleCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"command_uuid": "nvq.command_uuid",
+	"request_type": "nvq.request_type",
+	"status":       "COALESCE(NULLIF(nvq.status, ''), 'Pending')",
+	"updated_at":   "COALESCE(nvq.result_updated_at, nvq.created_at)",
+	"hostname":     "h.hostname",
+	"device_id":    "ne.device_id",
+	"name":         "nvq.name",
+}
+
 func (ds *Datastore) ListMDMAppleCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
@@ -1148,7 +1158,10 @@ WHERE
    nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
-	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
+	stmt, params, err := appendListOptionsWithCursorToSQLSecure(stmt, nil, &listOpts.ListOptions, mdmAppleCommandsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
 
 	var results []*fleet.MDMAppleCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, params...); err != nil {

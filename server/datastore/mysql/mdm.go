@@ -14,9 +14,20 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
+
+var mdmCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"command_uuid": "command_uuid",
+	"request_type": "request_type",
+	"status":       "status",
+	"updated_at":   "updated_at",
+	"hostname":     "hostname",
+	"host_uuid":    "host_uuid",
+	"name":         "name",
+}
 
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
@@ -103,7 +114,10 @@ func (ds *Datastore) ListMDMCommands(
 	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
 	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "combined_commands")
 	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
-	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
+	jointStmt, params, err := appendListOptionsWithCursorToSQLSecure(jointStmt, params, &listOpts.ListOptions, mdmCommandsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
@@ -357,7 +371,10 @@ WHERE
 	if listOpts.PerPage == 0 {
 		listOpts.PerPage = 10
 	}
-	listStmt, params = appendListOptionsWithCursorToSQL(listStmt, params, &listOpts.ListOptions)
+	listStmt, params, err = appendListOptionsWithCursorToSQLSecure(listStmt, params, &listOpts.ListOptions, mdmCommandsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
 
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
