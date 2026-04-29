@@ -1278,6 +1278,7 @@ module.exports.routes = {
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience',
+  'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
 
   // Sitemap
   // =============================================================================================================
