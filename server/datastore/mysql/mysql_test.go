@@ -416,7 +416,6 @@ func TestAppendListOptionsToSQLSecure(t *testing.T) {
 	require.Equal(t, "invalid_column", invalidKeyErr.Key)
 }
 
-
 func TestWhereFilterHostsByTeams(t *testing.T) {
 	t.Parallel()
 
