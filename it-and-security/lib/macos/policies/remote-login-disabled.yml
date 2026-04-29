@@ -1,0 +1,13 @@
+- name: macOS - Remote login (SSH) disabled
+  query: SELECT 1 FROM sharing_preferences WHERE remote_login = 0;
+  critical: false
+  description: >-
+    This policy checks that remote login (SSH) is disabled on macOS workstations.
+    SSH being enabled on workstations is unnecessary for most users and increases
+    the attack surface. Disabling it reduces the risk of unauthorized remote access.
+  resolution: |-
+    To disable remote login, go to System Settings > General > Sharing and turn off Remote Login.
+
+    If you need SSH for your work, please reach out in #help-it for an exception.
+  platform: darwin
+  calendar_events_enabled: false
