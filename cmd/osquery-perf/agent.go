@@ -240,7 +240,8 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
-// and returns kernel records stamped with source="rpm_packages".
+// (and optional vendor/arch) and returns kernel records stamped with
+// source="rpm_packages".
 func loadRPMKernelList(fs embed.FS, path string) []map[string]string {
 	data, err := fs.ReadFile(path)
 	if err != nil {
@@ -251,6 +252,8 @@ func loadRPMKernelList(fs embed.FS, path string) []map[string]string {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 		Release string `json:"release"`
+		Vendor  string `json:"vendor"`
+		Arch    string `json:"arch"`
 	}
 	if err := json.Unmarshal(data, &entries); err != nil {
 		panic(err)
@@ -258,12 +261,19 @@ func loadRPMKernelList(fs embed.FS, path string) []map[string]string {
 
 	kernels := make([]map[string]string, 0, len(entries))
 	for _, e := range entries {
-		kernels = append(kernels, map[string]string{
+		entry := map[string]string{
 			"name":    e.Name,
 			"version": e.Version,
 			"release": e.Release,
 			"source":  "rpm_packages",
-		})
+		}
+		if e.Vendor != "" {
+			entry["vendor"] = e.Vendor
+		}
+		if e.Arch != "" {
+			entry["arch"] = e.Arch
+		}
+		kernels = append(kernels, entry)
 	}
 	return kernels
 }

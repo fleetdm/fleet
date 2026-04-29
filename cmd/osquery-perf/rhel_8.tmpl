@@ -5,17 +5,17 @@
         "os_version": {
             "arch": "x86_64",
             "build": "",
-            "codename": "Ootpa",
+            "codename": "",
             "major": "8",
             "minor": "10",
             "name": "Red Hat Enterprise Linux",
             "patch": "0",
             "platform": "rhel",
-            "platform_like": "rhel fedora",
-            "version": "8.10"
+            "platform_like": "rhel",
+            "version": "Red Hat Enterprise Linux release 8.10 (Ootpa)"
         },
         "osquery_info": {
-            "build_distro": "rhel8",
+            "build_distro": "centos7",
             "build_platform": "linux",
             "config_hash": "",
             "config_valid": "0",
@@ -37,10 +37,10 @@
             "cpu_physical_cores": "4",
             "cpu_subtype": "Intel x86-64h Haswell",
             "cpu_type": "x86_64h",
-            "hardware_model": "",
+            "hardware_model": "PowerEdge R640",
             "hardware_serial": "{{ .SerialNumber }}",
-            "hardware_vendor": "",
-            "hardware_version": "",
+            "hardware_vendor": "Dell Inc.",
+            "hardware_version": "1.0",
             "hostname": "{{ .CachedString "hostname" }}",
             "local_hostname": "{{ .CachedString "hostname" }}",
             "physical_memory": "17179869184",
@@ -65,14 +65,14 @@
   {
     "arch": "x86_64",
     "build": "",
-    "codename": "Ootpa",
+    "codename": "",
     "major": "8",
     "minor": "10",
     "name": "Red Hat Enterprise Linux",
     "patch": "0",
     "platform": "rhel",
-    "platform_like": "rhel fedora",
-    "version": "8.10"
+    "platform_like": "rhel",
+    "version": "Red Hat Enterprise Linux release 8.10 (Ootpa)"
   }
 ]
 {{- end }}
@@ -80,11 +80,12 @@
 [
   {
     "name":"Red Hat Enterprise Linux",
-    "version":"8.10",
+    "version":"Red Hat Enterprise Linux release 8.10 (Ootpa)",
     "major":"8",
     "minor":"10",
     "patch":"0",
     "build":"",
+    "extra":"",
     "platform":"rhel",
     "arch":"x86_64",
     "kernel_version":"4.18.0-553.30.1.el8_10.x86_64"
@@ -118,7 +119,7 @@
     "config_valid":"1",
     "extensions":"inactive",
     "build_platform":"linux",
-    "build_distro":"rhel8",
+    "build_distro":"centos7",
     "start_time":"1582857555",
     "watcher":"-1",
     "platform_mask":"9"
@@ -137,9 +138,9 @@
     "cpu_logical_cores":"8",
     "cpu_microcode":"",
     "physical_memory":"17179869184",
-    "hardware_vendor":"",
-    "hardware_model":"",
-    "hardware_version":"",
+    "hardware_vendor":"Dell Inc.",
+    "hardware_model":"PowerEdge R640",
+    "hardware_version":"1.0",
     "hardware_serial":"{{ .SerialNumber }}",
     "computer_name":"{{ .CachedString "hostname" }}",
     "local_hostname":"{{ .CachedString "hostname" }}"
