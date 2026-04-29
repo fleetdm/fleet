@@ -1684,6 +1684,60 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 	return ds.GetVPPToken(ctx, id)
 }
 
+func (ds *Datastore) GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*fleet.VPPClientUser, error) {
+	const stmt = `
+SELECT id, vpp_token_id, managed_apple_id, client_user_id, apple_user_id, status, created_at, updated_at
+FROM vpp_client_users
+WHERE vpp_token_id = ? AND managed_apple_id = ?`
+	var row fleet.VPPClientUser
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, tokenID, managedAppleID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPClientUser").
+				WithMessage(fmt.Sprintf("no VPP client user for vpp_token_id=%d, managed_apple_id=%q", tokenID, managedAppleID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get vpp_client_users row")
+	}
+	return &row, nil
+}
+
+func (ds *Datastore) InsertVPPClientUser(ctx context.Context, row *fleet.VPPClientUser) error {
+	if row == nil {
+		return ctxerr.New(ctx, "InsertVPPClientUser: nil row")
+	}
+	const stmt = `
+INSERT INTO vpp_client_users
+	(vpp_token_id, managed_apple_id, client_user_id, apple_user_id, status)
+VALUES
+	(?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	client_user_id = VALUES(client_user_id),
+	apple_user_id = VALUES(apple_user_id),
+	status = VALUES(status)`
+	status := row.Status
+	if status == "" {
+		status = fleet.VPPClientUserStatusPending
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		row.VPPTokenID, row.ManagedAppleID, row.ClientUserID, row.AppleUserID, status,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert vpp_client_users row")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
+	const stmt = `
+SELECT id, vpp_token_id, managed_apple_id, client_user_id, apple_user_id, status, created_at, updated_at
+FROM vpp_client_users
+WHERE vpp_token_id = ?
+ORDER BY id`
+	var rows []*fleet.VPPClientUser
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, tokenID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list vpp_client_users rows")
+	}
+	return rows, nil
+}
+
 func (ds *Datastore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `UPDATE policies p

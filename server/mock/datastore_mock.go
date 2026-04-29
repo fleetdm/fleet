@@ -1207,6 +1207,12 @@ type UpdateVPPTokenFunc func(ctx context.Context, id uint, tok *fleet.VPPTokenDa
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
+type GetVPPClientUserFunc func(ctx context.Context, tokenID uint, managedAppleID string) (*fleet.VPPClientUser, error)
+
+type InsertVPPClientUserFunc func(ctx context.Context, row *fleet.VPPClientUser) error
+
+type ListVPPClientUsersForTokenFunc func(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error)
+
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 
 type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
@@ -3657,6 +3663,15 @@ type DataStore struct {
 
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
+
+	GetVPPClientUserFunc        GetVPPClientUserFunc
+	GetVPPClientUserFuncInvoked bool
+
+	InsertVPPClientUserFunc        InsertVPPClientUserFunc
+	InsertVPPClientUserFuncInvoked bool
+
+	ListVPPClientUsersForTokenFunc        ListVPPClientUsersForTokenFunc
+	ListVPPClientUsersForTokenFuncInvoked bool
 
 	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
 	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
@@ -8814,6 +8829,27 @@ func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	s.DeleteVPPTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
+}
+
+func (s *DataStore) GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*fleet.VPPClientUser, error) {
+	s.mu.Lock()
+	s.GetVPPClientUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPClientUserFunc(ctx, tokenID, managedAppleID)
+}
+
+func (s *DataStore) InsertVPPClientUser(ctx context.Context, row *fleet.VPPClientUser) error {
+	s.mu.Lock()
+	s.InsertVPPClientUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPClientUserFunc(ctx, row)
+}
+
+func (s *DataStore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
+	s.mu.Lock()
+	s.ListVPPClientUsersForTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVPPClientUsersForTokenFunc(ctx, tokenID)
 }
 
 func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {

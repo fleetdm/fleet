@@ -1839,6 +1839,19 @@ type Datastore interface {
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
+	// GetVPPClientUser returns the vpp_client_users row for the given
+	// (vpp_token_id, managed_apple_id) pair, or a NotFound error if absent.
+	GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*VPPClientUser, error)
+	// InsertVPPClientUser upserts a vpp_client_users row keyed by
+	// (vpp_token_id, managed_apple_id). On a key conflict it updates the
+	// client_user_id, apple_user_id, and status from the input row, so callers
+	// can re-call after a partial-failure response from Apple without having
+	// to read first.
+	InsertVPPClientUser(ctx context.Context, row *VPPClientUser) error
+	// ListVPPClientUsersForToken returns all rows for the given vpp_token_id,
+	// ordered by id. Useful for diagnostics.
+	ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*VPPClientUser, error)
+
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
 	// It returns whether that flag was previously set for this token.
