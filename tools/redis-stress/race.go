@@ -71,7 +71,6 @@ func runRace(args []string) {
 	if err != nil {
 		log.Fatalf("connect: %v", err)
 	}
-	defer pool.Close()
 
 	log.Printf("race mode: addr=%s read_from_replica=%v follow_redirects=%v explicit_readonly=%v",
 		*addr, *readReplica, *followRedirs, *explicitReadOnly)
@@ -107,6 +106,11 @@ func runRace(args []string) {
 	fmt.Printf("nil-after-set:     %d  ← the bug\n", s.getNilRace.Load())
 	fmt.Printf("stale-after-set:   %d\n", s.getStale.Load())
 	fmt.Printf("ops/sec:           %.1f\n", float64(total)/elapsed.Seconds())
+
+	// Close the pool explicitly rather than via defer so that any subsequent
+	// os.Exit doesn't skip cleanup. (gocritic exitAfterDefer flags the defer
+	// + os.Exit pattern.)
+	pool.Close()
 
 	if s.getNilRace.Load() > 0 {
 		fmt.Println()
