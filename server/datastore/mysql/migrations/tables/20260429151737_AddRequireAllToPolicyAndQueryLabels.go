@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260428010357, Down_20260428010357)
+	MigrationClient.AddMigration(Up_20260429151737, Down_20260429151737)
 }
 
-func Up_20260428010357(tx *sql.Tx) error {
+func Up_20260429151737(tx *sql.Tx) error {
 	if !columnExists(tx, "policy_labels", "require_all") {
 		if _, err := tx.Exec(`
 			ALTER TABLE policy_labels
@@ -31,6 +31,6 @@ func Up_20260428010357(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260428010357(tx *sql.Tx) error {
+func Down_20260429151737(tx *sql.Tx) error {
 	return nil
 }
