@@ -46,7 +46,7 @@ func testChallengeNewAndConsume(t *testing.T, ds *Datastore) {
 	// Second consume must fail — challenge is one-time.
 	err = ds.ConsumeChallenge(ctx, challenge)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testChallengeConsumeMissing(t *testing.T, ds *Datastore) {
@@ -54,11 +54,11 @@ func testChallengeConsumeMissing(t *testing.T, ds *Datastore) {
 
 	err := ds.ConsumeChallenge(ctx, "")
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	err = ds.ConsumeChallenge(ctx, "never-issued")
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 // testChallengeConsumeWithinTTL backdates a challenge to just within OneTimeChallengeTTL and
@@ -98,7 +98,7 @@ func testChallengeConsumeExpired(t *testing.T, ds *Datastore) {
 
 	err = ds.ConsumeChallenge(ctx, challenge)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 // testChallengeCleanupRespectsTTL verifies CleanupExpiredChallenges deletes only challenges
@@ -128,5 +128,5 @@ func testChallengeCleanupRespectsTTL(t *testing.T, ds *Datastore) {
 	// Expired challenge is gone.
 	err = ds.ConsumeChallenge(ctx, expiredChallenge)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, sql.ErrNoRows))
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
