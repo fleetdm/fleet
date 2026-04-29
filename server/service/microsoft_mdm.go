@@ -2042,8 +2042,14 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			// DMClient CSP spec. Both must be false for the ESP to stay visible.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
-			// BlockInStatusPage: 2 = block user, show "Try again" button on failure.
-			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "2"),
+			// BlockInStatusPage=1: block user, show "Reset PC" button on
+			// failure. Per DMClient CSP docs: 1=Reset PC, 2=Try Again,
+			// 4=Continue Anyway. We pre-configure Reset here so it's already
+			// set when/if the failure UI renders.
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
+			// AllowCollectLogsButton: pre-configure Collect Logs button so
+			// it's visible on both progress and failure pages.
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
 			// PolicyProviders/{providerID} is a dynamic node -- must be created
@@ -2094,7 +2100,6 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	var hasFailure bool
-	var firstFailedSoftware *fleet.SetupExperienceStatusResult
 
 	if !timedOut {
 		// Profile delivery has two stages, each covered by a different query:
@@ -2182,9 +2187,6 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			}
 			if r.Status == fleet.SetupExperienceStatusFailure {
 				hasFailure = true
-				if firstFailedSoftware == nil && r.IsForSoftware() {
-					firstFailedSoftware = r
-				}
 			}
 		}
 	}
@@ -2216,16 +2218,18 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	shouldBlock := failed && requireAll
 
 	// On timeout (regardless of require_all) and on failure+require_all=true,
-	// cancel any pending items. Emit the canceled_setup_experience activity
-	// when there is a failed software item to attribute it to.
+	// cancel any pending items. The canceled_setup_experience activity is
+	// already emitted by maybeCancelPendingSetupExperienceSteps in the
+	// software-install-result reporting path (see
+	// server/service/setup_experience.go) when require_all is true and a
+	// software install fails. We deliberately do not emit it again here to
+	// avoid duplicate activities when both paths fire for the same failure.
+	// The CancelPendingSetupExperienceSteps call below is idempotent and
+	// covers the timeout case where pending items were not already cancelled.
 	if timedOut || (hasFailure && requireAll) {
 		if cancelErr := svc.ds.CancelPendingSetupExperienceSteps(ctx, device.HostUUID); cancelErr != nil {
 			svc.logger.WarnContext(ctx, "ESP: failed to cancel pending setup experience steps",
 				"err", cancelErr, "host_uuid", device.HostUUID)
-		}
-
-		if firstFailedSoftware != nil {
-			svc.emitCanceledSetupExperienceActivity(ctx, device.HostUUID, firstFailedSoftware)
 		}
 	}
 
@@ -2268,21 +2272,34 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 // failed (or the ESP timed out).
 func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
-		// CustomErrorText: shown in the ESP failure UI.
+		// CustomErrorText: shown in the ESP failure UI when the timeout below
+		// triggers ESP failure.
 		newSyncMLCmdText(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
 			errorText),
-		// BlockInStatusPage=4: show only the "Reset device" button. Reset
-		// triggers an Autopilot wipe and re-enrollment, which is the only
-		// reliable in-product recovery path for a failed ESP.
+		// BlockInStatusPage=1: show the "Reset PC" button (per Microsoft
+		// DMClient CSP docs). Reset triggers an Autopilot wipe and
+		// re-enrollment, which is the only reliable in-product recovery
+		// path for a failed ESP. Documented values: 1=Reset PC,
+		// 2=Try Again, 4=Continue Anyway.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
-			"4"),
-		// AllowCollectLogsButton: also show the "Collect logs" button so IT
-		// can gather diagnostics from the failure screen.
+			"1"),
+		// AllowCollectLogsButton: show the "Collect logs" button so IT can
+		// gather diagnostics from the failure screen.
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
 			"true"),
+		// TimeOutUntilSyncFailure=1 (minute): force the ESP to time out and
+		// enter its failure state quickly. We deliberately do NOT send
+		// ServerHasFinishedProvisioning=true here because that would tell
+		// the ESP it succeeded (Windows treats "server done + no expected
+		// items missing" as success and proceeds past the ESP). Instead we
+		// rely on the timeout to trigger the failure UI, which then renders
+		// our BlockInStatusPage + CustomErrorText + AllowCollectLogsButton.
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
+			"1"),
 	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
@@ -2313,35 +2330,6 @@ func buildESPReleaseCommands(provID string, errorText *string) []*mdm_types.Sync
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
 	return cmds
-}
-
-// emitCanceledSetupExperienceActivity loads the host (best-effort) and emits
-// the canceled_setup_experience activity. Failures here are logged but do
-// not abort the ESP finalization.
-func (svc *Service) emitCanceledSetupExperienceActivity(ctx context.Context, hostUUID string, failedSoftware *fleet.SetupExperienceStatusResult) {
-	if svc.activitySvc == nil {
-		// Activity service not wired up (test environment). Skip silently.
-		return
-	}
-	host, err := svc.ds.HostLiteByIdentifier(ctx, hostUUID)
-	if err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to load host for canceled_setup_experience activity",
-			"err", err, "host_uuid", hostUUID)
-		return
-	}
-	var titleID uint
-	if failedSoftware.SoftwareTitleID != nil {
-		titleID = *failedSoftware.SoftwareTitleID
-	}
-	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
-		HostID:          host.ID,
-		HostDisplayName: host.Hostname,
-		SoftwareTitle:   failedSoftware.Name,
-		SoftwareTitleID: titleID,
-	}); err != nil {
-		svc.logger.WarnContext(ctx, "ESP: failed to create canceled_setup_experience activity",
-			"err", err, "host_uuid", hostUUID)
-	}
 }
 
 // persistESPFinalCommands stores backup copies of every finalization command

@@ -1622,14 +1622,23 @@ func TestGetESPCommands(t *testing.T) {
 		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
 		require.NotNil(t, blockCmd, "block commands must include BlockInStatusPage")
 		require.NotNil(t, blockCmd.Items[0].Data)
-		assert.Equal(t, "4", blockCmd.Items[0].Data.Content)
+		assert.Equal(t, "1", blockCmd.Items[0].Data.Content,
+			"BlockInStatusPage must be 1 (Reset PC) per DMClient CSP docs")
 
 		logsCmd := findCmdByLocURI(cmds, "AllowCollectLogsButton")
 		require.NotNil(t, logsCmd, "block commands must include AllowCollectLogsButton")
 
-		// Block path must NOT release the device.
+		// Block path forces a quick ESP timeout to trigger the failure UI.
+		// We deliberately do NOT send ServerHasFinishedProvisioning here:
+		// that would tell the ESP it succeeded and proceed past the failure
+		// screen entirely.
+		timeoutCmd := findCmdByLocURI(cmds, "TimeOutUntilSyncFailure")
+		require.NotNil(t, timeoutCmd, "block commands must include TimeOutUntilSyncFailure to force failure")
+		assert.Equal(t, "1", timeoutCmd.Items[0].Data.Content,
+			"TimeOutUntilSyncFailure must be 1 minute to trigger failure quickly")
+
 		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-			"block commands must not release the device")
+			"block commands must NOT include ServerHasFinishedProvisioning -- it would cause ESP success")
 	})
 
 	t.Run("software failure with require_all=false releases with error text", func(t *testing.T) {
@@ -1722,7 +1731,11 @@ func TestGetESPCommands(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "profile failure with require_all=true should return block commands")
 		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
-		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"))
+		// Block path forces ESP timeout to trigger failure UI; see "software
+		// failure" test for full assertions.
+		assert.NotNil(t, findCmdByLocURI(cmds, "TimeOutUntilSyncFailure"))
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"block path must not include ServerHasFinishedProvisioning")
 	})
 
 	t.Run("timeout with require_all=true sends block and cancels", func(t *testing.T) {
