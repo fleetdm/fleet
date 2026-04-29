@@ -177,7 +177,7 @@ module "main" {
     }
   }
   redis_config = {
-    name = local.customer
+    name           = local.customer
     engine         = "redis"
     engine_version = "7.1"
     family         = "redis7"
