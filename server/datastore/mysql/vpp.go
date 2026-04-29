@@ -107,12 +107,23 @@ WHERE
 
 	app.DisplayName = displayName
 
-	config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
-	}
-	if config != nil {
-		app.Configuration = *config
+	switch app.Platform {
+	case fleet.AndroidPlatform:
+		config, err := ds.GetAndroidAppConfiguration(ctx, app.AdamID, tmID) // tmID can be used as globalOrTeamID
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
+		}
+		if config != nil {
+			app.Configuration = *config
+		}
+	case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		config, err := ds.GetVPPAppConfiguration(ctx, app.Platform, app.AdamID, tmID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get vpp configuration for app store app")
+		}
+		if config != nil {
+			app.Configuration = *config
+		}
 	}
 
 	if teamID != nil {
@@ -540,8 +551,15 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, incomingA
 			}
 
 			if toAdd.Configuration != nil {
-				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
-					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+				switch toAdd.Platform {
+				case fleet.AndroidPlatform:
+					if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+					}
+				case fleet.IOSPlatform, fleet.IPadOSPlatform:
+					if err := ds.updateVPPAppConfigurationTx(ctx, tx, toAdd.Platform, ptr.ValOrZero(teamID), toAdd.AdamID, toAdd.Configuration); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
+					}
 				}
 			}
 
@@ -690,9 +708,16 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
-		if app.Configuration != nil && app.Platform == fleet.AndroidPlatform {
-			if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
-				return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+		if app.Configuration != nil {
+			switch app.Platform {
+			case fleet.AndroidPlatform:
+				if err := ds.updateAndroidAppConfigurationTx(ctx, tx, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
+				}
+			case fleet.IOSPlatform, fleet.IPadOSPlatform:
+				if err := ds.updateVPPAppConfigurationTx(ctx, tx, app.Platform, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
+				}
 			}
 		}
 
@@ -849,6 +874,11 @@ func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPA
 		return ctxerr.Wrap(ctx, err, "deleting android app configuration")
 	}
 
+	_, err = tx.ExecContext(ctx, `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`, appID.AdamID, tmID, appID.Platform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting vpp app configuration")
+	}
+
 	return nil
 }
 
@@ -970,10 +1000,16 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 		return ctxerr.Wrap(ctx, err, "delete software title display name")
 	}
 
-	if appID.Platform == fleet.AndroidPlatform {
+	switch appID.Platform {
+	case fleet.AndroidPlatform:
 		err := ds.DeleteAndroidAppConfiguration(ctx, appID.AdamID, globalOrTeamID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "deleting android app configuration")
+		}
+	case fleet.IOSPlatform, fleet.IPadOSPlatform:
+		err := ds.DeleteVPPAppConfiguration(ctx, appID.Platform, appID.AdamID, globalOrTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "deleting vpp app configuration")
 		}
 	}
 
@@ -2489,7 +2525,8 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 		incomingDisplayName := ptr.ValOrZero(incomingApp.DisplayName)
 		displayNameChanged = existingDisplayName != incomingDisplayName
 
-		if incomingApp.Platform == fleet.AndroidPlatform {
+		switch incomingApp.Platform {
+		case fleet.AndroidPlatform:
 			configurationChanged, err = ds.HasAndroidAppConfigurationChanged(ctx, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
 			if err != nil {
 				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for android app")
@@ -2497,6 +2534,11 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 			// Set configuration to empty if it exists and is provided as null
 			if configurationChanged && len(incomingApp.Configuration) == 0 {
 				incomingApp.Configuration = json.RawMessage("{}")
+			}
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			configurationChanged, err = ds.HasVPPAppConfigurationChanged(ctx, incomingApp.Platform, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
+			if err != nil {
+				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for vpp app")
 			}
 		}
 
@@ -2761,4 +2803,116 @@ SELECT EXISTS(
 		return false, ctxerr.Wrap(ctx, err, "checking android web app name exists on team")
 	}
 	return exists, nil
+}
+
+func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
+	const stmt = `
+SELECT
+	BINARY COALESCE(?, '') != configuration AS has_changed
+FROM
+	vpp_app_configurations
+WHERE
+	application_id = ? AND
+	team_id = ? AND
+	platform = ?
+`
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, adamID, teamID, platform)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare vpp app configuration")
+	}
+	return hasChanged, nil
+}
+
+func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) (*[]byte, error) {
+	const stmt = `SELECT configuration FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`
+
+	var config []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, adamID, teamID, platform)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app configuration")
+	}
+
+	return &config, nil
+}
+
+func (ds *Datastore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	if len(adamIDs) == 0 {
+		return nil, nil
+	}
+
+	const bulkGetStmt = `
+SELECT
+	application_id,
+	configuration
+FROM vpp_app_configurations
+WHERE application_id IN (?) AND team_id = ? AND platform = ?
+`
+
+	stmt, args, err := sqlx.In(bulkGetStmt, adamIDs, teamID, platform)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get vpp app configurations query")
+	}
+
+	var configs []*struct {
+		ApplicationID string `db:"application_id"`
+		Configuration []byte `db:"configuration"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get vpp app configurations")
+	}
+
+	m := make(map[string][]byte, len(configs))
+	for _, c := range configs {
+		m[c.ApplicationID] = c.Configuration
+	}
+	return m, nil
+}
+
+func (ds *Datastore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
+	const stmt = `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, adamID, teamID, platform)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete vpp app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete vpp app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("VPPAppConfiguration"))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, platform fleet.InstallableDevicePlatform, teamID uint, adamID string, config []byte) error {
+	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating vpp app configuration")
+	}
+
+	const stmt = `
+INSERT INTO
+	vpp_app_configurations (application_id, team_id, platform, configuration)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	configuration = VALUES(configuration)
+`
+
+	_, err := tx.ExecContext(ctx, stmt, adamID, teamID, platform, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updateVPPAppConfiguration")
+	}
+	return nil
 }

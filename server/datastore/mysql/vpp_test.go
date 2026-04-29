@@ -45,6 +45,8 @@ func TestVPP(t *testing.T) {
 		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
 		{"GetVPPAppInstallStatusByCommandUUID", testGetVPPAppInstallStatusByCommandUUID},
 		{"AndroidAppConfigs", testAndroidAppConfigs},
+		{"VPPAppConfigCRUDFlow", testVPPAppConfigCRUDFlow},
+		{"VPPAppConfigHasChanged", testHasVPPAppConfigurationChanged},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
@@ -3115,4 +3117,108 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, queueCommandCount)
 		return nil
 	})
+}
+
+func setupTestVPPApp(t *testing.T, ds *Datastore, adamID string, platform fleet.InstallableDevicePlatform) {
+	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
+		INSERT INTO vpp_apps (adam_id, platform, bundle_identifier, name, latest_version, icon_url)
+		VALUES (?, ?, ?, 'Test App', '1.0', 'http://example.com/icon.png')
+	`, adamID, platform, "com.example."+adamID)
+	require.NoError(t, err)
+}
+
+const testIOSPlist = `<dict>
+	<key>ServerURL</key>
+	<string>https://fleetdm.com</string>
+	<key>EnableTelemetry</key>
+	<true/>
+</dict>`
+
+func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const adamID = "1234567890"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID, fleet.IPadOSPlatform)
+	teamID := setupTestTeam(t, ds)
+
+	// NotFound on empty table.
+	_, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+	err = ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+
+	// BulkGet: empty input returns nil map without a query.
+	got, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, nil, teamID)
+	require.NoError(t, err)
+	require.Nil(t, got)
+
+	// Insert: same adam_id, separate config per platform.
+	iosCfg := []byte(testIOSPlist)
+	ipadCfg := []byte(`<dict><key>p</key><string>ipados</string></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, iosCfg))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IPadOSPlatform, teamID, adamID, ipadCfg))
+
+	// Get: per-platform isolation, byte-for-byte round-trip including newlines.
+	gotIOS, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, iosCfg, *gotIOS)
+	gotIPad, err := ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, ipadCfg, *gotIPad)
+
+	// BulkGet: returns matched rows, ignores unknown adam_ids.
+	bulk, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID, "9999999999"}, teamID)
+	require.NoError(t, err)
+	require.Len(t, bulk, 1)
+	require.Equal(t, iosCfg, bulk[adamID])
+
+	// Update: upsert overwrites.
+	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, updated))
+	gotIOS, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, updated, *gotIOS)
+
+	// Delete iOS only — iPadOS row survives.
+	require.NoError(t, ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID))
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+
+	// Cascade: dropping the parent vpp_apps row removes the config row.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, fleet.IPadOSPlatform)
+	require.NoError(t, err)
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	const adamID = "1234567890"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	teamID := setupTestTeam(t, ds)
+
+	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(testCtx(), ds.writer(testCtx()), fleet.IOSPlatform, teamID, adamID, stored))
+
+	cases := []struct {
+		desc      string
+		incoming  []byte
+		compareID string
+		want      bool
+	}{
+		{"identical", stored, adamID, false},
+		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), adamID, true},
+		{"empty against existing", nil, adamID, true},
+		{"empty against non-existing", nil, "9999999999", false},
+		{"non-empty against non-existing", stored, "9999999999", true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := ds.HasVPPAppConfigurationChanged(ctx, fleet.IOSPlatform, c.compareID, teamID, c.incoming)
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
 }

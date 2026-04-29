@@ -242,4 +242,3 @@ func ValidateAppleAppConfiguration(config []byte) error {
 	}
 	return nil
 }
-

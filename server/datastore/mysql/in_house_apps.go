@@ -1600,3 +1600,114 @@ LIMIT 1
 	}
 	return true, title, nil
 }
+
+func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID, teamID uint, newConfig []byte) (bool, error) {
+	const stmt = `
+SELECT
+	BINARY COALESCE(?, '') != configuration AS has_changed
+FROM
+	in_house_app_configurations
+WHERE
+	in_house_app_id = ? AND
+	team_id = ?
+`
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID, teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
+	}
+	return hasChanged, nil
+}
+
+func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) (*[]byte, error) {
+	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ? AND team_id = ?`
+
+	var config []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, inHouseAppID, teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+
+	return &config, nil
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint, teamID uint) (map[uint][]byte, error) {
+	if len(inHouseAppIDs) == 0 {
+		return nil, nil
+	}
+
+	const bulkGetStmt = `
+SELECT
+	in_house_app_id,
+	configuration
+FROM in_house_app_configurations
+WHERE in_house_app_id IN (?) AND team_id = ?
+`
+
+	stmt, args, err := sqlx.In(bulkGetStmt, inHouseAppIDs, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get in-house app configurations query")
+	}
+
+	var configs []*struct {
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		Configuration []byte `db:"configuration"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
+	}
+
+	m := make(map[uint][]byte, len(configs))
+	for _, c := range configs {
+		m[c.InHouseAppID] = c.Configuration
+	}
+	return m, nil
+}
+
+func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) error {
+	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ? AND team_id = ?`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID, teamID uint, config []byte) error {
+	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating in-house app configuration")
+	}
+
+	const stmt = `
+INSERT INTO
+	in_house_app_configurations (in_house_app_id, team_id, configuration)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	configuration = VALUES(configuration)
+`
+
+	_, err := tx.ExecContext(ctx, stmt, inHouseAppID, teamID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
+	}
+	return nil
+}
