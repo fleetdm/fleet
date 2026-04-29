@@ -563,12 +563,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
-		if _, ok := fleet.ValidLabelPlatformVariants[spec.Platform]; !ok {
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "invalid platform: %s", spec.Platform), http.StatusUnprocessableEntity,
-			)
-		}
-
 		// Validate mutually exclusive field combinations per label membership type
 		switch spec.LabelMembershipType {
 		case fleet.LabelMembershipTypeManual:
@@ -588,6 +582,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				)
 			}
 		case fleet.LabelMembershipTypeDynamic:
+			if spec.Query == "" {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s is declared as dynamic but is missing a query", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
 			if spec.HostVitalsCriteria != nil {
 				return fleet.NewUserMessageError(
 					ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains criteria", spec.Name), http.StatusUnprocessableEntity,
@@ -596,6 +595,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			if len(spec.Hosts) > 0 {
 				return fleet.NewUserMessageError(
 					ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains hosts", spec.Name), http.StatusUnprocessableEntity,
+				)
+			}
+			if _, ok := fleet.ValidLabelPlatformVariants[spec.Platform]; !ok {
+				return fleet.NewUserMessageError(
+					ctxerr.Errorf(ctx, "label %s has invalid platform: %s", spec.Name, spec.Platform), http.StatusUnprocessableEntity,
 				)
 			}
 		case fleet.LabelMembershipTypeHostVitals:

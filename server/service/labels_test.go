@@ -768,6 +768,16 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "declared as dynamic but contains hosts")
 
+	// Dynamic label without query should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "dynamic_no_query",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as dynamic but is missing a query")
+
 	// Dynamic label with criteria should be rejected
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{
