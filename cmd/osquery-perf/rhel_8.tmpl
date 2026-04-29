@@ -1,0 +1,206 @@
+{{ define "enroll" -}}
+{
+    "enroll_secret": "{{ .EnrollSecret  }}",
+    "host_details": {
+        "os_version": {
+            "arch": "x86_64",
+            "build": "",
+            "codename": "Ootpa",
+            "major": "8",
+            "minor": "10",
+            "name": "Red Hat Enterprise Linux",
+            "patch": "0",
+            "platform": "rhel",
+            "platform_like": "rhel fedora",
+            "version": "8.10"
+        },
+        "osquery_info": {
+            "build_distro": "rhel8",
+            "build_platform": "linux",
+            "config_hash": "",
+            "config_valid": "0",
+            "extensions": "inactive",
+            "instance_id": "{{ .UUID }}",
+            "pid": "12947",
+            "platform_mask": "21",
+            "start_time": "1580931224",
+            "uuid": "{{ .UUID }}",
+            "version": "5.5.1",
+            "watcher": "-1"
+        },
+        "platform_info": {
+        },
+        "system_info": {
+            "computer_name": "{{ .CachedString "hostname" }}",
+            "cpu_brand": "Intel(R) Xeon(R) CPU E5-2670 v3 @ 2.30GHz",
+            "cpu_logical_cores": "8",
+            "cpu_physical_cores": "4",
+            "cpu_subtype": "Intel x86-64h Haswell",
+            "cpu_type": "x86_64h",
+            "hardware_model": "",
+            "hardware_serial": "{{ .SerialNumber }}",
+            "hardware_vendor": "",
+            "hardware_version": "",
+            "hostname": "{{ .CachedString "hostname" }}",
+            "local_hostname": "{{ .CachedString "hostname" }}",
+            "physical_memory": "17179869184",
+            "uuid": "{{ .UUID }}"
+        }
+    },
+    "host_identifier": "{{ .UUID }}",
+    "platform_type": "16"
+}
+{{- end }}
+
+{{ define "fleet_detail_query_network_interface_unix" -}}
+[
+  {
+    "address":"fe80::8cb:112d:ff51:1e5d%en0",
+    "mac":"f8:2d:88:93:56:5c"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_version" -}}
+[
+  {
+    "arch": "x86_64",
+    "build": "",
+    "codename": "Ootpa",
+    "major": "8",
+    "minor": "10",
+    "name": "Red Hat Enterprise Linux",
+    "patch": "0",
+    "platform": "rhel",
+    "platform_like": "rhel fedora",
+    "version": "8.10"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Red Hat Enterprise Linux",
+    "version":"8.10",
+    "major":"8",
+    "minor":"10",
+    "patch":"0",
+    "build":"",
+    "platform":"rhel",
+    "arch":"x86_64",
+    "kernel_version":"4.18.0-553.30.1.el8_10.x86_64"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_flags" -}}
+[
+  {
+    "name":"config_refresh",
+    "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
+  },
+  {
+    "name":"distributed_interval",
+    "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
+  },
+  {
+    "name":"logger_tls_period",
+    "value":"99999"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_info" -}}
+[
+  {
+    "pid":"11287",
+    "uuid":"{{ .UUID }}",
+    "instance_id":"{{ .UUID }}",
+    "version":"5.5.1",
+    "config_hash":"b01efbf375ac6767f259ae98751154fef727ce35",
+    "config_valid":"1",
+    "extensions":"inactive",
+    "build_platform":"linux",
+    "build_distro":"rhel8",
+    "start_time":"1582857555",
+    "watcher":"-1",
+    "platform_mask":"9"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_system_info" -}}
+[
+  {
+    "hostname":"{{ .CachedString "hostname" }}",
+    "uuid":"{{ .UUID }}",
+    "cpu_type":"x86_64h",
+    "cpu_subtype":"Intel x86-64h Haswell",
+    "cpu_brand":"Intel(R) Xeon(R) CPU E5-2670 v3 @ 2.30GHz",
+    "cpu_physical_cores":"4",
+    "cpu_logical_cores":"8",
+    "cpu_microcode":"",
+    "physical_memory":"17179869184",
+    "hardware_vendor":"",
+    "hardware_model":"",
+    "hardware_version":"",
+    "hardware_serial":"{{ .SerialNumber }}",
+    "computer_name":"{{ .CachedString "hostname" }}",
+    "local_hostname":"{{ .CachedString "hostname" }}"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_uptime" -}}
+[
+  {
+    "days":"0",
+    "hours":"4",
+    "minutes":"38",
+    "seconds":"11",
+    "total_seconds":"16691"
+  }
+]
+{{- end }}
+
+{{/* all hosts */}}
+{{ define "fleet_label_query_6" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All macOS hosts */}}
+{{ define "fleet_label_query_7" -}}
+[]
+{{- end }}
+
+{{/* All Ubuntu hosts */}}
+{{ define "fleet_label_query_8" -}}
+[]
+{{- end }}
+
+{{/* All CentOS hosts */}}
+{{ define "fleet_label_query_9" -}}
+[]
+{{- end }}
+
+{{/* All Windows hosts */}}
+{{ define "fleet_label_query_10" -}}
+[]
+{{- end }}
+
+{{/* All Red Hat hosts */}}
+{{ define "fleet_label_query_11" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All Linux distributions */}}
+{{ define "fleet_label_query_12" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
