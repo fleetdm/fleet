@@ -35,7 +35,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 ### Orchestration
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -173,7 +173,7 @@ Perform a quick visual scan of the UI and confirm:
 ### MDM
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -321,7 +321,7 @@ Perform a quick visual scan of the UI and confirm:
 ### Software
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -440,7 +440,7 @@ Perform a quick visual scan of the UI and confirm:
 ### Security & Compliance
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -552,7 +552,7 @@ Perform a quick visual scan of the UI and confirm:
 ### All product groups
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -667,7 +667,7 @@ Ensure new `fleetd` is tested and promoted from local > edge > stable channels.
 > IMPORTANT: Do not build fleetd from `main` as it is a moving target and new fleetd changes from future releases might be already merged.
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
@@ -741,7 +741,7 @@ Ensure `fleetd` version pushed to edge is working with the current released vers
    ```
 
 <table>
-<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>Pass/fail</th></tr>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</th></tr>
 <tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
 
 <tr>
