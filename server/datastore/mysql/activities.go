@@ -407,7 +407,7 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
 	var canceled []fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id`
+		const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
 		var execIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
