@@ -4048,9 +4048,7 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "team_id")
 
-	// order_key=hostname is supported on both paths. Path B's SELECTs
-	// project hostname directly; path A JOINs hosts to surface it. The
-	// secure helper accepts the key on both.
+	// order_key=hostname is supported on both paths.
 	s.DoRaw("GET", "/api/latest/fleet/mdm/commands?order_key=hostname", nil, http.StatusOK)
 	s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/commands?host_identifier=%s&order_key=hostname", h.UUID), nil, http.StatusOK)
 }

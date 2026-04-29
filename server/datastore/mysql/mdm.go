@@ -442,19 +442,25 @@ WHERE
 
 	var listStmt, countStmt string
 	var params []any
+	// Wrap in `SELECT * FROM (...) u WHERE TRUE` so the cursor and ORDER BY
+	// predicates resolve against the unambiguous `u` projection — the inner
+	// branches join multiple tables that all expose `command_uuid` / `updated_at`.
+	// `WHERE TRUE` is required because the cursor helper picks AND vs WHERE by
+	// substring-matching "where", picks AND from the inner branches, and would
+	// otherwise emit a dangling `AND`. See https://github.com/fleetdm/fleet/issues/44422.
 	switch {
 	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
-		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u`,
+		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u WHERE TRUE`,
 			appleStmt, winStmt)
 		countStmt = fmt.Sprintf(`SELECT COUNT(1) FROM ((%s) UNION ALL (%s)) u`, appleStmt, winStmt)
 		params = append(params, appleParams...)
 		params = append(params, winParams...)
 	case len(appleUUIDs) > 0:
-		listStmt = appleStmt
+		listStmt = `SELECT * FROM (` + appleStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + appleStmt + `) u`
 		params = appleParams
 	case len(winUUIDs) > 0:
-		listStmt = winStmt
+		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
 	}

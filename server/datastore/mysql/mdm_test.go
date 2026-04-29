@@ -39,6 +39,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
 		{"TestListMDMAppleCommandsOrderKeys", testListMDMAppleCommandsOrderKeys},
+		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
+		{"TestListMDMCommandsPagination", testListMDMCommandsPagination},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
@@ -492,6 +494,150 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, true, meta.HasNextResults)
 	require.Equal(t, false, meta.HasPreviousResults)
+
+	// Cursor pagination on the host-scoped path. Regression test for
+	// https://github.com/fleetdm/fleet/issues/44422:
+	// "Error 1052 (23000): Column '<col>' in where clause is ambiguous".
+	// Covers all three Path A SQL shapes: Apple-only, Windows-only, and
+	// multi-platform (host_identifier resolves to both an Apple and a
+	// Windows host via the shared hostname "test-host").
+	t.Run("cursor_pagination_44422", func(t *testing.T) {
+		for _, tc := range []struct {
+			name           string
+			hostIdentifier string
+			wantPlatforms  []string
+		}{
+			{"apple_only", macH.UUID, []string{"darwin"}},
+			{"multi_platform", "test-host", []string{"darwin", "windows"}},
+			{"windows_only", windowsH.UUID, []string{"windows"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				filters := fleet.MDMCommandFilters{HostIdentifier: tc.hostIdentifier}
+
+				// Sanity: confirm the dispatch reaches the expected branch(es)
+				// and there is data to paginate over.
+				all, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{PerPage: 100},
+						Filters:     filters,
+					},
+				)
+				require.NoError(t, err)
+				require.NotEmpty(t, all)
+				platforms := map[string]bool{}
+				for _, c := range all {
+					switch c.HostUUID {
+					case macH.UUID:
+						platforms["darwin"] = true
+					case windowsH.UUID:
+						platforms["windows"] = true
+					}
+				}
+				for _, p := range tc.wantPlatforms {
+					require.True(t, platforms[p], "expected commands from platform %s", p)
+				}
+
+				// Cursor on updated_at — `updated_at` is exposed by multiple
+				// inner-FROM tables on every Path A branch, so this would fail
+				// with "Column 'updated_at' ... is ambiguous" without the wrap.
+				page1, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "updated_at",
+							OrderDirection: fleet.OrderDescending,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Len(t, page1, 1)
+
+				page2, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "updated_at",
+							OrderDirection: fleet.OrderDescending,
+							After:          page1[0].UpdatedAt.Format(time.RFC3339Nano),
+						},
+						Filters: filters,
+					},
+				)
+				// require.NoError is the regression guard. The cursor predicate
+				// is strict (`updated_at < ?`, no tiebreaker), so page2 may be
+				// empty when adjacent commands share an updated_at second — that
+				// is expected, not a regression. Only assert distinctness when
+				// a row did come back.
+				require.NoError(t, err)
+				if len(page2) > 0 {
+					require.NotEqual(t, page1[0].CommandUUID, page2[0].CommandUUID)
+				}
+
+				// Cursor on command_uuid — separate ambiguity manifestation;
+				// `command_uuid` is the join column on every inner table.
+				first, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "command_uuid",
+							OrderDirection: fleet.OrderAscending,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Len(t, first, 1)
+
+				next, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "command_uuid",
+							OrderDirection: fleet.OrderAscending,
+							After:          first[0].CommandUUID,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.NotEmpty(t, next)
+				require.NotEqual(t, first[0].CommandUUID, next[0].CommandUUID)
+
+				// Cursor on hostname. All hosts in this test share hostname
+				// "test-host", and the helper's cursor predicate is a strict
+				// `hostname > 'test-host'` (no tiebreaker), so the result is
+				// expected to be empty. The bug would surface as a SQL error
+				// before the empty check.
+				afterHostname, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        5,
+							OrderKey:       "hostname",
+							OrderDirection: fleet.OrderAscending,
+							After:          "test-host",
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Empty(t, afterHostname)
+			})
+		}
+	})
+
 }
 
 // testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
@@ -592,6 +738,160 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 		got = append(got, cmd.CommandUUID)
 	}
 	require.ElementsMatch(t, []string{teamCmdUUID, globalCmdUUID}, got)
+}
+
+func testListMDMCommandsRequiresPerPage(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PerPage")
+
+	_, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PerPage")
+}
+
+// testListMDMCommandsPagination exercises the all-hosts per-branch
+// pagination across both Apple and Windows branches. The path inflates the
+// inner LIMIT to per_page*page+per_page so that page N is correct even if all
+// matching rows came from a single branch, and the outer wrap clears
+// After/Page when cursor pagination is used.
+func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Enroll one Windows host and one macOS host.
+	winHost := test.NewHost(t, ds, "paginate-win", "1.2.3.4", "paginate-node-win", uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	winDeviceID := windowsEnroll(t, ds, winHost)
+
+	macHost := test.NewHost(t, ds, "paginate-mac", "1.2.3.5", "paginate-node-mac", uuid.NewString(), time.Now())
+	nanoEnroll(t, ds, macHost, false)
+
+	// Insert 3 Apple commands and 3 Windows commands so both branches contribute.
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	const totalApple = 3
+	const totalWin = 3
+	allUUIDs := make([]string, 0, totalApple+totalWin)
+	for range totalApple {
+		cmdUUID := uuid.NewString()
+		raw := createRawAppleCmd("ProfileList", cmdUUID)
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{macHost.UUID}, raw))
+		allUUIDs = append(allUUIDs, cmdUUID)
+	}
+	for range totalWin {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{winDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}))
+		allUUIDs = append(allUUIDs, cmdUUID)
+	}
+	sort.Strings(allUUIDs)
+	totalCount := len(allUUIDs)
+
+	t.Run("page-based across branches", func(t *testing.T) {
+		// PerPage=2 across 6 commands => 3 pages of 2 each.
+		const perPage = 2
+		seen := make(map[string]bool)
+		for page := uint(0); page*perPage < uint(totalCount); page++ { //nolint:gosec
+			cmds, _, meta, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{
+						OrderKey:        "command_uuid",
+						OrderDirection:  fleet.OrderAscending,
+						Page:            page,
+						PerPage:         perPage,
+						IncludeMetadata: true,
+					},
+				},
+			)
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(cmds), perPage)
+
+			start := int(page * perPage)
+			end := min(start+perPage, totalCount)
+			expected := allUUIDs[start:end]
+			got := make([]string, 0, len(cmds))
+			for _, c := range cmds {
+				require.False(t, seen[c.CommandUUID], "duplicate command UUID across pages: %s", c.CommandUUID)
+				seen[c.CommandUUID] = true
+				got = append(got, c.CommandUUID)
+			}
+			require.Equal(t, expected, got, "page %d", page)
+
+			require.Equal(t, page > 0, meta.HasPreviousResults, "page %d HasPreviousResults", page)
+			require.Equal(t, end < totalCount, meta.HasNextResults, "page %d HasNextResults", page)
+		}
+		require.Len(t, seen, totalCount)
+	})
+
+	t.Run("cursor walks all rows without overlap", func(t *testing.T) {
+		const perPage = 2
+		seen := make(map[string]bool)
+		var after string
+		for {
+			cmds, _, _, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{
+						OrderKey:        "command_uuid",
+						OrderDirection:  fleet.OrderAscending,
+						PerPage:         perPage,
+						After:           after,
+						IncludeMetadata: true,
+					},
+				},
+			)
+			require.NoError(t, err)
+			if len(cmds) == 0 {
+				break
+			}
+			for _, c := range cmds {
+				require.False(t, seen[c.CommandUUID], "duplicate command UUID across cursor pages: %s", c.CommandUUID)
+				seen[c.CommandUUID] = true
+			}
+			after = cmds[len(cmds)-1].CommandUUID
+			if len(cmds) < perPage {
+				break
+			}
+		}
+		require.Len(t, seen, totalCount)
+	})
+
+	t.Run("outer clears Page when After is set", func(t *testing.T) {
+		// Without the outer-wrap clearing of Page, Page=99 with PerPage=2 would
+		// add OFFSET 198 on top of the cursor filter and return zero rows even
+		// though plenty of rows follow allUUIDs[0]. With the clearing, the call
+		// must return the page-sized slice immediately after the cursor.
+		cmds, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:        "command_uuid",
+					OrderDirection:  fleet.OrderAscending,
+					PerPage:         2,
+					Page:            99,
+					After:           allUUIDs[0],
+					IncludeMetadata: true,
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, allUUIDs[1:3], extractCommandUUIDs(cmds))
+	})
+}
+
+func extractCommandUUIDs(cmds []*fleet.MDMCommand) []string {
+	out := make([]string, 0, len(cmds))
+	for _, c := range cmds {
+		out = append(out, c.CommandUUID)
+	}
+	return out
 }
 
 func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
