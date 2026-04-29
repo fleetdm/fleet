@@ -1,4 +1,4 @@
-# Security
+h# Security
 
 
 ## Fleet security
@@ -338,7 +338,7 @@ Some legitimate workflows need write access — for example, building bootable i
 
 To request an exception:
 
-1. Find your host's **Fleet ID** (visible on the host details page in dogfood, or via `fleetctl get hosts`).
+1. Find your host's **Fleet ID** (visible in the URL on your host's details page in dogfood).
 2. Open a pull request against [`fleetdm/fleet`](https://github.com/fleetdm/fleet) that adds your host's Fleet ID under `hosts:` of the label file matching your platform:
 
    | Platform | Label file                                                                                       |
