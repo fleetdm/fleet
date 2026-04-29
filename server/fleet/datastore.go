@@ -1986,10 +1986,13 @@ type Datastore interface {
 	// This is a lightweight read for the orbit config polling path.
 	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
 
-	// HasWindowsSetupExperienceItemsForHostUUID returns true if any setup
-	// experience items (Windows software installers with install_during_setup
-	// or setup experience scripts) are configured for the team that the host
-	// with the given UUID belongs to. Used by the ESP release gate to
+	// HasWindowsSetupExperienceItemsForHostUUID returns true if any Windows
+	// setup experience software installers (with install_during_setup) are
+	// configured for the team that the host with the given UUID belongs to.
+	// Setup experience scripts are deliberately excluded: they are only
+	// enqueued for darwin in EnqueueSetupExperienceItems, so including them
+	// here would cause Windows ESP release to wait forever on teams that
+	// have only a script configured. Used by the ESP release gate to
 	// disambiguate between "no setup configured" (safe to release) and
 	// "setup configured but orbit hasn't initialized yet" (must wait) when
 	// setup_experience_status_results is empty.

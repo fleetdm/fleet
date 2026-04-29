@@ -2099,7 +2099,14 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
 	}
 
-	var hasFailure bool
+	// hasSoftwareFailure tracks setup-experience software failures only.
+	// Profile delivery failures intentionally do NOT set this: the setting
+	// `require_all_software_windows` is software-scoped (matching the macOS
+	// equivalent), and Windows profile failures often have benign causes
+	// (CSP not supported on the host's edition, conflicting policies). We
+	// still wait for profiles to reach a terminal state in Stage 2, but we
+	// don't propagate profile failures into the block decision.
+	var hasSoftwareFailure bool
 
 	if !timedOut {
 		// Profile delivery has two stages, each covered by a different query:
@@ -2130,11 +2137,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			if p.OperationType != fleet.MDMOperationTypeInstall {
 				continue
 			}
+			// Wait for terminal state (verified or failed) before proceeding.
+			// Profile failures are NOT propagated to the block decision -- see
+			// hasSoftwareFailure comment above.
 			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
 				return nil, nil
-			}
-			if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-				hasFailure = true
 			}
 		}
 
@@ -2186,7 +2193,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 				return nil, nil
 			}
 			if r.Status == fleet.SetupExperienceStatusFailure {
-				hasFailure = true
+				hasSoftwareFailure = true
 			}
 		}
 	}
@@ -2214,10 +2221,23 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, nil
 	}
 
-	failed := timedOut || hasFailure
+	failed := timedOut || hasSoftwareFailure
 	shouldBlock := failed && requireAll
 
-	// On timeout (regardless of require_all) and on failure+require_all=true,
+	// Pick the user-facing error text to surface on the failure UI. Software
+	// failures get the software-specific text; pure timeout (no software
+	// failed) gets the timeout text so the user sees an accurate reason.
+	// Software failure takes precedence when both happen because it's more
+	// actionable.
+	var errorText string
+	switch {
+	case hasSoftwareFailure:
+		errorText = microsoft_mdm.ESPSoftwareFailureErrorText
+	case timedOut:
+		errorText = microsoft_mdm.ESPTimeoutErrorText
+	}
+
+	// On timeout (regardless of require_all) and on software-failure+require_all=true,
 	// cancel any pending items. The canceled_setup_experience activity is
 	// already emitted by maybeCancelPendingSetupExperienceSteps in the
 	// software-install-result reporting path (see
@@ -2226,7 +2246,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// avoid duplicate activities when both paths fire for the same failure.
 	// The CancelPendingSetupExperienceSteps call below is idempotent and
 	// covers the timeout case where pending items were not already cancelled.
-	if timedOut || (hasFailure && requireAll) {
+	if timedOut || (hasSoftwareFailure && requireAll) {
 		if cancelErr := svc.ds.CancelPendingSetupExperienceSteps(ctx, device.HostUUID); cancelErr != nil {
 			svc.logger.WarnContext(ctx, "ESP: failed to cancel pending setup experience steps",
 				"err", cancelErr, "host_uuid", device.HostUUID)
@@ -2237,14 +2257,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	provID := syncml.DocProvisioningAppProviderID
 	var cmds []*mdm_types.SyncMLCmd
 	if shouldBlock {
-		cmds = buildESPBlockCommands(provID, microsoft_mdm.ESPSoftwareFailureErrorText)
+		cmds = buildESPBlockCommands(provID, errorText)
 	} else {
-		var errorText *string
-		if failed {
-			t := microsoft_mdm.ESPSoftwareFailureErrorText
-			errorText = &t
+		var maybeErrorText *string
+		if errorText != "" {
+			maybeErrorText = &errorText
 		}
-		cmds = buildESPReleaseCommands(provID, errorText)
+		cmds = buildESPReleaseCommands(provID, maybeErrorText)
 	}
 
 	// Persist all the finalization commands as a backup so they're resent
@@ -2259,7 +2278,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"device_id", device.MDMDeviceID,
 		"host_uuid", device.HostUUID,
 		"timed_out", timedOut,
-		"has_failure", hasFailure,
+		"has_software_failure", hasSoftwareFailure,
 		"require_all", requireAll,
 		"blocking", shouldBlock)
 

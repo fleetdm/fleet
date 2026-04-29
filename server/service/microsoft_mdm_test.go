@@ -1691,7 +1691,12 @@ func TestGetESPCommands(t *testing.T) {
 			"cancel should not be called for require_all=false failure (items already terminal)")
 	})
 
-	t.Run("profile failure with require_all=true sends block commands", func(t *testing.T) {
+	t.Run("profile failure alone does not block even with require_all=true", func(t *testing.T) {
+		// Profile delivery failures (e.g. CSP not supported on the host's
+		// edition) should not trigger the ESP block screen. The
+		// require_all_software_windows setting is software-scoped (matching
+		// macOS), so a failed profile with no software failure must release
+		// the device normally.
 		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return &fleet.MDMWindowsEnrolledDevice{
@@ -1720,6 +1725,61 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "profile failure alone should release the device")
+
+		// Release path: ServerHasFinishedProvisioning is set, BlockInStatusPage is not.
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"profile-only failure must release the device")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"profile-only failure must not block the device")
+
+		// No software failure and no timeout means no error text on the release.
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"profile-only failure should not surface error text")
+
+		// Cancel should NOT be called: profile failures don't trigger cancel.
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"profile failure must not cancel pending setup experience steps")
+	})
+
+	t.Run("profile failure combined with software failure still blocks on software", func(t *testing.T) {
+		// When BOTH a profile and a software install fail, the software
+		// failure still triggers the block (with require_all=true) and the
+		// software-specific error text wins (because it's more actionable
+		// than a generic timeout/profile message).
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
+			return true, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
 		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
 			return nil
 		}
@@ -1729,13 +1789,15 @@ func TestGetESPCommands(t *testing.T) {
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "profile failure with require_all=true should return block commands")
-		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
-		// Block path forces ESP timeout to trigger failure UI; see "software
-		// failure" test for full assertions.
-		assert.NotNil(t, findCmdByLocURI(cmds, "TimeOutUntilSyncFailure"))
-		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-			"block path must not include ServerHasFinishedProvisioning")
+		require.NotEmpty(t, cmds)
+
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"software failure with require_all=true blocks regardless of profile state")
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content,
+			"software failure error text takes precedence over profile/timeout text")
 	})
 
 	t.Run("timeout with require_all=true sends block and cancels", func(t *testing.T) {
@@ -1769,6 +1831,14 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotEmpty(t, cmds, "timeout with require_all=true should return block commands")
 		assert.True(t, cancelled, "timeout should cancel pending steps")
 		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+
+		// Pure-timeout path uses the timeout-specific error text (no software
+		// failure was observed because the wait gates were skipped).
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd, "block path includes CustomErrorText")
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
+			"timeout without software failure uses timeout-specific error text")
 
 		// Wait gates should be skipped on timeout.
 		assert.False(t, ds.ListMDMWindowsProfilesToInstallForHostFuncInvoked)
@@ -1808,8 +1878,11 @@ func TestGetESPCommands(t *testing.T) {
 		assert.True(t, cancelled, "timeout cancels pending steps regardless of require_all")
 		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
 			"timeout with require_all=false releases the device")
-		assert.NotNil(t, findCmdByLocURI(cmds, "CustomErrorText"),
-			"release-with-error includes CustomErrorText")
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd, "release-with-error includes CustomErrorText")
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
+			"timeout without software failure uses timeout-specific error text")
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
 	})
 
