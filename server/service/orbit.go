@@ -1038,7 +1038,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			// upcoming activities queued behind the wipe will never run -
 			// cancel them silently before falling through to record the
 			// "ran script" activity for the wipe itself.
-			if hsr != nil && hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
 				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
 					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
 				}
