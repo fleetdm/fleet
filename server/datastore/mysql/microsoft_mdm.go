@@ -324,11 +324,9 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		payloadByHostUUID[p.HostUUID] = p
 	}
 
-	// Insert command queue entries and host profile entries in batches, each
-	// batch in its own transaction to limit lock contention. Each host gets
-	// one command queue row and one host_mdm_windows_profiles row, inserted
-	// together so they stay consistent within the batch and so we don't end
-	// up with queued commands that don't have corresponding host profile entries.
+	// Insert command queue entries and host profile entries in batches.
+	// The queue INSERT ... SELECT silently skips hosts without an
+	// enrollment; profile rows are upserted for all hosts in the batch.
 	var (
 		queueHostUUIDs []string
 		profileArgs    []any
