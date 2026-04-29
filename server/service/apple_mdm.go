@@ -4160,6 +4160,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
+		// "Already installed" is not a real failure: the end user grabbed the
+		// app from the App Store before Fleet's command landed. Treat it as a
+		// successful install and let the verification flow confirm presence —
+		// no retry, no failure activity. Applies to all enrollment types since
+		// Apple's behavior here is the same regardless of enrollment style.
+		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
+			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
+			svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
+				"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			cmdResult.Status = fleet.MDMAppleStatusAcknowledged
+		}
+
 		// create an activity for installing only if we're in a terminal error state
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {

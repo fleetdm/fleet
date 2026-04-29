@@ -2308,6 +2308,119 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 	}
 }
 
+func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing.T) {
+	const (
+		hostUUID    = "HOST-UUID-XYZ"
+		commandUUID = "CMD-UUID-XYZ"
+	)
+	ctx := context.Background()
+
+	newSvc := func(ds *mock.Store) MDMAppleCheckinAndCommandService {
+		return MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	}
+
+	t.Run("already installed bypasses retry and routes to verification", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newSvc(ds)
+
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
+			require.Equal(t, commandUUID, cmd)
+			return "InstallApplication", nil
+		}
+		// Returning true short-circuits the InstalledApplicationList enqueue and
+		// keeps the test focused on routing, without requiring a real commander.
+		ds.IsHostPendingMDMInstallVerificationFunc = func(_ context.Context, uuid string) (bool, error) {
+			require.Equal(t, hostUUID, uuid)
+			return true, nil
+		}
+
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: ctx},
+			&mdm.CommandResults{
+				Enrollment:  mdm.Enrollment{UDID: hostUUID},
+				CommandUUID: commandUUID,
+				Status:      fleet.MDMAppleStatusError,
+				ErrorChain: []mdm.ErrorChain{
+					{ErrorCode: 12042, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The app with iTunes Store ID 546505307 is already installed."},
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// No retry, no failure-activity lookup.
+		require.False(t, ds.GetHostVPPInstallByCommandUUIDFuncInvoked)
+		require.False(t, ds.RetryVPPInstallFuncInvoked)
+		require.False(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
+		// Verification path was entered.
+		require.True(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
+	})
+
+	t.Run("already installed via message fallback when code is unknown", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newSvc(ds)
+
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+			return "InstallApplication", nil
+		}
+		ds.IsHostPendingMDMInstallVerificationFunc = func(_ context.Context, _ string) (bool, error) {
+			return true, nil
+		}
+
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: ctx},
+			&mdm.CommandResults{
+				Enrollment:  mdm.Enrollment{UDID: hostUUID},
+				CommandUUID: commandUUID,
+				Status:      fleet.MDMAppleStatusError,
+				ErrorChain: []mdm.ErrorChain{
+					// Unknown numeric code; the message-based match should still trigger.
+					{ErrorCode: 99999, ErrorDomain: "FutureDomain", LocalizedDescription: "The app with iTunes Store ID 1 is already installed."},
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.False(t, ds.GetHostVPPInstallByCommandUUIDFuncInvoked)
+		require.False(t, ds.RetryVPPInstallFuncInvoked)
+		require.True(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
+	})
+
+	t.Run("unrelated install error still goes through retry path", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newSvc(ds)
+
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+			return "InstallApplication", nil
+		}
+		// Return a retry-eligible install so RetryVPPInstall is called and the
+		// handler returns early — keeping this test focused on routing.
+		ds.GetHostVPPInstallByCommandUUIDFunc = func(_ context.Context, _ string) (*fleet.HostVPPSoftwareInstallLite, error) {
+			return &fleet.HostVPPSoftwareInstallLite{HostID: 1, RetryCount: 0}, nil
+		}
+		ds.RetryVPPInstallFunc = func(_ context.Context, _ *fleet.HostVPPSoftwareInstallLite) error {
+			return nil
+		}
+
+		_, err := svc.CommandAndReportResults(
+			&mdm.Request{Context: ctx},
+			&mdm.CommandResults{
+				Enrollment:  mdm.Enrollment{UDID: hostUUID},
+				CommandUUID: commandUUID,
+				Status:      fleet.MDMAppleStatusError,
+				ErrorChain: []mdm.ErrorChain{
+					{ErrorCode: 9610, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "Cannot establish a connection."},
+				},
+			},
+		)
+		require.NoError(t, err)
+
+		// Retry path entered.
+		require.True(t, ds.GetHostVPPInstallByCommandUUIDFuncInvoked)
+		require.True(t, ds.RetryVPPInstallFuncInvoked)
+		// Verification path NOT entered (status was not promoted).
+		require.False(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
+	})
+}
+
 func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
