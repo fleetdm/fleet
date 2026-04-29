@@ -220,7 +220,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `dbutils/` | Database schema generator | `go run ./tools/dbutils/schema_generator.go <dumpfile>` |
 | `mysql-replica-testing/` | MySQL replica testing | See [mysql-replica-testing/README.md](mysql-replica-testing/README.md) |
 | `mysql-tests/` | MySQL testing configs | Docker configs for MySQL testing |
-| `redis-stress/` | Redis stress testing | `go run` tools in directory |
+| `redis-stress/` | Redis stress testing — cluster-aware `write` (steady SET load) and `race` (SET-then-GET visibility race detection) modes | `go run ./tools/redis-stress write -addr 127.0.0.1:7001 -workers 5 -duration 1m` or `go run ./tools/redis-stress race -addr 127.0.0.1:7001 -workers 50 -iterations 2000` — see [redis-stress/README.md](redis-stress/README.md) |
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |

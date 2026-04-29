@@ -94,7 +94,7 @@ require (
 	github.com/klauspost/compress v1.18.4
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.4.0
+	github.com/macadmins/osquery-extension v1.4.1
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -183,6 +183,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	howett.net/plist v1.0.1
+	pgregory.net/rapid v1.2.0
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 

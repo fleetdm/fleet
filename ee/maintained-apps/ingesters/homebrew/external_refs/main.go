@@ -39,6 +39,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"mysqlworkbench/darwin":         {MySQLWorkbenchVersionTransformer},
 	"lens/darwin":                   {LensVersionTransformer},
 	"grammarly-desktop/darwin":      {GrammarlyDesktopVersionShortener},
+	"anka-virtualization/darwin":    {AnkaVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

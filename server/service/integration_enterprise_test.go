@@ -7518,7 +7518,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	otherHost := createOrbitEnrolledHost(t, "linux", "other", s.ds)
 
 	// attempt to run a script on a non-existing host
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runResp)
 
 	// attempt to run an empty script
@@ -7568,7 +7568,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Nil(t, result.ExitCode)
 
 	// get script result
-	var scriptResultResp getScriptResultResponse
+	var scriptResultResp fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
 	require.Equal(t, expectedScriptContents, scriptResultResp.ScriptContents)
@@ -7585,7 +7585,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		)
 		return err
 	})
-	scriptResultResp = getScriptResultResponse{}
+	scriptResultResp = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
 	require.Equal(t, expectedScriptContents, scriptResultResp.ScriptContents)
@@ -7657,7 +7657,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		http.StatusNotFound, &orbitGetScriptResp)
 
 	// attempt to run a sync script on a non-existing host
-	var runSyncResp runScriptSyncResponse
+	var runSyncResp fleet.RunScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptContents: "echo"}, http.StatusNotFound, &runSyncResp)
 
 	// attempt to sync run an empty script
@@ -7695,7 +7695,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
-	runSyncResp = runScriptSyncResponse{}
+	runSyncResp = fleet.RunScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
@@ -7743,7 +7743,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		Runtime:  1,
 		ExitCode: 0,
 	}
-	runSyncResp = runScriptSyncResponse{}
+	runSyncResp = fleet.RunScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
@@ -7759,7 +7759,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		Runtime:  0,
 		ExitCode: -2,
 	}
-	runSyncResp = runScriptSyncResponse{}
+	runSyncResp = fleet.RunScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusOK, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
@@ -7770,7 +7770,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 
 	// create a sync execution request.
-	runSyncResp = runScriptSyncResponse{}
+	runSyncResp = fleet.RunScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 
 	// modify the timestamp of the script to simulate an script that has
@@ -7781,7 +7781,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	})
 
 	// fetch the results for the timed-out script
-	scriptResultResp = getScriptResultResponse{}
+	scriptResultResp = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
@@ -7879,16 +7879,16 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	})
 	require.NoError(t, err)
 
-	var batchRes batchScriptRunResponse
+	var batchRes fleet.BatchScriptRunResponse
 	// Team mismatch
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID, host3Team1.ID},
 	}, http.StatusUnprocessableEntity, &batchRes)
 	require.Empty(t, batchRes.BatchExecutionID)
 
 	// Bad script ID
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: 999999,
 		HostIDs:  []uint{host1.ID},
 	}, http.StatusNotFound, &batchRes)
@@ -7902,7 +7902,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Empty(t, orbitRespHost1.Notifications.PendingScriptExecutionIDs)
 
 	// Good request
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchRes)
@@ -7941,14 +7941,14 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.JSONEq(t, expectedActivityDetail, string(*hostActivitiesResp.Activities[0].Details))
 
 	// Check status of the batch execution
-	var batchStatusResp batchScriptExecutionStatusResponse
+	var batchStatusResp fleet.BatchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
 	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
 	require.Equal(t, *batchStatusResp.NumPending, uint(2))
 
 	// Deprecated summary endpoint
-	var batchSummaryResp batchScriptExecutionSummaryResponse
+	var batchSummaryResp fleet.BatchScriptExecutionSummaryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchSummaryResp)
 	require.Equal(t, batchSummaryResp.ScriptID, script.ID)
 	require.Equal(t, *batchSummaryResp.NumTargeted, uint(2))
@@ -7960,7 +7960,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
-	var batchPendingHostsResp batchScriptExecutionHostResultsResponse
+	var batchPendingHostsResp fleet.BatchScriptExecutionHostResultsResponse
 	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host_results", batchRes.BatchExecutionID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Param status is required")
@@ -7979,15 +7979,15 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchPendingHostsResp.Hosts[1].ID, host2.ID)
 
 	// Another request so we can check the list endpoint
-	var batchRes2 batchScriptRunResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	var batchRes2 fleet.BatchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID},
 	}, http.StatusOK, &batchRes2)
 	require.NotEmpty(t, batchRes2.BatchExecutionID)
 
 	// Check with the list endpoint
-	var batchListResp batchScriptExecutionListResponse
+	var batchListResp fleet.BatchScriptExecutionListResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, batchListResp.Count, uint(2))
@@ -8008,11 +8008,11 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
 
-	var batchResUpcoming batchScriptRunResponse
+	var batchResUpcoming fleet.BatchScriptRunResponse
 	// Queue scripts again, now in upcoming activities queue
 	// Scheduling something in the past makes it run right now
 	scheduledPast := time.Now().Add(-2 * time.Hour)
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
 		HostIDs:   []uint{host1.ID, host2.ID},
 		NotBefore: &scheduledPast,
@@ -8056,7 +8056,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Queue upcoming execution
 	scheduledTime := time.Now().Add(10 * time.Hour)
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
 		HostIDs:   []uint{host1.ID, host2.ID},
 		NotBefore: &scheduledTime,
@@ -8068,7 +8068,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		fmt.Sprintf(`{"batch_execution_id":"%s", "fleet_id":null, "host_count":2, "script_name":"%s", "not_before": "%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchResUpcoming)
@@ -8078,7 +8078,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	filters := map[string]any{
 		"team_id": 0,
 	}
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
 		Filters:   &filters,
 		NotBefore: &scheduledTime,
@@ -8108,20 +8108,20 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	require.NoError(t, err)
 
 	// Immediate execution
-	var batchRes batchScriptRunResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	var batchRes fleet.BatchScriptRunResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
-	var batchStatusResp batchScriptExecutionStatusResponse
+	var batchStatusResp fleet.BatchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
 	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
 	require.Equal(t, *batchStatusResp.NumPending, uint(2))
 
-	var batchCancelResp batchScriptCancelResponse
+	var batchCancelResp fleet.BatchScriptCancelResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
 
 	s.lastActivityOfTypeMatches(
@@ -8137,9 +8137,9 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
 
 	// Future execution
-	var batchResScheduled batchScriptRunResponse
+	var batchResScheduled fleet.BatchScriptRunResponse
 	scheduleTime := time.Now().Add(3 * time.Hour)
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
 		HostIDs:   []uint{host3.ID, host4.ID},
 		NotBefore: &scheduleTime,
@@ -8191,7 +8191,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	// attempt to run a script on a non-existing host
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptID: &savedNoTmScript.ID}, http.StatusNotFound, &runResp)
 
 	// attempt to run with both script contents and id
@@ -8222,7 +8222,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
 
-	var scriptResultResp getScriptResultResponse
+	var scriptResultResp fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 	require.Equal(t, host.ID, scriptResultResp.HostID)
 	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
@@ -8277,7 +8277,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
-	var runSyncResp runScriptSyncResponse
+	var runSyncResp fleet.RunScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
@@ -8339,7 +8339,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 
 	// deleting the saved script should delete the pending script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedNoTmScript.ID), nil, http.StatusNoContent)
-	scriptResultResp = getScriptResultResponse{}
+	scriptResultResp = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusNotFound, &scriptResultResp)
 
 	// Verify that we can't enqueue more than 1k scripts
@@ -8409,7 +8409,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 
 	// create a valid sync script execution request by script name, fails because the
 	// request will time-out waiting for a result.
-	var runSyncResp2 runScriptSyncResponse
+	var runSyncResp2 fleet.RunScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh"}, http.StatusRequestTimeout, &runSyncResp2)
 	require.Equal(t, host2.ID, runSyncResp2.HostID)
 	require.NotEmpty(t, runSyncResp2.ExecutionID)
@@ -8450,7 +8450,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The script does not belong to the same fleet`)
 
-	var runSyncResp3 runScriptSyncResponse
+	var runSyncResp3 fleet.RunScriptSyncResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
 	require.Equal(t, host2.ID, runSyncResp3.HostID)
 	require.NotEmpty(t, runSyncResp3.ExecutionID)
@@ -8480,7 +8480,7 @@ func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
@@ -8678,7 +8678,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	ctx := context.Background()
 
 	// create a saved script for no team
-	var newScriptResp createScriptResponse
+	var newScriptResp fleet.CreateScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script1.sh", []byte(`echo "hello"`), s.token, nil)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
@@ -8689,7 +8689,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": null, "team_id": null, "fleet_name": null, "fleet_id": null}`, "script1.sh"), 0)
 
 	// get the script
-	var getScriptResp getScriptResponse
+	var getScriptResp fleet.GetScriptResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID), nil, http.StatusOK, &getScriptResp)
 	require.Equal(t, noTeamScriptID, getScriptResp.ID)
 	require.Nil(t, getScriptResp.TeamID)
@@ -8794,7 +8794,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.ps1", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// get team's script
-	getScriptResp = getScriptResponse{}
+	getScriptResp = fleet.GetScriptResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), nil, http.StatusOK, &getScriptResp)
 	require.Equal(t, tmScriptID, getScriptResp.ID)
 	require.NotNil(t, getScriptResp.TeamID)
@@ -8833,7 +8833,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d, "fleet_name": %q, "fleet_id": %d}`, "script2.sh", tm.Name, tm.ID, tm.Name, tm.ID), 0)
 
 	// Update a script
-	updateScriptRep := updateScriptResponse{}
+	updateScriptRep := fleet.UpdateScriptResponse{}
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
 	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", tmScriptID), body.Bytes(), http.StatusOK, headers)
@@ -8852,7 +8852,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
 
 	// Try updating a non-existant script
-	updateScriptRep = updateScriptResponse{}
+	updateScriptRep = fleet.UpdateScriptResponse{}
 	body, headers = generateNewScriptMultipartRequest(t,
 		"script1.sh", []byte(`echo "updated script"`), s.token, nil)
 	res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", 999999999999), body.Bytes(), http.StatusNotFound, headers)
@@ -8956,7 +8956,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 	}
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%v: %#v", c.teamID, c.queries), func(t *testing.T) {
-			var listResp listScriptsResponse
+			var listResp fleet.ListScriptsResponse
 			queryArgs := c.queries
 			if c.teamID != nil {
 				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
@@ -9178,7 +9178,7 @@ VALUES
 		insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-3*time.Hour), "exec0-3", ptr.Int64(0))
 
 		// check host script details, should include all no team scripts
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(noTeamScripts))
 		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
@@ -9220,7 +9220,7 @@ VALUES
 		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", ptr.Int64(0)) // expect status ran
 
 		// check host script details, should match team 1
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host1.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(tm1Scripts))
 		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
@@ -9252,7 +9252,7 @@ VALUES
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScripts[0].ID), nil, http.StatusNoContent)
 
 		// check host script details, should not include deleted script
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host0.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(noTeamScripts)-1)
 		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
@@ -9298,7 +9298,7 @@ VALUES
 		require.Len(t, tm2Scripts, 1)
 
 		// check host script details, should not include prior team's scripts
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host1.ID), nil, http.StatusOK, &resp)
 		require.Len(t, resp.Scripts, len(tm2Scripts))
 		byScriptID := make(map[uint]*fleet.HostScriptDetail, len(resp.Scripts))
@@ -9314,7 +9314,7 @@ VALUES
 	})
 
 	t.Run("no scripts", func(t *testing.T) {
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host2.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
@@ -9325,7 +9325,7 @@ VALUES
 		require.NoError(t, err)
 		require.Len(t, team4Scripts, 1)
 
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host3.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 1)
@@ -9337,7 +9337,7 @@ VALUES
 		require.NoError(t, err)
 		require.True(t, len(noTeamScripts) > 0)
 
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 4)
@@ -9353,7 +9353,7 @@ VALUES
 	// Separately, the UI restricts scripts related functionality to only macOS,
 	// Linux, and Windows.
 	t.Run("unspecified platform", func(t *testing.T) {
-		var resp getHostScriptDetailsResponse
+		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host5.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 4)
@@ -9450,7 +9450,7 @@ VALUES
 			t.Run(c.name, func(t *testing.T) {
 				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, ScriptContentID: oldScriptContentsID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
 
-				var resp getScriptResultResponse
+				var resp fleet.GetScriptResultResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
 				require.Equal(t, c.expected, resp.Message)
 			})
@@ -9615,8 +9615,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 		}
 
 		// create, check activities, and check scripts response
-		var scriptsBatchResponse batchSetScriptsResponse
-		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "team_id", teamIDStr)
+		var scriptsBatchResponse fleet.BatchSetScriptsResponse
+		s.DoJSON("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: scripts}, http.StatusOK, &scriptsBatchResponse, "team_id", teamIDStr)
 		s.lastActivityMatches(
 			fleet.ActivityTypeEditedScript{}.ActivityName(),
 			teamActivity,
@@ -9625,7 +9625,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 		require.Len(t, scriptsBatchResponse.Scripts, len(scripts))
 
 		// check that the right values got stored in the db
-		var listResp listScriptsResponse
+		var listResp fleet.ListScriptsResponse
 		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", teamIDStr)
 		require.Len(t, listResp.Scripts, len(scripts))
 
@@ -9654,31 +9654,31 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	saveAndCheckScripts(nil, nil)
 
 	// apply to both team id and name
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil},
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil},
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil},
 		http.StatusNotFound, "team_name", uuid.New().String())
 
 	// duplicate script names
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1.sh", ScriptContents: []byte("foo")},
 		{Name: "N1.sh", ScriptContents: []byte("bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// invalid script name
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N1", ScriptContents: []byte("foo")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// empty script name
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "", ScriptContents: []byte("foo")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// invalid secret
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
 		{Name: "N2.sh", ScriptContents: []byte("echo $FLEET_SECRET_INVALID")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
@@ -12633,7 +12633,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
@@ -12838,7 +12838,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), activityData, 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -12951,7 +12951,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "fleet_name": null, "fleet_id": 0, "self_service": true, "software_title_id": %d}`, titleID), 0)
 
 		// upload again fails
-		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already exists")
+		s.uploadSoftwareInstaller(t, payload, http.StatusConflict, "already has an installer available")
 
 		// download the installer
 		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
@@ -14239,6 +14239,50 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, lblA.Name, meta.LabelsIncludeAll[0].LabelName)
 
 	http.DefaultTransport = oldTransport
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// No-team / global endpoint: the path the customer named in #42607.
+	// Omit the team_name query arg to exercise the global flow.
+	var globalResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: nil},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + nil software should return empty request_uuid")
+
+	globalResp = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + empty software should return empty request_uuid")
+
+	// Team-scoped: dry-run with nil software should short-circuit and return an
+	// empty request_uuid (no async round-trip, no Redis key written).
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: nil},
+		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+	require.Empty(t, batchResp.RequestUUID, "dry-run + nil software should return empty request_uuid")
+
+	// Same with an explicitly empty slice.
+	batchResp = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
+		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+	require.Empty(t, batchResp.RequestUUID, "dry-run + empty software should return empty request_uuid")
+
+	// Genuine-miss path on the result endpoint must still 404. The short-circuit
+	// doesn't change that contract for unknown UUIDs.
+	s.Do("GET", "/api/latest/fleet/software/batch/00000000-0000-0000-0000-000000000000",
+		nil, http.StatusNotFound, "team_name", tm.Name)
 }
 
 func waitBatchSetSoftwareInstallers(t *testing.T, s *withServer, teamName string, requestUUID string) batchSetSoftwareInstallersResultResponse {
@@ -15564,7 +15608,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Equal(t, installUUID, results.InstallUUID)
 	require.Equal(t, fleet.SoftwareInstalled, results.Status)
 
-	var scriptResultResp getScriptResultResponse
+	var scriptResultResp fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+uninstallExecutionID, nil, http.StatusOK, &scriptResultResp)
 	assert.Equal(t, h.ID, scriptResultResp.HostID)
 	assert.NotEmpty(t, scriptResultResp.ScriptContents)
@@ -15717,7 +15761,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 
 	// Check uninstall results via device endpoint before execution
 	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
-	uninstallResult := getScriptResultResponse{}
+	uninstallResult := fleet.GetScriptResultResponse{}
 	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
 	require.NoError(t, err)
 	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
@@ -15745,7 +15789,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 
 	// Check uninstall results via device endpoint after execution
 	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
-	uninstallResult = getScriptResultResponse{}
+	uninstallResult = fleet.GetScriptResultResponse{}
 	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
 	require.NoError(t, err)
 	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
@@ -15975,7 +16019,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.NoError(t, err)
 
 	// create an anonymous script execution request
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 	scriptExecID := runResp.ExecutionID
 
@@ -15990,7 +16034,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 			host.ID, host.DisplayName(), scriptExecID), 0)
 
 	// create a saved script execution request
-	var newScriptResp createScriptResponse
+	var newScriptResp fleet.CreateScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
 		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
@@ -16012,7 +16056,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 			host.ID, host.DisplayName(), savedScriptExecID), 0)
 
 	// get the anonymous script result details
-	var scriptRes getScriptResultResponse
+	var scriptRes fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
@@ -16021,7 +16065,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
 	// get the saved script result details
-	scriptRes = getScriptResultResponse{}
+	scriptRes = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
@@ -16034,7 +16078,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteResp)
 
 	// get the anonymous script result details, still works
-	scriptRes = getScriptResultResponse{}
+	scriptRes = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
@@ -16043,7 +16087,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
 	// get the saved script result details, still works
-	scriptRes = getScriptResultResponse{}
+	scriptRes = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
@@ -16057,7 +16101,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	// get the saved script result details, still works because the saved script
 	// is a "soft-reference", when deleted the results become essentially results
 	// for an anonymous script (i.e. the script_id FK is "ON DELETE SET NULL").
-	scriptRes = getScriptResultResponse{}
+	scriptRes = fleet.GetScriptResultResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
 	require.Equal(t, host.ID, scriptRes.HostID)
@@ -19735,7 +19779,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.True(t, hostPendingScript)
 
 	// Request a manual script execution on the host for the same script, which should fail.
-	var scriptRunResp runScriptResponse
+	var scriptRunResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host1Team1.ID, ScriptID: &script.ID}, http.StatusConflict, &scriptRunResp)
 
 	// Submit same results as before, which should not trigger a script run because the policy is already failing.
@@ -21398,7 +21442,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	swInstallExecID := listUpcomingAct.Activities[0].UUID
 
 	// add a script execution request, not activated yet
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
 		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'hello'"}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
@@ -29131,4 +29175,175 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
+}
+
+// Regression test for fleet#43659.
+func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: "desc"})
+	require.NoError(t, err)
+
+	scriptBytes, err := os.ReadFile(filepath.Join("testdata", "software-installers", "script.sh"))
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:      &tm.ID,
+		Filename:    "script.sh",
+		SelfService: true,
+	}, http.StatusOK, "")
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp,
+		"team_id", fmt.Sprintf("%d", tm.ID), "available_for_install", "true")
+
+	var titleID uint
+	for _, sw := range listResp.SoftwareTitles {
+		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "script.sh" {
+			titleID = sw.ID
+			break
+		}
+	}
+	require.NotZero(t, titleID)
+
+	var storageID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storageID,
+			"SELECT storage_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
+			titleID, tm.ID)
+	})
+	require.NotEmpty(t, storageID)
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{SHA256: storageID}}},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+
+	var installScript string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installScript, `
+			SELECT sc.contents
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`,
+			titleID, tm.ID)
+	})
+	require.Equal(t, string(scriptBytes), installScript)
+}
+
+// TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
+// catalog includes every route invoked by fleetctl gitops and
+// fleetctl generate-gitops. The test runs as an api-only admin user so any
+// 403 observed here comes from the api_only middleware (catalog miss), never
+// from service-level authz. Regression test for #44279.
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	assertNot403 := func(verb, path string, body any) {
+		t.Helper()
+		var raw []byte
+		if body != nil {
+			j, err := json.Marshal(body)
+			require.NoError(t, err)
+			raw = j
+		}
+		req, err := http.NewRequest(verb, s.server.URL+path, bytes.NewReader(raw))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.NotEqualf(t, http.StatusForbidden, resp.StatusCode,
+			"%s %s returned 403 for an api-only admin user; the route is likely missing from server/api_endpoints/api_endpoints.yml",
+			verb, path)
+	}
+
+	// Create an api-only admin (no endpoint restrictions). Admins pass every
+	// service-level authz check, so the only remaining source of 403 is the
+	// api_only middleware's catalog check — exactly what we want to verify.
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "api-only-admin-gitops-catalog",
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Endpoints invoked by fleetctl gitops / generate-gitops. Status codes vary
+	// per endpoint based on payload validity; we only care that 403 never comes
+	// from the catalog check.
+	emptySpecs := map[string]any{"specs": []any{}}
+	assertNot403("GET", "/api/latest/fleet/me", nil)
+	assertNot403("GET", "/api/latest/fleet/config", nil)
+	assertNot403("GET", "/api/latest/fleet/version", nil)
+	assertNot403("GET", "/api/latest/fleet/fleets", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/labels", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/labels", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
+	assertNot403("PUT", "/api/latest/fleet/spec/secret_variables", map[string]any{"secret_variables": []any{}})
+	assertNot403("GET", "/api/latest/fleet/policies", nil)
+	assertNot403("GET", "/api/latest/fleet/configuration_profiles", nil)
+	assertNot403("GET", "/api/latest/fleet/scripts", nil)
+	assertNot403("GET", "/api/latest/fleet/software/titles", nil)
+	assertNot403("GET", "/api/latest/fleet/software/fleet_maintained_apps", nil)
+	assertNot403("GET", "/api/latest/fleet/setup_experience/script", nil)
+	assertNot403("GET", "/api/latest/fleet/vpp_tokens", nil)
+	assertNot403("GET", "/api/latest/fleet/certificates", nil)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestrictions() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	allowedEndpoints := []map[string]any{
+		{"method": "GET", "path": "/api/v1/fleet/me"},
+		{"method": "GET", "path": "/api/v1/fleet/config"},
+		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
+		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
+	}
+
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":          "api-only-gitops-restricted",
+		"global_role":   fleet.RoleGitOps,
+		"api_endpoints": allowedEndpoints,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Allowed endpoints reach the handler.
+	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	// Apply a real policy spec; an empty specs list short-circuits before authz
+	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
+	// middleware behavior we want to verify.
+	s.Do("POST", "/api/latest/fleet/spec/policies", map[string]any{
+		"specs": []map[string]any{
+			{"name": t.Name() + "-policy", "query": "SELECT 1;", "platform": "darwin"},
+		},
+	}, http.StatusOK)
+
+	// Other gitops endpoints are in the catalog but not in the allow list, so
+	// the middleware rejects them with 403.
+	s.Do("GET", "/api/latest/fleet/version", nil, http.StatusForbidden)
+	s.Do("GET", "/api/latest/fleet/fleets", nil, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/labels", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/reports", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{}}, http.StatusForbidden)
 }

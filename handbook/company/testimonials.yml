@@ -25,7 +25,6 @@
 - quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
-  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
   quoteAuthorJobTitle: Former Engineering Leader, Uber
   productCategories: [Device management, Observability, Software management]
@@ -70,7 +69,6 @@
   youtubeVideoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc
   productCategories: [Observability, Software management]
 - quote: Exciting. This is a team that listens to feedback.
-  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
@@ -145,7 +143,6 @@
   quoteAuthorJobTitle: Security Software Development & Engineering
   productCategories: [Observability]
 - quote: One of the best teams out there to go work for and help shape security platforms.
-  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/neondhruv/
   quoteAuthorName: Dhruv Majumdar
   quoteAuthorProfileImageFilename: testimonial-author-dhruv-majumdar-48x48@2x.png
@@ -191,7 +188,6 @@
   youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
   productCategories: [Observability]
 - quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/cmajumdar/
   quoteAuthorName: Chandra Majumdar
   quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
@@ -254,7 +250,6 @@
   quoteAuthorProfileImageFilename: testimonial-author-roger-cantrell-100x100@2x.png
   productCategories: [Device management]
 - quote: "The customer support and care has been 'world class'. Even on the other side of the world."
-  quoteImageFilename: logo-jumo-96x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/davidbodmer/
   quoteAuthorName: David Bodmer
   quoteAuthorJobTitle: IT Systems Engineer
@@ -299,4 +294,10 @@
 #   quoteAuthorJobTitle: Technical Operation Engineer, Anduril Industries
 #   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7267672056970788866/?dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287279546151945519104%2Curn%3Ali%3Aactivity%3A7267672056970788866%29
 #   quoteAuthorProfileImageFilename: oscar-taracena-120x120@2x.png
+#   productCategories: [Device management]
+# -
+#   quote: We started working with Fleet Device Management in early March 2022 because we were looking for a reliable observability platform built on top of osquery. At the time, we needed better visibility across our device fleet, especially for macOS, and Fleet quickly proved to be a great fit. The product was solid, flexible, and aligned with how we wanted to approach endpoint observability. But one of the main reasons we have continued working with Fleet after all these years is the team behind it. From the beginning, the Fleet team has been approachable, transparent, and genuinely open to feedback. They understand the problems that Client Platform Engineering teams face, they listen carefully, and they are always willing to engage in thoughtful conversations about how the platform can evolve. That kind of partnership matters a lot. Good products are important, but working with people who are responsive, honest, and committed to building the right thing makes a huge difference. Although we are not currently using Fleet’s MDM capabilities, we continue to rely on its osquery-based observability features to understand the state of our devices, validate configurations, support security and compliance needs, and make better operational decisions based on real data. Fleet has been robust, reliable, and low-maintenance for us, but the quality of the team and the partnership is what really stands out. That combination of a strong platform and an excellent team is why we continue working with Fleet after all these years. Grateful for the partnership, and looking forward to many more years working together with the Fleet Device Management team.#   quoteAuthorName: Nick Borgers
+#   quoteAuthorName: Joaquín Cabrerizo Egea
+#   quoteAuthorJobTitle: Tech Lead, Client Platform Engineering
+#   quoteLinkUrl: https://www.linkedin.com/posts/joaquincabrerizo_we-started-working-with-fleet-device-management-share-7454585706599047168-0eGW?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFhwsqgBUeTS_Ga-WZM7Ms18ROHnG7TE2oQ
 #   productCategories: [Device management]

@@ -1,0 +1,24 @@
+- name: Collect connected USB devices
+  description: |-
+    USB devices currently attached to the host (useful for removable media and exfiltration visibility).
+
+    Maps to Vanta **AST-70** / ISO **A.7.10** (storage media), **CRY-3** / SOC2 **CC 6.7**, and **DCH-112** / **A.8.12** (data leakage prevention).
+
+    Note: `usb_devices` is available on macOS and Linux only in Fleet’s schema.
+  query: |-
+    SELECT
+      usb_address,
+      usb_port,
+      vendor,
+      vendor_id,
+      model,
+      model_id,
+      serial,
+      version
+    FROM usb_devices
+    WHERE vendor != '' OR model != '';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux

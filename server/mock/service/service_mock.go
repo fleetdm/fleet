@@ -312,6 +312,8 @@ type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.App
 
 type SandboxEnabledFunc func() bool
 
+type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
+
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
 
 type GetEnrollSecretSpecFunc func(ctx context.Context) (*fleet.EnrollSecretSpec, error)
@@ -685,6 +687,8 @@ type MDMDeleteEULAFunc func(ctx context.Context, token string, dryRun bool) erro
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
+
+type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
@@ -1353,6 +1357,9 @@ type Service struct {
 	SandboxEnabledFunc        SandboxEnabledFunc
 	SandboxEnabledFuncInvoked bool
 
+	AppConfigUrlsFunc        AppConfigUrlsFunc
+	AppConfigUrlsFuncInvoked bool
+
 	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
 	ApplyEnrollSecretSpecFuncInvoked bool
 
@@ -1913,6 +1920,9 @@ type Service struct {
 
 	GetMDMAppleSetupAssistantFunc        GetMDMAppleSetupAssistantFunc
 	GetMDMAppleSetupAssistantFuncInvoked bool
+
+	GetDefaultMDMAppleSetupAssistantProfileFunc        GetDefaultMDMAppleSetupAssistantProfileFunc
+	GetDefaultMDMAppleSetupAssistantProfileFuncInvoked bool
 
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
@@ -3281,6 +3291,13 @@ func (s *Service) SandboxEnabled() bool {
 	return s.SandboxEnabledFunc()
 }
 
+func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {
+	s.mu.Lock()
+	s.AppConfigUrlsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigUrlsFunc(ctx)
+}
+
 func (s *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
 	s.mu.Lock()
 	s.ApplyEnrollSecretSpecFuncInvoked = true
@@ -4588,6 +4605,13 @@ func (s *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (
 	s.GetMDMAppleSetupAssistantFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
+}
+
+func (s *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error) {
+	s.mu.Lock()
+	s.GetDefaultMDMAppleSetupAssistantProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDefaultMDMAppleSetupAssistantProfileFunc(ctx)
 }
 
 func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {

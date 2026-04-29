@@ -146,25 +146,27 @@ parasails.registerPage('contact', {
     },
     handleSubmittingTalkToUsForm: async function(argins) {
       this.syncing = true;
-      if(typeof window.lintrk !== 'undefined') {
-        window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
-      }
+      if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 18587089 }); }// eslint-disable-line camelcase
       let report = await Cloud.deliverTalkToUsFormSubmission.with(argins);
 
+      // Look at result from talking to api and decide what event to track.
+      if(report.icp){
+        if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo__icp'); }
+        if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 27493081 }); } // eslint-disable-line camelcase
+      } else {
+        if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo'); }
+      }
+
+      // Additional conversion tracking
+      // =>Mike: Why is this here?  I checked a blame and I see that we added this based on a PDF we received from a vendor, but couldn't see why from the linked issue.
       if(typeof gtag !== 'undefined'){
-        // Look at result from talking to api and decide what event to track.
-        if(report.icp){
-          gtag('event','fleet_website__contact_forms__demo');
-        } else {
-          gtag('event','fleet_website__contact_forms__demo__icp');
-        }
-        // Additional conversion tracking
         gtag('event', 'conversion', {
           'send_to': 'AW-10788733823/aNrhCNSYrPobEP-GvJgo',
           'value': 1.0,
           'currency': 'USD'
         });
-      }
+      }//ﬁ
+
       if(typeof qualified !== 'undefined') {
         qualified('saveFormData',
         {

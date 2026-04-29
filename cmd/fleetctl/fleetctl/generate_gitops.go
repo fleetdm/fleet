@@ -793,12 +793,13 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 
 	orgSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
-		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
-		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
-		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
+		jsonFieldName(t, "ActivityExpirySettings"): cmd.AppConfig.ActivityExpirySettings,
+		jsonFieldName(t, "Features"):               cmd.AppConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):           cmd.AppConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"):     cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):                cmd.AppConfig.OrgInfo,
+		jsonFieldName(t, "ServerSettings"):         cmd.AppConfig.ServerSettings,
+		jsonFieldName(t, "WebhookSettings"):        webhookSettings,
 	}
 
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})

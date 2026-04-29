@@ -73,6 +73,12 @@ type StatisticsPayload struct {
 	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
 	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
 	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+
+	// GitOpsModeEnabled indicates whether GitOps mode is enabled in the app config.
+	GitOpsModeEnabled bool `json:"gitOpsModeEnabled"`
+	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
+	// Exceptions are persisted independently of GitOpsModeEnabled.
+	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
 }
 
 type HostsCountByOrbitVersion struct {
