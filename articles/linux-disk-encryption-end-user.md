@@ -34,7 +34,7 @@ Follow the steps below to get set up.
 
   - Once installation is complete, verify that your disk is encrypted by running:
     ```bash
-      lsblk -o NAME,MOUNTPOINT,TYPE,SIZE,FSUSED,FSTYPE,ENCRYPTED
+      lsblk -o NAME,MOUNTPOINT,TYPE,SIZE,FSUSED,FSTYPE | grep -E 'crypt|LUKS'
     ```
   - **Ubuntu Linux**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
   - **Fedora Linux**: Ensure the `/` (root) and `/home` partitions are encrypted.
