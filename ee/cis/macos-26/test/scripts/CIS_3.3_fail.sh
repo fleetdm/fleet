@@ -3,7 +3,7 @@
 # Sets ttl to 30 (too low) AND adds an all_max= value so the query fails.
 TMP="$(/usr/bin/mktemp /tmp/com.apple.install.XXXXXX)"
 /usr/bin/sudo /usr/bin/awk '
-  /^\>[[:space:]]*\/var\/log\/install\.log/ || /file .*\/var\/log\/install\.log/ {
+  /^\>[[:space:]]*(\/var\/log\/)?install\.log/ || /[[:space:]]file[[:space:]]+(\/var\/log\/)?install\.log/ {
     if (match($0, /ttl=[0-9]+/)) {
       sub(/ttl=[0-9]+/, "ttl=30")
     } else {
