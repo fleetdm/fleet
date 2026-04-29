@@ -1025,7 +1025,7 @@
     },
     {
       "name": "Linear",
-      "slug": "linear-linear/darwin",
+      "slug": "linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
       "description": "Linear is an app to manage software development and track bugs."
