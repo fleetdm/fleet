@@ -13,8 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-const orgLogoPathPrefix = "org-logos"
-
 type OrgLogoStore struct {
 	*commonFileStore
 }
@@ -22,14 +20,14 @@ type OrgLogoStore struct {
 // NewOrgLogoStore reuses the software-installers S3 config (same bucket,
 // distinct prefix) — see s3.NewSoftwareTitleIconStore for the precedent.
 func NewOrgLogoStore(cfg config.S3Config) (*OrgLogoStore, error) {
-	st, err := newS3Store(cfg.SoftwareInstallersToInternalCfg())
+	s3store, err := newS3Store(cfg.SoftwareInstallersToInternalCfg())
 	if err != nil {
 		return nil, err
 	}
 	return &OrgLogoStore{
-		commonFileStore: &commonFileStore{
-			s3store:    st,
-			pathPrefix: orgLogoPathPrefix,
+		&commonFileStore{
+			s3store:    s3store,
+			pathPrefix: "org-logos",
 			fileLabel:  "org logo",
 			gcs:        isGCS(cfg.EndpointURL),
 		},
