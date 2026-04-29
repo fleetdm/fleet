@@ -8,11 +8,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -24,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -1239,6 +1243,67 @@ func TestGetInstallScript(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getInstallScript(tt.extension, tt.packageIDs, tt.current)
 			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
+	t.Parallel()
+
+	// keyValueStore mock that fails the test if any redis call happens
+	// The short-circuit must return before touching redis or spawning the goroutine.
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			t.Errorf("unexpected keyValueStore.Set call: key=%s", key)
+			return nil
+		},
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			t.Errorf("unexpected keyValueStore.Get call: key=%s", key)
+			return nil, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	})
+
+	// Cover both the team-scoped (tmName != "") and no-team (tmName == "") paths.
+	// The customer's reported failure mode in #42607 was on the global / no-team
+	// endpoint, which skips the TeamByName lookup entirely and flows straight
+	// to the short-circuit.
+	cases := []struct {
+		name             string
+		tmName           string
+		payloads         []*fleet.SoftwareInstallerPayload
+		expectTeamLookup bool
+	}{
+		{"team scoped, nil payloads", "TestEmpty", nil, true},
+		{"team scoped, empty payloads", "TestEmpty", []*fleet.SoftwareInstallerPayload{}, true},
+		{"no team, nil payloads", "", nil, false},
+		{"no team, empty payloads", "", []*fleet.SoftwareInstallerPayload{}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			kvs.SetFuncInvoked = false
+			kvs.GetFuncInvoked = false
+			ds.TeamByNameFuncInvoked = false
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
+			require.NoError(t, err)
+			require.Empty(t, requestUUID, "dry-run + empty payload should return empty request_uuid")
+			require.False(t, kvs.SetFuncInvoked, "keyValueStore.Set must not be called")
+			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
+			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
+				"TeamByName should only be called when tmName != \"\"")
 		})
 	}
 }

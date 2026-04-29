@@ -264,6 +264,17 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	return ac, nil
 }
 
+func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	// We skip auhtorization, as this is used where we don't have access to it, but that is why we return a subset of AppConfig fields.
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfigUrls(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ac, nil
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Modify AppConfig
 // //////////////////////////////////////////////////////////////////////////////

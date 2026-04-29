@@ -979,10 +979,14 @@ func generateSQLForAllExists(subqueries ...string) string {
 	return sql
 }
 
+// Usernames starting with an underscore are excluded (macOS system accounts),
+// with the managed local admin (_fleetadmin) allowlisted so the ingest layer
+// can capture its UUID for MDM rotation. The ingest layer is responsible for
+// excluding _fleetadmin from host_users — see directIngestUsers.
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '` + fleet.ManagedLocalAccountUsername + `') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
@@ -2510,6 +2514,7 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
 		}
 	}
+	var managedLocalAccountUUID string
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -2529,6 +2534,12 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		groupname := row["groupname"]
 		shell := row["shell"]
 		uuid := row["uuid"]
+		// _fleetadmin is allowlisted in usersQueryStr only so we can capture its uuid for
+		// MDM rotation. Do not persist it in host_users.
+		if host.Platform == "darwin" && username == fleet.ManagedLocalAccountUsername {
+			managedLocalAccountUUID = uuid
+			continue
+		}
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -2546,6 +2557,9 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			}
 		}
 	}
+	if host.Platform == "darwin" && managedLocalAccountUUID != "" {
+		captureManagedLocalAccountUUID(ctx, logger, host, ds, managedLocalAccountUUID)
+	}
 	if len(users) == 0 {
 		return nil
 	}
@@ -2553,6 +2567,29 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "update host users")
 	}
 	return nil
+}
+
+// captureManagedLocalAccountUUID persists the osquery-reported UUID for the
+// managed local admin account when a row exists and the stored value is NULL
+// or differs from the latest reported UUID. Errors are logged and swallowed
+// so host-detail ingestion is not blocked by this secondary concern.
+func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
+	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
+	if err != nil {
+		logger.ErrorContext(ctx, "get managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+		return
+	}
+	if existing != nil && *existing == accountUUID {
+		return
+	}
+	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {
+		logger.ErrorContext(ctx, "set managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+	}
 }
 
 func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
