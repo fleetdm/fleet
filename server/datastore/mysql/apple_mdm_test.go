@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
+		{"TestIOSManagedCertProfileStaysVerifying", testIOSManagedCertProfileStaysVerifying},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
@@ -7634,6 +7635,120 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 		require.NotNil(t, gotProfs[0].Status)
 		require.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status)
 	}
+}
+
+// testIOSManagedCertProfileStaysVerifying covers the iOS/iPadOS race window in issue #44111.
+//
+// Non-cert iOS/iPadOS profiles short-circuit pending -> verified on MDM ack because there's
+// no osquery to drive the standard verifying -> verified transition. That short-circuit was
+// firing for managed-cert profiles too, which created a window where the renewal cron would
+// see status='verified' but the cert metadata in host_mdm_managed_certificates still
+// reflected the OLD cert — the renewal cron's renewal-window HAVING clause kept matching and
+// fired renewal redundantly each tick until CertificateList ingestion caught up.
+//
+// Fix: managed-cert profiles park at 'verifying' on ack and only flip to 'verified' when
+// updateHostMDMManagedCertDetailsDB ingests fresh cert metadata.
+func testIOSManagedCertProfileStaysVerifying(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "scep-cert",
+		Identifier:   "com.example.scep",
+		Mobileconfig: []byte("scep-profile-bytes"),
+	}, nil)
+	require.NoError(t, err)
+
+	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ios-managed-cert-osquery-id"),
+		NodeKey:         ptr.String("ios-managed-cert-node-key"),
+		UUID:            "ios-managed-cert-uuid",
+		Hostname:        "ios-managed-cert",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+
+	const cmdUUID = "ios-managed-cert-cmd"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_apple_profiles
+				(host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
+			VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)`,
+			iOSHost.UUID, cp.ProfileUUID, cmdUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall,
+			cp.Name, "com.test.profile."+cp.ProfileUUID, test.MakeTestChecksum(0),
+		)
+		return err
+	})
+
+	// Mark this profile as a managed-cert profile by inserting the matching row.
+	// At render time this only carries type/ca_name/challenge_retrieved_at; cert metadata
+	// arrives later via updateHostMDMManagedCertDetailsDB.
+	const caName = "test-ca"
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID:    iOSHost.UUID,
+			ProfileUUID: cp.ProfileUUID,
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      caName,
+		},
+	}))
+
+	// MDM ack lands as 'verifying'. Without the fix, this would be intercepted and short-
+	// circuited to 'verified'. With the fix, it must remain 'verifying' for managed-cert
+	// profiles so the renewal cron's IN ('verified', 'failed') filter excludes the row
+	// while cert metadata is being refreshed.
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      iOSHost.UUID,
+		CommandUUID:   cmdUUID,
+		ProfileUUID:   cp.ProfileUUID,
+		Status:        &fleet.MDMDeliveryVerifying,
+		OperationType: fleet.MDMOperationTypeInstall,
+	}))
+
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+	require.NotNil(t, gotProfs[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *gotProfs[0].Status,
+		"managed-cert profile must stay at 'verifying' on iOS until cert metadata refreshes")
+
+	// Simulate the device's CertificateList response landing in UpdateHostCertificates,
+	// which calls updateHostMDMManagedCertDetailsDB with fresh cert metadata. That path
+	// must flip the corresponding install row from 'verifying' to 'verified'.
+	notValidBefore := time.Now().Add(-1 * time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(30 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	serial := "abcdef0123456789"
+	require.NoError(t, ds.UpdateHostCertificates(ctx, iOSHost.ID, iOSHost.UUID, []*fleet.HostCertificateRecord{
+		{
+			HostID:                    iOSHost.ID,
+			SHA1Sum:                   []byte("0123456789abcdef0123"), // 20 bytes
+			NotValidBefore:            notValidBefore,
+			NotValidAfter:             notValidAfter,
+			CommonName:                "fleet-managed-cert",
+			Serial:                    serial,
+			SubjectCommonName:         "fleet-" + cp.ProfileUUID,
+			SubjectOrganizationalUnit: "fleet",
+			Source:                    fleet.SystemHostCertificate,
+		},
+	}))
+
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+	require.NotNil(t, gotProfs[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status,
+		"updateHostMDMManagedCertDetailsDB must flip 'verifying' -> 'verified' once metadata refreshes")
+
+	// And cert metadata must reflect the new cert.
+	managedProf, err := ds.GetAppleHostMDMCertificateProfile(ctx, iOSHost.UUID, cp.ProfileUUID, caName)
+	require.NoError(t, err)
+	require.NotNil(t, managedProf)
+	require.NotNil(t, managedProf.Serial)
+	// Serials are stored zero-padded to 40 chars in the cert detail update path.
+	assert.Equal(t, fmt.Sprintf("%040s", serial), *managedProf.Serial)
 }
 
 func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
