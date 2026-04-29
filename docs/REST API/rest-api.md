@@ -7723,7 +7723,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| page                      | integer | query | Page number of the results to fetch. Maximum is `100`. To traverse beyond 100 pages, use cursor pagination via the `after` parameter. |
+| page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
 | per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
 | order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
