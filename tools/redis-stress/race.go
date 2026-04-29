@@ -47,14 +47,22 @@ func runRace(args []string) {
 			"set this together with -cluster-read-from-replica to test replica-lag scenarios")
 	followRedirs := fs.Bool("cluster-follow-redirects", true, "ClusterFollowRedirections")
 	readReplica := fs.Bool("cluster-read-from-replica", true, "ClusterReadFromReplica")
-	if err := fs.Parse(args); err != nil {
-		os.Exit(2)
-	}
+	// flag.ExitOnError handles parse errors itself (calls os.Exit(2)); no
+	// post-Parse error path to handle here.
+	_ = fs.Parse(args)
+
 	if *workers < 1 {
 		log.Fatalf("workers must be >= 1, got %d", *workers)
 	}
 	if *iterations < 1 {
 		log.Fatalf("iterations must be >= 1, got %d", *iterations)
+	}
+	// Redis PX requires a positive integer count of milliseconds; sub-ms
+	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
+	// "ERR invalid expire time in set" which would inflate set-error counts
+	// rather than test what we want.
+	if *ttl < time.Millisecond {
+		log.Fatalf("ttl must be >= 1ms, got %s", *ttl)
 	}
 
 	pool, err := redis.NewPool(redis.PoolConfig{
@@ -123,51 +131,56 @@ func runRace(args []string) {
 
 // raceOnce mimics RedisKeyValue.Set immediately followed by RedisKeyValue.Get,
 // each on a fresh pool connection. If explicitReadOnly is true, the GET conn
-// is converted via redis.ReadOnlyConn — only effective in cluster mode with
-// ClusterReadFromReplica=true on the pool.
+// is marked read-only before ConfigureDoer wraps it — only effective in
+// cluster mode with ClusterReadFromReplica=true on the pool.
 func raceOnce(pool fleet.RedisPool, key, expected string, ttlMs int64, explicitReadOnly bool, s *raceStats) error {
-	// SET
-	{
-		conn := redis.ConfigureDoer(pool, pool.Get())
-		_, err := redigo.String(conn.Do("SET", key, expected, "PX", ttlMs))
-		conn.Close()
-		if err != nil {
-			s.setErrs.Add(1)
-			return fmt.Errorf("set: %w", err)
-		}
-		s.sets.Add(1)
+	// SET via the standard connection routing.
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	_, err := redigo.String(conn.Do("SET", key, expected, "PX", ttlMs))
+	conn.Close()
+	if err != nil {
+		s.setErrs.Add(1)
+		return fmt.Errorf("set: %w", err)
 	}
+	s.sets.Add(1)
 
-	// GET (optionally via a read-only conn that may land on a replica)
-	{
-		conn := redis.ConfigureDoer(pool, pool.Get())
-		if explicitReadOnly {
-			conn = redis.ReadOnlyConn(pool, conn)
-		}
-		got, err := redigo.String(conn.Do("GET", key))
-		conn.Close()
-		if errors.Is(err, redigo.ErrNil) {
-			s.getNilRace.Add(1)
-			s.gets.Add(1)
-			fmt.Printf("RACE key=%s expected=%s got=<nil>\n", key, expected)
-			return nil
-		}
-		if err != nil {
-			s.getErrs.Add(1)
-			return fmt.Errorf("get: %w", err)
-		}
-		s.gets.Add(1)
-		if got != expected {
-			s.getStale.Add(1)
-			fmt.Printf("STALE key=%s expected=%s got=%s\n", key, expected, got)
-		}
-	}
-
-	// Best-effort cleanup so we don't pile up keys with the TTL.
-	{
+	// SET succeeded; ensure DEL runs no matter how the GET branch returns.
+	// Without this defer, ErrNil and GET-error early-returns leave keys to
+	// expire only by TTL, inflating memory pressure during a noisy run.
+	defer func() {
 		conn := redis.ConfigureDoer(pool, pool.Get())
 		_, _ = conn.Do("DEL", key)
 		conn.Close()
+	}()
+
+	// GET. ReadOnlyConn must be applied to the raw *redisc.Conn before
+	// ConfigureDoer wraps it: ConfigureDoer wraps in *redisc.retryConn (in
+	// cluster mode with follow-redirects), which does not implement
+	// ReadOnly() error. Calling ReadOnlyConn after ConfigureDoer would
+	// silently no-op via the type-assertion-fail path in
+	// redisc.ReadOnlyConn (whose error Fleet's wrapper discards), and the
+	// GET would still go to the primary.
+	getConn := pool.Get()
+	if explicitReadOnly {
+		getConn = redis.ReadOnlyConn(pool, getConn)
+	}
+	getConn = redis.ConfigureDoer(pool, getConn)
+	got, err := redigo.String(getConn.Do("GET", key))
+	getConn.Close()
+	if errors.Is(err, redigo.ErrNil) {
+		s.getNilRace.Add(1)
+		s.gets.Add(1)
+		fmt.Printf("RACE key=%s expected=%s got=<nil>\n", key, expected)
+		return nil
+	}
+	if err != nil {
+		s.getErrs.Add(1)
+		return fmt.Errorf("get: %w", err)
+	}
+	s.gets.Add(1)
+	if got != expected {
+		s.getStale.Add(1)
+		fmt.Printf("STALE key=%s expected=%s got=%s\n", key, expected, got)
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,9 +31,10 @@ func runWrite(args []string) {
 	debug := fs.Bool("debug", false, "Log every SET")
 	followRedirs := fs.Bool("cluster-follow-redirects", true, "ClusterFollowRedirections (cluster only)")
 	readReplica := fs.Bool("cluster-read-from-replica", false, "ClusterReadFromReplica (cluster only)")
-	if err := fs.Parse(args); err != nil {
-		os.Exit(2)
-	}
+	// flag.ExitOnError handles parse errors itself (calls os.Exit(2)); no
+	// post-Parse error path to handle here.
+	_ = fs.Parse(args)
+
 	if *wait > 0 {
 		duration = wait
 	}
@@ -43,6 +43,18 @@ func runWrite(args []string) {
 	}
 	if *rate <= 0 {
 		log.Fatalf("rate must be > 0, got %f", *rate)
+	}
+	// Redis PX requires a positive integer count of milliseconds; sub-ms
+	// durations truncate to 0 via .Milliseconds(), and SET ... PX 0 returns
+	// "ERR invalid expire time in set" which would silently inflate the
+	// errors counter.
+	if *keyTTL < time.Millisecond {
+		log.Fatalf("key-ttl must be >= 1ms, got %s", *keyTTL)
+	}
+	// Guard against time.NewTicker(0) panic for very large rates.
+	period := time.Duration(float64(time.Second) / *rate)
+	if period <= 0 {
+		log.Fatalf("rate %.2f/s produces a non-positive ticker period (%s); choose a smaller rate", *rate, period)
 	}
 
 	pool, err := redis.NewPool(redis.PoolConfig{
@@ -69,7 +81,6 @@ func runWrite(args []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), *duration)
 	defer cancel()
 
-	period := time.Duration(float64(time.Second) / *rate)
 	start := time.Now()
 
 	for w := 0; w < *workers; w++ {
