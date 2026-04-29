@@ -774,7 +774,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 			Name:                "dynamic_with_criteria",
 			Query:               "SELECT 1",
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-			HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
 		},
 	}, nil, nil)
 	require.Error(t, err)
@@ -796,7 +796,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		{
 			Name:                "manual_with_criteria",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
 		},
 	}, nil, nil)
 	require.Error(t, err)
@@ -828,7 +828,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		{
 			Name:                "host_vitals_with_query",
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
 			Query:               "SELECT 1",
 		},
 	}, nil, nil)
@@ -840,7 +840,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		{
 			Name:                "host_vitals_with_platform",
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
 			Platform:            "darwin",
 		},
 	}, nil, nil)
@@ -852,7 +852,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		{
 			Name:                "host_vitals_with_hosts",
 			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-			HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
 			Hosts:               []string{"host1"},
 		},
 	}, nil, nil)
