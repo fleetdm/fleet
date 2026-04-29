@@ -311,6 +311,10 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
+type GetHostManagedAppleIDFunc func(ctx context.Context, hostID uint) (string, error)
+
+type SetHostManagedAppleIDFunc func(ctx context.Context, hostID uint, managedAppleID string) error
+
 type GetHostMDMIdentifiersFunc func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error)
 
 type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
@@ -2309,6 +2313,12 @@ type DataStore struct {
 
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
+
+	GetHostManagedAppleIDFunc        GetHostManagedAppleIDFunc
+	GetHostManagedAppleIDFuncInvoked bool
+
+	SetHostManagedAppleIDFunc        SetHostManagedAppleIDFunc
+	SetHostManagedAppleIDFuncInvoked bool
 
 	GetHostMDMIdentifiersFunc        GetHostMDMIdentifiersFunc
 	GetHostMDMIdentifiersFuncInvoked bool
@@ -5668,6 +5678,20 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	s.GetHostMDMCheckinInfoFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.GetHostManagedAppleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAppleIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error {
+	s.mu.Lock()
+	s.SetHostManagedAppleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostManagedAppleIDFunc(ctx, hostID, managedAppleID)
 }
 
 func (s *DataStore) GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {

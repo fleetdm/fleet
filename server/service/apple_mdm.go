@@ -3887,6 +3887,17 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
+	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), Apple includes the
+	// Managed Apple ID in the TokenUpdate UserLongName. Persist it on host_mdm
+	// so VPP user-provisioning and asset-association can address the user
+	// directly rather than the device serial. Authenticate has already created
+	// the host_mdm row before TokenUpdate fires.
+	if r.Type == mdm.UserEnrollmentDevice && m.UserLongName != "" {
+		if err := svc.ds.SetHostManagedAppleID(r.Context, info.HostID, m.UserLongName); err != nil {
+			return ctxerr.Wrap(r.Context, err, "setting managed apple id")
+		}
+	}
+
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                  mdmlifecycle.HostActionTurnOn,
 		Platform:                info.Platform,

@@ -402,6 +402,13 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostManagedAppleID returns the Managed Apple ID stored on host_mdm
+	// for the given host, or empty string if none is set.
+	GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error)
+	// SetHostManagedAppleID sets the Managed Apple ID on host_mdm for the
+	// given host. The host must already have a host_mdm row; if not, the
+	// call is a no-op.
+	SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error
 	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.

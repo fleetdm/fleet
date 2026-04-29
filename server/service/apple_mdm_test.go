@@ -1960,6 +1960,141 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 	require.True(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 }
 
+func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		NewNanoMDMLogger(slog.New(slog.NewJSONHandler(os.Stdout, nil))),
+	)
+	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	svc := MDMAppleCheckinAndCommandService{
+		ds:           ds,
+		mdmLifecycle: mdmLifecycle,
+		commander:    cmdr,
+		logger:       slog.New(slog.DiscardHandler),
+	}
+
+	const (
+		enrollID = "ENROLL-ID-XYZ"
+		hostID   = uint(7777)
+	)
+
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewJobFunc = func(_ context.Context, j *fleet.Job) (*fleet.Job, error) {
+		return j, nil
+	}
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMCheckinInfoFunc = func(context.Context, string) (*fleet.HostMDMCheckinInfo, error) {
+		return &fleet.HostMDMCheckinInfo{
+			HostID:   hostID,
+			Platform: "ios",
+		}, nil
+	}
+	ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{
+			Enabled:          true,
+			Type:             mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
+			TokenUpdateTally: 1,
+		}, nil
+	}
+	ds.EnqueueSetupExperienceItemsFunc = func(context.Context, string, string, string, uint) (bool, error) {
+		return false, nil
+	}
+
+	t.Run("UserEnrollmentDevice with UserLongName persists managed_apple_id", func(t *testing.T) {
+		ds.SetHostManagedAppleIDFuncInvoked = false
+		var gotHostID uint
+		var gotMAID string
+		ds.SetHostManagedAppleIDFunc = func(_ context.Context, hostID uint, managedAppleID string) error {
+			gotHostID = hostID
+			gotMAID = managedAppleID
+			return nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{
+				Context:  ctx,
+				EnrollID: &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
+			},
+			&mdm.TokenUpdate{
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+					Enrollment: mdm.Enrollment{
+						UDID:         enrollID,
+						EnrollmentID: enrollID,
+						UserLongName: "managed.user@example.com",
+					},
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
+		require.Equal(t, hostID, gotHostID)
+		require.Equal(t, "managed.user@example.com", gotMAID)
+	})
+
+	t.Run("UserEnrollmentDevice without UserLongName does not write managed_apple_id", func(t *testing.T) {
+		ds.SetHostManagedAppleIDFuncInvoked = false
+		ds.SetHostManagedAppleIDFunc = func(context.Context, uint, string) error {
+			return nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{
+				Context:  ctx,
+				EnrollID: &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice},
+			},
+			&mdm.TokenUpdate{
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+					Enrollment: mdm.Enrollment{UDID: enrollID, EnrollmentID: enrollID},
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.False(t, ds.SetHostManagedAppleIDFuncInvoked)
+	})
+
+	t.Run("Device enrollment never writes managed_apple_id even with UserLongName", func(t *testing.T) {
+		ds.SetHostManagedAppleIDFuncInvoked = false
+		ds.SetHostManagedAppleIDFunc = func(context.Context, uint, string) error {
+			return nil
+		}
+		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
+			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
+		}
+		ds.EnqueueSetupExperienceItemsFunc = func(context.Context, string, string, string, uint) (bool, error) {
+			return false, nil
+		}
+
+		err := svc.TokenUpdate(
+			&mdm.Request{
+				Context:  ctx,
+				EnrollID: &mdm.EnrollID{ID: enrollID, Type: mdm.Device},
+			},
+			&mdm.TokenUpdate{
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+					Enrollment: mdm.Enrollment{
+						UDID:         enrollID,
+						EnrollmentID: enrollID,
+						UserLongName: "ignored@example.com",
+					},
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.False(t, ds.SetHostManagedAppleIDFuncInvoked)
+	})
+}
+
 func TestMDMCheckout(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
