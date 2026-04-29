@@ -1041,9 +1041,7 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
-		for adamID, m := range md {
-			allMetadata[adamID] = m
-		}
+		maps.Copy(allMetadata, md)
 	}
 
 	var apps []*fleet.VPPApp

@@ -1,8 +1,9 @@
 package vpp
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -33,7 +34,7 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 	}
 
 	// Iterate tokens in deterministic order so the picks below are stable.
-	sort.Slice(tokens, func(i, j int) bool { return tokens[i].ID < tokens[j].ID })
+	slices.SortFunc(tokens, func(a, b *fleet.VPPTokenDB) int { return cmp.Compare(a.ID, b.ID) })
 
 	// Index apps by adamID so we can fan a single Apple response back out
 	// across the per-platform rows that share an adamID.
@@ -124,16 +125,15 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 		b.adamIDs = append(b.adamIDs, adamID)
 	}
 
-	orderedTokenIDs := make([]uint, 0, len(bundlesByTokenID))
-	for id := range bundlesByTokenID {
-		orderedTokenIDs = append(orderedTokenIDs, id)
+	bundles := make([]*bundle, 0, len(bundlesByTokenID))
+	for _, b := range bundlesByTokenID {
+		bundles = append(bundles, b)
 	}
-	sort.Slice(orderedTokenIDs, func(i, j int) bool { return orderedTokenIDs[i] < orderedTokenIDs[j] })
+	slices.SortFunc(bundles, func(a, b *bundle) int { return cmp.Compare(a.token.ID, b.token.ID) })
 
 	var appsToUpdate []*fleet.VPPApp
-	for _, id := range orderedTokenIDs {
-		b := bundlesByTokenID[id]
-		sort.Strings(b.adamIDs)
+	for _, b := range bundles {
+		slices.Sort(b.adamIDs)
 
 		meta, err := apple_apps.GetMetadata(b.adamIDs, b.token.CountryCode, b.token.Token, vppAppsConfig)
 		if err != nil {
