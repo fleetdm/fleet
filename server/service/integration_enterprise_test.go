@@ -29436,13 +29436,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	require.Len(t, patchResp.Policy.LabelsIncludeAll, 2)
 	require.Empty(t, patchResp.Policy.LabelsIncludeAny)
 
-	// PATCH mutex rejection.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+	// PATCH mutex rejection. Assert on the specific validation error so a
+	// generic 400 cannot silently satisfy the test.
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
 			LabelsIncludeAll: []string{lblA.Name},
 			LabelsIncludeAny: []string{lblB.Name},
 		},
-	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingLabels.Error())
 
 	// 4. End-to-end host targeting: only hostBoth should match the include_all policy.
 	policy, err := s.ds.Policy(ctx, createResp.Policy.ID)
