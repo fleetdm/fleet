@@ -81,6 +81,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
 import { strToBool } from "utilities/strings/stringUtils";
 
 import Button from "components/buttons/Button";
@@ -113,7 +114,7 @@ import {
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { getDeleteLabelErrorMessages, isAcceptableStatus } from "./helpers";
+import { isAcceptableStatus } from "./helpers";
 
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
