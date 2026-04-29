@@ -3395,7 +3395,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, count, 3, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	// Third device, which in our test case failed and will have it's command resent
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -3424,7 +3424,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	})
 	// Queue rows persist after ACK; device 3's command was excluded from processing (being resent),
 	// so all three queue rows remain.
-	assert.Equal(t, count, 3, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	t.Run("non-atomic command saves and verifies correctly", func(t *testing.T) {
 		replaceCommandUUID := uuid.NewString()
@@ -5268,7 +5268,10 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		responseID, _ = res.LastInsertId()
+		responseID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 

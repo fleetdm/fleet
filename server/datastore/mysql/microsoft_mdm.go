@@ -3449,7 +3449,11 @@ INNER JOIN (
     WHERE r.created_at < NOW() - INTERVAL 1 HOUR
     LIMIT ?
 ) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
-	for {
+	const maxBatches = 500
+	for range maxBatches {
+		if err := ctx.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue canceled")
+		}
 		res, err := ds.writer(ctx).ExecContext(ctx, stmt, batchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
