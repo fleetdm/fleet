@@ -289,7 +289,24 @@ type GitOpsConfig struct {
 	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
+// Subset of Appconfig to pull out only the serverURL and the MDM.AppleServerURL
+type AppConfigUrls struct {
+	ServerSettings struct {
+		ServerURL string `json:"server_url"`
+	} `json:"server_settings"`
+	MDM struct {
+		AppleServerURL string `json:"apple_server_url"`
+	} `json:"mdm"`
+}
+
 func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
+}
+
+func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
 	}

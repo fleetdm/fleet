@@ -25,6 +25,8 @@ var _ fleet.Datastore = (*DataStore)(nil)
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
+type AppConfigUrlsFunc func(ctx context.Context) (*fleet.AppConfigUrls, error)
+
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
 type InsertOrReplaceMDMConfigAssetFunc func(ctx context.Context, asset fleet.MDMConfigAsset) error
@@ -1896,6 +1898,9 @@ type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
+
+	AppConfigUrlsFunc        AppConfigUrlsFunc
+	AppConfigUrlsFuncInvoked bool
 
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
@@ -4707,6 +4712,13 @@ func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigFunc(ctx)
+}
+
+func (s *DataStore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	s.mu.Lock()
+	s.AppConfigUrlsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigUrlsFunc(ctx)
 }
 
 func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
