@@ -8,6 +8,9 @@ For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is 
 
 For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
 
+> **Custom OS update profiles:** Fleet allows uploading custom DDM declarations for OS update enforcement (e.g. `com.apple.configuration.softwareupdate.enforcement.specific`). This may cause conflicts with Fleet's built-in OS update management. If you use Fleet's OS updates settings under **Controls > OS updates**, you don't need a custom profile. To block custom OS update profiles, set `mdm.enable_custom_os_updates` to `false` in your [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable-custom-os-updates).
+
+
 ## Enforce
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best practice GitOps](https://github.com/fleetdm/fleet-gitops).
@@ -44,7 +47,7 @@ On iOS and iPadOS hosts, end users will see a notification in their Notification
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
+If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 7 PM (end user local time).
 
 ### Update new hosts to latest
 
@@ -64,11 +67,11 @@ End users are encouraged to update macOS (via [Nudge](https://github.com/macadmi
 
 ![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
-|                                      | > 1 day before deadline | < 1 day before deadline | Past deadline         |
-| ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
-| Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
-| End user can defer                   | ✅                      | ✅                      | ❌                    |
-| Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
+|                                      | > 1 day before deadline   | < 1 day before deadline | Past deadline         |
+| ------------------------------------ | ------------------------- | ----------------------- | --------------------- |
+| Nudge window frequency               | Once a day at 7pm local   | Once every 2 hours      | Immediately on login  |
+| End user can defer                   | ✅                        | ✅                      | ❌                    |
+| Nudge window is dismissible          | ✅                        | ✅                      | ❌                    |
 
 -->
 
