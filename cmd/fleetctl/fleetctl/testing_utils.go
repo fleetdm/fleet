@@ -291,5 +291,5 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 
 type vppAppNotFound struct{}
 
-func (vppAppNotFound) Error() string  { return "vpp app not found" }
+func (vppAppNotFound) Error() string    { return "vpp app not found" }
 func (vppAppNotFound) IsNotFound() bool { return true }
