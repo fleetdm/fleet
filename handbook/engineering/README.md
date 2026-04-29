@@ -161,6 +161,20 @@ The right tool depends on the type of change:
 > [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
 
 
+#### Claude remote control
+
+Claude Code's `/remote-control` command (currently in preview) lets engineers trigger a Claude Code session on their local machine from a remote surface, such as a Slack message or webhook. The session runs in the working directory where remote control was enabled, using the engineer's local git credentials and file access.
+
+Use it for short, well-scoped tasks worth kicking off when you're away from your terminal: drafting a PR description from a pushed branch, running a script and reporting the output, or starting an investigation you'll review later.
+
+Because remote-triggered sessions run as you, on your machine, take the following precautions:
+
+- **Only enable trusted surfaces.** Anyone who can send the trigger can run commands as you.
+- **Don't enable auto-approval for remote sessions.** You won't be at the keyboard to catch a bad tool call. Keep destructive actions gated on a prompt.
+- **Stop the listener when you're done.** Treat it like any other long-running local server — don't leave it open overnight or while traveling.
+- **You still own the PR.** As with [AI coding tools](#ai-coding-tools), review any diff before merging. The remote trigger is a convenience, not a delegation of ownership.
+
+
 ### On-call
 
 
