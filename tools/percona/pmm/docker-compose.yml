@@ -3,8 +3,8 @@ services:
     image: percona/pmm-server:2
     container_name: pmm-server
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
       - pmm-server-data:/srv
     restart: unless-stopped
