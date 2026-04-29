@@ -37,17 +37,17 @@ LinkedIn is Fleet's primary paid social channel and is treated as a **brand awar
 
 |  | Santas (decision-makers) | Elves (practitioners) |
 | :---- | :---- | :---- |
-| Titles | IT Directors, VPs of IT, CIOs, CISOs | Sysadmins, platform engineers, compliance analysts |
+| Example titles | IT Directors, VPs of IT, Head of I&O, Head of Digital Workplace | Sysadmins, Client Platform Engineers |
 | Care about | ROI, consolidation, risk reduction, compliance | Workflow, automation, cross-platform, open source |
 | LinkedIn audience | santa.it.major.mdm.strict | elf.it.major.mdm.strict |
 
 ### Messaging pillars
 
-All creatives must map to one or more: high-agency device management; infrastructure as code / GitOps; AI-accelerated IT (humans in the loop); cross-platform and open source (macOS, Windows, Linux, ChromeOS — Android is not yet promoted); competitive displacement vs. Jamf, Intune, and Workspace ONE.
+All creatives must map to one of the 2 active campaign themes as indicated in the [horizons tab]([url](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1&gid=2104067010#gid=2104067010)) of the OKRs document.
 
 ## Responsibilities
 
-| Role | Owns |
+| Role | DRI of... |
 | :---- | :---- |
 | Content Specialist (Marketing DRI) | Campaign Manager day-to-day, daily health checks, promote/pause/retest decisions, budget pacing, \#help-marketing monitoring, Social Media Manager coordination. |
 | Social Media Manager | Daily posting, boosting per calendar or direction, content calendar updates, tagging Fleeties for engagement in \#help-marketing, LinkedIn comment response. |
@@ -85,8 +85,6 @@ Where everything is tested first.
 | 0.65%–2% | Gray zone | Decide with CMO: retest, move to Evergreen, or drop. |
 | 2%+ | Strong | Promote to Evergreen (or extend run spend). |
 | 10%+ | Exceptional | Keep running as-is in Evergreen until performance stabilizes or the messaging is no longer relevant. |
-
-Context: ~0.4% is typical for company page posts; 1–4%+ is strong for personal posts.
 
 ### Automated campaigns (ABM from Salesforce)
 
