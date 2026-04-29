@@ -10,11 +10,14 @@ import (
 )
 
 // RefreshVersions updates the LatestVersion fields for the VPP apps stored in
-// Fleet. It groups apps by their anchored storefront (country_code on
-// vpp_apps), then for each group picks a token-of-that-country that owns at
-// least one of the apps and bundles all such apps into one Apple call. Apps
-// whose anchored country has no eligible token in Fleet are skipped silently
-// — their stored versions stay until a token is uploaded for that country.
+// Fleet. For each app it picks a token to refresh from, preferring a token of
+// the app's anchored country (the storefront the app was originally added
+// from). If no token of the anchored country owns the app — for example, the
+// original token was deleted from Fleet — it falls back to any other token
+// that owns the app and re-anchors the app to that token's country, so future
+// refreshes continue to work. Apps that no remaining token owns are skipped
+// silently; they keep their last-known metadata until a token is uploaded
+// that does own them.
 func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig apple_apps.Config) error {
 	apps, err := ds.GetAllVPPApps(ctx)
 	if err != nil {
@@ -29,6 +32,9 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 		return ctxerr.Wrap(ctx, err, "getting all VPP tokens")
 	}
 
+	// Iterate tokens in deterministic order so the picks below are stable.
+	sort.Slice(tokens, func(i, j int) bool { return tokens[i].ID < tokens[j].ID })
+
 	// Index apps by adamID so we can fan a single Apple response back out
 	// across the per-platform rows that share an adamID.
 	appsByAdamID := make(map[string][]*fleet.VPPApp, len(apps))
@@ -36,88 +42,99 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 		appsByAdamID[app.AdamID] = append(appsByAdamID[app.AdamID], app)
 	}
 
-	// Group adamIDs by anchored country. Apps with an empty country (e.g.
-	// pre-migration rows that haven't been re-anchored yet) cannot be
-	// refreshed without guessing the storefront, so they are skipped.
-	adamIDsByCountry := make(map[string]map[string]struct{})
-	for adamID, group := range appsByAdamID {
-		country := group[0].CountryCode
-		if country == "" {
-			continue
+	// Cache GetAssets results so we don't ask the same token twice — once for
+	// its own anchored country group, once during the cross-country fallback.
+	ownedByToken := make(map[uint]map[string]struct{}, len(tokens))
+	getOwned := func(tok *fleet.VPPTokenDB) map[string]struct{} {
+		if owned, ok := ownedByToken[tok.ID]; ok {
+			return owned
 		}
-		if adamIDsByCountry[country] == nil {
-			adamIDsByCountry[country] = make(map[string]struct{})
+		assets, err := GetAssets(ctx, tok.Token, nil)
+		if err != nil {
+			// Best effort: cache an empty set so we don't retry this token
+			// repeatedly within one refresh run.
+			ownedByToken[tok.ID] = map[string]struct{}{}
+			return ownedByToken[tok.ID]
 		}
-		adamIDsByCountry[country][adamID] = struct{}{}
+		owned := make(map[string]struct{}, len(assets))
+		for _, a := range assets {
+			owned[a.AdamID] = struct{}{}
+		}
+		ownedByToken[tok.ID] = owned
+		return owned
 	}
 
-	// For each country, pick exactly one token (lowest token id) that owns
-	// at least one of the country's apps and bundle the adamIDs that share
-	// that token. AdamIDs whose owning tokens are not represented in this
-	// country are skipped silently.
+	// For each adamID with a non-empty anchored country, pick exactly one
+	// token to refresh from. Prefer tokens of the anchored country; fall
+	// back to any other token that owns the app.
+	type pick struct {
+		token *fleet.VPPTokenDB
+	}
+	picks := make(map[string]pick)
+
+	for adamID, group := range appsByAdamID {
+		anchored := group[0].CountryCode
+		if anchored == "" {
+			continue
+		}
+
+		// First pass: tokens of the anchored country.
+		for _, t := range tokens {
+			if t.CountryCode != anchored {
+				continue
+			}
+			if _, ok := getOwned(t)[adamID]; ok {
+				picks[adamID] = pick{token: t}
+				break
+			}
+		}
+		if _, ok := picks[adamID]; ok {
+			continue
+		}
+
+		// Fallback: any other token that owns the app. Will re-anchor the
+		// app to that token's country.
+		for _, t := range tokens {
+			if t.CountryCode == anchored || t.CountryCode == "" {
+				continue
+			}
+			if _, ok := getOwned(t)[adamID]; ok {
+				picks[adamID] = pick{token: t}
+				break
+			}
+		}
+	}
+
+	if len(picks) == 0 {
+		return nil
+	}
+
+	// Bundle picks by token to minimize Apple metadata calls.
 	type bundle struct {
 		token   *fleet.VPPTokenDB
 		adamIDs []string
 	}
-	var bundles []bundle
-
-	for country, adamSet := range adamIDsByCountry {
-		// Find candidate tokens: same country, ordered by id.
-		var candidates []*fleet.VPPTokenDB
-		for _, t := range tokens {
-			if t.CountryCode == country {
-				candidates = append(candidates, t)
-			}
+	bundlesByTokenID := make(map[uint]*bundle)
+	for adamID, p := range picks {
+		b, ok := bundlesByTokenID[p.token.ID]
+		if !ok {
+			b = &bundle{token: p.token}
+			bundlesByTokenID[p.token.ID] = b
 		}
-		if len(candidates) == 0 {
-			continue
-		}
-		sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-
-		remaining := make(map[string]struct{}, len(adamSet))
-		for adamID := range adamSet {
-			remaining[adamID] = struct{}{}
-		}
-
-		// For each candidate token, in deterministic order, ask Apple for
-		// the apps it owns (assets list). We bundle the apps it can refresh.
-		for _, tok := range candidates {
-			if len(remaining) == 0 {
-				break
-			}
-			assets, err := GetAssets(ctx, tok.Token, nil)
-			if err != nil {
-				// Skip this token; try the next candidate. Refresh is
-				// best-effort.
-				continue
-			}
-			ownedSet := make(map[string]struct{}, len(assets))
-			for _, a := range assets {
-				ownedSet[a.AdamID] = struct{}{}
-			}
-
-			var bundleAdams []string
-			for adamID := range remaining {
-				if _, ok := ownedSet[adamID]; ok {
-					bundleAdams = append(bundleAdams, adamID)
-					delete(remaining, adamID)
-				}
-			}
-
-			if len(bundleAdams) > 0 {
-				sort.Strings(bundleAdams)
-				bundles = append(bundles, bundle{token: tok, adamIDs: bundleAdams})
-			}
-		}
+		b.adamIDs = append(b.adamIDs, adamID)
 	}
 
-	if len(bundles) == 0 {
-		return nil
+	orderedTokenIDs := make([]uint, 0, len(bundlesByTokenID))
+	for id := range bundlesByTokenID {
+		orderedTokenIDs = append(orderedTokenIDs, id)
 	}
+	sort.Slice(orderedTokenIDs, func(i, j int) bool { return orderedTokenIDs[i] < orderedTokenIDs[j] })
 
-	// Run the metadata fetches and collect updates.
 	var appsToUpdate []*fleet.VPPApp
-	for _, b := range bundles {
+	for _, id := range orderedTokenIDs {
+		b := bundlesByTokenID[id]
+		sort.Strings(b.adamIDs)
+
 		meta, err := apple_apps.GetMetadata(b.adamIDs, b.token.CountryCode, b.token.Token, vppAppsConfig)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting VPP app metadata from Apple API")
@@ -130,6 +147,17 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 				if !ok {
 					continue
 				}
+
+				// If we picked a token whose country differs from the app's
+				// anchored country, re-anchor so future refreshes pick this
+				// token's country directly.
+				if app.CountryCode != b.token.CountryCode {
+					if err := ds.UpdateVPPAppCountryCode(ctx, app.AdamID, app.Platform, b.token.CountryCode); err != nil {
+						return ctxerr.Wrap(ctx, err, "re-anchoring VPP app country")
+					}
+					app.CountryCode = b.token.CountryCode
+				}
+
 				if current.LatestVersion != app.LatestVersion ||
 					current.Name != app.Name ||
 					current.IconURL != app.IconURL {

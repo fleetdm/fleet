@@ -202,13 +202,13 @@ func TestRefreshVersionsGroupsByCountry(t *testing.T) {
 	require.Len(t, inserted, 3)
 }
 
-func TestRefreshVersionsSkipsAdamIDsWithNoTokenInCountry(t *testing.T) {
+func TestRefreshVersionsSkipsAdamIDsWithNoOwningToken(t *testing.T) {
 	metaSrv, vppSrv, fake := newFakeServers(t)
 	cfg := makeRegionConfig(metaSrv.URL)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
 
-	// "fr" anchored app has no FR token in Fleet — should be silently
-	// skipped, no error and no metadata call for fr.
+	// adamID 999 is anchored to "fr" but no token in Fleet (any country)
+	// owns it — should be silently skipped.
 	fake.versions = map[string]string{"100": "10.0", "999": "99.0"}
 	fake.owned = map[string][]string{"us-token": {"100"}}
 
@@ -235,6 +235,71 @@ func TestRefreshVersionsSkipsAdamIDsWithNoTokenInCountry(t *testing.T) {
 	require.Equal(t, []string{"100"}, fake.calls[0].adamIDs)
 	require.Len(t, inserted, 1)
 	require.Equal(t, "100", inserted[0].AdamID)
+}
+
+func TestRefreshVersionsReanchorsWhenAnchoredCountryHasNoOwner(t *testing.T) {
+	metaSrv, vppSrv, fake := newFakeServers(t)
+	cfg := makeRegionConfig(metaSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	// adamID 100 is anchored to "us" but no US token in Fleet owns it (e.g.
+	// the original US token was deleted). The DE token owns the app, so the
+	// refresh should re-anchor 100 to "de" and fetch metadata from the DE
+	// storefront.
+	fake.versions = map[string]string{"100": "10.0"}
+	fake.apps = map[string]map[string]string{
+		"de": {"100": "Todoist DE"},
+	}
+	fake.owned = map[string][]string{
+		"de-token-secret": {"100"},
+	}
+
+	apps := []*fleet.VPPApp{
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}},
+			Name:          "Todoist US",
+			LatestVersion: "0.1",
+			IconURL:       "us-icon",
+			CountryCode:   "us",
+		},
+	}
+	tokens := []*fleet.VPPTokenDB{
+		{ID: 1, OrgName: "de-org", CountryCode: "de", Token: "de-token-secret"},
+	}
+
+	ds := &mock.DataStore{}
+	ds.GetAllVPPAppsFunc = func(ctx context.Context) ([]*fleet.VPPApp, error) { return apps, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	var reanchored []struct {
+		adamID  string
+		country string
+	}
+	ds.UpdateVPPAppCountryCodeFunc = func(ctx context.Context, adamID string, _ fleet.InstallableDevicePlatform, country string) error {
+		reanchored = append(reanchored, struct {
+			adamID  string
+			country string
+		}{adamID, country})
+		return nil
+	}
+	var inserted []*fleet.VPPApp
+	ds.InsertVPPAppsFunc = func(ctx context.Context, in []*fleet.VPPApp) error {
+		inserted = append(inserted, in...)
+		return nil
+	}
+
+	require.NoError(t, RefreshVersions(t.Context(), ds, cfg))
+
+	require.Len(t, fake.calls, 1)
+	require.Equal(t, "de", fake.calls[0].region, "metadata fetched from DE store after re-anchor")
+	require.Equal(t, "de-token-secret", fake.calls[0].token)
+	require.Equal(t, []string{"100"}, fake.calls[0].adamIDs)
+
+	require.Len(t, reanchored, 1)
+	require.Equal(t, "100", reanchored[0].adamID)
+	require.Equal(t, "de", reanchored[0].country)
+
+	require.Len(t, inserted, 1)
+	require.Equal(t, "Todoist DE", inserted[0].Name)
 }
 
 func TestRefreshVersionsCustomB2BAppPicksOwningToken(t *testing.T) {
