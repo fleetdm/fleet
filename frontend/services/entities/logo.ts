@@ -1,10 +1,7 @@
-/* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-
+import { IOrgLogoMode } from "interfaces/org_logo";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { getPathWithQueryParams } from "utilities/url";
-
-export type IOrgLogoMode = "light" | "dark" | "all";
 
 export default {
   upload: (file: File, mode: IOrgLogoMode = "all") => {

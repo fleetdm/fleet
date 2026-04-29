@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -264,7 +265,7 @@ export interface IActivityDetails {
   location?: string; // name of location associated with VPP token
   mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
-  mode?: "light" | "dark" | "all";
+  mode?: IOrgLogoMode;
   name?: string;
   pack_id?: number;
   pack_name?: string;

@@ -33,8 +33,7 @@ func hasWebPMagic(b []byte) bool {
 
 // contentTypeForBytes returns the HTTP Content-Type for the accepted
 // formats (PNG, JPEG, WebP) and "" for anything else. Used by the GET
-// HijackRender to set the correct response header instead of always
-// claiming image/png.
+// HijackRender to set the correct response header.
 func contentTypeForBytes(b []byte) string {
 	switch {
 	case bytes.HasPrefix(b, pngMagic):
@@ -144,10 +143,6 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	if r.Err != nil {
 		return
 	}
-	// Detect content type from the actual bytes rather than hardcoding —
-	// uploads may be PNG, JPEG, or WebP. Falls back to a generic binary
-	// type if (somehow) the bytes don't match any accepted format; should
-	// never happen since validateOrgLogoBytes gates the upload.
 	contentType := contentTypeForBytes(r.Body)
 	if contentType == "" {
 		contentType = "application/octet-stream"
@@ -281,9 +276,6 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 }
 
 func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error) {
-	// Public endpoint — no authz, but the store and bytes are still
-	// validated and bounded. Only storable modes (light/dark) are valid
-	// here; "all" makes no sense when serving a single response body.
 	svc.authz.SkipAuthorization(ctx)
 	if svc.orgLogoStore == nil {
 		return nil, 0, ctxerr.New(ctx, "org logo store not configured")

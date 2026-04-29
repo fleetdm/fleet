@@ -27,11 +27,8 @@ interface IOrgDetailsProps {
   handleSubmit: (formData: IOrgDetailsFormData) => void;
 }
 
-interface IPickedLogo {
+interface ICustomLogo {
   file: File;
-  /** Object URL for previewing the picked file as <img src>. Stable across
-   * renders so the URL isn't regenerated each pass; revoked when the file
-   * is replaced or cleared. */
   url: string;
 }
 
@@ -42,7 +39,7 @@ const OrgDetails = ({
   handleSubmit,
 }: IOrgDetailsProps) => {
   const [orgName, setOrgName] = useState<string>(formData?.org_name || "");
-  const [picked, setPicked] = useState<IPickedLogo | null>(() => {
+  const [customLogo, setCustomLogo] = useState<ICustomLogo | null>(() => {
     if (!formData?.org_logo_file) return null;
     return {
       file: formData.org_logo_file,
@@ -66,14 +63,14 @@ const OrgDetails = ({
     }
     setErrors((prev) => ({ ...prev, org_logo_file: undefined }));
     const url = URL.createObjectURL(file);
-    setPicked((prev) => {
+    setCustomLogo((prev) => {
       if (prev) URL.revokeObjectURL(prev.url);
       return { file, url };
     });
   };
 
   const onDeleteFile = () => {
-    setPicked((prev) => {
+    setCustomLogo((prev) => {
       if (prev) URL.revokeObjectURL(prev.url);
       return null;
     });
@@ -91,7 +88,7 @@ const OrgDetails = ({
     }
     handleSubmit({
       org_name: orgName,
-      org_logo_file: picked?.file ?? null,
+      org_logo_file: customLogo?.file ?? null,
     });
   };
 
@@ -115,12 +112,14 @@ const OrgDetails = ({
         onDeleteFile={onDeleteFile}
         canEdit
         fileDetails={
-          picked ? { name: picked.file.name, description: "PNG" } : undefined
+          customLogo
+            ? { name: customLogo.file.name, description: "PNG" }
+            : undefined
         }
         customPreview={
-          picked ? (
+          customLogo ? (
             <img
-              src={picked.url}
+              src={customLogo.url}
               alt="Organization logo preview"
               width={40}
               height={40}

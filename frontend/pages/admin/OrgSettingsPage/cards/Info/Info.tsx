@@ -1,6 +1,7 @@
 import React, { useContext, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { IOrgLogoStorableMode } from "interfaces/org_logo";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
@@ -41,6 +42,88 @@ interface ILogoModeState {
 const baseClass = "app-config-form";
 const cardClass = "org-info";
 
+interface ILogoCardProps {
+  label: string;
+  mode: IOrgLogoStorableMode;
+  state: ILogoModeState;
+  originalUrl: string;
+  inputRef: React.MutableRefObject<HTMLInputElement | null>;
+  onEdit: () => void;
+  onDelete: () => void;
+  onFileChange: (
+    e: React.ChangeEvent<HTMLInputElement>,
+    mode: IOrgLogoStorableMode
+  ) => void;
+}
+
+const LogoCard = ({
+  label,
+  mode,
+  state,
+  originalUrl,
+  inputRef,
+  onEdit,
+  onDelete,
+  onFileChange,
+}: ILogoCardProps): JSX.Element => {
+  let previewSrc = originalUrl;
+  if (state.pendingUpload) {
+    previewSrc = state.pendingUpload.url;
+  } else if (state.pendingDelete) {
+    previewSrc = "";
+  }
+
+  return (
+    <div className={`${cardClass}__logo-card`}>
+      <div className={`${cardClass}__logo-card-header`}>
+        <span className="form-field__label">{label}</span>
+        <div className={`${cardClass}__logo-card-actions`}>
+          <GitOpsModeTooltipWrapper
+            position="top"
+            tipOffset={4}
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="icon"
+                onClick={onEdit}
+                disabled={disableChildren}
+                title="Replace logo"
+              >
+                <Icon name="pencil" color="core-fleet-green" />
+              </Button>
+            )}
+          />
+          <GitOpsModeTooltipWrapper
+            position="top"
+            tipOffset={4}
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="icon"
+                onClick={onDelete}
+                disabled={disableChildren}
+                title="Remove logo"
+              >
+                <Icon name="trash" color="core-fleet-green" />
+              </Button>
+            )}
+          />
+        </div>
+      </div>
+      <div
+        className={`${cardClass}__icon-preview ${cardClass}__${mode}-background`}
+      >
+        <OrgLogoIcon className={`${cardClass}__icon-img`} src={previewSrc} />
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ORG_LOGO_ACCEPT}
+        onChange={(e) => onFileChange(e, mode)}
+        className={`${cardClass}__hidden-file-input`}
+      />
+    </div>
+  );
+};
+
 const Info = ({
   appConfig,
   handleSubmit,
@@ -58,9 +141,6 @@ const Info = ({
   const { orgName, orgSupportURL } = formData;
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
-  // The persisted logo URLs are derived from props on every render so the
-  // preview reflects the latest server state after a successful save (the
-  // parent refetches appConfig). Prefer new fields; fall back to deprecated.
   const lightOriginalUrl =
     appConfig.org_info.org_logo_url_light_mode ||
     appConfig.org_info.org_logo_url_light_background ||
@@ -121,7 +201,10 @@ const Info = ({
     });
   };
 
-  const onLightFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onLogoFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    mode: IOrgLogoStorableMode
+  ) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -130,19 +213,7 @@ const Info = ({
       renderFlash("error", result.error || "Invalid logo file.");
       return;
     }
-    setLogoFile(setLightLogo, file);
-  };
-
-  const onDarkFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    const result = await validateOrgLogoFile(file);
-    if (!result.valid) {
-      renderFlash("error", result.error || "Invalid logo file.");
-      return;
-    }
-    setLogoFile(setDarkLogo, file);
+    setLogoFile(mode === "light" ? setLightLogo : setDarkLogo, file);
   };
 
   const onLightDelete = () =>
@@ -155,16 +226,6 @@ const Info = ({
       if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
       return { ...prev, pendingUpload: null, pendingDelete: true };
     });
-
-  // Resolve what to show in the preview area for a given mode.
-  const previewSrcFor = (
-    state: ILogoModeState,
-    originalUrl: string
-  ): string => {
-    if (state.pendingUpload) return state.pendingUpload.url;
-    if (state.pendingDelete) return "";
-    return originalUrl;
-  };
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -226,69 +287,6 @@ const Info = ({
     }
   };
 
-  const renderLogoCard = (
-    label: string,
-    background: "light" | "dark",
-    state: ILogoModeState,
-    originalUrl: string,
-    onEdit: () => void,
-    onDelete: () => void,
-    inputRef: React.MutableRefObject<HTMLInputElement | null>,
-    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  ) => {
-    const previewSrc = previewSrcFor(state, originalUrl);
-
-    return (
-      <div className={`${cardClass}__logo-card`}>
-        <div className={`${cardClass}__logo-card-header`}>
-          <span className="form-field__label">{label}</span>
-          <div className={`${cardClass}__logo-card-actions`}>
-            <GitOpsModeTooltipWrapper
-              position="top"
-              tipOffset={4}
-              renderChildren={(disableChildren) => (
-                <Button
-                  variant="icon"
-                  onClick={onEdit}
-                  disabled={disableChildren}
-                  title="Replace logo"
-                >
-                  <Icon name="pencil" color="core-fleet-green" />
-                </Button>
-              )}
-            />
-            <GitOpsModeTooltipWrapper
-              position="top"
-              tipOffset={4}
-              renderChildren={(disableChildren) => (
-                <Button
-                  variant="icon"
-                  onClick={onDelete}
-                  disabled={disableChildren}
-                  title="Remove logo"
-                >
-                  <Icon name="trash" color="core-fleet-green" />
-                </Button>
-              )}
-            />
-          </div>
-        </div>
-        <div
-          className={`${cardClass}__icon-preview ${cardClass}__${background}-background`}
-        >
-          <OrgLogoIcon className={`${cardClass}__icon-img`} src={previewSrc} />
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ORG_LOGO_ACCEPT}
-          onChange={onFileChange}
-          className={`${cardClass}__hidden-file-input`}
-        />
-      </div>
-    );
-  };
-
   return (
     <SettingsSection className={cardClass} title="Organization info">
       <PageDescription
@@ -307,26 +305,26 @@ const Info = ({
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
         <div className={`${cardClass}__logo-grid`}>
-          {renderLogoCard(
-            "Organization logo (light mode)",
-            "light",
-            lightLogo,
-            lightOriginalUrl,
-            () => lightInputRef.current?.click(),
-            onLightDelete,
-            lightInputRef,
-            onLightFileChange
-          )}
-          {renderLogoCard(
-            "Organization logo (dark mode)",
-            "dark",
-            darkLogo,
-            darkOriginalUrl,
-            () => darkInputRef.current?.click(),
-            onDarkDelete,
-            darkInputRef,
-            onDarkFileChange
-          )}
+          <LogoCard
+            label="Organization logo (light mode)"
+            mode="light"
+            state={lightLogo}
+            originalUrl={lightOriginalUrl}
+            inputRef={lightInputRef}
+            onEdit={() => lightInputRef.current?.click()}
+            onDelete={onLightDelete}
+            onFileChange={onLogoFileChange}
+          />
+          <LogoCard
+            label="Organization logo (dark mode)"
+            mode="dark"
+            state={darkLogo}
+            originalUrl={darkOriginalUrl}
+            inputRef={darkInputRef}
+            onEdit={() => darkInputRef.current?.click()}
+            onDelete={onDarkDelete}
+            onFileChange={onLogoFileChange}
+          />
         </div>
         <InputField
           label="Organization name"
