@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -1334,17 +1333,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
-	} else {
-		// Get the enrollment type of the mobile apple device.
-		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
-		}
-
-		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
-		}
 	}
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked here. The
+	// downstream VPP install path provisions the per-user VPP user (#44003),
+	// associates the asset via clientUserIds (#44004), and emits an
+	// InstallApplication command without ChangeManagementState (#44005).
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {

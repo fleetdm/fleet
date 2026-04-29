@@ -4532,17 +4532,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
 	}
 
-	// Check if the device is managed or BYOD.
+	// Confirm the host has a nano enrollment record. User-enrolled (BYOD)
+	// hosts are no longer skipped — InstallVPPAppPostValidation routes them
+	// through the user-scoped VPP path (clientUserIds) downstream.
 	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
 	}
 	if enrollment == nil {
 		logger.DebugContext(ctx, "skipping updates, missing nano enrollment type")
-		return nil
-	}
-	if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-		logger.DebugContext(ctx, "skipping updates, software install isn't supported on personal (BYOD) iOS and iPadOS hosts")
 		return nil
 	}
 
