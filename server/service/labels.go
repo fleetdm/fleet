@@ -605,7 +605,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		case fleet.LabelMembershipTypeHostVitals:
 			if spec.HostVitalsCriteria == nil {
 				return fleet.NewUserMessageError(
-					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but contains no criteria", spec.Name), http.StatusUnprocessableEntity,
+					ctxerr.Errorf(ctx, "label %s is declared as host_vitals but is missing criteria", spec.Name), http.StatusUnprocessableEntity,
 				)
 			}
 			if spec.Query != "" {

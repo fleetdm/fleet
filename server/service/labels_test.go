@@ -831,7 +831,7 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		},
 	}, nil, nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "declared as host_vitals but contains no criteria")
+	require.ErrorContains(t, err, "declared as host_vitals but is missing criteria")
 
 	// Host_vitals label with query should be rejected
 	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
