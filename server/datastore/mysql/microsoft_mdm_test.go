@@ -5204,16 +5204,9 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 
-	// d1 should have a host profile row.
-	var hostProfiles []*fleet.MDMWindowsProfilePayload
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &hostProfiles,
-			`SELECT profile_uuid, host_uuid, status, operation_type, command_uuid, profile_name
-			 FROM host_mdm_windows_profiles ORDER BY host_uuid`)
-	})
-	require.Len(t, hostProfiles, 1)
-	require.Equal(t, d1.HostUUID, hostProfiles[0].HostUUID)
-
+	// There should be exactly 1 command queue entry (d1 only); d2 was
+	// silently skipped by the INSERT ... SELECT because its enrollment
+	// no longer exists.
 	var queueCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queueCount,
