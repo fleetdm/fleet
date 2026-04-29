@@ -29,6 +29,7 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
 		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
+		{"TestClearQueuePreservedDuringSCEPRenewal", testClearQueuePreservedDuringSCEPRenewal},
 	}
 
 	for _, c := range cases {
@@ -357,6 +358,104 @@ func testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal(t *testing.T,
 
 	token = getBootstrapToken()
 	require.False(t, token.Valid, "bootstrap token should be cleared after SCEP renewal completes")
+}
+
+// testClearQueuePreservedDuringSCEPRenewal verifies that ClearQueue does NOT
+// deactivate queued commands while a SCEP renewal is in progress
+// (renew_command_uuid is set in nano_cert_auth_associations), and DOES clear
+// them when no renewal is in progress.
+func testClearQueuePreservedDuringSCEPRenewal(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	deviceUUID := uuid.NewString()
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_devices (id, serial_number, authenticate, authenticate_at)
+		 VALUES (?, 'SERIAL1', 'auth-raw', CURRENT_TIMESTAMP)`,
+		deviceUUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at)
+		 VALUES (?, ?, 'Device', 'topic', 'magic', 'deadbeef', 1, NOW())`,
+		deviceUUID, deviceUUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_cert_auth_associations (id, sha256)
+		 VALUES (?, '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')`,
+		deviceUUID)
+	require.NoError(t, err)
+
+	// Helper to enqueue a fresh command and return its UUID.
+	enqueueCommand := func() string {
+		cmdUUID := uuid.NewString()
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command)
+			 VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
+			cmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`,
+			deviceUUID, cmdUUID)
+		require.NoError(t, err)
+		return cmdUUID
+	}
+
+	// Helper to read the active flag for a queued command.
+	isActive := func(cmdUUID string) bool {
+		var active bool
+		err := ds.writer(ctx).QueryRowContext(ctx,
+			`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`,
+			deviceUUID, cmdUUID,
+		).Scan(&active)
+		require.NoError(t, err)
+		return active
+	}
+
+	req := &mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: deviceUUID, Type: mdm.Device},
+		Context:  ctx,
+	}
+
+	// --- Case 1: No renewal in progress → queue is cleared ---
+
+	cmdUUID1 := enqueueCommand()
+	require.True(t, isActive(cmdUUID1))
+
+	require.NoError(t, ns.ClearQueue(req))
+	require.False(t, isActive(cmdUUID1), "queue should be cleared when no renewal is in progress")
+
+	// --- Case 2: SCEP renewal in progress → queue is preserved ---
+
+	renewCmdUUID := uuid.NewString()
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command)
+		 VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
+		renewCmdUUID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_cert_auth_associations SET renew_command_uuid = ? WHERE id = ?`,
+		renewCmdUUID, deviceUUID)
+	require.NoError(t, err)
+
+	cmdUUID2 := enqueueCommand()
+	require.True(t, isActive(cmdUUID2))
+
+	require.NoError(t, ns.ClearQueue(req))
+	require.True(t, isActive(cmdUUID2), "queue should be preserved while SCEP renewal is in progress")
+
+	// --- Case 3: Renewal completes (renew_command_uuid cleared) → queue is cleared ---
+
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_cert_auth_associations SET renew_command_uuid = NULL WHERE id = ?`,
+		deviceUUID)
+	require.NoError(t, err)
+
+	require.NoError(t, ns.ClearQueue(req))
+	require.False(t, isActive(cmdUUID2), "queue should be cleared after SCEP renewal completes")
 }
 
 func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {

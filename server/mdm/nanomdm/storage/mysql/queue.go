@@ -61,7 +61,8 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error,
-	error) {
+	error,
+) {
 	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
 	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
@@ -254,7 +255,11 @@ SET
 WHERE
     e.device_id = ? AND
     active = 1 AND
-    (r.status IS NULL OR r.status = 'NotNow');`,
+    (r.status IS NULL OR r.status = 'NotNow') AND
+	NOT EXISTS (
+		SELECT 1 FROM nano_cert_auth_associations nca
+		WHERE nca.id = e.id AND nca.renew_command_uuid IS NOT NULL
+	);`,
 		r.ID,
 	)
 	return err
@@ -272,7 +277,8 @@ func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Cont
 }
 
 func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,
-	commandToIDs map[string][]string) error {
+	commandToIDs map[string][]string,
+) error {
 	stmt := `
 DELETE
     eq

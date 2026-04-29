@@ -1,0 +1,1 @@
+- Fixed an issue that clear pending MDM commands if queued when doing an enrollment renewal.
