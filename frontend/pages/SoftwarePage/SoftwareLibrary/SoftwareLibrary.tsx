@@ -61,7 +61,7 @@ const SoftwareLibrary = ({
   >(
     [
       {
-        scope: "software-titles",
+        scope: "software-library",
         page: currentPage,
         perPage,
         query,
@@ -76,7 +76,9 @@ const SoftwareLibrary = ({
       softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
-      enabled: location.pathname === PATHS.SOFTWARE_LIBRARY,
+      // Uses window.location (not a prop) — safe because this component
+      // is only mounted at the /software/library route.
+      enabled: window.location.pathname === PATHS.SOFTWARE_LIBRARY,
     }
   );
 

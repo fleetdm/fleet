@@ -85,7 +85,6 @@ const SoftwareAppStoreAndroid = ({
         <SoftwareAndroidForm
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareLibrary}
-          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           isLoading={isLoading}
         />
       </div>

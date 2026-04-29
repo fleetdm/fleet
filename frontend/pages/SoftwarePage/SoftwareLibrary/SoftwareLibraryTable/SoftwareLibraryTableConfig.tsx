@@ -173,18 +173,18 @@ const generateTableHeaders = (
     },
     {
       Header: (cellProps: ITableHeaderProps) => (
-        <TooltipWrapper
-          tipContent="Host counts include all versions of this software title."
-          position="top"
-          showArrow
-          underline={false}
-        >
-          <HeaderCell
-            value="Hosts"
-            disableSortBy={false}
-            isSortedDesc={cellProps.column.isSortedDesc}
-          />
-        </TooltipWrapper>
+        <HeaderCell
+          value={
+            <TooltipWrapper
+              tipContent="Host counts include all versions of this software title."
+              position="bottom"
+            >
+              Hosts
+            </TooltipWrapper>
+          }
+          disableSortBy={false}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
       ),
       disableSortBy: false,
       accessor: "hosts_count",

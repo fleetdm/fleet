@@ -1,14 +1,4 @@
 .software-inventory-table {
-  &__software-filter {
-    min-width: 240px;
-  }
-
-  &__filter-controls {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
-  }
-
   &__filters {
     .component__tooltip-wrapper__element {
       display: flex;

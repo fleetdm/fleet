@@ -1,32 +1,23 @@
 .software-library-table {
-  &__software-filter {
-    min-width: 240px;
-  }
-
-  &__filter-controls {
+  // Library has no customFiltersButton so we override the grid container
+  // to a simple flex layout to avoid an empty grid column gap.
+  .container {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     align-items: center;
     gap: $pad-medium;
   }
 
-  &__filters {
-    .component__tooltip-wrapper__element {
-      display: flex;
-      align-items: center;
-    }
+  .top-shift-header {
+    align-items: center;
+  }
 
-    .children-wrapper {
-      gap: $pad-small;
-    }
+  .form-field--slider {
+    white-space: nowrap;
   }
 
   .table-container {
-    &__results-count {
-      .form-field--slider {
-        align-self: center;
-      }
-    }
-
     &__search-input,
     &__search {
       width: 100%; // Search bar across entire table
@@ -40,7 +31,7 @@
         width: auto;
 
         .input-icon-field__input {
-          width: 310px; // Any wider would run up against time ago header
+          width: 310px;
         }
       }
     }
@@ -52,53 +43,25 @@
             .name__header {
               width: $col-md;
             }
-
-            @media (min-width: $break-lg) {
-              // expand the width of version header at larger screen sizes
-              .versions__header {
-                width: $col-md;
-              }
-            }
           }
 
           tbody {
             .name__cell {
               max-width: $col-md;
 
-              // Tooltip does not get cut off
               .children-wrapper {
                 overflow: initial;
               }
 
-              // ellipsis for software name
               .software-name {
                 overflow: hidden;
                 text-overflow: ellipsis;
               }
             }
 
-            .hosts_count__cell {
-              .hosts-cell__wrapper {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-
-                .hosts-cell__link {
-                  display: flex;
-                  white-space: nowrap;
-                }
-              }
-            }
-
             @media (min-width: $break-sm) {
               .name__cell {
                 max-width: $col-lg;
-              }
-            }
-
-            @media (min-width: $break-lg) {
-              .versions__cell {
-                width: $col-md;
               }
             }
           }
@@ -113,6 +76,7 @@
       overflow-x: auto;
     }
   }
+
   .view-all-hosts {
     &__cell {
       display: flex;

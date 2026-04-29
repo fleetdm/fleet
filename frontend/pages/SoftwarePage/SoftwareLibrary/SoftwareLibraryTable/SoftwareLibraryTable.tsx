@@ -14,7 +14,9 @@ import { ISoftwareTitlesResponse } from "services/entities/software";
 import { ISoftwareTitle } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import LastUpdatedText from "components/LastUpdatedText";
 import Slider from "components/forms/fields/Slider";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -181,20 +183,18 @@ const SoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <Slider
-          value={selfServiceOnly}
-          onChange={handleSelfServiceToggle}
-          inactiveText="Self-service only"
-          activeText="Self-service only"
-        />
-      </div>
+      <Slider
+        value={selfServiceOnly}
+        onChange={handleSelfServiceToggle}
+        inactiveText="Only self-service"
+        activeText="Only self-service"
+      />
     );
   };
 
   const renderTableHelpText = () => (
     <div>
-      Seeing unexpected software or vulnerabilities?{" "}
+      Seeing unexpected software?{" "}
       <CustomLink
         url={GITHUB_NEW_ISSUE_LINK}
         text="File an issue on GitHub"
@@ -210,12 +210,41 @@ const SoftwareLibraryTable = ({
         data={tableData ?? []}
         isLoading={isLoading}
         resultsTitle="items"
-        emptyComponent={() => (
-          <EmptySoftwareTable
-            isSoftwareDisabled={!isSoftwareEnabled}
-            noSearchQuery={query === "" && !selfServiceOnly}
-          />
-        )}
+        emptyComponent={() => {
+          if (!isSoftwareEnabled) {
+            return (
+              <EmptySoftwareTable isSoftwareDisabled />
+            );
+          }
+          if (query !== "" || selfServiceOnly) {
+            return (
+              <EmptyState
+                header="No items match the current search criteria"
+                info="Expecting to see software? Check back later."
+              />
+            );
+          }
+          return (
+            <EmptyState
+              header="No software available"
+              info="Add software to your library to get started."
+              primaryButton={
+                <Button
+                  onClick={() =>
+                    router.push(
+                      getPathWithQueryParams(
+                        PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+                        { fleet_id: teamId }
+                      )
+                    )
+                  }
+                >
+                  Add software
+                </Button>
+              }
+            />
+          );
+        }}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
         pageIndex={currentPage}

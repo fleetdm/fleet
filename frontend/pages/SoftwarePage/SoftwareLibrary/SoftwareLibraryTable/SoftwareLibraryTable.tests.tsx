@@ -40,10 +40,9 @@ describe("Software library table", () => {
     );
 
     expect(screen.getByText("Software inventory disabled")).toBeInTheDocument();
-    expect(screen.queryByText("Self-service only")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when no software are present, hiding self-service toggle and search", () => {
+  it("Renders the page-wide empty state when no software are present, hiding search", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -73,13 +72,16 @@ describe("Software library table", () => {
       />
     );
 
-    expect(screen.getByText("No software detected")).toBeInTheDocument();
+    expect(screen.getByText("No software available")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see software? Check back later.")
+      screen.getByText("Add software to your library to get started.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add software" })
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Self-service only")).toBeNull();
+    expect(screen.queryByText("Only self-service")).toBeNull();
   });
 
   it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {
@@ -114,6 +116,6 @@ describe("Software library table", () => {
     expect(
       screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
-    expect(screen.getByText("Self-service only")).toBeInTheDocument();
+    expect(screen.getByText("Only self-service")).toBeInTheDocument();
   });
 });

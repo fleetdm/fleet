@@ -82,6 +82,8 @@ const getTabIndex = (path: string, navItems: ISoftwareSubNavItem[]): number => {
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
+// Increased from 20 to 50 per design spec (#32128). Load test the software
+// endpoints before shipping to confirm acceptable response times at this threshold.
 const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
 
@@ -159,7 +161,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
   const platform = queryParams?.platform || "all";
-  // TODO: move these down into the Software Titles component.
+  // TODO: move query/filter parsing down into individual tab components
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
@@ -192,10 +194,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
-    // When switching to "All teams" context, remove any unsupported query params that might be set
+    // When switching to "All fleets", remove self_service param (Library-only)
     overrideParamsOnTeamChange: {
-      available_for_install: (newTeamId: number | undefined) =>
-        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
       self_service: (newTeamId: number | undefined) =>
         newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
     },
@@ -457,7 +457,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             platform,
             query,
             showExploitedVulnerabilitiesOnly,
-            softwareFilter,
+            selfServiceOnly,
             vulnFilters: softwareVulnFilters,
             onAddFiltersClick: toggleSoftwareFiltersModal,
           })}

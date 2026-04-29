@@ -42,7 +42,7 @@ interface ISoftwareInventoryProps {
   onAddFiltersClick: () => void;
 }
 
-const SoftwareTitles = ({
+const SoftwareInventory = ({
   router,
   isSoftwareEnabled,
   query,
@@ -201,4 +201,4 @@ const SoftwareTitles = ({
   );
 };
 
-export default SoftwareTitles;
+export default SoftwareInventory;
