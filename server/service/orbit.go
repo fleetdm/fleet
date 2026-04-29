@@ -461,7 +461,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	// the lightweight reader-backed lookup here because /orbit/config is
 	// a hot polling endpoint; eventual consistency is acceptable since
 	// the ESP state machine reconciles on subsequent management sessions.
-	if host.Platform == "windows" && isConnectedToFleetMDM {
+	//
+	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being
+	// turned off, the unenrollment branch above sets
+	// NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set
+	// RunSetupExperience for the same orbit response.
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		host.Platform == "windows" &&
+		isConnectedToFleetMDM {
 		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")

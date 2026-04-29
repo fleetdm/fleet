@@ -133,14 +133,18 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
-// HasWindowsSetupExperienceItemsForHostUUID returns true if any setup
-// experience items (Windows software installers with install_during_setup
-// or setup experience scripts) are configured for the team that the host
-// with the given UUID belongs to. The host_id lookup uses the writer for
-// consistency with GetWindowsHostSetupExperienceRequireAllSoftware: this is
-// called from the security-relevant ESP release gate, where a transient
-// ErrNoRows from the read replica could otherwise let the device release
-// even though setup experience is configured.
+// HasWindowsSetupExperienceItemsForHostUUID returns true if any Windows
+// setup experience software installers (with install_during_setup) are
+// configured for the team that the host with the given UUID belongs to.
+//
+// We deliberately do NOT count rows in setup_experience_scripts: those are
+// only enqueued for darwin in EnqueueSetupExperienceItems, so for a Windows
+// host they would never produce setup_experience_status_results. Including
+// them here would cause Windows ESP release to wait forever when only a
+// script is configured (results stay empty + hasItems=true).
+//
+// Both queries use the writer to avoid replica-lag false negatives on the
+// security-relevant ESP release gate.
 func (ds *Datastore) HasWindowsSetupExperienceItemsForHostUUID(ctx context.Context, hostUUID string) (bool, error) {
 	var teamID sql.NullInt64
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &teamID,
@@ -166,12 +170,9 @@ SELECT EXISTS (
 		AND install_during_setup = TRUE
 		AND global_or_team_id = ?
 		AND is_active = TRUE
-	UNION
-	SELECT 1 FROM setup_experience_scripts
-	WHERE global_or_team_id = ?
 )`
 	var hasItems bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasItems, stmt, globalOrTeamID, globalOrTeamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hasItems, stmt, globalOrTeamID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check setup experience items configured")
 	}
 	return hasItems, nil

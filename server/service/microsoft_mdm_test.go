@@ -1830,12 +1830,15 @@ func TestGetESPCommands(t *testing.T) {
 				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
+		// setReleaseMocks first, then override the setup experience stub
+		// so the success-result branch is actually exercised (otherwise
+		// setReleaseMocks resets it back to returning empty).
+		setReleaseMocks(ds)
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return []*fleet.SetupExperienceStatusResult{
 				{Name: "Slack", Status: fleet.SetupExperienceStatusSuccess},
 			}, nil
 		}
-		setReleaseMocks(ds)
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
@@ -1844,6 +1847,11 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
 			"success path should not set error text")
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+		// Verify we actually exercised the success path (a non-empty results
+		// slice with Status=success) rather than falling through the empty
+		// branch.
+		assert.True(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
+			"success path must call ListSetupExperienceResultsByHostUUID")
 	})
 
 	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {

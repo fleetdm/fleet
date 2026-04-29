@@ -2297,6 +2297,14 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 		// items missing" as success and proceeds past the ESP). Instead we
 		// rely on the timeout to trigger the failure UI, which then renders
 		// our BlockInStatusPage + CustomErrorText + AllowCollectLogsButton.
+		//
+		// NOTE: the documented range for this node is 60-1440 minutes. Below
+		// the documented minimum, behavior is technically undefined, but
+		// Windows builds we have tested honor the smaller value and time out
+		// in roughly the configured number of minutes. Tested empirically on
+		// Windows 11 23H2 / Autopilot. If a future Windows build clamps to
+		// 60, the failure UI will simply take ~1 hour to appear instead of
+		// ~1 minute -- the contract (eventual failure UI) still holds.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
@@ -2334,10 +2342,12 @@ func buildESPReleaseCommands(provID string, errorText *string) []*mdm_types.Sync
 
 // persistESPFinalCommands stores backup copies of every finalization command
 // so the existing command-retry infrastructure can resend them if this
-// response is dropped. We persist clones with fresh UUIDs (rather than the
-// inline cmds themselves) so that an in-flight ack for one of the inline
-// commands doesn't accidentally mark the persisted backup as delivered.
-// All commands are idempotent Replaces, so duplicate delivery is safe.
+// response is dropped. The persisted commands intentionally reuse the same
+// CmdIDs as the inline commands: when the device acks the inline send,
+// MDMWindowsSaveResponse will match those CmdRefs against the persisted
+// rows and clear them, so the backup is only resent if delivery actually
+// failed. All commands are idempotent Replaces, so even a duplicate delivery
+// is safe.
 func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) {
 	for _, cmd := range cmds {
 		// Skip commands without a target URI -- shouldn't happen for the
@@ -2346,23 +2356,14 @@ func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string
 		if targetURI == "" || len(cmd.Items) == 0 {
 			continue
 		}
-		// Clone the command with a fresh UUID. We don't reuse the inline
-		// cmd's UUID because the device may ack it inline, in which case
-		// MDMWindowsSaveResponse would log the persisted command as
-		// "unmatched" (no harm, but noisy).
-		clone := *cmd
-		cloneItems := make([]mdm_types.CmdItem, len(cmd.Items))
-		copy(cloneItems, cmd.Items)
-		clone.Items = cloneItems
-		clone.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
-		rawXML, err := xml.Marshal(&clone)
+		rawXML, err := xml.Marshal(cmd)
 		if err != nil {
 			svc.logger.WarnContext(ctx, "ESP: failed to marshal final command for persistence",
 				"err", err, "target_uri", targetURI)
 			continue
 		}
 		persistCmd := &fleet.MDMWindowsCommand{
-			CommandUUID:  clone.CmdID.Value,
+			CommandUUID:  cmd.CmdID.Value,
 			RawCommand:   rawXML,
 			TargetLocURI: targetURI,
 		}
