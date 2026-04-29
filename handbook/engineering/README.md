@@ -1,8 +1,6 @@
 # Engineering
 
-This handbook page details processes specific to working with and within the 🚀 Engineering department, which is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
-
-For release-specific processes, see the [Releases handbook page](https://fleetdm.com/handbook/engineering/releases). For fleetdm.com maintenance, see the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 
 ## Team
@@ -23,9 +21,14 @@ For release-specific processes, see the [Releases handbook page](https://fleetdm
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
-## Stories and bugs
+## Responsibilities
 
-### Write a feature guide 
+The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
+
+
+### Stories and bugs
+
+#### Write a feature guide 
 
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
 
@@ -34,7 +37,7 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 3. Open a new pull request containing your article into `main` and add the pull request to the milestone this feature will be shipped in. The pull request will automatically be assigned to the appropriate reviewer.
 
 
-### Create an engineering-initiated story
+#### Create an engineering-initiated story
 
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
@@ -67,12 +70,12 @@ The engineering output and architecture DRI reviews and triages engineering-init
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 
-### Fix a bug
+#### Fix a bug
 
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
-### Notify stakeholders when a user story is pushed to the next release
+#### Notify stakeholders when a user story is pushed to the next release
 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
 
@@ -84,9 +87,9 @@ All bug fix pull requests should reference the issue they resolve with the issue
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
 
 
-## Community contributions
+### Community contributions
 
-### Review a community pull request
+#### Review a community pull request
 
 If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
 
@@ -106,7 +109,7 @@ The PD will be the contact point for the contributor and will ensure the PR is r
 - Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
-### Merge a community pull request
+#### Merge a community pull request
 
 When merging a pull request from a community contributor:
 
@@ -117,19 +120,19 @@ When merging a pull request from a community contributor:
 - Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
-### Close a stale community issue
+#### Close a stale community issue
 
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
 
-### Close a stale community PR
+#### Close a stale community PR
 
 If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
 
 
-## AI tooling
+### AI tooling
 
-### AI code review
+#### AI code review
 
 Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
 
@@ -140,7 +143,7 @@ Fleet uses AI code review tools to supplement human review on pull requests. Thr
 > **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit—including minor or stale changes—leading to unnecessary long-running review cycles and added cost.
 
 
-### AI coding tools
+#### AI coding tools
 
 Fleet uses AI coding tools like [Kilo Code](https://kilocode.ai) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to help contributors make changes to the codebase.
 
@@ -157,9 +160,9 @@ The right tool depends on the type of change:
 > [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
 
 
-## On-call and incidents
+### On-call and incidents
 
-### On-call engineer
+#### On-call engineer
 
 Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
@@ -175,7 +178,7 @@ The on-call engineer is responsible for:
 To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
-### Incident on-call engineer
+#### Incident on-call engineer
 
 Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
 
@@ -194,13 +197,13 @@ The incident on-call engineer is responsible for:
 - Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
-### Incident response process
+#### Incident response process
 
 All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process via incident.io.
 
 Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
 
-#### Incident notification path
+##### Incident notification path
 
 ```mermaid
 flowchart TD
@@ -217,7 +220,7 @@ Mitigating the outage may require writing and merging code. The current infrastr
 > If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. See [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities) for details.
 
 
-### Perform an incident postmortem
+#### Perform an incident postmortem
 
 Conduct a postmortem for every service or feature outage and every critical bug, whether in a customer's environment or on fleetdm.com.
 
@@ -232,14 +235,14 @@ Conduct a postmortem for every service or feature outage and every critical bug,
 > It is the EM of the affected product group's responsibility to conduct the postmortem and make sure action items are prioritized promptly.
 
 
-## Engineering practices
+### Engineering practices
 
-### Maintain TUF repo for secure agent updates
+#### Maintain TUF repo for secure agent updates
 
 Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
-### Fix flaky Go tests
+#### Fix flaky Go tests
 
 Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
 
@@ -257,7 +260,7 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
 
 
-### Create and use Architectural Decision Records (ADRs)
+#### Create and use Architectural Decision Records (ADRs)
 
 Architectural Decision Records (ADRs) document important architectural decisions made along with their context and consequences. They help teams understand why certain technical decisions were made, provide historical context, and ensure knowledge is preserved as the team evolves.
 
@@ -308,26 +311,26 @@ ADRs should be reviewed by:
 The goal of the review is to ensure the decision is well-documented, the context is clear, and the consequences are thoroughly considered.
 
 
-### Request product group transfer
+#### Request product group transfer
 
 Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) or the [CTO](#team) to be considered for transfer the next time the requested product group has an available position.
 
 
-### Record engineering KPIs
+#### Record engineering KPIs
 
 We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
 
 At the end of each week, the Engineering KPIs are recorded by the engineering output DRI using the [get bug and PR report script](https://github.com/fleetdm/fleet/blob/main/website/scripts/get-bug-and-pr-report.js).
 
 
-## Infrastructure
+### Infrastructure
 
-### Edit a DNS record
+#### Edit a DNS record
 
 All Fleet DNS records are managed via Terraform. Submit a PR to the appropriate Terraform file in the [Cloudflare infrastructure directory](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloudflare).
 
 
-### Accept new Apple developer account terms
+#### Accept new Apple developer account terms
 
 Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
 
@@ -344,7 +347,7 @@ When this occurs, we will begin receiving the following error message when attem
 5. Accept the new terms of service.
 
 
-### Renew MDM certificate signing request (CSR) 
+#### Renew MDM certificate signing request (CSR) 
 
 The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
 
@@ -366,9 +369,9 @@ Steps to renew the certificate:
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 
-## Hiring
+### Hiring
 
-### Interview a developer candidate
+#### Interview a developer candidate
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
@@ -385,12 +388,12 @@ Ensure the interview process follows these steps in order. This process must fol
 If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
-## Releases
+### Releases
 
 The release process — QA Day, release candidates, agent releases, post-release tasks, and related rituals — lives on its own page. See the [Releases handbook page](https://fleetdm.com/handbook/engineering/releases).
 
 
-## fleetdm.com
+### fleetdm.com
 
 Processes for maintaining and releasing changes to fleetdm.com — local testing, dependency triage, browser compatibility checks, and related runbooks — live on their own page. See the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
 
@@ -403,10 +406,6 @@ Processes for maintaining and releasing changes to fleetdm.com — local testing
 #### Stubs
 
 The following stubs are included only to make links backward compatible.
-
-##### Responsibilities
-
-Please see [Engineering](https://fleetdm.com/handbook/engineering).
 
 ##### Provide same-day support for major version macOS releases
 
