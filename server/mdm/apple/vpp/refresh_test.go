@@ -3,7 +3,7 @@ package vpp
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -354,7 +354,7 @@ func TestRefreshVersionsSkipsAppsWithEmptyCountryCode(t *testing.T) {
 	ds.GetAllVPPAppsFunc = func(ctx context.Context) ([]*fleet.VPPApp, error) { return apps, nil }
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
 	ds.InsertVPPAppsFunc = func(ctx context.Context, in []*fleet.VPPApp) error {
-		return fmt.Errorf("should not be called")
+		return errors.New("should not be called")
 	}
 
 	require.NoError(t, RefreshVersions(t.Context(), ds, cfg))
