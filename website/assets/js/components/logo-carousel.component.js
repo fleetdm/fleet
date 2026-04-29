@@ -145,6 +145,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Fireblocks logo" src="/images/logos/logo-fireblocks-142x32@2x.png">
           <img alt="Vibe logo" src="/images/logos/logo-vibe-72x32@2x.png">
           <img alt="Conductorone logo" src="/images/logos/logo-conductorone-158x32@2x.png">
+          <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
+          <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
@@ -192,6 +194,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Fireblocks logo" src="/images/logos/logo-fireblocks-142x32@2x.png">
           <img alt="Vibe logo" src="/images/logos/logo-vibe-72x32@2x.png">
           <img alt="Conductorone logo" src="/images/logos/logo-conductorone-158x32@2x.png">
+          <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
+          <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
