@@ -7884,6 +7884,7 @@ None.
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
+    "country_code": "us",
     "renew_date": "2023-11-29T00:00:00Z",
     "fleets": [
       {
