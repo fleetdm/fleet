@@ -1,0 +1,1 @@
+- Fixed GitOps dry-run to correctly detect the conflict when both `macos_manual_agent_install` and `macos_script` are configured under `setup_experience`. Previously, the dry-run would succeed while the actual GitOps run would fail.
