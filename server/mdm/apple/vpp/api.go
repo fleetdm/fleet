@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -44,6 +45,33 @@ type ErrorResponse struct {
 // Error implements the Erorrer interface
 func (e *ErrorResponse) Error() string {
 	return fmt.Sprintf("Apple VPP endpoint returned error: %s (error number: %d)", e.ErrorMessage, e.ErrorNumber)
+}
+
+// IsMaxDevicesPerUserError reports whether err is an Apple VPP error indicating
+// that a Managed Apple ID has reached the per-user device cap (Apple allows
+// up to 5 devices per user license).
+//
+// Apple's numeric code for this case has not been stable across iOS releases,
+// so the helper matches by message substring as well. Confirm against Apple's
+// sandbox before locking in the canonical code.
+func IsMaxDevicesPerUserError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var resp *ErrorResponse
+	if !errors.As(err, &resp) || resp == nil {
+		return false
+	}
+	// Known candidate code — refine against sandbox results.
+	if resp.ErrorNumber == 9622 {
+		return true
+	}
+	msg := strings.ToLower(resp.ErrorMessage)
+	if strings.Contains(msg, "maximum number of devices") ||
+		strings.Contains(msg, "device limit") {
+		return true
+	}
+	return false
 }
 
 // ResponseErrorInfo represents the request-specific information regarding the

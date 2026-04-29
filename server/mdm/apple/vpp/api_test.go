@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -633,6 +634,55 @@ func TestCreateUsers(t *testing.T) {
 		require.Nil(t, resp)
 		require.Contains(t, err.Error(), "error number: 400")
 	})
+}
+
+func TestIsMaxDevicesPerUserError(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "non-VPP error",
+			err:      errors.New("network down"),
+			expected: false,
+		},
+		{
+			name:     "canonical numeric code 9622",
+			err:      &ErrorResponse{ErrorMessage: "License count exceeded", ErrorNumber: 9622},
+			expected: true,
+		},
+		{
+			name:     "matched by case-insensitive message",
+			err:      &ErrorResponse{ErrorMessage: "User has reached the Maximum Number of Devices for this license", ErrorNumber: 99999},
+			expected: true,
+		},
+		{
+			name:     "matched by 'device limit' phrasing",
+			err:      &ErrorResponse{ErrorMessage: "Device limit exceeded for this client user.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "unrelated VPP error 9610",
+			err:      &ErrorResponse{ErrorMessage: "Cannot establish a connection.", ErrorNumber: 9610},
+			expected: false,
+		},
+		{
+			name:     "wrapped via fmt.Errorf %w still detected",
+			err:      fmt.Errorf("calling vpp: %w", &ErrorResponse{ErrorMessage: "User has reached the maximum number of devices.", ErrorNumber: 9622}),
+			expected: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, IsMaxDevicesPerUserError(tt.err))
+		})
+	}
 }
 
 func TestGetBaseURL(t *testing.T) {

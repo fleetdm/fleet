@@ -1438,22 +1438,59 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// handle [asyncronous errors][1] on assignment, so before assigning a
 	// device to a license, we need to:
 	//
-	// 1. Check if the app is already assigned to the serial number.
+	// 1. Check if the app is already assigned to the serial number (or
+	//    Managed Apple ID, for User Enrollments).
 	// 2. If it's not assigned yet, check if we have enough licenses.
 	//
 	// A race still might happen, so async error checking needs to be
 	// implemented anyways at some point.
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
-	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
+
+	// Resolve enrollment style first so the assignment query can address the
+	// right principal — serial for device-scoped licensing, clientUserId for
+	// user-scoped (BYOD) licensing. Without this branch the existing
+	// SerialNumber filter always returns empty for User Enrollments, which
+	// makes Fleet enter the AvailableCount check on every retry and produces
+	// false-positive "no available licenses" errors when the user is just
+	// adding their Nth (≤5) device under one Managed Apple ID.
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
+	}
+	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	var clientUserID string
+	if isPersonal {
+		// Token-selection policy (per #44009): use the team's default token —
+		// `GetVPPTokenByTeamID` already returns the first token for the team
+		// (existing behavior). Multi-location support is deferred unless a
+		// customer hits the edge case.
+		tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
+		}
+		clientUserID, err = svc.ensureVPPClientUser(ctx, host, tokenDB)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
+		}
+	}
+
+	assignmentFilter := &vpp.AssignmentFilter{AdamID: vppApp.AdamID}
+	if isPersonal {
+		assignmentFilter.ClientUserID = clientUserID
+	} else {
+		assignmentFilter.SerialNumber = host.HardwareSerial
+	}
+	assignments, err := vpp.GetAssignments(token, assignmentFilter)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
 	var eventID string
 
-	// this app is not assigned to this device, check if we have licenses
-	// left and assign it.
+	// this app is not assigned to this device (or this user, for BYOD), check
+	// if we have licenses left and assign it.
 	if len(assignments) == 0 {
 		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
@@ -1491,24 +1528,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		req := &vpp.AssociateAssetsRequest{Assets: assets}
-		// User-enrolled (BYOD) iOS/iPadOS hosts use Apple's user-scoped VPP
-		// licensing — Associate must address the Managed Apple ID (via Fleet's
-		// generated clientUserId), not the device serial. Falling back to
-		// SerialNumbers here is the silent-failure mode that this story fixes:
-		// Apple accepts the request but the install never lands on the device.
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
-		}
-		if hostMDM != nil && hostMDM.IsPersonalEnrollment {
-			tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
-			}
-			clientUserID, err := svc.ensureVPPClientUser(ctx, host, tokenDB)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
-			}
+		if isPersonal {
 			req.ClientUserIds = []string{clientUserID}
 		} else {
 			req.SerialNumbers = []string{host.HardwareSerial}
@@ -1516,6 +1536,15 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 		eventID, err = vpp.AssociateAssets(token, req)
 		if err != nil {
+			// Apple rejects the per-user device cap (≤5 devices per Managed
+			// Apple ID per license). Surface it cleanly so admins can act on
+			// it without having to decode raw VPP error numbers.
+			if vpp.IsMaxDevicesPerUserError(err) {
+				return "", &fleet.BadRequestError{
+					Message:     "Couldn't install. This user has reached the maximum number of devices for this app license.",
+					InternalErr: ctxerr.WrapWithData(ctx, err, "associate asset rejected by Apple per-user device cap", map[string]any{"host_id": host.ID, "team_id": host.TeamID, "adam_id": vppApp.AdamID}),
+				}
+			}
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 	}

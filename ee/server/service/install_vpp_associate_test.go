@@ -147,6 +147,118 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		require.False(t, ds.GetHostManagedAppleIDFuncInvoked)
 	})
 
+	t.Run("personal enrollment queries assignments by clientUserId", func(t *testing.T) {
+		var assignmentsQuery string
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				assignmentsQuery = r.URL.RawQuery
+				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
+			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
+				body := struct {
+					Users []struct {
+						ClientUserId   string `json:"clientUserId"`
+						ManagedAppleId string `json:"managedAppleId"`
+					} `json:"users"`
+				}{}
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
+					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
+			default:
+				t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		})
+
+		ds := setupDS(t, true)
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+
+		require.Contains(t, assignmentsQuery, "clientUserId=")
+		require.NotContains(t, assignmentsQuery, "serialNumber=", "personal-enrollment assignments query must not filter by serial")
+	})
+
+	t.Run("personal enrollment with existing assignment skips AssociateAssets", func(t *testing.T) {
+		var associateCalls int
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				// User already has the asset — Apple returns a non-empty assignment list.
+				_, _ = fmt.Fprintf(w, `{"assignments":[{"adamId":%q,"pricingParam":"STDQ"}]}`, adamID)
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				t.Fatalf("/assets must not be queried when assignments already exist")
+			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
+				body := struct {
+					Users []struct {
+						ClientUserId   string `json:"clientUserId"`
+						ManagedAppleId string `json:"managedAppleId"`
+					} `json:"users"`
+				}{}
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
+					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				associateCalls++
+				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
+			default:
+				t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		})
+
+		ds := setupDS(t, true)
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		cmdUUID, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		require.NotEmpty(t, cmdUUID, "the command must still be enqueued for the install row")
+		require.Equal(t, 0, associateCalls, "AssociateAssets must not run when the user already has the asset")
+		require.True(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
+	})
+
+	t.Run("max-devices error surfaces a friendly user-facing message", func(t *testing.T) {
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
+			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
+				body := struct {
+					Users []struct {
+						ClientUserId   string `json:"clientUserId"`
+						ManagedAppleId string `json:"managedAppleId"`
+					} `json:"users"`
+				}{}
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
+					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"User has reached the maximum number of devices for this license.","errorNumber":9622}`))
+			default:
+				t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		})
+
+		ds := setupDS(t, true)
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		require.Error(t, err)
+
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, "maximum number of devices")
+		// Internal error preserves Apple's raw response for debugging.
+		require.NotNil(t, bre.InternalErr)
+		require.Contains(t, bre.InternalErr.Error(), "9622")
+	})
+
 	// Pin the dev_mode override in scope until t.Cleanup runs — referenced by the
 	// helper above, which already registers Cleanup, but make sure the variable is
 	// not flagged as unused.
