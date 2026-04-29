@@ -209,7 +209,6 @@ const SoftwareSummaryCard = ({
       )}
       {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
-          router={router}
           softwareId={softwareId}
           teamId={teamId}
           softwareInstaller={softwareInstaller}

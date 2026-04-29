@@ -1,6 +1,5 @@
 import React, { ReactNode, useState } from "react";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -122,6 +121,13 @@ const LabelForm = ({
     setFormValidation(fullValidation);
   };
 
+  const handleBlur = (
+    evt: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const target = evt.currentTarget as HTMLInputElement;
+    onInputBlur({ name: target.name, value: target.value });
+  };
+
   const onSubmitForm = (evt: React.FormEvent) => {
     evt.preventDefault();
 
@@ -139,7 +145,7 @@ const LabelForm = ({
         parseTarget
         name="name"
         onChange={onFormChange}
-        onBlur={onInputBlur}
+        onBlur={handleBlur}
         value={name}
         inputClassName={`${baseClass}__label-title`}
         label="Name"
@@ -150,7 +156,7 @@ const LabelForm = ({
         parseTarget
         name="description"
         onChange={onFormChange}
-        onBlur={onInputBlur}
+        onBlur={handleBlur}
         value={description}
         inputClassName={`${baseClass}__label-description`}
         label="Description"

@@ -14,7 +14,7 @@ import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
@@ -234,7 +234,7 @@ const InstallSoftwareForm = ({
 
   const renderEmptyState = () => {
     return (
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__empty-table`}
         header="No software available to install"
         primaryButton={

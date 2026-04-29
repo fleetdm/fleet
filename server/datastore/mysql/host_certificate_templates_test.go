@@ -1014,6 +1014,88 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		require.NoError(t, err)
 		require.Equal(t, int64(0), rowsAffected)
 	})
+
+	t.Run("resets verified certs to pending on re-enrollment", func(t *testing.T) {
+		// Reproduces https://github.com/fleetdm/fleet/issues/42600:
+		// When an Android host removes the work profile and re-installs it without Fleet receiving
+		// a DELETED notification, old certificate records with status "verified" remain in the table.
+		// CreatePendingCertificateTemplatesForNewHost must reset them to "pending" so certs are re-delivered.
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		hostUUID := "re-enroll-android-host"
+		createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+
+		// Simulate initial enrollment: create pending cert records
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), rowsAffected)
+
+		// Simulate certs being delivered and verified with stale metadata from the previous lifecycle
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_certificate_templates
+			SET status = ?, operation_type = ?, fleet_challenge = 'old-challenge',
+				detail = 'old detail', not_valid_before = '2025-01-01', not_valid_after = '2026-01-01',
+				serial = 'ABC123', retry_count = 2
+			WHERE host_uuid = ? AND certificate_template_id = ?`,
+			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID, setup.template.ID,
+		)
+		require.NoError(t, err)
+
+		// Verify the record is "verified" before re-enrollment
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplateVerified, *records[0].Status)
+
+		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received).
+		// The delete is what clears stale rows from a previous team, if any.
+		err = ds.DeleteAllHostCertificateTemplates(ctx, hostUUID)
+		require.NoError(t, err)
+		// ListCertificateTemplatesForHosts joins from certificate_templates and synthesizes a row
+		// for the host's team even when host_certificate_templates has no matching row, so we
+		// must query the raw table directly to confirm the delete worked.
+		var countAfterDelete int
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &countAfterDelete,
+			`SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Zero(t, countAfterDelete)
+
+		rowsAffected, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Positive(t, rowsAffected)
+
+		// The record must be reset to "pending" with stale metadata cleared
+		records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplatePending, *records[0].Status)
+		require.NotNil(t, records[0].OperationType)
+		require.Equal(t, fleet.MDMOperationTypeInstall, *records[0].OperationType)
+		require.Nil(t, records[0].FleetChallenge)
+
+		// Verify stale certificate metadata was cleared
+		var staleFields struct {
+			Detail         *string    `db:"detail"`
+			NotValidBefore *time.Time `db:"not_valid_before"`
+			NotValidAfter  *time.Time `db:"not_valid_after"`
+			Serial         *string    `db:"serial"`
+			RetryCount     int        `db:"retry_count"`
+		}
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &staleFields,
+			`SELECT detail, not_valid_before, not_valid_after, serial, retry_count
+			FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Nil(t, staleFields.Detail)
+		require.Nil(t, staleFields.NotValidBefore)
+		require.Nil(t, staleFields.NotValidAfter)
+		require.Nil(t, staleFields.Serial)
+		require.Zero(t, staleFields.RetryCount)
+	})
 }
 
 func testRevertStaleCertificateTemplates(t *testing.T, ds *Datastore) {
@@ -1348,10 +1430,9 @@ func testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer(t *tes
 	}})
 	require.NoError(t, err)
 
-	// Simulate team transfer: move host to Team B using UpdateHost
+	// Simulate team transfer: move host to Team B.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	err = ds.UpdateHost(ctx, host)
-	require.NoError(t, err)
 
 	// Mark Team A template for removal using the datastore method
 	err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID)
@@ -1530,8 +1611,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEmpty(t, initialUUID, "initial UUID should not be empty")
 
 	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
 	require.NoError(t, err)
@@ -1550,8 +1631,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEqual(t, initialUUID, uuidAfterRemove, "UUID should change when marked for removal")
 
 	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupA.team.ID, []uint{host.ID})))
 	host.TeamID = &setupA.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
 	require.NoError(t, err)

@@ -81,7 +81,7 @@ const OSRequirementImage = ({
       case "ipados":
         return IPadOSUpdateScreenshot;
       default:
-        MacOSUpdateScreenshot;
+        return MacOSUpdateScreenshot;
     }
   };
 

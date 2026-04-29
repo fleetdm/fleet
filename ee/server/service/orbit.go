@@ -169,9 +169,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	if err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, host.UUID, host.DisplayName(), res); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
 	payload := &fleet.SetupExperienceStatusPayload{
@@ -229,7 +228,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	return payload, nil
 }
 
-func (svc *Service) failCancelledSetupExperienceInstalls(
+func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 	ctx context.Context,
 	hostID uint,
 	hostUUID string,
@@ -241,51 +240,34 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		svc.logger.InfoContext(ctx, "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "emitting activity for canceled setup experience software", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
+			return ctxerr.Wrap(ctx, err, "marking canceled setup experience software install as failed")
 		}
-		// TODO -- support recording activity for failed VPP apps as well.
-		// https://github.com/fleetdm/fleet/issues/34288
 		if r.IsForSoftwarePackage() {
-			softwarePackage := ""
-			var source *string
-			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
-			}
-			if installerMeta != nil {
-				softwarePackage = installerMeta.Name
-				// Get the software title to retrieve the source
-				if installerMeta.TitleID != nil {
-					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
-					if err != nil && !fleet.IsNotFound(err) {
-						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
-					}
-					if title != nil {
-						source = &title.Source
-					}
-				}
-			}
-			activity := fleet.ActivityTypeInstalledSoftware{
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallSoftware{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwarePackage:     softwarePackage,
-				InstallUUID:         ptr.ValOrZero(r.HostSoftwareInstallsExecutionID),
-				Status:              "failed",
-				SelfService:         false,
-				Source:              source,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience software install")
 			}
-			err = svc.NewActivity(ctx, nil, activity)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
+		} else if r.IsForVPPApp() {
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallAppStoreApp{
+				HostID:              hostID,
+				HostDisplayName:     hostDisplayName,
+				SoftwareTitle:       r.Name,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
+				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience VPP app install")
 			}
 		}
-		continue
 	}
+
 	return nil
 }
 

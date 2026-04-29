@@ -32,6 +32,8 @@ type EnrollOrbitRequest struct {
 	ComputerName string `json:"computer_name"`
 	// HardwareModel is the device's hardware model.
 	HardwareModel string `json:"hardware_model"`
+	// EUAToken is a Fleet-signed JWT containing the user's UPN and Windows MDM device ID.
+	EUAToken string `json:"eua_token,omitempty"`
 }
 
 // SetOrbitNodeKeyer is the interface implemented by orbit request types that

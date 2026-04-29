@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.1.0",
+      "version": "5.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation' AND version_compare(version, '5.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation' AND version_compare(version, '5.1.1') < 0);"
       },
-      "installer_url": "https://download.blender.org/release/Blender5.1/blender-5.1.0-windows-x64.msi",
+      "installer_url": "https://download.blender.org/release/Blender5.1/blender-5.1.1-windows-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "65e27c01",
-      "sha256": "221efbde5aa3fdf213be699ae8c605f11d10d03bbca4d7fbf6613ca54359052d",
+      "sha256": "9d579739a234c7652b87d42afa55a817d967d47149615df3fad60c9bb43807bb",
       "default_categories": [
         "Productivity"
       ],

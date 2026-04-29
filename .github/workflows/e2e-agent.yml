@@ -15,7 +15,7 @@
 # 1) Jobs are queued waiting for runners long enough for the entire workflow to fail. Scheduling for the middle of the night attempts to mitigate this. Timeouts have been tuned to try to manage it as well.
 # 2) Network issues (commonly related to Cloudflare tunnels) cause some request to fail.
 #
-# Upon failure, the workflow will automatically retry up to 3 times. Notifications are sent to Slack upon failure, and also after the failure has been resolved. After 4 failures, a stronger message will be logged to Slack.
+# Upon failure, the workflow will automatically retry up to 3 times. A Slack notification is sent only if all retries are exhausted.
 name: E2E Test Agents
 
 on:
@@ -30,6 +30,10 @@ on:
   pull_request:
     paths:
       - '.github/workflows/e2e-agent.yml'
+
+permissions:
+  contents: read
+  actions: read
 
 # Each cron schedule gets its own concurrency group. workflow_dispatch and pull_request also get their own.
 concurrency:
@@ -525,19 +529,6 @@ jobs:
       id: next-retry
       run: echo "value=$(( ${{ inputs.retry || 0 }} + 1 ))" >> $GITHUB_OUTPUT
 
-    - name: Slack Notification (failure with retries remaining)
-      if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.retry || 0) > 0)) && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) < 3
-      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-      with:
-        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-        webhook-type: incoming-webhook
-        payload: |
-          blocks:
-            - type: "section"
-              text:
-                type: "mrkdwn"
-                text: "*Agent E2E test FAILED* (attempt ${{ steps.next-retry.outputs.value }}/4, retrying...)\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThis may not need investigation if it self-resolves on the retry. Look for the next notification of success/failure."
-
     - name: Slack Notification (all retries exhausted)
       if: (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && (inputs.retry || 0) >= 3
       uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
@@ -555,18 +546,9 @@ jobs:
                 type: "mrkdwn"
                 text: "*Agent E2E test FAILED all 4 attempts* :rotating_light:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
 
-    - name: Slack Notification (retry success)
-      if: ${{!contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (inputs.retry || 0) > 0 }}
-      uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-      with:
-        webhook: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-        webhook-type: incoming-webhook
-        payload: |
-          blocks:
-            - type: "section"
-              text:
-                type: "mrkdwn"
-                text: "*Agent E2E test PASSED after ${{ inputs.retry }} retr${{ inputs.retry == 1 && 'y' || 'ies' }}* :white_check_mark:\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>\nThe above failure appears to have been transient. No investigation needed unless you see a pattern of repeated failures."
+    - name: Ping Cronitor on success
+      if: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+      run: curl -sf "${{ secrets.CRONITOR_E2E_AGENT_PING_URL }}" > /dev/null
 
     - name: Retry workflow on failure
       # Only retry scheduled runs or manual runs that are retries for scheduled runs (inputs.retry > 0)

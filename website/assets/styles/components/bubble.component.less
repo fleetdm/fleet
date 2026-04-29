@@ -7,24 +7,52 @@
 
  [parasails-component='bubble'] {
   span {
-    color: white;
+    color: @core-fleet-black-75;
     display: inline-block;
-    padding-left: 10px;
-    padding-right: 10px;
-    height: 20px;
-    line-height: 20px;
+    padding-left: 6px;
+    padding-right: 6px;
+    line-height: 24px;
     vertical-align: middle;
-    border-radius: 15px;
-    font-size: 11px;
-    background-color: #0e6471;
-    border-color: darken(#0e6471, 10%);
-    border-style: none;
-    &.uncertain {
-      border-width: 1px;
-      border-style: solid;
-      font-style: italic;
-      background-color: #FFF;
-      color: #222;
+    border-radius: 4px;
+    font-size: 13px;
+    background-color: #fff;
+    border: 1px solid #C5C7D1;
+    font-weight: bold;
+    padding-top: 1px;
+    &.admin {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.maintainer {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.technician {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.observer {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.observer-plus {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+    &.gitops {
+      background-color: rgba(61, 182, 123, 20%);
+      border-color: rgba(61, 182, 123, 20%);
+    }
+  }
+
+  &.role-link {
+    .transition(all 250ms);
+    display: inline-block;
+    &:hover {
+      span {
+        background-color: rgba(61, 182, 123, 40%);
+        border-color: rgba(61, 182, 123, 40%);
+      }
     }
   }
 }

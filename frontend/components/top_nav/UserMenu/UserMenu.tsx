@@ -224,7 +224,8 @@ const UserMenu = ({
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       marginTop: "7px",
@@ -250,7 +251,7 @@ const UserMenu = ({
       padding: "10px 8px",
       fontSize: "15px",
       backgroundColor: getOptionBackgroundColor(state),
-      color: COLORS["tooltip-bg"],
+      color: COLORS["core-fleet-black"],
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-fleet-black-5"],

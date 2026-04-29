@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { noop } from "lodash";
 
 import {
   IAppStoreApp,
@@ -19,7 +18,6 @@ import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import FileUploader from "components/FileUploader";
 import TabNav from "components/TabNav";
@@ -228,7 +226,7 @@ const EditIconModal = ({
     });
 
   // Reset state to fallback/default icon when a current or new custom icon is removed
-  const resetIconState = () => {
+  const resetIconState = useCallback(() => {
     // Default to VPP icon if available, otherwise fall back to default icon
     const defaultPreviewUrl =
       previewInfo.currentIconUrl &&
@@ -243,7 +241,7 @@ const EditIconModal = ({
       fileDetails: null,
       status: "fallback",
     });
-  };
+  }, [previewInfo.currentIconUrl]);
 
   const { data: customIconData, isError: isCustomIconError } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
@@ -390,6 +388,7 @@ const EditIconModal = ({
     previewInfo.currentIconUrl,
     originalIsVpp,
     setCurrentApiCustomIcon,
+    resetIconState,
   ]);
 
   const fileDetails =
@@ -404,7 +403,6 @@ const EditIconModal = ({
 
   const renderPreviewFleetCard = () => {
     const {
-      name,
       type,
       versions,
       source,

@@ -13,7 +13,7 @@ on:
         default: "main"
         required: true
       loadtest_containers:
-        description: "Deploys osquery-perf containers all at once. Total number of osquery-perf tasks to run (should be a multiple of 8, if setting loadtest_containers_starting_index). This is also used as the end index in enroll.sh"
+        description: "Deploys osquery-perf containers all at once. Total number of osquery-perf tasks to run. This is also used as the end index in enroll.sh"
         type: string
         required: true
       loadtest_containers_starting_index:
@@ -22,7 +22,7 @@ on:
         default: 0
         required: true
       task_size:
-        description: "CPU and Memory setting for osquery-perf containers. Example: {\"cpu\":\"4098\",\"memory\":\"8192\"}"
+        description: "CPU and Memory setting for osquery-perf containers. Example: {\"cpu\":\"4096\",\"memory\":\"8192\"}"
         type: string
         default: "{\"cpu\":\"4096\",\"memory\":\"8192\"}"
         required: true

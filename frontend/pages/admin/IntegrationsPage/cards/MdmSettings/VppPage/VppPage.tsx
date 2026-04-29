@@ -16,9 +16,8 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import PageDescription from "components/PageDescription";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -34,7 +33,7 @@ interface IAddVppMessageProps {
 
 const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
-    <EmptyTable
+    <EmptyState
       header="Add your VPP"
       info="Install Apple App Store apps purchased through Apple Business."
       primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}
@@ -139,13 +138,14 @@ const VppPage = ({ router }: IVppPageProps) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <GenericMsgWithNavButton
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+        <EmptyState
           header="Turn on Apple MDM"
-          buttonText="Turn on"
-          info=" To install Apple App Store apps purchased through Apple Business
-        Manager, first turn on Apple MDM."
+          info="To install Apple App Store apps purchased through Apple Business, first turn on Apple MDM."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -168,7 +168,7 @@ const VppPage = ({ router }: IVppPageProps) => {
         <>
           <PageDescription
             content="Add your VPP to install Apple App Store apps purchased through Apple
-            Business Manager."
+            Business."
           />
           <VppTable
             vppTokens={vppTokens}
@@ -210,7 +210,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showRenewModal && selectedToken.current && (
         <RenewVppModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

@@ -1003,7 +1003,7 @@ described below.
 
 For Autopilot, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
 For that reason, currently the only way to test this flow is to use Dogfood or the QA fleet server,
-which already have this configured, or to configure an alternate server for this workflow.
+which already have this configured, or to [configure an alternate server for this workflow](../../product-groups/mdm/windows-autopilot.md#setting-up-a-custom-domain-with-ngrok).
 
 #### Pre-requisites
 
@@ -1071,11 +1071,11 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
 5. Start your "installers" ngrok tunnel and forward to http://localhost:8085.
 	- Example: `ngrok http --domain=installers.fleetdm-example.ngrok.app http://localhost:8085`
-6. Perform a Fleet deployment(to Dogfood, QA or your own instance) with
-   `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL (if using Terraform, the environment variable is set on
-   `infrastructure/dogfood/terraform/aws-tf-module/main.tf`).
-	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app"`
-7. Enroll your Windows device with Autopilot. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+6. Start your Fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL. For a local dev server:
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app" ./build/fleet serve --dev`
+	- For Dogfood/QA deployments using Terraform, set the environment variable on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`.
+	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
+7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../../product-groups/mdm/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
 

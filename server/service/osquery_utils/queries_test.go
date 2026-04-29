@@ -224,6 +224,30 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), rpmPackage, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "3.0.7", rpmPackage.Version)
 	assert.Equal(t, "24.el9", rpmPackage.Release)
+
+	// Test Windows Defender sanitizer - MsMpEng.exe → Windows Defender (#18494)
+	winDefender := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefender, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefender.Name)
+
+	// Test Windows Defender case-insensitive match
+	winDefenderLower := &fleet.Software{
+		Name:   "msmpeng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderLower, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefenderLower.Name)
+
+	// Test Windows Defender with wrong source is not mutated
+	winDefenderWrongSource := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "apps",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderWrongSource, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "MsMpEng.exe", winDefenderWrongSource.Name)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -481,7 +505,6 @@ func TestGetDetailQueries(t *testing.T) {
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
-		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
 		"disk_encryption_darwin",
@@ -495,9 +518,6 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(t.Context(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 29)
-
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
@@ -507,7 +527,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
-		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1898,43 +1918,175 @@ func TestDirectIngestSoftware(t *testing.T) {
 	})
 }
 
-func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
-	ds := new(mock.Store)
-	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
-		require.Len(t, updates, 6)
-		require.ElementsMatch(t, []fleet.WindowsUpdate{
-			{KBID: 2267602, DateEpoch: 1657929207},
-			{KBID: 890830, DateEpoch: 1658226954},
-			{KBID: 5013887, DateEpoch: 1658225364},
-			{KBID: 5005463, DateEpoch: 1658225225},
-			{KBID: 5010472, DateEpoch: 1658224963},
-			{KBID: 4052623, DateEpoch: 1657929544},
-		}, updates)
-		return nil
+func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	baseRows := []map[string]string{
+		{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		{"uid": "502", "username": "_fleetadmin", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "fleetadmin-uuid"},
 	}
 
-	host := fleet.Host{
-		ID: 1,
-	}
+	t.Run("darwin with row and NULL account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
-	payload := []map[string]string{
-		{"date": "1659392951", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
-		{"date": "1658271402", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
-		{"date": "1658228495", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
-		{"date": "1658226954", "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
-		{"date": "1658225364", "title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
-		{"date": "1658225225", "title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
-		{"date": "1658224963", "title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
-		{"date": "1658222131", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
-		{"date": "1658189063", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
-		{"date": "1658185542", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
-		{"date": "1657929544", "title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
-		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
-	}
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
 
-	err := directIngestWindowsUpdateHistory(t.Context(), slog.New(slog.DiscardHandler), &host, ds, payload)
-	require.NoError(t, err)
-	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return nil, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and different account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return new("some-uuid"), nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and existing account_uuid -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		existing := "fleetadmin-uuid"
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return &existing, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when account_uuid already set")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin with no row -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, common_mysql.NotFound("ManagedLocalAccount")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when no row exists")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin without _fleetadmin row -> no Get/Set calls", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called when _fleetadmin is absent")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		rows := []map[string]string{
+			{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		}
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, rows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("non-darwin -> no Get/Set calls even when _fleetadmin present", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "linux"}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called on non-darwin")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			// _fleetadmin is not skipped on non-darwin (guard is darwin-only),
+			// so it passes through unchanged.
+			require.Len(t, users, 2)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin Get error -> ingest still succeeds, no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, errors.New("boom")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called after Get error")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+	})
 }
 
 func TestIngestKubequeryInfo(t *testing.T) {
@@ -1953,7 +2105,7 @@ func TestIngestKubequeryInfo(t *testing.T) {
 func TestDirectDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
@@ -1979,10 +2131,99 @@ func TestDirectDiskEncryption(t *testing.T) {
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
+	ds := new(mock.Store)
+	var gotEncrypted bool
+	var gotProtectionStatus *int
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
+		gotEncrypted = encrypted
+		gotProtectionStatus = bitlockerProtectionStatus
+		return nil
+	}
+
+	host := fleet.Host{ID: 1}
+
+	t.Run("no rows = not encrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus)
+	})
+
+	t.Run("fully encrypted and protection on", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOn, *gotProtectionStatus)
+	})
+
+	t.Run("fully decrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+		})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
+	})
+
+	t.Run("in-progress conversion statuses are not encrypted", func(t *testing.T) {
+		for _, cs := range []int{2, 3, 4, 5} { // encrypting, decrypting, encryption paused, decryption paused
+			err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+				{"conversion_status": strconv.Itoa(cs), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+			})
+			require.NoError(t, err)
+			assert.False(t, gotEncrypted, "conversion_status=%d should not be treated as encrypted", cs)
+		}
+	})
+
+	t.Run("fully encrypted but protection off", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
+	})
+
+	t.Run("protection status unknown normalized to nil", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusUnknown)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus, "unknown protection status should be normalized to nil")
+	})
+
+	t.Run("invalid conversion_status returns error", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "bad", "protection_status": "1"},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker conversion_status")
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+
+	t.Run("invalid protection_status returns error", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "bad"},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker protection_status")
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+}
+
 func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
@@ -3267,6 +3508,192 @@ func TestWindowsAcrobatDC(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			result := processFunc(softwareResults, testCase.registryResults)
 			require.Equal(t, testCase.expected, result)
+		})
+	}
+}
+
+func TestWindowsProgramFilesScan(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_program_files_scan"].SoftwareProcessResults
+
+	testCases := []struct {
+		name            string
+		mainResults     []map[string]string
+		fileScanResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name: "no file scan results returns main unchanged",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: nil,
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+		},
+		{
+			name: "all duplicates filtered out",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Git\cmd\git.exe`, "filename": "git.exe", "product_version": "2.43.0", "file_version": "2.43.0"},
+				{"path": `C:\Program Files\CMake\bin\cmake.exe`, "filename": "cmake.exe", "product_version": "3.28.1", "file_version": "3.28.1"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+		},
+		{
+			name: "new entries appended with correct columns",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.25030.2", "file_version": "4.18.25030.2"},
+				{"path": `C:\Program Files\Adobe\DNG Converter\DNGConverter.exe`, "filename": "DNGConverter.exe", "product_version": "16.1", "file_version": "16.1.0.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{
+					"name": "MsMpEng.exe", "version": "4.18.25030.2", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+				{
+					"name": "DNGConverter.exe", "version": "16.1", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Adobe\DNG Converter`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "version falls back to file_version when product_version is empty",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "", "file_version": "1.0.0.0"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "app.exe", "version": "1.0.0.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "case-insensitive path matching deduplicates",
+			mainResults: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `c:\program files\Adobe\subfolder\tool.exe`, "filename": "tool.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+		},
+		{
+			name: "exe in parent directory of known install path is not a duplicate",
+			mainResults: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\JetBrains\updater.exe`, "filename": "updater.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+				{
+					"name": "updater.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\JetBrains`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "drive root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\NewApp\app.exe`, "filename": "app.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+				{
+					"name": "app.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\NewApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "system32 installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\AnotherApp\tool.exe`, "filename": "tool.exe", "product_version": "3.0", "file_version": "3.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+				{
+					"name": "tool.exe", "version": "3.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\AnotherApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "Program Files root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeVendor\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeVendor`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "non-programs entries in main do not affect dedup",
+			mainResults: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := processFunc(tc.mainResults, tc.fileScanResults)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 }

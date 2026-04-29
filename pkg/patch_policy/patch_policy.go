@@ -35,6 +35,9 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 		return "", ErrNoExistsQuery
 	}
 	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
+	// Escape any literal '%' in the exists query (e.g. SQL LIKE patterns)
+	// so fmt.Sprintf doesn't interpret them as format verbs.
+	before = strings.ReplaceAll(before, "%", "%%")
 
 	switch p.Platform {
 	case "darwin":

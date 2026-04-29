@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -508,6 +509,7 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 
 	msgID, err := device.GetCurrentMsgID()
 	require.NoError(t, err)
+	euaTokenRe := regexp.MustCompile(`EUA_TOKEN="[^"]*"`)
 	for _, c := range cmds {
 		cmdID := c.Cmd.CmdID
 		status := syncml.CmdStatusOK
@@ -522,6 +524,12 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 		})
 		c.Cmd.CmdID.Value = ""
 		c.Cmd.CmdRef = nil
+		for i := range c.Cmd.Items {
+			if c.Cmd.Items[i].Data != nil {
+				c.Cmd.Items[i].Data.Content = euaTokenRe.ReplaceAllString(
+					c.Cmd.Items[i].Data.Content, `EUA_TOKEN="<redacted>"`)
+			}
+		}
 		recordedCmds = append(recordedCmds, c)
 	}
 

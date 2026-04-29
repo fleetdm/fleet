@@ -19,9 +19,9 @@
     "msw": "^1.1.0",
     "sass-loader": "^13.2.0",
     "style-loader": "^3.3.1",
-    "ts-jest": "^29.0.5",
+    "ts-jest": "^29.4.9",
     "ts-loader": "^9.4.2",
-    "typescript": "^4.9.5",
+    "typescript": "^6.0.2",
     "webpack": "^5.105.0",
     "webpack-cli": "^5.0.1",
     "webpack-merge": "^5.8.0"

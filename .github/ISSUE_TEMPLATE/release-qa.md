@@ -95,7 +95,10 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Packs
+   - Gitops 
 - Premium features are correctly restricted or hidden
+   - IdP information
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -185,7 +188,12 @@ Perform a quick visual scan of the UI and confirm:
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Host enrollment
+   - Apple, Windows, Android MDM
+   - Configuration profile delivery    
+   - APNs Certificate renewal 
 - Premium features are correctly restricted or hidden
+   - Setup experience
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -253,7 +261,13 @@ Perform a quick visual scan of the UI and confirm:
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Host details page
+   - Reports (Add, edit, live report)
+   - Software inventory
+   - Scripts (Add, delete, run)
+   - My device page (Mac, Windows, Linux)
 - Premium features are correctly restricted or hidden
+   - Add software
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing
@@ -320,7 +334,13 @@ Perform a quick visual scan of the UI and confirm:
 Run basic checks for the product group area while using a Fleet Free license.
  
 - Features documented as Free work normally
+   - Vulnerability detection
+   - Individual CVE page
 - Premium features are correctly restricted or hidden
+   - Disk encryption
+   - OS Updates
+   - Lock / Wipe
+   - Certificate authorities
 - No UI, API, or workflow errors occur when using Free-only functionality
 
 Reference: https://fleetdm.com/pricing

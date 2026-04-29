@@ -2,7 +2,6 @@ import React, {
   useState,
   useContext,
   useEffect,
-  KeyboardEvent,
   useCallback,
   useMemo,
 } from "react";
@@ -11,7 +10,6 @@ import { Location } from "history";
 import { useQuery } from "react-query";
 
 import { size } from "lodash";
-import classnames from "classnames";
 import { useDebouncedCallback } from "use-debounce";
 import { Ace } from "ace-builds";
 
@@ -20,11 +18,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 
-import {
-  addGravatarUrlToResource,
-  getCustomDropdownOptions,
-  secondsToDhms,
-} from "utilities/helpers";
+import { getCustomDropdownOptions, secondsToDhms } from "utilities/helpers";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -49,7 +43,6 @@ import labelsAPI, {
   ILabelsSummaryResponse,
 } from "services/entities/labels";
 
-import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 import {
   validateQuery,
@@ -60,12 +53,12 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import DataSet from "components/DataSet";
 import Slider from "components/forms/fields/Slider";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
-import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
@@ -180,7 +173,6 @@ const EditQueryForm = ({
     setEditingExistingQuery,
   } = useContext(QueryContext);
   const {
-    currentUser,
     isOnlyObserver,
     isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
@@ -207,8 +199,6 @@ const EditQueryForm = ({
   const [showQueryEditor, setShowQueryEditor] = useState(
     isObserverPlus || isAnyTeamObserverPlus || false
   );
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
@@ -327,14 +317,6 @@ const EditQueryForm = ({
     setLastEditedQueryBody(sqlString);
   };
 
-  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
-      event.preventDefault();
-      event.currentTarget.blur();
-      setIsEditingName(false);
-      setIsEditingDescription(false);
-    }
-  };
   const frequencyOptions = useMemo(
     () =>
       getCustomDropdownOptions(
@@ -413,30 +395,6 @@ const EditQueryForm = ({
     }
   };
 
-  const renderAuthor = (): JSX.Element | null => {
-    return storedQuery ? (
-      <DataSet
-        className={`${baseClass}__author`}
-        title="Author"
-        value={
-          <>
-            <Avatar
-              user={addGravatarUrlToResource({
-                email: storedQuery.author_email,
-              })}
-              size="xsmall"
-            />
-            <span>
-              {storedQuery.author_name === currentUser?.name
-                ? "You"
-                : storedQuery.author_name}
-            </span>
-          </>
-        }
-      />
-    ) : null;
-  };
-
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showOpenSchemaActionText) {
       return null;
@@ -460,70 +418,20 @@ const EditQueryForm = ({
     return platformCompatibility.render();
   };
 
-  const editName = () => {
-    if (!isEditingName) {
-      setIsEditingName(true);
-    }
-  };
-
-  const queryNameWrapperClass = `${baseClass}__query-name-wrapper`;
-  const queryNameWrapperClasses = classnames(queryNameWrapperClass, {
-    [`${baseClass}--editing`]: isEditingName,
-  });
-
-  const queryDescriptionWrapperClass = `${baseClass}__query-description-wrapper`;
-  const queryDescriptionWrapperClasses = classnames(
-    queryDescriptionWrapperClass,
-    {
-      [`${baseClass}--editing`]: isEditingDescription,
-    }
-  );
-
   const renderName = () => {
     if (isExistingQuery) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => {
-            const classes = classnames(queryNameWrapperClasses, {
-              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
-            });
-            return (
-              <div
-                className={classes}
-                onFocus={() => setIsEditingName(true)}
-                onBlur={() => setIsEditingName(false)}
-                onClick={editName}
-              >
-                <AutoSizeInputField
-                  name="query-name"
-                  placeholder="Add name"
-                  value={lastEditedQueryName}
-                  inputClassName={`${baseClass}__query-name ${
-                    !lastEditedQueryName ? "no-value" : ""
-                  }`}
-                  maxLength={160}
-                  hasError={errors && errors.name}
-                  onChange={setLastEditedQueryName}
-                  onBlur={() => {
-                    setLastEditedQueryName(lastEditedQueryName.trim());
-                  }}
-                  onKeyPress={onInputKeypress}
-                  isFocused={isEditingName}
-                  disableTabability={disableChildren}
-                />
-                <Icon
-                  name="pencil"
-                  className={`${baseClass}__edit-icon ${
-                    isEditingName ? `${baseClass}__edit-icon--hide` : ""
-                  }`}
-                  size="small-medium"
-                  color="core-fleet-green"
-                />
-              </div>
-            );
+        <InputField
+          name="query-name"
+          label="Name"
+          placeholder="Add name"
+          value={lastEditedQueryName}
+          error={errors && errors.name}
+          onChange={(value: string) => setLastEditedQueryName(value)}
+          onBlur={() => {
+            setLastEditedQueryName(lastEditedQueryName.trim());
           }}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -531,53 +439,18 @@ const EditQueryForm = ({
     return <h1 className={`${baseClass}__query-name no-hover`}>New report</h1>;
   };
 
-  const editDescription = () => {
-    if (!isEditingDescription) {
-      setIsEditingDescription(true);
-    }
-  };
-
   const renderDescription = () => {
     if (isExistingQuery) {
       return (
-        <GitOpsModeTooltipWrapper
-          position="right"
-          tipOffset={16}
-          renderChildren={(disableChildren) => {
-            const classes = classnames(queryDescriptionWrapperClasses, {
-              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
-            });
-            return (
-              <div
-                className={classes}
-                onFocus={() => setIsEditingDescription(true)}
-                onBlur={() => setIsEditingDescription(false)}
-                onClick={editDescription}
-              >
-                <AutoSizeInputField
-                  name="query-description"
-                  placeholder="Add description"
-                  value={lastEditedQueryDescription}
-                  maxLength={250}
-                  inputClassName={`${baseClass}__query-description ${
-                    !lastEditedQueryDescription ? "no-value" : ""
-                  }`}
-                  onChange={setLastEditedQueryDescription}
-                  onKeyPress={onInputKeypress}
-                  isFocused={isEditingDescription}
-                  disableTabability={disableChildren}
-                />
-                <Icon
-                  name="pencil"
-                  className={`${baseClass}__edit-icon ${
-                    isEditingDescription ? `${baseClass}__edit-icon--hide` : ""
-                  }`}
-                  size="small-medium"
-                  color="core-fleet-green"
-                />
-              </div>
-            );
-          }}
+        <InputField
+          name="query-description"
+          label="Description"
+          placeholder="Add description"
+          value={lastEditedQueryDescription}
+          type="textarea"
+          helpText="What information does your report reveal? (Optional)"
+          onChange={(value: string) => setLastEditedQueryDescription(value)}
+          disabled={gitOpsModeEnabled}
         />
       );
     }
@@ -616,12 +489,9 @@ const EditQueryForm = ({
   // Observers and observer+ of existing query
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
-      <div className={`${baseClass}__title-bar`}>
-        <h1 className={`${baseClass}__query-name no-hover`}>
-          {lastEditedQueryName}
-        </h1>
-        {renderAuthor()}
-      </div>
+      <h1 className={`${baseClass}__query-name no-hover`}>
+        {lastEditedQueryName}
+      </h1>
       {renderQueryTeam()}
       <PageDescription
         className={`${baseClass}__query-description no-hover`}
@@ -657,6 +527,7 @@ const EditQueryForm = ({
         isAnyTeamObserverPlus) && (
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
           <TooltipWrapper
+            className="live-query-button-tooltip"
             tipContent="Live reports are disabled in organization settings"
             disableTooltip={!disabledLiveQuery}
             position="top"
@@ -740,28 +611,19 @@ const EditQueryForm = ({
     return (
       <>
         <form className={baseClass} autoComplete="off">
-          <div className={`${baseClass}__title-bar`}>
-            {renderName()}
-            {isExistingQuery && renderAuthor()}
-          </div>
-          {renderQueryTeam()}
+          {isExistingQuery ? (
+            <div className={`${baseClass}__page-header`}>
+              <h1 className={`${baseClass}__page-title`}>Edit report</h1>
+              {renderQueryTeam()}
+            </div>
+          ) : (
+            <div className={`${baseClass}__query-name-fleet-name`}>
+              {renderName()}
+              {renderQueryTeam()}
+            </div>
+          )}
+          {isExistingQuery && renderName()}
           {renderDescription()}
-          <SQLEditor
-            value={lastEditedQueryBody}
-            error={errors.query}
-            label="Query"
-            labelActionComponent={renderLabelComponent()}
-            name="query editor"
-            onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
-            onChange={onChangeQuery}
-            handleSubmit={
-              confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
-            }
-            wrapEnabled
-            focus={!isExistingQuery}
-          />
-          {renderPlatformCompatibility()}
 
           {isExistingQuery && (
             <div
@@ -858,6 +720,26 @@ const EditQueryForm = ({
                   suppressTitle
                 />
               )}
+            </div>
+          )}
+          <SQLEditor
+            value={lastEditedQueryBody}
+            error={errors.query}
+            label="Query"
+            labelActionComponent={renderLabelComponent()}
+            name="query editor"
+            onLoad={onLoad}
+            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
+            onChange={onChangeQuery}
+            handleSubmit={
+              confirmChanges ? toggleConfirmSaveChangesModal : handleSaveQuery
+            }
+            wrapEnabled
+            focus={!isExistingQuery}
+          />
+          {renderPlatformCompatibility()}
+          {isExistingQuery && (
+            <>
               <RevealButton
                 isShowing={showAdvancedOptions}
                 className="advanced-options-toggle"
@@ -894,7 +776,7 @@ const EditQueryForm = ({
                   )}
                 </>
               )}
-            </div>
+            </>
           )}
           {renderLiveQueryWarning()}
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
@@ -935,6 +817,7 @@ const EditQueryForm = ({
               </>
             )}
             <TooltipWrapper
+              className="live-query-button-tooltip"
               tipContent="Live reports are disabled in organization settings"
               disableTooltip={!disabledLiveQuery}
               position="top"

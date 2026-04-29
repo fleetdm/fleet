@@ -66,6 +66,7 @@ module.exports = {
         'Signed up for a fleetdm.com account',
         'Requested whitepaper download',
         'Created a quote for a self-service Fleet Premium license',
+        'Requested webinar recording',
       ]
     },
     eventContent: {

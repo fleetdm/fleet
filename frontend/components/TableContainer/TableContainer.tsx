@@ -319,6 +319,10 @@ const TableContainer = <T,>({
   const renderFilterActionButton = () => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
+      const resolvedButtonText =
+        typeof actionButton.buttonText === "function"
+          ? actionButton.buttonText(actionButton.targetIds ?? [])
+          : actionButton.buttonText;
       const button = (
         <Button
           disabled={
@@ -329,7 +333,7 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            {actionButton.buttonText}
+            {resolvedButtonText}
             {actionButton.iconSvg && (
               <Icon
                 name={actionButton.iconSvg}

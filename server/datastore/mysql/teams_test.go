@@ -40,6 +40,7 @@ func TestTeams(t *testing.T) {
 		{"TeamsMDMConfig", testTeamsMDMConfig},
 		{"TestTeamsNameUnicode", testTeamsNameUnicode},
 		{"TestTeamsNameEmoji", testTeamsNameEmoji},
+		{"TestTeamConflictsWithName", testTeamConflictsWithName},
 		{"TestTeamsNameSort", testTeamsNameSort},
 		{"TeamIDsWithSetupExperienceIdPEnabled", testTeamIDsWithSetupExperienceIdPEnabled},
 		{"DefaultTeamConfig", testDefaultTeamConfig},
@@ -122,7 +123,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Name:       "decl-1",
 				TeamID:     &team.ID,
 				RawJSON:    json.RawMessage(`{"Type": "com.apple.configuration.test", "Identifier": "decl-1"}`),
-			})
+			}, nil)
 			require.NoError(t, err)
 
 			teamLabel, err := ds.NewLabel(t.Context(), &fleet.Label{
@@ -872,6 +873,8 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 				ManualAgentInstall:          optjson.SetBool(true),
 				LockEndUserInfo:             optjson.SetBool(false),
+				EnableManagedLocalAccount:   optjson.SetBool(false),
+				EndUserLocalAccountType:     optjson.SetString("admin"),
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
@@ -921,6 +924,75 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 	result, err := ds.TeamByName(context.Background(), equivalentNames[1])
 	assert.NoError(t, err)
 	assert.Equal(t, equivalentNames[0], result.Name)
+}
+
+func testTeamConflictsWithName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// No teams exist → (nil, nil).
+	conflict, err := ds.TeamConflictsWithName(ctx, "anything", 0)
+	require.NoError(t, err)
+	require.Nil(t, conflict)
+
+	// Create a team and confirm excludeID=0 returns it, excludeID=team.ID
+	// returns (nil, nil).
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "ABC"})
+	require.NoError(t, err)
+
+	conflict, err = ds.TeamConflictsWithName(ctx, "ABC", 0)
+	require.NoError(t, err)
+	require.NotNil(t, conflict)
+	require.Equal(t, team.ID, conflict.ID)
+
+	conflict, err = ds.TeamConflictsWithName(ctx, "ABC", team.ID)
+	require.NoError(t, err)
+	require.Nil(t, conflict)
+
+	// Collation-equal variants: ASCII case.
+	conflict, err = ds.TeamConflictsWithName(ctx, "abc", 0)
+	require.NoError(t, err)
+	require.Equal(t, team.ID, conflict.ID)
+
+	// Collation-equal variants: NFC normalization (é written as combined vs.
+	// e + combining acute accent).
+	reneeCombined, err := ds.NewTeam(ctx, &fleet.Team{Name: "Renée"})
+	require.NoError(t, err)
+	reneeDecomposed := "Renée" // e + U+0301 COMBINING ACUTE ACCENT
+	conflict, err = ds.TeamConflictsWithName(ctx, reneeDecomposed, 0)
+	require.NoError(t, err)
+	require.Equal(t, reneeCombined.ID, conflict.ID)
+
+	// Deterministic exclude-self under a legacy collation-equal duplicate
+	// pair. The production schema's unique index is on name_bin (binary
+	// collation), so two rows that differ only by case — e.g., "ABC" and
+	// "abc" — coexist as distinct rows but match each other under the
+	// collation-aware WHERE clause used by this method. This is exactly the
+	// scenario that motivated the excludeID parameter.
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO teams (name, description, config) VALUES (?, ?, ?)`,
+		"abc", "", []byte("{}"))
+	require.NoError(t, err)
+	dupID64, err := res.LastInsertId()
+	require.NoError(t, err)
+	dupID := uint(dupID64) //nolint:gosec // test code
+
+	// Excluding the original team's id returns the legacy duplicate...
+	conflict, err = ds.TeamConflictsWithName(ctx, "ABC", team.ID)
+	require.NoError(t, err)
+	require.Equal(t, dupID, conflict.ID)
+
+	// ...and excluding the duplicate's id returns the original.
+	conflict, err = ds.TeamConflictsWithName(ctx, "abc", dupID)
+	require.NoError(t, err)
+	require.Equal(t, team.ID, conflict.ID)
+
+	// Only id and name are populated — this is a hot path so extras are not
+	// loaded.
+	require.NotZero(t, conflict.ID)
+	require.NotEmpty(t, conflict.Name)
+	require.Empty(t, conflict.Description)
+	require.Nil(t, conflict.Users)
+	require.Nil(t, conflict.Secrets)
 }
 
 func testTeamsNameEmoji(t *testing.T, ds *Datastore) {

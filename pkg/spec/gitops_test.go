@@ -1524,6 +1524,36 @@ software:
 	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
 }
 
+func TestScriptOnlyPackagesPathWithInline(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/script-only.sh
+      icon:
+        path: ./foo/bar.png
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	err := file.Copy(
+		filepath.Join("testdata", "software", "script-only.sh"),
+		filepath.Join(basePath, "software", "script-only.sh"),
+		os.FileMode(0o755),
+	)
+	require.NoError(t, err)
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	gitops, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, gitops.Software.Packages, 1)
+	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), gitops.Software.Packages[0].Icon.Path)
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -2005,6 +2035,25 @@ func TestResolveScriptPaths(t *testing.T) {
 		result, errs := resolveScriptPaths(items, dir, nopLogf)
 		require.Empty(t, errs)
 		require.Len(t, result, 2)
+	})
+
+	t.Run("glob_filters_non_script_extensions", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "a.sh"), []byte("#!/bin/bash"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "b.ps1"), []byte("Write-Host"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "c.py"), []byte("#!/usr/bin/env python3"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "d.txt"), []byte("not a script"), 0o644))
+
+		items := []fleet.BaseItem{{Paths: ptr.String("*")}} //nolint:modernize
+		result, errs := resolveScriptPaths(items, dir, nopLogf)
+		require.Empty(t, errs)
+		require.Len(t, result, 3)
+		got := make([]string, 0, len(result))
+		for _, r := range result {
+			got = append(got, filepath.Base(*r.Path))
+		}
+		assert.Equal(t, []string{"a.sh", "b.ps1", "c.py"}, got)
 	})
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
@@ -3246,6 +3295,30 @@ software:
 		assert.True(t, result.Software.Packages[0].SelfService)
 		assert.Empty(t, result.Software.Packages[0].URL)
 		assert.Empty(t, result.Software.Packages[0].SHA256)
+	})
+
+	t.Run("sh_script_with_shell_variables", func(t *testing.T) {
+		config := getTeamConfig([]string{"software"})
+		config += `
+software:
+  packages:
+    - path: software/shell-vars.sh
+      self_service: true
+`
+		path, basePath := createTempFile(t, "", config)
+
+		// Create a script that uses standard shell variables (not set in CI env).
+		_, expectedVarUnset := os.LookupEnv("SOMETHING_UNSET") // Make sure at least one is not set in the CI environment
+		require.False(t, expectedVarUnset, "SOMETHING_UNSET should not be set in the test environment")
+		scriptContent := []byte("#!/bin/bash\necho \"EUID=$EUID\"\necho \"USER=$USER\"\necho \"HOME=$HOME\"\necho \"SOMETHING_UNSET=$SOMETHING_UNSET\"\n")
+		require.NoError(t, os.MkdirAll(filepath.Join(basePath, "software"), 0o755))                                  // nolint:gosec
+		require.NoError(t, os.WriteFile(filepath.Join(basePath, "software", "shell-vars.sh"), scriptContent, 0o755)) // nolint:gosec
+
+		// Shell variables must not be expanded by the gitops parser.
+		result, err := GitOpsFromFile(path, basePath, appConfig, nopLogf)
+		require.NoError(t, err)
+		require.Len(t, result.Software.Packages, 1)
+		assert.True(t, strings.HasSuffix(result.Software.Packages[0].InstallScript.Path, "shell-vars.sh"))
 	})
 
 	t.Run("valid_ps1_script_path", func(t *testing.T) {

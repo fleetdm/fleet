@@ -126,12 +126,12 @@ For all in-person or virtual events, sponsored or hosted.
 
 | Source detail | Code | Campaign examples (discreet) |
 | :---- | :---- | :---- |
-| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat\_booth\_scans |
+| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
 | Local event / meetup | LE | 2026\_02-LE-osquery\_meetup\_nyc |
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
-| Field event / sales event (hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
-| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Field event / sales event (workshop, hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
+| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent |
 | Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
@@ -187,8 +187,8 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 - **Structure:** YYYY\_MM-\[Code\]-\[Name\]  
   - **YYYY\_MM:** The start month. (e.g., 2026\_02)  
   - **\[Code\]:** The 2-4 letter code from the table above. (e.g., MC, PS, WH)  
-  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat\_booth, google\_brand)  
-- **Full example:** 2026\_08-MC-blackhat\_booth\_scans
+  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat, google\_brand)  
+- **Full example:** 2026\_08-MC-blackhat
 
 
 #### Always-on campaigns
@@ -463,6 +463,220 @@ We generally do not manually update these fields. A Salesforce Flow acts as a "T
 - **Compliance:** We must be able to prove *when* and *how* someone consented to receive emails.
 - **Deliverability:** Sending marketing blasts to "Cold" data (Clay lists) ruins domain reputation. We keep those lists separate for low-volume, high-relevance sales outreach only.
 - **Debugging:** If a VIP prospect stops receiving emails, the `Status Reason` tells us if it was a system error (Bounce) or human error (Sales marked "Do Not Contact").
+
+
+## ActiveCampaign
+
+Fleet uses ActiveCampaign as its marketing automation platform for email marketing, contact lifecycle management, lead nurturing, and segmentation. ActiveCampaign is integrated with Salesforce (SFDC) as the system of record; key contact fields sync from SFDC into ActiveCampaign, and lifecycle transitions driven by sales activity in SFDC are reflected in ActiveCampaign automations.
+
+### Lists
+
+ActiveCampaign lists represent permission groups — the type of communication a contact has consented to receive. Fleet maintains four lists:
+
+| List | Channel | Who belongs here | Purpose |
+|---|---|---|---|
+| Marketing Contacts | Email | All opted-in prospects and trial users | All marketing emails: nurture sequences, product announcements, event follow-ups, and campaigns |
+| Newsletter | Email | Contacts who have explicitly opted into the Fleet newsletter | Newsletter sends only. A contact can be on this list without being on Marketing Contacts. |
+| Master SMS List | SMS | Contacts who have opted into SMS communications | SMS campaigns and notifications |
+| Customers | Email | Active Fleet customers on a paid plan | Customer-specific communications: onboarding, product updates, and renewals |
+
+Unsubscribing from a list removes the contact from all automations tied to that list. Contacts may appear on multiple lists (e.g., a customer who also receives the newsletter).
+
+### Segmentation
+
+Segmentation in ActiveCampaign is driven by two mechanisms: **contact fields** for stable attributes and **tags** for dynamic, behavioral signals.
+
+#### Contact fields
+
+The following fields are available on every contact record. Fields in the Attribution group are set automatically and should not be manually edited.
+
+**General Details**
+
+| Field | Type | Personalization tag | Notes |
+|---|---|---|---|
+| First Name | Text | `%FIRSTNAME%` | |
+| Last Name | Text | `%LASTNAME%` | |
+| Email | Text | `%EMAIL%` | |
+| Phone | Text | `%PHONE%` | |
+| Account | Text | `%ACCT_NAME%` | Company name, synced from SFDC |
+| Job Title | Text | `%CONTACT_JOBTITLE%` | |
+| LinkedInURL | Text | `%LINKEDINURL%` | |
+| Role | Dropdown | `%ROLE%` | Synced from SFDC. Values: 🧝 Niche individual contributor, 🦌 Program owner, 🧑‍🎄 Leadership, ⛄️ Non-prospect |
+| Primary buying situation | Dropdown | `%PRIMARY_BUYING_SITU%` | Synced from SFDC |
+| Contact Status | Dropdown | `%CONTACT_STATUS%` | Synced from SFDC |
+| Contact stage | Dropdown | `%CONTACT_STAGE%` | Current lifecycle stage. Synced from SFDC and updated by AC automations. See lifecycle stages below. |
+| Marketing Email | Dropdown | `%MARKETING_EMAIL%` | Gives sales the ability to block emails for a contact |
+| State | Text | `%STATE%` | |
+| Country | Text | `%COUNTRY%` | |
+| GCLID | Text | `%GCLID%` | Google Click ID, captured from paid search landing pages |
+
+**Attribution**
+
+Attribution fields map directly to Fleet's [attribution framework](#attribution-framework). First-touch fields capture the original source when a contact enters the database and are never overwritten. Most recent fields capture the last known touch and are updated at opportunity creation.
+
+| Field | Type | Personalization tag | Maps to |
+|---|---|---|---|
+| Source channel | Dropdown | `%SOURCE_CHANNEL%` | First-touch → Level 1 (Source bucket) |
+| Source channel detail | Dropdown | `%SOURCE_CHANNEL_DET%` | First-touch → Level 2 (Source detail) |
+| Source campaign | Text | `%SOURCE_CAMPAIGN%` | First-touch → Level 3 (Campaign code) |
+| Most recent channel | Dropdown | `%MOST_RECENT_CHANNE%` | Converting-touch → Level 1 |
+| Most recent channel detail | Dropdown | `%MOST_RECENT_CHANNE%` | Converting-touch → Level 2 |
+| Most recent campaign | Text | `%MOST_RECENT_CAMPAI%` | Converting-touch → Level 3 (Campaign code) |
+| Contact source | Dropdown | `%CONTACT_SOURCE%` | Summary source field for reporting |
+
+#### Tags
+
+Tags handle behavioral and automation state signals that change over time. They follow a `namespace: value` naming convention and are used to enroll, pause, and exit contacts from automations.
+
+| Tag | Category | Description |
+|---|---|---|
+| `ls: prospect` | Lifecycle Stage | Opted-in contact with no qualification yet. Starting point for all contacts regardless of source. |
+| `ls: mql` | Lifecycle Stage | Marketing Qualified Lead. Right-fit demographics/firmographics plus minor intent signal. Qualifies for increased marketing investment. |
+| `ls: srl` | Lifecycle Stage | Sales Ready Lead. MQL threshold met plus sufficient intent to hand off. Triggers sales notification and pauses marketing nurture. |
+| `ls: sal` | Lifecycle Stage | Sales Accepted Lead. Sales has accepted and is actively working the contact. SFDC is system of record from this point. |
+| `ls: sql` | Lifecycle Stage | Sales Qualified Lead. Sales has met with the contact and is moving forward toward a deal. |
+| `ls: customer` | Lifecycle Stage | Has purchased Fleet. Contact is added to the Customers list. |
+| `ls: churned` | Lifecycle Stage | Former customer who has cancelled or not renewed. |
+| `ls: non-prospect` | Lifecycle Stage | In the database but will never enter the funnel (press, media, analysts, students, community members). Excluded from all nurture automations. |
+| `interest: mdm` | Interest | Has shown interest in Fleet's MDM / device management use case. |
+| `interest: vuln-management` | Interest | Has shown interest in Fleet's vulnerability management use case. |
+| `interest: compliance` | Interest | Has shown interest in Fleet's compliance use case. |
+| `interest: osquery` | Interest | Has shown interest in Fleet as an osquery management platform. |
+| `nurture: enrolled` | Nurture State | Currently active in a marketing nurture sequence. |
+| `nurture: completed` | Nurture State | Finished a nurture sequence without advancing to the next lifecycle stage. |
+| `nurture: paused` | Nurture State | Sales is actively working this contact. All marketing sequences are suppressed. |
+| `demo: requested` | Demo | Contact has requested a demo. |
+| `demo: completed` | Demo | Contact has completed a demo with the sales team. |
+| `engaged: hot` | Engagement | 3 or more email opens or clicks in the last 30 days. |
+| `engaged: cold` | Engagement | No email opens in 90 or more days. Candidate for re-engagement sequence or suppression. |
+
+`ls:` tags are mutually exclusive — when a contact advances to a new lifecycle stage, the previous `ls:` tag must be removed in the same automation step. The `ls:` tag and the **Contact stage** field should always be kept in sync; any automation that updates one must update the other.
+
+### Email marketing
+
+Fleet uses ActiveCampaign for all owned-list email marketing. This includes the newsletter, product announcements, event follow-ups, and lead nurture sequences.
+
+All campaign names in ActiveCampaign must follow the Level 3 attribution naming convention so that email-driven conversions are correctly attributed in SFDC:
+
+```
+YYYY_MM-EM-description
+```
+
+For example: `2026_04-EM-trial_nurture_wk1` or `2026_03-EM-q1_newsletter`.
+
+This maps to the **Digital > Email marketing (owned list)** source detail in the attribution framework. When a contact clicks through an email and subsequently books a demo, the ActiveCampaign campaign name is passed to SFDC as the converting-touch via the **Most recent campaign** field.
+
+Newsletter sends are targeted to the **Newsletter** list. All other marketing campaigns target the **Marketing Contacts** list, or a segment within it.
+
+### Opt-in and opt-out
+
+Fleet uses an **opt-in** model for all marketing communications.
+
+- Contacts must explicitly consent before being added to the Marketing Contacts or Newsletter lists. Consent is captured at the point of form submission (newsletter sign-up, content downloads, event registration) or when a contact responds to an SDR or AE outreach.
+- Contacts collected at events (e.g., badge scans) are considered opted-in at the point of scanning and are added to Marketing Contacts with `ls: prospect`.
+- Contacts with Role = ⛄️ Non-prospect are tagged `ls: non-prospect` and excluded from marketing sends even if they are on a marketing list.
+- The **Marketing Email** field is used to give the sales team the ability to signal to Marketing(ActiveCampaign) that they want to STOP marketing from emailing a contact.  The defualt value is **"no restrictions"**, the two optional values are **"Block Nurture Email""** and **"Block All Email"**
+- Unsubscribing removes a contact from the relevant list and halts all active automations tied to it. Unsubscribed contacts should not be re-subscribed without explicit re-consent.
+- Transactional and product emails (e.g., billing notifications, security alerts) are not managed in ActiveCampaign and are not subject to marketing list opt-in requirements.
+
+### Automation
+
+ActiveCampaign automations manage lifecycle progression, nurture enrollment, and sales handoff. The following rules govern all automations.
+
+**Lifecycle updates are always paired.** Any automation that advances a lifecycle stage must simultaneously: (1) add the new `ls:` tag, (2) remove the previous `ls:` tag, and (3) update the **Contact stage** field to match. These three actions happen in a single automation step.
+
+**Marketing defers to sales at SRL.** When a contact reaches `ls: srl`, ActiveCampaign notifies sales and sets `nurture: paused`. All nurture sequences include an exclusion condition for `nurture: paused`. ActiveCampaign does not set `ls: sal` or `ls: sql` — those transitions are driven by SFDC and synced back into ActiveCampaign.
+
+**Sales rejection handling.** If sales declines an SRL (wrong timing, poor fit, incomplete data), the contact is returned to `ls: mql`, `nurture: paused` is removed, and the contact re-enters the appropriate nurture sequence based on their `interest:` tags.
+
+**DRAFT**
+| Trigger | Actions |
+|---|---|
+| Contact added to Marketing Contacts | Add `ls: prospect`, update Contact stage, enroll in welcome sequence |
+| Role syncs as ⛄️ Non-prospect | Add `ls: non-prospect`, remove active `ls:` tag, exit all nurture sequences |
+| Contact meets MQL criteria | Remove `ls: prospect`, add `ls: mql`, update Contact stage, enroll in MQL nurture sequence |
+| Contact meets SRL criteria | Remove `ls: mql`, add `ls: srl`, update Contact stage, add `nurture: paused`, notify SDR |
+| SFDC sync: SAL | Remove `ls: srl`, add `ls: sal`, update Contact stage |
+| SFDC sync: SQL | Remove `ls: sal`, add `ls: sql`, update Contact stage |
+| SFDC sync: Closed Won | Remove `ls: sql`, add `ls: customer`, update Contact stage, add to Customers list |
+| SFDC sync: Churned | Add `ls: churned`, update Contact stage |
+| Demo booked | Add `demo: requested` |
+| Demo completed (SFDC sync) | Add `demo: completed` |
+| No email opens in 90 days | Add `engaged: cold`, trigger re-engagement sequence |
+| 3+ opens or clicks in 30 days | Add `engaged: hot` |
+
+
+## 🐰 Video hosting
+
+### Why do we host videos on a service other than YouTube?
+
+We use a dedicated video hosting platform instead of YouTube for several important reasons:
+
+- **Higher quality** — Videos are delivered at higher fidelity without compression trade-offs.
+- **No ads** — Viewers are never interrupted by pre-roll or mid-roll advertisements.
+- **Control over content** — We maintain full ownership and control over how our videos are presented and distributed.
+
+### Platform
+
+We use [Bunny.net](https://dash.bunny.net/stream) for video hosting. Credentials are stored in 1Password.
+
+### Uploading a video
+
+1. **Rename the video file** so it is easy to identify. Use the format: `YYYY-MM-title` as a prefix to the video's technical filename (e.g., `2026-04-fleet-webinar-mdm-deep-dive.mp4`).
+2. Go to [Bunny.net Stream](https://dash.bunny.net/stream).
+3. Select **Stream** and then the appropriate **Video Library** (e.g., `FleetWebinars`).
+4. **Upload** the video.
+5. **Edit** the video details:
+   - Set the **Video Title**.
+   - Update the **Metadata** with the title, speakers, and abstract.
+6. **Set the desired thumbnail** — take a screenshot of the start of the video and upload it as the thumbnail image.
+
+> **Note for webinars:** You can append a `t=xxs` parameter to the embed code URL to make the video start at a specific timestamp (e.g., `t=90s` to start at 1 minute 30 seconds). This parameter is **not** saved in Bunny.net — it must be added manually each time you use the embed code.
+
+## Virtual persona for email automation
+
+### What it is
+
+We use a virtual team member — **"Grace"** — as the sender identity for our automated email campaigns, nurture sequences, and lifecycle communications. Grace has a name, a headshot, and a consistent voice, but she is not a real employee. She is a purpose-built persona that represents our marketing team.
+
+People engage with people, not logos. Emails from a named individual consistently outperform emails sent from a brand name or a generic address like `marketing@` or `no-reply@`. A virtual persona gives us the warmth and approachability of a personal sender without the operational problems that come with tying automation to a real employee.
+
+- Turnover risk: When a real person is the face of automated email, their departure creates a jarring experience for recipients and a scramble to update templates, signatures, and sender addresses across every platform.
+- Scalability: No single employee can realistically "own" the relationship with every lead and contact in the database. A persona can.
+- Consistency: A virtual identity stays on-brand across every touchpoint — tone, title, photo, and signature never drift.
+- Privacy for the team: Real employees don't have their name and likeness attached to thousands of cold or automated emails they didn't personally write.
+
+### Who is Grace?
+
+Grace is named after pioneering women in science and technology, grounding the persona in values we admire — curiosity, precision, and breaking new ground.
+
+| **Persona name**   | **Named after**                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| **Grace West**   | [Adm. **Grace** Hopper](https://en.wikipedia.org/wiki/Grace_Hopper) (She was a pioneer of computer programming. Hopper was the first to devise the theory of machine-independent programming languages) and </br>[Gladys **West**](https://en.wikipedia.org/wiki/Gladys_West) (She was known for her contributions to mathematical modeling of the shape of the Earth, and her work on the development of satellite geodesy models, which were later incorporated into the Global Positioning System (GPS) |
+
+
+What grace is not:
+
+- She is **not** a chatbot or AI assistant. She is a sender identity for outbound email.
+- She is **not** used to deceive. We disclose her nature in every message.
+- She is **not** a replacement for real human interaction. When a recipient replies, a real team member responds.
+
+
+### How it works in practice
+
+- Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
+- Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
+- Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
+- Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
+- Transparency: Every automated email includes a brief disclaimer identifying Grace as a virtual team member. Honesty builds trust; deception erodes it.
+
+Example disclaimers:
+> *P.S. Full transparency — Grace is a virtual member of our team who helps us stay in touch. Hit reply and a real human will be on the other end.*
+
+Alternative
+> *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
+
+
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">

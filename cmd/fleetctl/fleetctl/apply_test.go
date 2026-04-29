@@ -298,7 +298,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -348,6 +348,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -358,6 +360,8 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, teamsByName["team2"].Config.MDM)
@@ -391,6 +395,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -424,6 +430,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -483,6 +491,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -574,6 +584,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}
@@ -755,7 +767,7 @@ func TestApplyAppConfig(t *testing.T) {
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
 
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -808,6 +820,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -891,6 +905,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1486,7 +1502,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
 		return nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -1595,6 +1611,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1639,6 +1657,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1698,6 +1718,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -1746,6 +1768,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
@@ -1785,6 +1809,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)

@@ -1,30 +1,18 @@
 #homepage {
   h1 {
-    font-weight: 800;
-    font-size: 48px;
-    line-height: 120%;
+    .title-xl();
   }
   h3 {
-    font-weight: 800;
-    font-size: 24px;
-    line-height: 120%;
+    .title-m();
     margin-bottom: 24px;
   }
   h2 {
-    font-weight: 800;
-    font-size: 32px;
-    line-height: 120%;
+    .title-l();
     margin-bottom: 16px;
   }
 
   h4 {
-    text-transform: uppercase;
-    font-family: 'Roboto Mono';
-    font-weight: 400;
-    font-size: 16px;
-    line-height: 120%;
-    color: @core-fleet-black-75;
-    margin-bottom: 8px;
+    .kicker-title();
   }
   p {
     color: @core-fleet-black-75;
@@ -166,34 +154,11 @@
       text-decoration: none;
     }
     [purpose='cta-button'] {
-      cursor: pointer;
+      .cta-button();
       margin-right: 24px;
-      background: @core-vibrant-green;
       border-radius: 8px;
       padding: 8px 16px;
       height: 36px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      color: #FFF;
-      position: relative;
-      overflow: hidden;
-    }
-    [purpose='cta-button']::before {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-      opacity: 1;
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -5px;
-      width: 50%;
-      height: 100%;
-      transform: skew(-10deg);
-      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-    }
-    [purpose='cta-button']:hover:before {
-      left: 160px;
-      width: 110%;
     }
   }
 
@@ -344,22 +309,8 @@
 
 
   [purpose='feature-with-image'] {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
+    .feature-with-image();
     margin-bottom: 160px;
-    gap: 64px;
-    [purpose='feature-image'] {
-      img {
-        width: 578px;
-        border-radius: 16px;
-      }
-      video {
-        width: 578px;
-        border-radius: 16px;
-      }
-    }
     [purpose='feature-list-block'] {
       display: flex;
       flex-direction: row;
@@ -386,12 +337,8 @@
           padding: 1.25px 8px 1.75px 8px;
         }
       }
-
     }
     [purpose='feature-text'] {
-      display: flex;
-      flex-direction: column;
-      gap: 32px;
       h5 {
         color: #192147;
         font-size: 16px;
@@ -410,8 +357,6 @@
         margin-bottom: 0px;
       }
     }
-
-
   }
 
   [purpose='statistics'] {
@@ -759,19 +704,9 @@
   }
 
   [purpose='three-column-features'] {
+    .three-column-features();
     margin-bottom: 180px;
-    max-width: 1072px;
-    [purpose='feature-row'] {
-      [purpose='feature'] {
-        max-width: 330px;
-        p {
-          font-size: 14px;
-        }
-      }
-    }
     [purpose='feature'] {
-      margin-left: 16px;
-      margin-right: 16px;
       img {
         height: 64px;
         width: auto;
@@ -782,6 +717,9 @@
         font-size: 16px;
         line-height: 120%;
         margin-bottom: 10px;
+      }
+      p {
+        font-size: 14px;
       }
     }
   }
@@ -1017,30 +955,6 @@
       }
     }
 
-    [purpose='feature-with-image'] {
-      [purpose='feature-image'] {
-        width: 100%;
-        img {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        video {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        margin-right: 48px;
-      }
-      [purpose='feature-text'] {
-        [purpose='feature-block'] {
-          &:last-of-type {
-            margin-right: 0px;
-          }
-        }
-
-      }
-    }
     [purpose='comparison-column'] {
       max-width: 140px;
       min-width: 160px;
@@ -1202,36 +1116,19 @@
     }
 
     [purpose='feature-with-image'] {
+      margin-bottom: 128px;
+      // Between 576 and 768px, text sits above the image. The mixin's column
+      // mode uses DOM order (image first); flip with column-reverse here.
       flex-direction: column-reverse;
       &.reverse {
-        flex-direction: column;
-      }
-      margin-bottom: 128px;
-      [purpose='feature-image'] {
-        width: 100%;
-        img {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        video {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        margin-right: 0px;
+        flex-direction: column-reverse;
       }
       [purpose='feature-list-block'] {
-        display: flex;
         flex-direction: column;
-        gap: 24px;
         width: 33%;
       }
       [purpose='feature-text'] {
-        display: flex;
         flex-direction: row;
-        padding-bottom: 0px;
-        padding-top: 0px;
         [purpose='feature-block'] {
           width: 33%;
         }
@@ -1240,22 +1137,11 @@
 
     [purpose='three-column-features'] {
       margin-bottom: 120px;
-    }
-    [purpose='three-column-features'] {
-      h2 {
+      [purpose='feature'] {
         text-align: center;
-      }
-      [purpose='feature-row'] {
-        [purpose='feature'] {
-          max-width: 100%;
-          margin-left: 0px;
-          margin-right: 0px;
-          margin-bottom: 60px;
-          text-align: center;
-          img {
-            margin-right: auto;
-            margin-left: auto;
-          }
+        img {
+          margin-right: auto;
+          margin-left: auto;
         }
       }
     }
@@ -1364,46 +1250,22 @@
       margin-bottom: 48px;
     }
     [purpose='feature-with-image'] {
+      // At ≤575px, image goes back above text (overrides the ≤768 reverse).
       flex-direction: column;
       &.reverse {
-        flex-direction: column-reverse;
+        flex-direction: column;
       }
-      [purpose='feature-image'] {
+      [purpose='feature-list-block'] {
+        flex-direction: row;
         width: 100%;
-        img {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        video {
-          width: 100%;
-          height: auto;
-          border-radius: 16px;
-        }
-        margin-right: 0px;
-        // margin-bottom: 48px;
       }
       [purpose='feature-text'] {
         flex-direction: column;
         [purpose='feature-block'] {
-          margin-right: 0px;
+          width: 100%;
           &:last-of-type {
             margin-bottom: 0px;
           }
-        }
-      }
-      [purpose='feature-list-block'] {
-        display: flex;
-        flex-direction: row;
-        gap: 24px;
-        width: 100%;
-      }
-      [purpose='feature-text'] {
-        display: flex;
-        padding-bottom: 0px;
-        padding-top: 0px;
-        [purpose='feature-block'] {
-          width: 100%;
         }
       }
     }

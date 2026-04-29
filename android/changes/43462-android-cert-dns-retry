@@ -1,0 +1,1 @@
+- Fixed Android agent to retry DNS resolution failures when waking from Doze mode, and to defer remaining certificates in a batch to the next enrollment cycle when a DNS failure persists.

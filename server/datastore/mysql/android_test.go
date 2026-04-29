@@ -28,6 +28,7 @@ func TestAndroid(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
+		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
@@ -122,6 +123,145 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	lbls, err = ds.ListLabelsForHost(testCtx(), result.Host.ID)
 	require.NoError(t, err)
 	require.Empty(t, lbls)
+}
+
+// testNewAndroidHostDedupesOrbitEnrolled covers the duplicate-Android-hosts fix.
+// The Fleet Android agent enrolls first via /api/fleet/orbit/enroll,
+// then later the AMAPI pubsub flow delivers a STATUS_REPORT that lands in
+// NewAndroidHost. The dedupe works whether the agent also sends
+// platform="android" (newer agents) or leaves it blank (older agents).
+func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	cases := []struct {
+		name     string
+		platform string
+	}{
+		{"agent sends no platform", ""},
+		{"agent sends platform=android", "android"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testCtx()
+			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+			orbitHost, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NotZero(t, orbitHost.ID)
+
+			// Orbit enroll alone does not write an android_devices row; AndroidHostLite misses.
+			_, err = ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.True(t, fleet.IsNotFound(err),
+				"before AMAPI arrives there is no android_devices row, so AndroidHostLite should miss")
+
+			// Simulate the AMAPI pubsub path calling NewAndroidHost. The fix makes
+			// NewAndroidHost find the existing orbit-enrolled hosts row by uuid and
+			// reuse it instead of inserting a duplicate.
+			newHost := createAndroidHost(enterpriseSpecificID)
+			returned, err := ds.NewAndroidHost(ctx, newHost, false)
+			require.NoError(t, err)
+			require.NotNil(t, returned)
+			require.Equal(t, orbitHost.ID, returned.Host.ID,
+				"NewAndroidHost must reuse the orbit-enrolled hosts row, not insert a duplicate")
+
+			// AndroidHostLite now finds the host via the newly-created android_devices row.
+			androidHost, err := ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.NoError(t, err)
+			require.NotNil(t, androidHost)
+			require.Equal(t, orbitHost.ID, androidHost.Host.ID)
+			require.Equal(t, enterpriseSpecificID, androidHost.Host.UUID)
+
+			// Exactly one hosts row and one android_devices row for this device.
+			var hostCount, deviceCount int
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+
+			// Subsequent orbit re-enroll (agent node-key wipe, reinstall) stays idempotent.
+			_, err = ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+		})
+	}
+
+	// Two hosts already exist with the same uuid -- one orbit-enrolled
+	// (node_key=orbitKey) and one Android (node_key=android/<id>). A NewAndroidHost call
+	// with node_key=android/<id> must pick the Android row (not the orbit-enrolled one),
+	// otherwise the UPDATE would try to flip the orbit row's node_key to a value already
+	// held by the Android row and hit idx_host_unique_nodekey.
+	t.Run("Android orphan duplicates, prefers matching node_key", func(t *testing.T) {
+		ctx := testCtx()
+		enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+		orbitHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   enterpriseSpecificID,
+				HardwareSerial: enterpriseSpecificID,
+				Platform:       "android",
+				Hostname:       "orbit",
+				ComputerName:   "orbit",
+				HardwareModel:  "TestModel",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Insert a second hosts row directly, with the same uuid but the Android-derived
+		// node_key, to simulate the duplicate state the dedupe must handle.
+		androidNodeKey := "android/" + enterpriseSpecificID
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO hosts (node_key, uuid, platform, hostname, computer_name, hardware_serial,
+				detail_updated_at, label_updated_at, policy_updated_at)
+			 VALUES (?, ?, 'android', 'android-dup', 'android-dup', 'serial-dup', NOW(), NOW(), NOW())`,
+			androidNodeKey, enterpriseSpecificID,
+		)
+		require.NoError(t, err)
+		androidDupID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		// NewAndroidHost must pick the existing Android row (not the orbit-enrolled one
+		// with the lower id). Otherwise the UPDATE would hit the UNIQUE node_key index.
+		newHost := createAndroidHost(enterpriseSpecificID)
+		require.Equal(t, androidNodeKey, *newHost.NodeKey,
+			"createAndroidHost is expected to build node_key=android/<uuid>")
+		returned, err := ds.NewAndroidHost(ctx, newHost, false)
+		require.NoError(t, err, "must not violate UNIQUE node_key when duplicate hosts share this uuid")
+		require.EqualValues(t, androidDupID, returned.Host.ID,
+			"NewAndroidHost should pick the row whose node_key matches, leaving the orbit-enrolled row alone")
+		require.NotEqual(t, orbitHost.ID, returned.Host.ID)
+	})
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
@@ -1473,9 +1613,10 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	// Set the hosts label_updated_at causing p4-p6 to become applicable to host 1
 	hosts[1].LabelUpdatedAt = time.Now().UTC().Add(time.Second) // just to be extra safe in tests
 	hosts[1].PolicyUpdatedAt = time.Now().UTC()
-	hosts[1].TeamID = &tm.ID
 	err = ds.UpdateHost(ctx, hosts[1])
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID})))
+	hosts[1].TeamID = &tm.ID
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)

@@ -6,6 +6,15 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Slack installed
+- name: Windows - 1Password up to date
+  description: This device may have an outdated version of 1Password, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  type: patch
+  fleet_maintained_app_slug: 1password/windows
+  install_software: false
+  calendar_events_enabled: true
+  labels_include_any:
+    - x86 Windows hosts with 1Password installed
 - name: Windows - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also uninstall Claude if you are no longer using it."
@@ -38,14 +47,6 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Zoom installed
-- name: Windows - Brave Browser up to date
-  description: The host may have an outdated version of Brave Browser, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Brave Browser's built-in update functionality. You can also uninstall Brave Browser if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: brave-browser/windows
-  install_software: false
-  labels_include_any:
-    - Windows hosts with Brave Browser installed
 - name: Windows - Visual Studio Code up to date
   description: The host may have an outdated version of Visual Studio Code, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Visual Studio Code's built-in update functionality. You can also uninstall Visual Studio Code if you are no longer using it."
@@ -53,4 +54,4 @@
   fleet_maintained_app_slug: visual-studio-code/windows
   install_software: false
   labels_include_any:
-    - Windows hosts with Visual Studio Code installed
+    - x86 Windows hosts with Visual Studio Code installed

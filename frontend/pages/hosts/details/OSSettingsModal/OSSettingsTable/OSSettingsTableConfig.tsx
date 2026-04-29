@@ -7,6 +7,7 @@ import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   IHostMdmProfile,
+  isEnrolledInMdm,
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
   MdmDDMProfileStatus,
@@ -17,7 +18,7 @@ import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import OSSettingsErrorCell from "./OSSettingsErrorCell";
+import OSSettingsResendCell from "./OSSettingsResendCell";
 
 import {
   generateLinuxDiskEncryptionSetting,
@@ -85,12 +86,13 @@ const generateTableConfig = (
             profileName={cellProps.row.original.name}
             hostPlatform={cellProps.row.original.platform}
             profileUUID={cellProps.row.original.profile_uuid}
+            profile={cellProps.row.original}
           />
         );
       },
     },
     {
-      Header: "Details",
+      Header: <span className="sr-only">Actions</span>,
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {
@@ -109,7 +111,7 @@ const generateTableConfig = (
           REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
         return (
-          <OSSettingsErrorCell
+          <OSSettingsResendCell
             canResendProfiles={
               canResendProfiles &&
               (isWindowsProfile ||
@@ -187,6 +189,7 @@ const makeDarwinRows = ({
   profiles,
   apple_settings,
   os_settings,
+  enrollment_status,
 }: IHostMdmData) => {
   let rows: IHostMdmProfileWithAddedStatus[] = profiles ?? [];
 
@@ -200,7 +203,10 @@ const makeDarwinRows = ({
     }
   }
 
-  if (os_settings?.recovery_lock_password?.status) {
+  if (
+    isEnrolledInMdm(enrollment_status) &&
+    os_settings?.recovery_lock_password?.status
+  ) {
     rows = [
       ...rows,
       generateRecoveryLockPasswordSetting(

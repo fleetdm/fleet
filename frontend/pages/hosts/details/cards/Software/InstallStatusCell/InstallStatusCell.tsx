@@ -544,7 +544,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
@@ -578,7 +578,12 @@ const InstallStatusCell = ({
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
+          <Spinner
+            size="x-small"
+            includeContainer={false}
+            centered={false}
+            delay={0}
+          />
         ) : (
           displayConfig?.iconName && (
             <Icon

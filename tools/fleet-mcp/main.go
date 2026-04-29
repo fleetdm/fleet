@@ -23,6 +23,9 @@ func main() {
 	if strings.TrimSpace(config.FleetAPIKey) == "" {
 		logrus.Fatalf("FLEET_API_KEY is required but is not set")
 	}
+	if strings.TrimSpace(config.MCPAuthToken) == "" {
+		logrus.Fatalf("MCP_AUTH_TOKEN is required at startup for all transports, including stdio, but is not set")
+	}
 
 	// Stderr is required for stdio transport — logs must not corrupt the JSON-RPC stdout stream.
 	logrus.SetOutput(os.Stderr)
@@ -45,9 +48,6 @@ func main() {
 	logrus.Infof("transport: SSE — listening on :%s", config.Port)
 	sseServer := server.NewSSEServer(mcpServer)
 	var handler http.Handler = sseServer
-	if config.MCPAuthToken == "" {
-		logrus.Fatalf("MCP_AUTH_TOKEN is required for SSE transport but is not set")
-	}
 	logrus.Info("authentication enabled")
 	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
 	handler = mcpRouteGuard(handler)

@@ -20,7 +20,7 @@ assignees: ''
 TODO
 
 ### 🛠️ To fix
-<!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
+<!-- Add the expected fix here. If you're not sure, leave this blank for product to specify. If the Product Designer is unsure, add "TODO: Up to Tech Lead" and move the bug to "Ready to spec".  -->
 TODO
 
 ### 🧑‍💻  Steps to reproduce

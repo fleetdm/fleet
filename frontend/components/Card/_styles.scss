@@ -65,6 +65,10 @@
   // color styles
   &__white {
     background-color: $core-fleet-white;
+
+    body.dark-mode & {
+      background-color: $ui-fleet-black-5;
+    }
   }
 
   &__grey {

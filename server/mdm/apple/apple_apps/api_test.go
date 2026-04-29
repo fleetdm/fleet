@@ -197,6 +197,10 @@ func (m *mockDataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error)
 	return m.appConfig, m.appConfigErr
 }
 
+func (m *mockDataStore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	return nil, nil
+}
+
 func (m *mockDataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
 	m.insertMDMConfigAssetsCalled = true
 	return nil

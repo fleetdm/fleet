@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "150.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Thunderbird (x64 en-US)' AND publisher = 'Mozilla';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Thunderbird (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '150.0') < 0);"
+      },
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/thunderbird/releases/150.0/win64/en-US/Thunderbird%20Setup%20150.0.exe",
+      "install_script_ref": "26f2daf8",
+      "uninstall_script_ref": "96113731",
+      "sha256": "d60a4d724669d34c87ca61425ddaf08fd5284f54d966cdcb1d523f732b9ae300",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "26f2daf8": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    # Thunderbird uses a Nullsoft (NSIS) installer; Winget silent switches:\n    # /S /PreventRebootRequired=true\n    $processOptions = @{\n        FilePath     = \"$exeFilePath\"\n        ArgumentList = \"/S /PreventRebootRequired=true\"\n        PassThru     = $true\n        Wait         = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n}\ncatch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "96113731": "# Uninstall Mozilla Thunderbird (x64 en-US) via registry; NSIS silent /S\n\n$paths = @(\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n    $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n        $_.DisplayName -and\n        $_.DisplayName -like '*Thunderbird*' -and\n        $_.DisplayName -like '*(x64*' -and\n        $_.Publisher -and\n        $_.Publisher -like '*Mozilla*'\n    }\n    if ($items) {\n        $uninstall = $items | Select-Object -First 1\n        break\n    }\n}\n\nif (-not $uninstall) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n$uninstallString = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n}\nelse {\n    $uninstall.UninstallString\n}\n\nif (-not $uninstallString) {\n    Write-Host \"Uninstall command not found\"\n    Exit 0\n}\n\nStop-Process -Name \"thunderbird\" -Force -ErrorAction SilentlyContinue\n\n$exePath = \"\"\n$arguments = \"\"\n\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n}\nelseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n}\nelse {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n$argumentList = @()\nif ($arguments -ne '') {\n    $argumentList += $arguments -split '\\s+'\n}\n\n# NSIS uninstallers require /S for silent mode.\nif ($argumentList -notcontains \"/S\" -and $arguments -notmatch '\\b/S\\b') {\n    $argumentList += \"/S\"\n}\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath    = $exePath\n        NoNewWindow = $true\n        PassThru    = $true\n        Wait        = $true\n    }\n\n    if ($argumentList.Count -gt 0) {\n        $processOptions.ArgumentList = $argumentList\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n}\ncatch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

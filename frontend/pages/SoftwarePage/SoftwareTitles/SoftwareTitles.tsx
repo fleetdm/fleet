@@ -44,7 +44,6 @@ interface ISoftwareTitlesProps {
   vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
-  addedSoftwareToken: string | null;
   onAddFiltersClick: () => void;
 }
 
@@ -59,7 +58,6 @@ const SoftwareTitles = ({
   vulnFilters,
   currentPage,
   teamId,
-  addedSoftwareToken,
   onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
@@ -85,7 +83,6 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        addedSoftwareToken,
         ...vulnFilters,
         ...buildSoftwareFilterQueryParams(softwareFilter),
       },
@@ -121,7 +118,6 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        addedSoftwareToken,
         ...vulnFilters,
         ...(showVersions ? { without_vulnerability_details: true } : {}),
       },

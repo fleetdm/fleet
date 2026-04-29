@@ -66,6 +66,11 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     {{ else if .EndUserEmail }}
 		{{ $endUserEmailArg = printf " --end-user-email \"%s\"" .EndUserEmail }}
     {{ end }}
+	{{ $euaTokenArg := "" }}
+    {{ if .EnableEUATokenProperty }}
+		<Property Id="EUA_TOKEN" Value="dummy"/>
+		{{ $euaTokenArg = " --eua-token=\"[EUA_TOKEN]\"" }}
+    {{ end }}
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -109,7 +114,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Start="auto"
                   Type="ownProcess"
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }} --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" --enable-scripts="[ENABLE_SCRIPTS]" {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}{{ $endUserEmailArg }}{{ if .OsqueryDB }} --osquery-db="{{ .OsqueryDB }}"{{ end }}{{ if .DisableSetupExperience }} --disable-setup-experience{{ end }}'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }} --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" --enable-scripts="[ENABLE_SCRIPTS]" {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}{{ $endUserEmailArg }}{{ $euaTokenArg }}{{ if .OsqueryDB }} --osquery-db="{{ .OsqueryDB }}"{{ end }}{{ if .DisableSetupExperience }} --disable-setup-experience{{ end }}'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"

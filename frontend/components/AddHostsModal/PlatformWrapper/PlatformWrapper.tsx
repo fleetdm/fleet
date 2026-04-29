@@ -9,7 +9,6 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
@@ -370,12 +369,9 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,&nbsp;
-              <Button
-                variant="text-link-dark"
-                onClick={() => setSelectedTabIndex(3)}
-              >
-                click here
+              Chromebooks,{" "}
+              <Button variant="link" onClick={() => setSelectedTabIndex(3)}>
+                visit the ChromeOS tab
               </Button>
               .
             </InfoBanner>

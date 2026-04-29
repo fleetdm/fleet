@@ -214,7 +214,7 @@ const QueryDetailsPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {

@@ -160,9 +160,9 @@ If we're not able to decrypt the key for a host, the key needs to be rotated. Ro
 
 Disk encryption in Windows is performed entirely by orbit.
 
-When disk encryption is enabled, the server sends a notification to orbit, who calls the [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume) to encrypt/decrypt the disk and generate an encryption key.
+When disk encryption is enabled, the server sends a notification to orbit, which calls the [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume) to encrypt the disk and generate an encryption key. If the disk is already encrypted, orbit rotates the recovery key (adds a new Fleet-managed protector, removes old ones) without decrypting.
 
-After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
+After the disk is encrypted (or the key is rotated), orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
 
 ### Load testing
 

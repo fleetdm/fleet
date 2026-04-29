@@ -1,1 +1,0 @@
-- Fixed GitOps policy software resolution failing when URL lookup doesn't match, by falling back to hash-based lookup.

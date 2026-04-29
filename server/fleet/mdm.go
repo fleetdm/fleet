@@ -87,8 +87,12 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// OneTimeChallengeTTL is the time to live for one-time challenges.
-	OneTimeChallengeTTL = 1 * time.Hour
+	// OneTimeChallengeTTL is the time to live for one-time challenges. The challenge is
+	// generated at profile-render time but consumed when the device makes its SCEP request,
+	// which can be hours or days later if the device is offline (asleep, on a plane, etc.).
+	// 7 days covers a typical absence without being unbounded; once consumed, the challenge
+	// is deleted immediately regardless of TTL. See issue #44111.
+	OneTimeChallengeTTL = 7 * 24 * time.Hour
 )
 
 // HasCAVariables returns true if any of the given Fleet variable names
@@ -374,6 +378,8 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// ResultsMetadata contains command-specific metadata.
 	// VPP install commands include a "software_installed" boolean and
 	// "vpp_verify_timeout_seconds" integer.
@@ -400,6 +406,8 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// CommandStatus is the fleet computed field representing the status of the command
 	// based on the MDM protocol status
 	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
@@ -1227,7 +1235,7 @@ type HostMDMCommand struct {
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
 // profile identified by its UUID.
 type MDMProfileUUIDFleetVariables struct {
-	// ProfileUUID is the UUID of the profile.
+	// ProfileUUID is the UUID of the profile or declaration.
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
@@ -1238,8 +1246,10 @@ type MDMProfileUUIDFleetVariables struct {
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
 // profile identified by its identifier.
 type MDMProfileIdentifierFleetVariables struct {
-	// Identifier is the identifier of the profile (which is unique by team for
-	// Apple profiles).
+	// Identifier is the identifier of the profile. Because the profile identifier is not guaranteed
+	// to be unique across platforms and types of profiles (e.g. Apple profiles vs declarations vs Windows
+	// profiles), it must be prefixed with the same letter used for the UUID prefix of the profile type.
+	// E.g. fleet.MDMAppleDeclarationUUIDPrefix.
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by

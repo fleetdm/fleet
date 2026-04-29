@@ -79,21 +79,8 @@ This action is logged as a activities visible on the host's and the global activ
 
 ### API
 
-```
-GET /api/latest/fleet/hosts/{id}/recovery_lock_password
-```
+Use the [Get host's Recovery Lock password](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-recovery-lock-password) endpoint.
 
-Response:
-
-```json
-{
-  "host_id": 42,
-  "recovery_lock_password": {
-    "password": "A3B7-C9D2-E5F8-G4H6-J2K9-L7M3",
-    "updated_at": "2026-03-12T10:30:00Z"
-  }
-}
-```
 
 ## Rotate the password
 
@@ -108,7 +95,7 @@ Then either:
 
 or:
 
-2. Click on the **OS settings* indicator in the host summary card.
+2. Click on the **OS settings** indicator in the host summary card.
 3. Hover over the Recovery Lock password row
 4. Click "Rotate"
 
@@ -117,9 +104,8 @@ Requires maintainer role or higher.
 
 ### API
 
-```
-POST /api/latest/fleet/hosts/{id}/recovery_lock_password/rotate
-```
+Use the [Rotate host's Recovery Lock password API](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-recovery-lock-password) endpoint.
+
 
 ## Status tracking
 
