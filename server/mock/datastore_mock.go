@@ -1753,13 +1753,13 @@ type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.In
 
 type DeleteVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error
 
-type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint, teamID uint) (*[]byte, error)
+type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) (*[]byte, error)
 
-type HasInHouseAppConfigurationChangedFunc func(ctx context.Context, inHouseAppID uint, teamID uint, newConfig []byte) (bool, error)
+type HasInHouseAppConfigurationChangedFunc func(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
 
-type BulkGetInHouseAppConfigurationsFunc func(ctx context.Context, inHouseAppIDs []uint, teamID uint) (map[uint][]byte, error)
+type BulkGetInHouseAppConfigurationsFunc func(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
 
-type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint, teamID uint) error
+type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -10832,32 +10832,32 @@ func (s *DataStore) DeleteVPPAppConfiguration(ctx context.Context, platform flee
 	return s.DeleteVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
 }
 
-func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint, teamID uint) (*[]byte, error) {
+func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) (*[]byte, error) {
 	s.mu.Lock()
 	s.GetInHouseAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetInHouseAppConfigurationFunc(ctx, inHouseAppID, teamID)
+	return s.GetInHouseAppConfigurationFunc(ctx, inHouseAppID)
 }
 
-func (s *DataStore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, teamID uint, newConfig []byte) (bool, error) {
+func (s *DataStore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
 	s.mu.Lock()
 	s.HasInHouseAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasInHouseAppConfigurationChangedFunc(ctx, inHouseAppID, teamID, newConfig)
+	return s.HasInHouseAppConfigurationChangedFunc(ctx, inHouseAppID, newConfig)
 }
 
-func (s *DataStore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint, teamID uint) (map[uint][]byte, error) {
+func (s *DataStore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
 	s.mu.Lock()
 	s.BulkGetInHouseAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkGetInHouseAppConfigurationsFunc(ctx, inHouseAppIDs, teamID)
+	return s.BulkGetInHouseAppConfigurationsFunc(ctx, inHouseAppIDs)
 }
 
-func (s *DataStore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint, teamID uint) error {
+func (s *DataStore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
 	s.mu.Lock()
 	s.DeleteInHouseAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteInHouseAppConfigurationFunc(ctx, inHouseAppID, teamID)
+	return s.DeleteInHouseAppConfigurationFunc(ctx, inHouseAppID)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

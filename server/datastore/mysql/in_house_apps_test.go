@@ -1852,67 +1852,65 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	iosID := setupTestInHouseApp(t, ds, "ios.ipa", "abc123", fleet.IOSPlatform)
 	ipadID := setupTestInHouseApp(t, ds, "ipad.ipa", "def456", fleet.IPadOSPlatform)
-	teamID := setupTestTeam(t, ds)
 
 	// NotFound on empty table.
-	_, err := ds.GetInHouseAppConfiguration(ctx, iosID, teamID)
+	_, err := ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.ErrorContains(t, err, "not found")
-	err = ds.DeleteInHouseAppConfiguration(ctx, iosID, teamID)
+	err = ds.DeleteInHouseAppConfiguration(ctx, iosID)
 	require.ErrorContains(t, err, "not found")
 
 	// BulkGet: empty input returns nil map without a query.
-	got, err := ds.BulkGetInHouseAppConfigurations(ctx, nil, teamID)
+	got, err := ds.BulkGetInHouseAppConfigurations(ctx, nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 
-	// Insert: separate row per (in_house_app_id, team_id).
+	// Insert: one row per in_house_app_id (parent already pins team and platform).
 	iosCfg := []byte(testIOSPlist)
 	ipadCfg := []byte(`<dict><key>p</key><string>ipados</string></dict>`)
-	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, teamID, iosCfg))
-	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), ipadID, teamID, ipadCfg))
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, iosCfg))
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), ipadID, ipadCfg))
 
 	// Get: byte-for-byte round-trip.
-	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID, teamID)
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.NoError(t, err)
 	require.Equal(t, iosCfg, *gotIOS)
-	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID, teamID)
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.NoError(t, err)
 	require.Equal(t, ipadCfg, *gotIPad)
 
 	// BulkGet: returns matched rows, ignores unknown ids.
-	bulk, err := ds.BulkGetInHouseAppConfigurations(ctx, []uint{iosID, 999999}, teamID)
+	bulk, err := ds.BulkGetInHouseAppConfigurations(ctx, []uint{iosID, 999999})
 	require.NoError(t, err)
 	require.Len(t, bulk, 1)
 	require.Equal(t, iosCfg, bulk[iosID])
 
 	// Update: upsert overwrites.
 	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
-	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, teamID, updated))
-	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID, teamID)
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, updated))
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.NoError(t, err)
 	require.Equal(t, updated, *gotIOS)
 
 	// Delete iOS only — iPadOS row survives.
-	require.NoError(t, ds.DeleteInHouseAppConfiguration(ctx, iosID, teamID))
-	_, err = ds.GetInHouseAppConfiguration(ctx, iosID, teamID)
+	require.NoError(t, ds.DeleteInHouseAppConfiguration(ctx, iosID))
+	_, err = ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.ErrorContains(t, err, "not found")
-	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID, teamID)
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.NoError(t, err)
 
 	// Cascade: dropping the parent in_house_apps row removes the config row.
 	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, ipadID)
 	require.NoError(t, err)
-	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID, teamID)
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.ErrorContains(t, err, "not found")
 }
 
 func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	appID := setupTestInHouseApp(t, ds, "test.ipa", "abc123", fleet.IOSPlatform)
-	teamID := setupTestTeam(t, ds)
 
 	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
-	require.NoError(t, ds.updateInHouseAppConfigurationTx(testCtx(), ds.writer(testCtx()), appID, teamID, stored))
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(testCtx(), ds.writer(testCtx()), appID, stored))
 
 	cases := []struct {
 		desc      string
@@ -1928,7 +1926,7 @@ func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasInHouseAppConfigurationChanged(ctx, c.compareID, teamID, c.incoming)
+			got, err := ds.HasInHouseAppConfigurationChanged(ctx, c.compareID, c.incoming)
 			require.NoError(t, err)
 			require.Equal(t, c.want, got)
 		})

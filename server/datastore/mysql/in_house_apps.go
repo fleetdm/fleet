@@ -1601,19 +1601,18 @@ LIMIT 1
 	return true, title, nil
 }
 
-func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID, teamID uint, newConfig []byte) (bool, error) {
+func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
 	BINARY COALESCE(?, '') != configuration AS has_changed
 FROM
 	in_house_app_configurations
 WHERE
-	in_house_app_id = ? AND
-	team_id = ?
+	in_house_app_id = ?
 `
 
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return len(newConfig) > 0, nil
@@ -1623,11 +1622,11 @@ WHERE
 	return hasChanged, nil
 }
 
-func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) (*[]byte, error) {
-	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ? AND team_id = ?`
+func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) (*[]byte, error) {
+	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
 	var config []byte
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, inHouseAppID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, inHouseAppID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
@@ -1638,7 +1637,7 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 	return &config, nil
 }
 
-func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint, teamID uint) (map[uint][]byte, error) {
+func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
 	if len(inHouseAppIDs) == 0 {
 		return nil, nil
 	}
@@ -1648,10 +1647,10 @@ SELECT
 	in_house_app_id,
 	configuration
 FROM in_house_app_configurations
-WHERE in_house_app_id IN (?) AND team_id = ?
+WHERE in_house_app_id IN (?)
 `
 
-	stmt, args, err := sqlx.In(bulkGetStmt, inHouseAppIDs, teamID)
+	stmt, args, err := sqlx.In(bulkGetStmt, inHouseAppIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get in-house app configurations query")
 	}
@@ -1672,10 +1671,10 @@ WHERE in_house_app_id IN (?) AND team_id = ?
 	return m, nil
 }
 
-func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) error {
-	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ? AND team_id = ?`
+func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
+	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID, teamID)
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
 	}
@@ -1692,20 +1691,20 @@ func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseA
 	return nil
 }
 
-func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID, teamID uint, config []byte) error {
+func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {
 	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating in-house app configuration")
 	}
 
 	const stmt = `
 INSERT INTO
-	in_house_app_configurations (in_house_app_id, team_id, configuration)
-VALUES (?, ?, ?)
+	in_house_app_configurations (in_house_app_id, configuration)
+VALUES (?, ?)
 ON DUPLICATE KEY UPDATE
 	configuration = VALUES(configuration)
 `
 
-	_, err := tx.ExecContext(ctx, stmt, inHouseAppID, teamID, config)
+	_, err := tx.ExecContext(ctx, stmt, inHouseAppID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
 	}

@@ -2771,10 +2771,10 @@ type Datastore interface {
 	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
 
 	// In-House App Configuration (iOS/iPadOS)
-	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) (*[]byte, error)
-	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID, teamID uint, newConfig []byte) (bool, error)
-	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint, teamID uint) (map[uint][]byte, error)
-	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID, teamID uint) error
+	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) (*[]byte, error)
+	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
