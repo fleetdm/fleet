@@ -4074,15 +4074,29 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
+		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
+		if err := apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
 			cmdResult.Identifier(),
 			cmdResult.CommandUUID,
-			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			status,
 			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			svc.newActivityFn,
-		)
+		); err != nil {
+			return nil, err
+		}
+		// Best-effort: when an ACME profile is acknowledged on macOS, queue
+		// CertificateList so hardware-bound certs (invisible to osquery) get
+		// ingested into host_certificates. Failures here are logged but don't
+		// affect the ack.
+		if status != nil && (*status == fleet.MDMDeliveryVerifying || *status == fleet.MDMDeliveryVerified) {
+			if err := svc.maybeQueueCertificateListForACMEProfile(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
+				svc.logger.WarnContext(r.Context, "queue CertificateList after ACME profile install",
+					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
+		}
+		return nil, nil
 	case "RemoveProfile":
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
 		detail := apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
@@ -4986,6 +5000,64 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	}
 
 	return nil, nil
+}
+
+// maybeQueueCertificateListForACMEProfile fires a CertificateList MDM command
+// after a successful InstallProfile ack on a macOS host whose profile contains
+// a com.apple.security.acme payload. This populates host_certificates with
+// hardware-bound ACME certs that osquery cannot see. iOS/iPadOS do not need
+// this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
+//
+// Dedups via host_mdm_commands so multiple ACME profile installs on the same
+// host do not enqueue duplicate commands while one is in flight.
+func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
+	hostID, platform, profileUUID, err := svc.ds.GetHostAndProfileByCommandUUID(ctx, commandUUID, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up host and profile")
+	}
+	if platform != "darwin" {
+		return nil
+	}
+
+	contents, err := svc.ds.GetMDMAppleProfilesContents(ctx, []string{profileUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get profile contents")
+	}
+	mc, ok := contents[profileUUID]
+	if !ok {
+		return nil
+	}
+	hasACME, err := mc.HasPayloadType(mobileconfig.ACMEPayloadType)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check ACME payload")
+	}
+	if !hasACME {
+		return nil
+	}
+
+	// Skip if a CertificateList is already pending for this host.
+	pending, err := svc.ds.GetHostMDMCommands(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get pending mdm commands")
+	}
+	for _, cmd := range pending {
+		if cmd.CommandType == fleet.RefetchCertsCommandUUIDPrefix {
+			return nil
+		}
+	}
+
+	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      hostID,
+		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+	}}); err != nil {
+		return ctxerr.Wrap(ctx, err, "track refetch certs command")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
+	}
+	return nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {

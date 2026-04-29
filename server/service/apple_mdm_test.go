@@ -2144,6 +2144,12 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				require.ElementsMatch(t, toRetry, []string{profileIdentifier})
 				return nil
 			}
+			// Best-effort ACME-cert-list trigger fires on successful InstallProfile
+			// acks; stub the lookup to no-op so this test stays focused on the
+			// retry/status logic.
+			ds.GetHostAndProfileByCommandUUIDFunc = func(ctx context.Context, cmdUUID, hostUUID string) (uint, string, string, error) {
+				return 0, "", "", &notFoundError{}
+			}
 
 			_, err := svc.CommandAndReportResults(
 				&mdm.Request{Context: ctx},
@@ -2169,6 +2175,167 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			require.Equal(t, shouldCheckCount, ds.GetHostMDMProfileRetryCountByCommandUUIDFuncInvoked)
 			require.Equal(t, shouldRetry, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.Equal(t, shouldUpdateOrDelete, ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
+		})
+	}
+}
+
+// TestMaybeQueueCertificateListForACMEProfile verifies the on-demand
+// CertificateList trigger fires only on macOS hosts whose acked profile
+// contains an ACME payload, and that it dedups against pending refetches.
+func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
+	ctx := context.Background()
+	const (
+		hostUUID    = "host-uuid"
+		commandUUID = "cmd-uuid"
+		profileUUID = "profile-uuid"
+		hostID      = uint(42)
+	)
+
+	acmeProfile := mobileconfig.Mobileconfig(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key><string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key><string>com.example.acme</string>
+			<key>PayloadDisplayName</key><string>ACME</string>
+			<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000001</string>
+			<key>PayloadVersion</key><integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key><string>ACME Profile</string>
+	<key>PayloadIdentifier</key><string>com.example.profile</string>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000002</string>
+	<key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`)
+
+	scepProfile := mobileconfig.Mobileconfig(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key><string>com.apple.security.scep</string>
+			<key>PayloadIdentifier</key><string>com.example.scep</string>
+			<key>PayloadDisplayName</key><string>SCEP</string>
+			<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000003</string>
+			<key>PayloadVersion</key><integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key><string>SCEP Profile</string>
+	<key>PayloadIdentifier</key><string>com.example.profile</string>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000004</string>
+	<key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`)
+
+	cases := []struct {
+		name             string
+		platform         string
+		profileContent   mobileconfig.Mobileconfig
+		pendingCommands  []fleet.HostMDMCommand
+		expectAddCommand bool
+		expectEnqueue    bool
+	}{
+		{
+			name:             "macOS + ACME profile: enqueues CertificateList",
+			platform:         "darwin",
+			profileContent:   acmeProfile,
+			expectAddCommand: true,
+			expectEnqueue:    true,
+		},
+		{
+			name:             "iOS host: skipped (existing refetch cron handles it)",
+			platform:         "ios",
+			profileContent:   acmeProfile,
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+		{
+			name:             "macOS + non-ACME profile: no trigger",
+			platform:         "darwin",
+			profileContent:   scepProfile,
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+		{
+			name:           "macOS + ACME but refetch already pending: dedups",
+			platform:       "darwin",
+			profileContent: acmeProfile,
+			pendingCommands: []fleet.HostMDMCommand{
+				{HostID: hostID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+			},
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.GetHostAndProfileByCommandUUIDFunc = func(ctx context.Context, cmdUUID, hUUID string) (uint, string, string, error) {
+				return hostID, c.platform, profileUUID, nil
+			}
+			ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
+				return map[string]mobileconfig.Mobileconfig{profileUUID: c.profileContent}, nil
+			}
+			ds.GetHostMDMCommandsFunc = func(ctx context.Context, hID uint) ([]fleet.HostMDMCommand, error) {
+				return c.pendingCommands, nil
+			}
+			var addedCommands []fleet.HostMDMCommand
+			ds.AddHostMDMCommandsFunc = func(ctx context.Context, cmds []fleet.HostMDMCommand) error {
+				addedCommands = append(addedCommands, cmds...)
+				return nil
+			}
+
+			mdmStorage := &mdmmock.MDMAppleStore{}
+			pushFactory, _ := newMockAPNSPushProviderFactory()
+			pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, NewNanoMDMLogger(slog.New(slog.DiscardHandler)))
+			cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+			var enqueued bool
+			mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+				enqueued = true
+				require.Equal(t, []string{hostUUID}, id)
+				require.Equal(t, "CertificateList", cmd.Command.Command.RequestType)
+				return nil, nil
+			}
+			mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
+				res := make(map[string]*mdm.Push, len(ids))
+				for _, id := range ids {
+					res[id] = &mdm.Push{Token: []byte(id), Topic: "topic", PushMagic: "magic"}
+				}
+				return res, nil
+			}
+			mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+				cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+				return &cert, "", err
+			}
+			mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+				return false, nil
+			}
+
+			svc := &MDMAppleCheckinAndCommandService{
+				ds:        ds,
+				logger:    slog.New(slog.DiscardHandler),
+				commander: cmdr,
+			}
+			err := svc.maybeQueueCertificateListForACMEProfile(ctx, hostUUID, commandUUID)
+			require.NoError(t, err)
+
+			if c.expectAddCommand {
+				require.Len(t, addedCommands, 1)
+				require.Equal(t, fleet.RefetchCertsCommandUUIDPrefix, addedCommands[0].CommandType)
+				require.Equal(t, hostID, addedCommands[0].HostID)
+			} else {
+				require.Empty(t, addedCommands)
+			}
+			require.Equal(t, c.expectEnqueue, enqueued)
 		})
 	}
 }
