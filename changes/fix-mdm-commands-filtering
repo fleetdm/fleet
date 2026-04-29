@@ -1,0 +1,1 @@
+* Fixed filtering in `/api/v1/fleet/commands`, `/api/v1/fleet/mdm/commands` and `/api/v1/fleet/mdm/apple/commands` endpoints.
