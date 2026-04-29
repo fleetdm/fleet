@@ -1,7 +1,7 @@
 export const ORG_LOGO_ACCEPT = ".png,.jpg,.jpeg,.webp";
 export const ORG_LOGO_MAX_SIZE_BYTES = 100 * 1024; // 100 KB
 export const ORG_LOGO_HELP_TEXT =
-  "PNG, JPEG, or WebP file. For best results, use a square PNG at least 150x150 px (transparency).";
+  "Personalize Fleet with your brand. For best results, use a square image at least 150px wide.";
 
 export interface IOrgLogoValidationResult {
   valid: boolean;

@@ -27,6 +27,14 @@ interface IOrgDetailsProps {
   handleSubmit: (formData: IOrgDetailsFormData) => void;
 }
 
+interface IPickedLogo {
+  file: File;
+  /** Object URL for previewing the picked file as <img src>. Stable across
+   * renders so the URL isn't regenerated each pass; revoked when the file
+   * is replaced or cleared. */
+  url: string;
+}
+
 const OrgDetails = ({
   className,
   currentPage,
@@ -34,9 +42,13 @@ const OrgDetails = ({
   handleSubmit,
 }: IOrgDetailsProps) => {
   const [orgName, setOrgName] = useState<string>(formData?.org_name || "");
-  const [orgLogoFile, setOrgLogoFile] = useState<File | null>(
-    formData?.org_logo_file || null
-  );
+  const [picked, setPicked] = useState<IPickedLogo | null>(() => {
+    if (!formData?.org_logo_file) return null;
+    return {
+      file: formData.org_logo_file,
+      url: URL.createObjectURL(formData.org_logo_file),
+    };
+  });
   const [errors, setErrors] = useState<IOrgDetailsErrors>({});
 
   const onOrgNameChange = (value: string) => {
@@ -53,11 +65,18 @@ const OrgDetails = ({
       return;
     }
     setErrors((prev) => ({ ...prev, org_logo_file: undefined }));
-    setOrgLogoFile(file);
+    const url = URL.createObjectURL(file);
+    setPicked((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { file, url };
+    });
   };
 
   const onDeleteFile = () => {
-    setOrgLogoFile(null);
+    setPicked((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
     setErrors((prev) => ({ ...prev, org_logo_file: undefined }));
   };
 
@@ -70,7 +89,10 @@ const OrgDetails = ({
       }));
       return;
     }
-    handleSubmit({ org_name: orgName, org_logo_file: orgLogoFile });
+    handleSubmit({
+      org_name: orgName,
+      org_logo_file: picked?.file ?? null,
+    });
   };
 
   return (
@@ -85,7 +107,7 @@ const OrgDetails = ({
       />
       <FileUploader
         label="Organization logo (optional)"
-        graphicName="file-png"
+        graphicName="fleet-logo"
         accept={ORG_LOGO_ACCEPT}
         message={ORG_LOGO_HELP_TEXT}
         buttonMessage="Choose file"
@@ -93,12 +115,18 @@ const OrgDetails = ({
         onDeleteFile={onDeleteFile}
         canEdit
         fileDetails={
-          orgLogoFile
-            ? {
-                name: orgLogoFile.name,
-                description: "PNG",
-              }
-            : undefined
+          picked ? { name: picked.file.name, description: "PNG" } : undefined
+        }
+        customPreview={
+          picked ? (
+            <img
+              src={picked.url}
+              alt="Organization logo preview"
+              width={40}
+              height={40}
+              style={{ objectFit: "contain" }}
+            />
+          ) : undefined
         }
         internalError={errors.org_logo_file}
       />
