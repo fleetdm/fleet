@@ -195,7 +195,9 @@ describe("Software inventory table", () => {
         "Expecting to see vulnerable software? Check back later."
       )
     ).toBeInTheDocument();
-    expect(screen.getByText("Search")).toBeInTheDocument();
-    expect(screen.getByText("Add filters")).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 filter")).toBeInTheDocument();
   });
 });

@@ -6,11 +6,9 @@ import {
   getVulnFilterRenderDetails,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareLibrary/SoftwareLibraryTable/helpers";
 import { HostPlatform, isAndroid } from "interfaces/platform";
 
 export interface IEmptySoftwareTableProps {
-  softwareFilter?: ISoftwareDropdownFilterVal;
   vulnFilters?: ISoftwareVulnFiltersParams;
   tableName?: string;
   isSoftwareDisabled?: boolean;
@@ -21,12 +19,8 @@ export interface IEmptySoftwareTableProps {
 
 const generateTypeText = (
   tableName: string,
-  softwareFilter?: ISoftwareDropdownFilterVal,
   vulnFilters?: ISoftwareVulnFiltersParams
 ) => {
-  if (softwareFilter === "installableSoftware") {
-    return "installable software";
-  }
   if (vulnFilters?.vulnerable) {
     return "vulnerable software";
   }
@@ -34,7 +28,6 @@ const generateTypeText = (
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter = "allSoftware",
   vulnFilters,
   tableName = "software",
   isSoftwareDisabled,
@@ -42,18 +35,13 @@ const EmptySoftwareTable = ({
   installableSoftwareExists,
   platform,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(
-    tableName,
-    softwareFilter,
-    vulnFilters
-  );
+  const softwareTypeText = generateTypeText(tableName, vulnFilters);
 
   const { filterCount: vulnFiltersCount } = getVulnFilterRenderDetails(
     vulnFilters
   );
 
-  const isFiltered =
-    vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
+  const isFiltered = vulnFiltersCount > 0 || !noSearchQuery;
 
   const getEmptySoftwareInfo = (): IEmptyStateProps => {
     if (isSoftwareDisabled) {
@@ -79,18 +67,16 @@ const EmptySoftwareTable = ({
     }
 
     if (!isFiltered) {
-      if (softwareFilter === "allSoftware") {
-        if (installableSoftwareExists) {
-          return {
-            header: `No ${tableName} detected`,
-            info: "Install software on your hosts to see versions.",
-          };
-        }
+      if (installableSoftwareExists) {
         return {
           header: `No ${tableName} detected`,
-          info,
+          info: "Install software on your hosts to see versions.",
         };
       }
+      return {
+        header: `No ${tableName} detected`,
+        info,
+      };
     }
 
     return {

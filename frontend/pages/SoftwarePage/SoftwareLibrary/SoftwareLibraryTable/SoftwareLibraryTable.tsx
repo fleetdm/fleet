@@ -1,6 +1,5 @@
 /**
-software/titles Software tab > Table
-software/versions Software tab > Table (version toggle on)
+software/library Library tab > Table
 */
 
 import React, { useCallback, useMemo } from "react";
@@ -10,34 +9,20 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import {
-  convertParamsToSnakeCase,
-  getPathWithQueryParams,
-} from "utilities/url";
-import {
-  ISoftwareApiParams,
-  ISoftwareTitlesResponse,
-  ISoftwareVersionsResponse,
-} from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import { getPathWithQueryParams } from "utilities/url";
+import { ISoftwareTitlesResponse } from "services/entities/software";
+import { ISoftwareTitle } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
+import Slider from "components/forms/fields/Slider";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
-import generateTitlesTableConfig from "./SoftwareLibraryTableConfig";
-import {
-  ISoftwareDropdownFilterVal,
-  SOFTWARE_TITLES_DROPDOWN_OPTIONS,
-  buildSoftwareFilterQueryParams,
-} from "./helpers";
+import generateLibraryTableConfig from "./SoftwareLibraryTableConfig";
 
 interface IRowProps extends Row {
   original: {
@@ -45,24 +30,15 @@ interface IRowProps extends Row {
   };
 }
 
-type ITableConfigGenerator = (router: InjectedRouter, teamId?: number) => void;
-
-const isSoftwareTitles = (
-  data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse
-): data is ISoftwareTitlesResponse => {
-  if (!data) return false;
-  return (data as ISoftwareTitlesResponse).software_titles !== undefined;
-};
-
-interface ISoftwareTableProps {
+interface ISoftwareLibraryTableProps {
   router: InjectedRouter;
-  data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse;
+  data?: ISoftwareTitlesResponse;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  softwareFilter: ISoftwareDropdownFilterVal;
+  selfServiceOnly: boolean;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -70,7 +46,7 @@ interface ISoftwareTableProps {
 
 const baseClass = "software-library-table";
 
-const SoftwareTable = ({
+const SoftwareLibraryTable = ({
   router,
   data,
   isSoftwareEnabled,
@@ -78,11 +54,11 @@ const SoftwareTable = ({
   perPage,
   orderDirection,
   orderKey,
-  softwareFilter,
+  selfServiceOnly,
   currentPage,
   teamId,
   isLoading,
-}: ISoftwareTableProps) => {
+}: ISoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -113,30 +89,19 @@ const SoftwareTable = ({
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
-      // Only include these filters when not on “All teams”
-      if (teamId !== undefined) {
-        if (softwareFilter === "installableSoftware") {
-          newQueryParam.available_for_install = "true";
-        }
-        if (softwareFilter === "selfServiceSoftware") {
-          newQueryParam.self_service = "true";
-        }
+      if (selfServiceOnly) {
+        newQueryParam.self_service = "true";
       }
 
       return newQueryParam;
     },
-    [softwareFilter, teamId]
+    [selfServiceOnly, teamId]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
   const onQueryChange = useCallback(
     (newTableQuery: ITableQueryData) => {
-      // we want to determine which query param has changed in order to
-      // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
-
-      // Note: There may be no changedParam on initial render, but we still may need
-      // to strip unwanted params with generateNewQueryParams so do NOT early return
 
       const newRoute = getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_LIBRARY,
@@ -149,47 +114,37 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
-  let generateTableConfig: ITableConfigGenerator;
-
-  if (data === undefined) {
-    tableData;
-    generateTableConfig = () => [];
-  } else if (isSoftwareTitles(data)) {
-    tableData = data.software_titles;
-    generateTableConfig = generateTitlesTableConfig;
-  }
+  const tableData: ISoftwareTitle[] | undefined = data?.software_titles;
 
   const softwareTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(router, teamId);
+    return generateLibraryTableConfig(router, teamId);
   }, [data, router, teamId]);
 
   // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
-  const hasSoftwareFilter = softwareFilter !== "allSoftware";
 
   const showFilterHeaders =
-    isSoftwareEnabled && (hasData || hasQuery || hasSoftwareFilter);
+    isSoftwareEnabled && (hasData || hasQuery || selfServiceOnly);
 
-  const handleCustomFilterDropdownChange = (
-    value: ISoftwareDropdownFilterVal
-  ) => {
-    const queryParams: ISoftwareApiParams = {
+  const handleSelfServiceToggle = () => {
+    const queryParams: Record<string, string | number | undefined> = {
       query,
-      teamId,
-      orderDirection,
-      orderKey,
-      page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams(value),
+      fleet_id: teamId,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page: 0,
     };
+    if (!selfServiceOnly) {
+      queryParams.self_service = "true";
+    }
 
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_LIBRARY,
         routeTemplate: "",
-        queryParams: convertParamsToSnakeCase(queryParams),
+        queryParams,
       })
     );
   };
@@ -224,22 +179,14 @@ const SoftwareTable = ({
     );
   };
 
-  // TODO: Remake into slider
   const renderCustomControls = () => {
     return (
       <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="software-filter"
-          value={softwareFilter}
-          className={`${baseClass}__software-filter`}
-          options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as ISoftwareDropdownFilterVal
-            )
-          }
-          variant="table-filter"
+        <Slider
+          value={selfServiceOnly}
+          onChange={handleSelfServiceToggle}
+          inactiveText="Self-service only"
+          activeText="Self-service only"
         />
       </div>
     );
@@ -265,9 +212,8 @@ const SoftwareTable = ({
         resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
-            softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            noSearchQuery={query === ""}
+            noSearchQuery={query === "" && !selfServiceOnly}
           />
         )}
         defaultSortHeader={orderKey}
@@ -280,13 +226,9 @@ const SoftwareTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable={showFilterHeaders}
-        inputPlaceHolder="Search by name or vulnerability (CVE)"
+        inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        // additionalQueries serves as a trigger for the useDeepEffect hook
-        // to fire onQueryChange for events happening outside of
-        // the TableContainer.
-        // This is necessary to remove unwanted query params from the URL
-        additionalQueries={softwareFilter}
+        additionalQueries={String(selfServiceOnly)}
         customControl={showFilterHeaders ? renderCustomControls : undefined}
         stackControls
         renderCount={renderSoftwareCount}
@@ -298,4 +240,4 @@ const SoftwareTable = ({
   );
 };
 
-export default SoftwareTable;
+export default SoftwareLibraryTable;

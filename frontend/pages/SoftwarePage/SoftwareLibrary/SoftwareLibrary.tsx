@@ -1,6 +1,5 @@
 /**
- software/titles Software tab
- software/versions Software tab (version toggle on)
+ software/library Library tab — fleet-managed software available for installation
  */
 import React from "react";
 import { InjectedRouter } from "react-router";
@@ -17,10 +16,6 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
-import {
-  ISoftwareDropdownFilterVal,
-  buildSoftwareFilterQueryParams,
-} from "./SoftwareLibraryTable/helpers";
 
 const baseClass = "software-library";
 
@@ -37,27 +32,22 @@ interface ISoftwareLibraryProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  softwareFilter: ISoftwareDropdownFilterVal;
+  selfServiceOnly: boolean;
   currentPage: number;
   teamId?: number;
-  addedSoftwareToken: string | null;
-  onAddFiltersClick: () => void;
 }
 
-const SoftwareTitles = ({
+const SoftwareLibrary = ({
   router,
   isSoftwareEnabled,
   query,
   perPage,
   orderDirection,
   orderKey,
-  softwareFilter,
+  selfServiceOnly,
   currentPage,
   teamId,
-  addedSoftwareToken,
-  onAddFiltersClick,
 }: ISoftwareLibraryProps) => {
-  // for Titles view, request to get software data
   const {
     data: titlesData,
     isFetching: isTitlesFetching,
@@ -78,15 +68,15 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        addedSoftwareToken,
-        ...buildSoftwareFilterQueryParams(softwareFilter),
+        availableForInstall: true,
+        ...(selfServiceOnly ? { selfService: true } : {}),
       },
     ],
     ({ queryKey: [queryKey] }) =>
       softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
-      enabled: location.pathname === PATHS.SOFTWARE_TITLES,
+      enabled: location.pathname === PATHS.SOFTWARE_LIBRARY,
     }
   );
 
@@ -108,7 +98,7 @@ const SoftwareTitles = ({
         perPage={perPage}
         orderDirection={orderDirection}
         orderKey={orderKey}
-        softwareFilter={softwareFilter}
+        selfServiceOnly={selfServiceOnly}
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isTitlesFetching}
@@ -117,4 +107,4 @@ const SoftwareTitles = ({
   );
 };
 
-export default SoftwareTitles;
+export default SoftwareLibrary;

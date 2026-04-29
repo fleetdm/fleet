@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -36,11 +36,6 @@ import {
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
-// TODO: These imports will come from software library page
-import {
-  buildSoftwareFilterQueryParams,
-  getSoftwareFilterFromQueryParams,
-} from "./SoftwareLibrary/SoftwareLibraryTable/helpers";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
@@ -87,7 +82,7 @@ const getTabIndex = (path: string, navItems: ISoftwareSubNavItem[]): number => {
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
 
 const baseClass = "software-page";
@@ -169,10 +164,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
 
-  // TODO: there should be better validation of the params depending on the route (e.g., self_service
-  // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
-  // defined redirect behavior if the params are invalid
-  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+  // Library uses a self-service toggle (boolean), not the old dropdown filter
+  const selfServiceOnly = queryParams?.self_service === "true";
 
   const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
     queryParams
@@ -295,6 +288,18 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
+  // If user switches to "All fleets" while on the Library tab, bounce to Inventory
+  const isOnLibraryTab = location.pathname.startsWith(PATHS.SOFTWARE_LIBRARY);
+  useEffect(() => {
+    if (isAllTeamsSelected && isOnLibraryTab) {
+      router.replace(
+        getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
+          fleet_id: currentTeamId,
+        })
+      );
+    }
+  }, [isAllTeamsSelected, isOnLibraryTab, currentTeamId, router]);
+
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {
       query,
@@ -302,7 +307,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams(softwareFilter),
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
@@ -392,13 +396,15 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <>
-        Manage aldkfjadljsoftware and search for installed software, OS, and
+        Manage software and search for installed software, OS, and
         vulnerabilities.
       </>
     );
   };
 
   const renderBody = () => {
+    const isLibraryDisabled = isAllTeamsSelected;
+
     return (
       <div>
         <TabNav>
@@ -408,6 +414,25 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           >
             <TabList>
               {navItems.map((navItem) => {
+                const isDisabledTab =
+                  navItem.name === "Library" && isLibraryDisabled;
+
+                if (isDisabledTab) {
+                  return (
+                    <Tab key={navItem.name} data-text={navItem.name} disabled>
+                      <TooltipWrapper
+                        tipContent="Select a fleet to view its software library."
+                        showArrow
+                        position="top"
+                        tipOffset={12}
+                        underline={false}
+                      >
+                        <TabText>{navItem.name}</TabText>
+                      </TooltipWrapper>
+                    </Tab>
+                  );
+                }
+
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
                     <TabText>{navItem.name}</TabText>

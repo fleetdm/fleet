@@ -353,6 +353,8 @@ const routes = (
           </Route>
           <Route path="software">
             <IndexRedirect to="inventory" />
+            {/* Legacy route redirect */}
+            <Redirect from="titles" to="inventory" />
             {/* we check the add route first otherwise a route like 'software/add' will be caught
              * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>

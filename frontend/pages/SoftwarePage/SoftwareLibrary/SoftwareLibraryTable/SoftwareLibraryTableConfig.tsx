@@ -16,6 +16,7 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
@@ -27,7 +28,6 @@ import VersionCell from "../../components/tables/VersionCell";
 type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
-type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
   ISoftwareTitle,
   ISoftwareTitle["hosts_count"]
@@ -79,19 +79,30 @@ const getSoftwareNameCellData = (
     softwareTitle
   );
 
-  const isAllTeams = teamId === undefined;
-
   return {
     name: softwareTitle.name,
     displayName: softwareTitle.display_name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
-    hasInstaller: hasInstaller && !isAllTeams,
+    hasInstaller,
     isSelfService,
     installType,
     iconUrl,
     automaticInstallPoliciesCount,
   };
+};
+
+/**
+ * Gets the library version — the version of the installer package or app store app.
+ */
+const getLibraryVersion = (softwareTitle: ISoftwareTitle): string | null => {
+  if (softwareTitle.software_package) {
+    return softwareTitle.software_package.version || null;
+  }
+  if (softwareTitle.app_store_app) {
+    return softwareTitle.app_store_app.latest_version || null;
+  }
+  return null;
 };
 
 const generateTableHeaders = (
@@ -135,12 +146,22 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
+      Header: "Installed version",
       disableSortBy: true,
       accessor: "versions",
       Cell: (cellProps: IVersionsCellProps) => (
         <VersionCell versions={cellProps.cell.value} />
       ),
+    },
+    {
+      Header: "Library version",
+      disableSortBy: true,
+      // Use a unique id since we can't use the same accessor twice
+      id: "library_version",
+      Cell: (cellProps: CellProps<ISoftwareTitle>) => {
+        const version = getLibraryVersion(cellProps.row.original);
+        return <TextCell value={version || "---"} grey={!version} />;
+      },
     },
     {
       Header: "Type",
@@ -152,11 +173,18 @@ const generateTableHeaders = (
     },
     {
       Header: (cellProps: ITableHeaderProps) => (
-        <HeaderCell
-          value="Hosts"
-          disableSortBy={false}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
+        <TooltipWrapper
+          tipContent="Host counts include all versions of this software title."
+          position="top"
+          showArrow
+          underline={false}
+        >
+          <HeaderCell
+            value="Hosts"
+            disableSortBy={false}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        </TooltipWrapper>
       ),
       disableSortBy: false,
       accessor: "hosts_count",

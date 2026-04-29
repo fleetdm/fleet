@@ -3,17 +3,13 @@ import { screen } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
-import {
-  createMockSoftwareTitlesResponse,
-  createMockSoftwareVersionsResponse,
-} from "__mocks__/softwareMock";
-import { noop } from "lodash";
+import { createMockSoftwareTitlesResponse } from "__mocks__/softwareMock";
 
 import SoftwareLibraryTable from "./SoftwareLibraryTable";
 
 const mockRouter = createMockRouter();
 
-describe("Software table", () => {
+describe("Software library table", () => {
   it("Renders the page-wide disabled state when software inventory is disabled", () => {
     const render = createCustomRenderer({
       context: {
@@ -27,16 +23,16 @@ describe("Software table", () => {
     render(
       <SoftwareLibraryTable
         router={mockRouter}
-        isSoftwareEnabled={false} // Set to false
+        isSoftwareEnabled={false}
         data={createMockSoftwareTitlesResponse({
           counts_updated_at: null,
           software_titles: [],
         })}
         query=""
-        perPage={20}
+        perPage={50}
         orderDirection="asc"
         orderKey="hosts_count"
-        softwareFilter="allSoftware"
+        selfServiceOnly={false}
         currentPage={0}
         teamId={1}
         isLoading={false}
@@ -44,12 +40,10 @@ describe("Software table", () => {
     );
 
     expect(screen.getByText("Software inventory disabled")).toBeInTheDocument();
-    expect(screen.queryByText("Vulnerability")).toBeNull();
-    expect(screen.queryByText("All software")).toBeNull();
-    expect(screen.queryByText("Available for install")).toBeNull();
+    expect(screen.queryByText("Self-service only")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when no software are present hiding 'Available for install' filter", () => {
+  it("Renders the page-wide empty state when no software are present, hiding self-service toggle and search", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -69,10 +63,10 @@ describe("Software table", () => {
           software_titles: [],
         })}
         query=""
-        perPage={20}
+        perPage={50}
         orderDirection="asc"
         orderKey="hosts_count"
-        softwareFilter="allSoftware"
+        selfServiceOnly={false}
         currentPage={0}
         teamId={1}
         isLoading={false}
@@ -85,12 +79,10 @@ describe("Software table", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Updated")).toBeNull();
-    expect(screen.queryByText("All software")).toBeNull();
-    expect(screen.queryByText("Available for install")).toBeNull();
+    expect(screen.queryByText("Self-service only")).toBeNull();
   });
 
-  it("Renders the empty search state and 'Available for install' filter when search query does not exist but filter is applied", () => {
+  it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -109,10 +101,10 @@ describe("Software table", () => {
           software_titles: [],
         })}
         query=""
-        perPage={20}
+        perPage={50}
         orderDirection="asc"
         orderKey="hosts_count"
-        softwareFilter="installableSoftware" // Dropdown applied
+        selfServiceOnly
         currentPage={0}
         teamId={1}
         isLoading={false}
@@ -122,44 +114,6 @@ describe("Software table", () => {
     expect(
       screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Expecting to see installable software? Check back later."
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("Available for install")).toBeInTheDocument();
-  });
-
-  it("does not render 'Available for install' filter when team id is undefined (Fleet Free/All teams)", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isGlobalAdmin: true,
-          currentUser: createMockUser(),
-        },
-      },
-    });
-
-    render(
-      <SoftwareLibraryTable
-        router={mockRouter}
-        isSoftwareEnabled
-        data={createMockSoftwareTitlesResponse({
-          counts_updated_at: null,
-          software_titles: [],
-        })}
-        query=""
-        perPage={20}
-        orderDirection="asc"
-        orderKey="hosts_count"
-        softwareFilter="allSoftware"
-        currentPage={0}
-        teamId={undefined} // Undefined for Fleet Free or Fleet Premium "All teams"
-        isLoading={false}
-      />
-    );
-
-    expect(screen.queryByText("All software")).toBeNull();
-    expect(screen.queryByText("Available for install")).toBeNull();
+    expect(screen.getByText("Self-service only")).toBeInTheDocument();
   });
 });
