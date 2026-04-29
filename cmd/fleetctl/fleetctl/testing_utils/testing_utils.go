@@ -665,7 +665,7 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			return
 		}
 
-		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		resp := []byte(`{"locationName": "Fleet Location One", "countryISO2ACode": "US"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:

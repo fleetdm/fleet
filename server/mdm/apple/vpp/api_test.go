@@ -23,14 +23,14 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 
 func TestGetConfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		token           string
-		handler         http.HandlerFunc
-		wantName        string
-		wantCountry     string
-		expectedErrMsg  string
-		expectMinCalls  int
-		expectMaxCalls  int
+		name           string
+		token          string
+		handler        http.HandlerFunc
+		wantName       string
+		wantCountry    string
+		expectedErrMsg string
+		expectMinCalls int
+		expectMaxCalls int
 	}{
 		{
 			name:  "valid token US",

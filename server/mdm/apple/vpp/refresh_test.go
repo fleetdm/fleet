@@ -51,11 +51,11 @@ func (f *fakeMetadataServer) handleMetadata(w http.ResponseWriter, r *http.Reque
 	f.calls = append(f.calls, metadataCall{region: region, adamIDs: append([]string(nil), ids...), token: token})
 
 	type platformData struct {
-		BundleID          string                              `json:"bundleId"`
-		ExternalVersionID uint                                `json:"externalVersionId"`
-		Artwork           apple_apps.ArtData                  `json:"artwork"`
-		LatestVersionInfo apple_apps.LatestVersionInfo        `json:"-"`
-		LatestVersionRaw  map[string]string                   `json:"latestVersionInfo"`
+		BundleID          string                       `json:"bundleId"`
+		ExternalVersionID uint                         `json:"externalVersionId"`
+		Artwork           apple_apps.ArtData           `json:"artwork"`
+		LatestVersionInfo apple_apps.LatestVersionInfo `json:"-"`
+		LatestVersionRaw  map[string]string            `json:"latestVersionInfo"`
 	}
 	type attrs struct {
 		Name           string                  `json:"name"`
