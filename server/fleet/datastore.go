@@ -1653,7 +1653,8 @@ type Datastore interface {
 	// Managed local account
 
 	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
-	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE.
+	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE. Clears the existing account_uuid
+	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
@@ -1671,6 +1672,17 @@ type Datastore interface {
 	// local account command UUID. Returns notFoundError if no matching record (i.e. SSO-only
 	// AccountConfiguration).
 	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
+
+	// GetManagedLocalAccountUUID returns the account UUID captured from osquery for the
+	// managed local account on the given host. Returns a NotFound error when no
+	// managed_local_account row exists. A nil *string means the row exists but
+	// account_uuid has not yet been captured. Reads from the read replica.
+	GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error)
+
+	// SetManagedLocalAccountUUID captures the osquery-reported account UUID on an existing
+	// managed_local_account row. No-op if the row doesn't exist or account_uuid is already set
+	// to the specified UUID.
+	SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -3291,4 +3303,5 @@ type AccessesMDMConfigAssets interface {
 }
 type GetsAppConfig interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
+	AppConfigUrls(ctx context.Context) (*AppConfigUrls, error)
 }

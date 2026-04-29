@@ -4,9 +4,9 @@
       <div purpose="hero-text">
         <div>
           <h4>Infrastructure as code</h4>
-          <h1>The future of device management is declarative</h1>
+          <h1>Manage devices as code</h1>
         </div>
-        <p>See every change, undo any error, repeat every success. Fleet's infrastructure as code approach lets you manage every endpoint setting in version-controlled YAML — with GitOps workflows built in.</p>
+        <p>See every change, undo any error, repeat every success. Define your fleet in version-controlled YAML. Review changes in pull requests. Let Fleet enforce the desired state.</p>
         <div purpose="button-row">
           <a purpose="cta-button" class="btn btn-primary" href="/whitepapers/modern-endpoint-management-managing-devices-as-code">Read the whitepaper</a>
           <animated-arrow-button href="/gitops-workshop">Free in-person workshop</animated-arrow-button>
@@ -50,6 +50,27 @@
       </div>
     </div>
 
+
+    <%# Quote section %>
+    <div purpose="page-section">
+      <div purpose="section-quote">
+        <div purpose="quote-image">
+          <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
+        </div>
+        <p purpose="quote-text">"The shift to infrastructure as code has modernized our operations, giving us the agility and change control we needed, giving leadership real-time confidence in device health and compliance."</p>
+        <div purpose="quote-author-info">
+          <div purpose="quote-author-image">
+            <img alt="Dan Jackson" src="/images/testimonial-author-dan-jackson-48x48@2x.png">
+          </div>
+          <div purpose="name-and-title">
+            <p purpose="author-name">Dan Jackson</p>
+            <p purpose="author-title">Sr Manager Systems Engineering, Fastly</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
     <div purpose="page-section">
       <div purpose="section-title">
         <h2>Less manual work, faster recovery, <br>simpler compliance.</h2>
@@ -75,24 +96,6 @@
       </div>
     </div>
 
-    <%# Quote section %>
-    <div purpose="page-section">
-      <div purpose="section-quote">
-        <div purpose="quote-image">
-          <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
-        </div>
-        <p purpose="quote-text">“The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance.”</p>
-        <div purpose="quote-author-info">
-          <div purpose="quote-author-image">
-            <img alt="Dan Jackson" src="/images/testimonial-author-dan-jackson-48x48@2x.png">
-          </div>
-          <div purpose="name-and-title">
-            <p purpose="author-name">Dan Jackson</p>
-            <p purpose="author-title">Sr Manager Systems Engineering, Fastly</p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <%# Feature with images sections %>
     <div purpose="page-section">
@@ -195,69 +198,69 @@
         <table purpose="features-table">
           <thead>
             <tr>
-              <td>Capability</td>
-              <td>ClickOps</td>
-              <td>Fleet GitOps (IaC)</td>
+              <th scope="col" aria-label="Capability">&nbsp;</th>
+              <th scope="col">ClickOps</th>
+              <th scope="col">Fleet GitOps (IaC)</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Primary interface</td>
-              <td>Device CLI or physical access</td>
+              <td>GUI or web console</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Git repository and YAML</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Git repository and YAML</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td>Source of truth</td>
-              <td>Spreadsheets or memory</td>
+              <td>Spreadsheets or vendor database</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Version-controlled files</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Version-controlled files</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td>Change control</td>
-              <td>None or verbal approval</td>
+              <td>Verbal approval or action logs</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Pull requests with peer review</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Pull requests with peer review</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td>Drift management</td>
-              <td>Manual discovery</td>
+              <td>Manual or periodic reporting</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Continuous self-healing</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Continuous self-healing</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td>Rollback</td>
-              <td>Manual redo</td>
+              <td>Manual redo or backups/restore</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Revert a Git commit</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Revert a Git commit</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td>Audit trail</td>
-              <td>Fragmented or missing</td>
+              <td>Fragmented or click history</td>
               <td>
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Immutable commit history</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Immutable commit history</p>
                 </div>
               </td>
             </tr>
@@ -271,14 +274,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">Device CLI or physical access</div>
+              <div purpose="comparison-status">GUI or web console</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Git repository and YAML</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Git repository and YAML</p>
                 </div>
               </div>
             </div>
@@ -290,14 +293,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">Spreadsheets or memory</div>
+              <div purpose="comparison-status">Spreadsheets or vendor database</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Version-controlled files</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Version-controlled files</p>
                 </div>
               </div>
             </div>
@@ -309,14 +312,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">None or verbal approval</div>
+              <div purpose="comparison-status">Verbal approval or action logs</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Pull requests with peer review</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Pull requests with peer review</p>
                 </div>
               </div>
             </div>
@@ -328,14 +331,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">Manual discovery</div>
+              <div purpose="comparison-status">Manual or periodic reporting</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Continuous self-healing</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Continuous self-healing</p>
                 </div>
               </div>
             </div>
@@ -347,14 +350,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">Manual redo</div>
+              <div purpose="comparison-status">Manual redo or backups/restore</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Revert a Git commit</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Revert a Git commit</p>
                 </div>
               </div>
             </div>
@@ -366,14 +369,14 @@
             </div>
             <div purpose="row">
               <div purpose="comparison-name">ClickOps</div>
-              <div purpose="comparison-status">Fragmented or missing</div>
+              <div purpose="comparison-status">Fragmented or click history</div>
             </div>
             <div purpose="row">
               <div purpose="comparison-name">Fleet GitOps (IaC)</div>
               <div purpose="comparison-status">
                 <div purpose="fleet-cell">
-                <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <p>Immutable commit history</p>
+                  <img alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                  <p>Immutable commit history</p>
                 </div>
               </div>
             </div>
@@ -446,7 +449,7 @@
         </div>
 
 
-<%#         <div purpose="card">
+        <%#         <div purpose="card">
           <p><strong>Global social media platform</strong></p>
           <p>Global social media platform migrates to Fleet.</p>
           <a href="/case-study/">Read their story</a>
