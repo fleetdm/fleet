@@ -1,0 +1,14 @@
+- name: Linux - Minimum 16 GB RAM
+  query: SELECT 1 FROM system_info WHERE physical_memory >= 17179869184;
+  critical: false
+  description: >-
+    This policy checks if the host has at least 16 GB of RAM. Devices with less than 16 GB will fail this policy.
+    Having at least 16 GB of RAM is important for modern workloads including web browsing, video conferencing,
+    and development tools. Hosts with insufficient memory may experience frequent slowdowns, excessive swap usage,
+    and degraded productivity.
+  resolution: |-
+    This host has less than 16 GB of RAM and may need a hardware upgrade.
+
+    Please reach out in #help-it to discuss a replacement.
+  platform: linux
+  calendar_events_enabled: false
