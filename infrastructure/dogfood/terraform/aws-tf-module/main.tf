@@ -71,6 +71,8 @@ locals {
     FLEET_LOGGING_ENABLE_TOPICS                = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
+    FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
+    FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
@@ -145,7 +147,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.21.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.26.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -175,7 +177,10 @@ module "main" {
     }
   }
   redis_config = {
-    name = local.customer
+    name           = local.customer
+    engine         = "redis"
+    engine_version = "7.1"
+    family         = "redis7"
     log_delivery_configuration = [{
       destination      = "dogfood-redis-logs"
       destination_type = "cloudwatch-logs"
@@ -185,6 +190,17 @@ module "main" {
   }
   ecs_cluster = {
     cluster_name = local.customer
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image    = local.geolite2_image
@@ -250,6 +266,7 @@ module "main" {
       bucket_prefix                      = "${local.customer}-software-installers-"
       create_kms_key                     = true
       kms_alias                          = "${local.customer}-software-installers"
+      cloudfront_distribution_arn        = "arn:aws:cloudfront::160035666661:distribution/E3T927IDMQ7AE4"
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
@@ -486,7 +503,7 @@ module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.2"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -509,7 +526,7 @@ module "mdm" {
 }
 
 module "firehose-logging" {
-  source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
+  source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.4"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
@@ -518,14 +535,14 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.1"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.3.1"
   osquery_carve_s3_bucket = {
     name = "fleet-${local.customer}-osquery-carve"
   }
 }
 
 module "monitoring" {
-  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.9.0"
+  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.12.0"
   customer_prefix        = local.customer
   fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
   albs = [
@@ -603,7 +620,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.4.0"
+  source        = "github.com/fleetdm/fleet-terraform/addons/logging-alb?depth=1&ref=tf-mod-addon-logging-alb-v2.2.2"
   prefix        = local.customer
   enable_athena = true
 }
@@ -686,7 +703,7 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.1"
   zone_id           = aws_route53_zone.main.zone_id
   domain            = "dogfood.fleetdm.com"
   extra_txt_records = []
@@ -746,7 +763,7 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.3.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.5.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
@@ -807,10 +824,9 @@ resource "aws_iam_policy" "osquery_sidecar" {
 }
 
 module "cloudfront-software-installers" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.1.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v2.0.0"
   customer          = local.customer
   s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
-  s3_kms_key_id     = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id
   public_key        = var.cloudfront_public_key
   private_key       = var.cloudfront_private_key
   enable_logging    = true
