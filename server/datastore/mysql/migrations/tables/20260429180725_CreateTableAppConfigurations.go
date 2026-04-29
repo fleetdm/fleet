@@ -35,13 +35,12 @@ func Up_20260429180725(tx *sql.Tx) error {
 	CREATE TABLE in_house_app_configurations (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT,
 		in_house_app_id INT UNSIGNED NOT NULL,
-		team_id INT UNSIGNED NOT NULL,
 		configuration MEDIUMTEXT NOT NULL,
 		created_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 		updated_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 		PRIMARY KEY (id),
-		UNIQUE KEY idx_in_house_app_config_team_app (team_id, in_house_app_id),
+		UNIQUE KEY idx_in_house_app_config_app (in_house_app_id),
 		CONSTRAINT fk_in_house_app_configurations_app
 			FOREIGN KEY (in_house_app_id)
 			REFERENCES in_house_apps (id)

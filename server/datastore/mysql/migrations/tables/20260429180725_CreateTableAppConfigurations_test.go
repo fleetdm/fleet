@@ -48,20 +48,20 @@ func TestUp_20260429180725(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO vpp_app_configurations (application_id, team_id, platform, configuration) VALUES (?, ?, ?, ?)`,
 		adamID, 2, "ios", "<dict/>")
 
-	// In-house: each in_house_apps row (one per platform) gets its own config.
-	execNoErr(t, db, `INSERT INTO in_house_app_configurations (in_house_app_id, team_id, configuration) VALUES (?, ?, ?)`,
-		iosAppID, 1, "<dict><key>platform</key><string>ios</string></dict>")
-	execNoErr(t, db, `INSERT INTO in_house_app_configurations (in_house_app_id, team_id, configuration) VALUES (?, ?, ?)`,
-		ipadosAppID, 1, "<dict><key>platform</key><string>ipados</string></dict>")
+	// In-house: each in_house_apps row (one per platform, already team-scoped) gets its own config.
+	execNoErr(t, db, `INSERT INTO in_house_app_configurations (in_house_app_id, configuration) VALUES (?, ?)`,
+		iosAppID, "<dict><key>platform</key><string>ios</string></dict>")
+	execNoErr(t, db, `INSERT INTO in_house_app_configurations (in_house_app_id, configuration) VALUES (?, ?)`,
+		ipadosAppID, "<dict><key>platform</key><string>ipados</string></dict>")
 
 	// VPP duplicate (team_id, application_id, platform) — must fail.
 	_, err := db.Exec(`INSERT INTO vpp_app_configurations (application_id, team_id, platform, configuration) VALUES (?, ?, ?, ?)`,
 		adamID, 1, "ios", "<dict/>")
 	require.Error(t, err)
 
-	// In-house duplicate (team_id, in_house_app_id) — must fail.
-	_, err = db.Exec(`INSERT INTO in_house_app_configurations (in_house_app_id, team_id, configuration) VALUES (?, ?, ?)`,
-		iosAppID, 1, "<dict/>")
+	// In-house duplicate in_house_app_id — must fail.
+	_, err = db.Exec(`INSERT INTO in_house_app_configurations (in_house_app_id, configuration) VALUES (?, ?)`,
+		iosAppID, "<dict/>")
 	require.Error(t, err)
 
 	// VPP composite FK rejects an adam_id that exists only for the other platform.
@@ -76,8 +76,8 @@ func TestUp_20260429180725(t *testing.T) {
 	require.Error(t, err)
 
 	// In-house FK rejects an unknown id.
-	_, err = db.Exec(`INSERT INTO in_house_app_configurations (in_house_app_id, team_id, configuration) VALUES (?, ?, ?)`,
-		999999, 1, "<dict/>")
+	_, err = db.Exec(`INSERT INTO in_house_app_configurations (in_house_app_id, configuration) VALUES (?, ?)`,
+		999999, "<dict/>")
 	require.Error(t, err)
 
 	// Cascade: deleting only the iOS row from vpp_apps drops its config but leaves the iPadOS config intact.

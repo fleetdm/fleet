@@ -1387,13 +1387,11 @@ CREATE TABLE `identity_serials` (
 CREATE TABLE `in_house_app_configurations` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `in_house_app_id` int unsigned NOT NULL,
-  `team_id` int unsigned NOT NULL,
   `configuration` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_in_house_app_config_team_app` (`team_id`,`in_house_app_id`),
-  KEY `fk_in_house_app_configurations_app` (`in_house_app_id`),
+  UNIQUE KEY `idx_in_house_app_config_app` (`in_house_app_id`),
   CONSTRAINT `fk_in_house_app_configurations_app` FOREIGN KEY (`in_house_app_id`) REFERENCES `in_house_apps` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
