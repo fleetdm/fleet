@@ -3450,7 +3450,7 @@ INNER JOIN (
     LIMIT ?
 ) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
 	const maxBatches = 500
-	for range maxBatches {
+	for i := 0; i < maxBatches; i++ {
 		if err := ctx.Err(); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue canceled")
 		}
@@ -3458,7 +3458,10 @@ INNER JOIN (
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
 		}
-		n, _ := res.RowsAffected()
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue rows affected")
+		}
 		if n < int64(batchSize) {
 			break
 		}
