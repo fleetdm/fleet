@@ -3395,11 +3395,11 @@ If you have an [Apple Developer account that is enabled as an MDM vendor](https:
 
 ### mdm.enable_custom_os_updates_and_filevault
 
+> `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Use `mdm.enable_custom_os_updates` and `mdm.enable_custom_filevault` instead. When set to `true`, it enables both custom OS update and FileVault profiles (equivalent to setting both replacement options to `true`). Maintained for backwards compatibility.
+
 *Available in Fleet Premium.*
 
-Allows users to add custom Apple MDM profiles for OS updates and FileVault management, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
-
-> Enabling this option may cause conflicts between your custom OS update or FileVault configuration profiles and the profiles Fleet manages under the hood for these features.
+Allows users to add custom Apple MDM profiles for both OS updates and FileVault management.
 
 - Default value: `false`
 - Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
@@ -3407,6 +3407,38 @@ Allows users to add custom Apple MDM profiles for OS updates and FileVault manag
   ```yaml
   mdm:
     enable_custom_os_updates_and_filevault: true
+  ```
+
+### mdm.enable_custom_os_updates
+
+*Available in Fleet Premium.*
+
+Allows users to add custom Apple MDM profiles for OS updates, including the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+
+> Enabling this option may cause conflicts between your custom OS update configuration profiles and the profiles Fleet manages under the hood for OS updates.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_os_updates: true
+  ```
+
+### mdm.enable_custom_filevault
+
+*Available in Fleet Premium.*
+
+Allows users to add custom Apple MDM profiles for FileVault management, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles
+
+> Enabling this option may cause conflicts between your custom FileVault configuration profiles and the profiles Fleet manages under the hood for disk encryption.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_FILEVAULT`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_filevault: false
   ```
 
 ### mdm.allow_all_declarations
