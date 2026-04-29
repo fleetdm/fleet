@@ -88,6 +88,7 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
+		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
@@ -7822,6 +7823,105 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &newChecksum, `SELECT checksum FROM policies WHERE id = ?`, previousID)
 	})
 	require.NotEqual(t, previousChecksum, newChecksum)
+}
+
+// testApplyPolicySpecsDynamicAndPatchSameFMA is a regression test for a unique
+// index collision on (team_id, patch_software_title_id). A dynamic policy that
+// carries fleet_maintained_app_slug (e.g. install_software automation) must not
+// reuse the FMA's title id in patch_software_title_id, otherwise a separate
+// patch policy on the same team and FMA collides with it.
+func testApplyPolicySpecsDynamicAndPatchSameFMA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-collision"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	_, fmaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-fma-collision",
+		Filename:             "maintained1",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	// Apply a dynamic install_software policy that references the FMA slug. With
+	// the bug, the FMA's title id was written into patch_software_title_id even
+	// though spec.Type was dynamic.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "install-fma-dynamic",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Platform:               "darwin",
+			Type:                   fleet.PolicyTypeDynamic,
+			FleetMaintainedAppSlug: "maintained1",
+			SoftwareTitleID:        &fmaTitleID,
+		},
+	})
+	require.NoError(t, err)
+
+	// Apply a patch policy on the same team for the same FMA slug. With the bug
+	// this collided with the dynamic row on (team_id, patch_software_title_id).
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-fma",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify both policies exist and that patch_software_title_id is only set on
+	// the patch policy.
+	type policyRow struct {
+		Name                 string `db:"name"`
+		Type                 string `db:"type"`
+		PatchSoftwareTitleID *uint  `db:"patch_software_title_id"`
+	}
+	var rows []policyRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT name, type, patch_software_title_id FROM policies WHERE team_id = ? ORDER BY type`,
+			team1.ID,
+		)
+	})
+	require.Len(t, rows, 2)
+
+	byType := make(map[string]policyRow, len(rows))
+	for _, r := range rows {
+		byType[r.Type] = r
+	}
+
+	dyn, ok := byType[fleet.PolicyTypeDynamic]
+	require.True(t, ok, "dynamic policy must be persisted")
+	require.Equal(t, "install-fma-dynamic", dyn.Name)
+	require.Nil(t, dyn.PatchSoftwareTitleID, "dynamic policy must not set patch_software_title_id")
+
+	patch, ok := byType[fleet.PolicyTypePatch]
+	require.True(t, ok, "patch policy must be persisted")
+	require.Equal(t, "patch-fma", patch.Name)
+	require.NotNil(t, patch.PatchSoftwareTitleID, "patch policy must set patch_software_title_id")
+	require.Equal(t, fmaTitleID, *patch.PatchSoftwareTitleID)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {

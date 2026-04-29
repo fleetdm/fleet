@@ -9217,28 +9217,29 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err := d.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
@@ -9284,8 +9285,16 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		cmds, err = d.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands
@@ -9306,6 +9315,88 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	// start a new management session again, Fleetd is reported as installed so
 	// it does not receive the commands
 	checkinAndAck(false)
+}
+
+func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set up enroll secret and Entra tenant
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+	tenantID := uuid.New().String()
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
+
+	// Enroll device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending)
+	azureMail := "esp-test@example.com"
+	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+	require.NoError(t, d.Enroll())
+
+	// First checkin: receive fleetd install commands (and possibly ESP hold
+	// commands), ack all of them.
+	cmds, err := d.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := d.GetCurrentMsgID()
+	require.NoError(t, err)
+	for _, c := range cmds {
+		if c.Verb == "Status" {
+			continue
+		}
+		d.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID, CmdRef: &c.Cmd.CmdID.Value,
+			Cmd: &c.Verb, Data: ptr.String("200"),
+			CmdID: fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	_, err = d.SendResponse()
+	require.NoError(t, err)
+
+	// Create a team first, then simulate fleetd installed on that team
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "esp-h1", s.ds)
+	// Transfer host to the team via the API
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &tm.ID,
+		HostIDs: []uint{host.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+	require.NoError(t, err)
+	require.True(t, updated)
+	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
+	require.NoError(t, err)
+
+	// No profiles added to the team -- the test verifies state transitions
+	// (Pending → Active → None) without needing profile delivery.
+
+	// First management checkin after orbit links: device transitions to Active.
+	_, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
+
+	// Second checkin: all profiles delivered, device should be released.
+	cmds, err = d.StartManagementSession()
+	require.NoError(t, err)
+
+	var foundRelease bool
+	for _, c := range cmds {
+		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
+			foundRelease = true
+			break
+		}
+	}
+	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+
+	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
@@ -9401,30 +9492,31 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err := device.StartManagementSession()
 		require.NoError(t, err)
 
-		if !expectFleetdCmds {
-			// receives only the 2 status commands
-			require.Len(t, cmds, 2)
-			for _, c := range cmds {
-				require.Equal(t, "Status", c.Verb, c)
+		// Find fleetd install commands by GUID. Autopilot devices also
+		// receive ESP hold commands (Replace/Add on CSP nodes) which we
+		// ignore here.
+		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
+		for _, c := range cmds {
+			if c.Cmd.GetTargetURI() == syncml.FleetdWindowsInstallerGUID {
+				switch c.Verb {
+				case "Add":
+					fleetdAddCmd = c
+				case "Exec":
+					fleetdExecCmd = c
+				}
 			}
+		}
+
+		if !expectFleetdCmds {
+			require.Empty(t, fleetdAddCmd.Cmd.CmdID.Value, "should not have fleetd Add command")
+			require.Empty(t, fleetdExecCmd.Cmd.CmdID.Value, "should not have fleetd Exec command")
 			return
 		}
 
 		// Enrollment via settings app or autopilot always results in a fleetd install command, even if already installed,
 		// as there's no way to tell at point of MDM enrollment if fleetd is already installed.
-		// 2 status + 2 commands to install fleetd
-		require.Len(t, cmds, 4)
-		var fleetdAddCmd, fleetdExecCmd fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			switch c.Verb {
-			case "Add":
-				fleetdAddCmd = c
-			case "Exec":
-				fleetdExecCmd = c
-			}
-		}
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
-		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.NotEmpty(t, fleetdAddCmd.Cmd.CmdID.Value, "should have fleetd Add command")
+		require.NotEmpty(t, fleetdExecCmd.Cmd.CmdID.Value, "should have fleetd Exec command")
 		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
 
 		var installJob struct {
@@ -9466,8 +9558,16 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 		cmds, err = device.SendResponse()
 		require.NoError(t, err)
 
-		// the ack of the message should be the only returned command
-		require.Len(t, cmds, 1)
+		// The ack response includes at least a Status command. Autopilot
+		// devices also receive ESP hold commands (Replace/Add).
+		var hasStatus bool
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				hasStatus = true
+				break
+			}
+		}
+		require.True(t, hasStatus, "ack response should include a Status command")
 	}
 
 	// start a management session, will receive the install fleetd commands
@@ -23662,6 +23762,91 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Activity for creating a local account was created
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeCreatedManagedLocalAccount{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+
+		// After the AccountConfiguration ack, the host should have been
+		// flagged for refetch so we can capture _fleetadmin's UUID on the
+		// next osquery detail cycle, and account_uuid should still be NULL.
+		hostAfterAck, err := s.ds.Host(ctx, host.ID)
+		require.NoError(t, err)
+		require.True(t, hostAfterAck.RefetchRequested, "host should have RefetchRequested set after AccountConfiguration ack")
+		var accountUUIDAfterAck *string
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &accountUUIDAfterAck,
+				"SELECT account_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+		})
+		require.Nil(t, accountUUIDAfterAck)
+
+		// Enroll the host with osquery so we can simulate a detail-query write.
+		var enrollSecretResp applyEnrollSecretSpecResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: []*fleet.EnrollSecret{{Secret: t.Name(), TeamID: &team.ID}},
+			},
+		}, http.StatusOK, &enrollSecretResp)
+
+		enrollJSON, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   t.Name(),
+			HostIdentifier: mdmDevice.UUID,
+		})
+		require.NoError(t, err)
+		var osqueryEnrollResp contract.EnrollOsqueryAgentResponse
+		hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", enrollJSON, http.StatusOK)
+		require.NoError(t, json.NewDecoder(hres.Body).Decode(&osqueryEnrollResp))
+		require.NoError(t, hres.Body.Close())
+		require.NotEmpty(t, osqueryEnrollResp.NodeKey)
+
+		// Simulate the osquery fleet_detail_query_users write, including the
+		// _fleetadmin row. This should capture account_uuid.
+		submitUsersResult := func() {
+			distributedReq := SubmitDistributedQueryResultsRequest{
+				NodeKey: osqueryEnrollResp.NodeKey,
+				Results: map[string][]map[string]string{
+					"fleet_detail_query_users": {
+						{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-osquery-uuid"},
+						{"uid": "502", "username": "_fleetadmin", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "fleetadmin-osquery-uuid"},
+					},
+				},
+				Statuses: map[string]fleet.OsqueryStatus{
+					"fleet_detail_query_users": 0,
+				},
+			}
+			distributedResp := submitDistributedQueryResultsResponse{}
+			s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+		}
+		submitUsersResult()
+
+		var accountUUIDAfterIngest *string
+		var updatedAtAfterIngest time.Time
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			row := q.QueryRowxContext(ctx,
+				"SELECT account_uuid, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+			return row.Scan(&accountUUIDAfterIngest, &updatedAtAfterIngest)
+		})
+		require.NotNil(t, accountUUIDAfterIngest)
+		require.Equal(t, "fleetadmin-osquery-uuid", *accountUUIDAfterIngest)
+
+		// _fleetadmin is filtered from host_users even though the query
+		// returns it, so only alice is persisted.
+		hostUsers, err := s.ds.ListHostUsers(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, hostUsers, 1)
+		require.Equal(t, "alice", hostUsers[0].Username)
+
+		// Re-submit the same payload. account_uuid is already set, so the
+		// conditional UPDATE is a no-op. updated_at must not change, proving
+		// no writer traffic hit the row a second time.
+		submitUsersResult()
+		var accountUUIDAfterRepeat *string
+		var updatedAtAfterRepeat time.Time
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			row := q.QueryRowxContext(ctx,
+				"SELECT account_uuid, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
+			return row.Scan(&accountUUIDAfterRepeat, &updatedAtAfterRepeat)
+		})
+		require.NotNil(t, accountUUIDAfterRepeat)
+		require.Equal(t, *accountUUIDAfterIngest, *accountUUIDAfterRepeat)
+		require.True(t, updatedAtAfterRepeat.Equal(updatedAtAfterIngest),
+			"updated_at must not change on repeat ingest (expected %v, got %v)", updatedAtAfterIngest, updatedAtAfterRepeat)
 
 		// Read the managed account password
 		var pwdResp getHostManagedAccountPasswordResponse

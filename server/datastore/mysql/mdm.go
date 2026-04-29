@@ -844,22 +844,55 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) (updates fleet.MDMProfilesUpdates, err error) {
+	// Apple profiles, Apple declarations, and Android profiles reconcile
+	// eagerly inside one transaction here. Windows profile reconciliation is
+	// intentionally NOT performed synchronously in production: the
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// (see ReconcileWindowsProfiles) so large populations converge across
+	// multiple 30s ticks. Doing it synchronously on top of large team
+	// transfers ties up the writer for minutes and starves ambient
+	// MDM/osquery checkins of row locks on host_mdm_windows_profiles.
+	var winHosts []string
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		updates, err = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
-		return err
+		var innerErr error
+		updates, winHosts, innerErr = ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+		return innerErr
 	})
-	return updates, err
+	if err != nil {
+		return updates, err
+	}
+
+	// updates.WindowsConfigProfile drives the "edited Windows profile"
+	// audit-log entry written by service/mdm.go's BatchSetMDMProfiles.
+	// We leave it false in production; BatchSetMDMProfiles ORs it with
+	// its own profUpdates.WindowsConfigProfile from
+	// batchSetMDMWindowsProfilesDB, which is the transactional source of
+	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
+	// get Apple-parity synchronous reconciliation here.
+	if ds.testWindowsEagerHook != nil {
+		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
+		if err != nil {
+			return updates, ctxerr.Wrap(ctx, err, "test windows eager hook")
+		}
+	}
+	return updates, nil
 }
 
 // Note that team ID 0 is used for profiles that apply to hosts in no team
 // (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
 // slice arguments can have values.
+//
+// This runs Apple profile, Apple declaration, and Android profile
+// reconciliation inside the caller-provided transaction. Windows profile
+// reconciliation is NOT performed here; the resolved Windows host UUIDs are
+// returned so the caller can optionally reconcile them (only the test path
+// does so; production relies on the mdm_windows_profile_manager cron).
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
-) (updates fleet.MDMProfilesUpdates, err error) {
+) (updates fleet.MDMProfilesUpdates, winHosts []string, err error) {
 	var (
 		countArgs        int
 		macProfUUIDs     []string
@@ -897,10 +930,10 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		countArgs++
 	}
 	if countArgs > 1 {
-		return updates, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
+		return updates, nil, errors.New("only one of hostIDs, teamIDs, profileUUIDs or hostUUIDs can be provided")
 	}
 	if countArgs == 0 {
-		return updates, nil
+		return updates, nil, nil
 	}
 
 	var countProfUUIDs int
@@ -917,7 +950,7 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		countProfUUIDs++
 	}
 	if countProfUUIDs > 1 {
-		return updates, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
+		return updates, nil, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
 	}
 
 	var (
@@ -1010,22 +1043,28 @@ OR
 	if len(hosts) == 0 && !hasAppleDecls {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
+			return updates, nil, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-			return updates, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
+			return updates, nil, ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 		}
 	}
 
 	var appleHosts []string
-	var winHosts []string
 	var androidHosts []string
+	// winHosts is consumed by the test-only eager hook in
+	// BulkSetPendingMDMHostProfiles. In production the hook is nil, so
+	// skip the per-host slice work for Windows hosts; the cron will
+	// reconcile them on its next tick.
+	collectWinHosts := ds.testWindowsEagerHook != nil
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
-			winHosts = append(winHosts, h.UUID)
+			if collectWinHosts {
+				winHosts = append(winHosts, h.UUID)
+			}
 		case "android":
 			androidHosts = append(androidHosts, h.UUID)
 		default:
@@ -1038,17 +1077,12 @@ OR
 
 	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
-	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts, profileUUIDs)
-	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
 	}
 
 	const defaultBatchSize = 1000
@@ -1067,10 +1101,10 @@ OR
 	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
 	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
 	if err != nil {
-		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
 
-	return updates, nil
+	return updates, winHosts, nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {

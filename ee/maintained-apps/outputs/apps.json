@@ -145,7 +145,7 @@
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.veertu.ankaview",
+      "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
@@ -1025,7 +1025,7 @@
     },
     {
       "name": "Linear",
-      "slug": "linear-linear/darwin",
+      "slug": "linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
       "description": "Linear is an app to manage software development and track bugs."

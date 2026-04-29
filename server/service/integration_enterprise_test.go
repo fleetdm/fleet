@@ -14241,6 +14241,50 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	http.DefaultTransport = oldTransport
 }
 
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit() {
+	t := s.T()
+
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// No-team / global endpoint: the path the customer named in #42607.
+	// Omit the team_name query arg to exercise the global flow.
+	var globalResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: nil},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + nil software should return empty request_uuid")
+
+	globalResp = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + empty software should return empty request_uuid")
+
+	// Team-scoped: dry-run with nil software should short-circuit and return an
+	// empty request_uuid (no async round-trip, no Redis key written).
+	var batchResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: nil},
+		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+	require.Empty(t, batchResp.RequestUUID, "dry-run + nil software should return empty request_uuid")
+
+	// Same with an explicitly empty slice.
+	batchResp = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
+		http.StatusAccepted, &batchResp, "team_name", tm.Name)
+	require.Empty(t, batchResp.RequestUUID, "dry-run + empty software should return empty request_uuid")
+
+	// Genuine-miss path on the result endpoint must still 404. The short-circuit
+	// doesn't change that contract for unknown UUIDs.
+	s.Do("GET", "/api/latest/fleet/software/batch/00000000-0000-0000-0000-000000000000",
+		nil, http.StatusNotFound, "team_name", tm.Name)
+}
+
 func waitBatchSetSoftwareInstallers(t *testing.T, s *withServer, teamName string, requestUUID string) batchSetSoftwareInstallersResultResponse {
 	timeout := time.After(1 * time.Minute)
 	for {
@@ -29131,4 +29175,175 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
+}
+
+// Regression test for fleet#43659.
+func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: "desc"})
+	require.NoError(t, err)
+
+	scriptBytes, err := os.ReadFile(filepath.Join("testdata", "software-installers", "script.sh"))
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:      &tm.ID,
+		Filename:    "script.sh",
+		SelfService: true,
+	}, http.StatusOK, "")
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp,
+		"team_id", fmt.Sprintf("%d", tm.ID), "available_for_install", "true")
+
+	var titleID uint
+	for _, sw := range listResp.SoftwareTitles {
+		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "script.sh" {
+			titleID = sw.ID
+			break
+		}
+	}
+	require.NotZero(t, titleID)
+
+	var storageID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storageID,
+			"SELECT storage_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
+			titleID, tm.ID)
+	})
+	require.NotEmpty(t, storageID)
+
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{SHA256: storageID}}},
+		http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
+
+	var installScript string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installScript, `
+			SELECT sc.contents
+			FROM software_installers si
+			JOIN script_contents sc ON sc.id = si.install_script_content_id
+			WHERE si.title_id = ? AND si.global_or_team_id = ?`,
+			titleID, tm.ID)
+	})
+	require.Equal(t, string(scriptBytes), installScript)
+}
+
+// TestAPIOnlyUserCanReachGitOpsEndpoints verifies that the API endpoint
+// catalog includes every route invoked by fleetctl gitops and
+// fleetctl generate-gitops. The test runs as an api-only admin user so any
+// 403 observed here comes from the api_only middleware (catalog miss), never
+// from service-level authz. Regression test for #44279.
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserCanReachGitOpsEndpoints() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	assertNot403 := func(verb, path string, body any) {
+		t.Helper()
+		var raw []byte
+		if body != nil {
+			j, err := json.Marshal(body)
+			require.NoError(t, err)
+			raw = j
+		}
+		req, err := http.NewRequest(verb, s.server.URL+path, bytes.NewReader(raw))
+		require.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+s.token)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		require.NotEqualf(t, http.StatusForbidden, resp.StatusCode,
+			"%s %s returned 403 for an api-only admin user; the route is likely missing from server/api_endpoints/api_endpoints.yml",
+			verb, path)
+	}
+
+	// Create an api-only admin (no endpoint restrictions). Admins pass every
+	// service-level authz check, so the only remaining source of 403 is the
+	// api_only middleware's catalog check — exactly what we want to verify.
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "api-only-admin-gitops-catalog",
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Endpoints invoked by fleetctl gitops / generate-gitops. Status codes vary
+	// per endpoint based on payload validity; we only care that 403 never comes
+	// from the catalog check.
+	emptySpecs := map[string]any{"specs": []any{}}
+	assertNot403("GET", "/api/latest/fleet/me", nil)
+	assertNot403("GET", "/api/latest/fleet/config", nil)
+	assertNot403("GET", "/api/latest/fleet/version", nil)
+	assertNot403("GET", "/api/latest/fleet/fleets", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/labels", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/labels", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/spec/enroll_secret", nil)
+	assertNot403("GET", "/api/latest/fleet/spec/certificate_authorities", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/certificate_authorities", emptySpecs)
+	assertNot403("GET", "/api/latest/fleet/abm_tokens/count", nil)
+	assertNot403("POST", "/api/latest/fleet/spec/policies", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/reports", emptySpecs)
+	assertNot403("POST", "/api/latest/fleet/spec/fleets", emptySpecs)
+	assertNot403("PUT", "/api/latest/fleet/spec/secret_variables", map[string]any{"secret_variables": []any{}})
+	assertNot403("GET", "/api/latest/fleet/policies", nil)
+	assertNot403("GET", "/api/latest/fleet/configuration_profiles", nil)
+	assertNot403("GET", "/api/latest/fleet/scripts", nil)
+	assertNot403("GET", "/api/latest/fleet/software/titles", nil)
+	assertNot403("GET", "/api/latest/fleet/software/fleet_maintained_apps", nil)
+	assertNot403("GET", "/api/latest/fleet/setup_experience/script", nil)
+	assertNot403("GET", "/api/latest/fleet/vpp_tokens", nil)
+	assertNot403("GET", "/api/latest/fleet/certificates", nil)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestrictions() {
+	t := s.T()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	allowedEndpoints := []map[string]any{
+		{"method": "GET", "path": "/api/v1/fleet/me"},
+		{"method": "GET", "path": "/api/v1/fleet/config"},
+		{"method": "GET", "path": "/api/v1/fleet/spec/labels"},
+		{"method": "GET", "path": "/api/v1/fleet/abm_tokens/count"},
+		{"method": "POST", "path": "/api/v1/fleet/spec/policies"},
+	}
+
+	var createResp struct {
+		Token string `json:"token"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":          "api-only-gitops-restricted",
+		"global_role":   fleet.RoleGitOps,
+		"api_endpoints": allowedEndpoints,
+	}, http.StatusOK, &createResp)
+	require.NotEmpty(t, createResp.Token)
+	s.token = createResp.Token
+
+	// Allowed endpoints reach the handler.
+	s.Do("GET", "/api/latest/fleet/me", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK)
+	s.Do("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK)
+	// Apply a real policy spec; an empty specs list short-circuits before authz
+	// in checkPolicySpecAuthorization and surfaces as 500, which would mask the
+	// middleware behavior we want to verify.
+	s.Do("POST", "/api/latest/fleet/spec/policies", map[string]any{
+		"specs": []map[string]any{
+			{"name": t.Name() + "-policy", "query": "SELECT 1;", "platform": "darwin"},
+		},
+	}, http.StatusOK)
+
+	// Other gitops endpoints are in the catalog but not in the allow list, so
+	// the middleware rejects them with 403.
+	s.Do("GET", "/api/latest/fleet/version", nil, http.StatusForbidden)
+	s.Do("GET", "/api/latest/fleet/fleets", nil, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/labels", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/reports", map[string]any{"specs": []any{}}, http.StatusForbidden)
+	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{}}, http.StatusForbidden)
 }

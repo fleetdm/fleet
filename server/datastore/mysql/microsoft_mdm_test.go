@@ -4612,6 +4612,11 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
+	// One subtest below replicates the post-team-move reconciliation by
+	// calling BulkSetPendingMDMHostProfiles and then asserts on
+	// host_mdm_windows_profiles. Production defers that to the cron, so
+	// this test opts into the eager hook.
+	ds.EnableTestWindowsEagerHook(t)
 	ctx := t.Context()
 
 	h1 := test.NewHost(t, ds, "host1", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))

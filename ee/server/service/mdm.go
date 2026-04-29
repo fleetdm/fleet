@@ -991,10 +991,11 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	serverURL := appConfig.MDMUrl()
-	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback")
+	acsURL, err := url.Parse(serverURL)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
+	acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
@@ -1009,22 +1010,73 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 
 	expectedAudiences := []string{
 		mdmSSOSettings.EntityID,
-		appConfig.MDMUrl(),
-		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+		serverURL,
+		acsURL.String(),
 	}
-	samlProvider, requestID, originalURL, ssoRequestData, err := sso.SAMLProviderFromSession(
-		ctx, sessionID, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
-	)
+	session, err := svc.ssoSessionStore.Fullfill(sessionID)
 	if err != nil {
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
-	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
-	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
-	if err != nil {
+	var auth fleet.Auth
+	var ssoErr error
+	if appConfig.MDM.AppleServerURL != "" {
+		// check for both apple server URL and default
+		acsURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL with server URL")
+		}
+		acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+
+		expectedAudiences = append(expectedAudiences,
+			appConfig.ServerSettings.ServerURL,
+			acsURL.String(),
+		)
+
+		samlProvider, requestID, authOriginalURL, authSSORequestData, err := sso.SAMLProviderFromSession(
+			ctx, session, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+		)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+		}
+
+		// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
+		// We don't care about the error yet, only if we have no auth and next attempt also errors do we return an error.
+		authAttempt, authErr := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+
+		if authAttempt != nil {
+			auth = authAttempt
+			originalURL = authOriginalURL
+			ssoRequestData = authSSORequestData
+		} else if authErr != nil {
+			ssoErr = authErr
+		}
+	}
+
+	if auth == nil {
+		samlProvider, requestID, authOriginalURL, authSSORequestData, err := sso.SAMLProviderFromSession(
+			ctx, session, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+		)
+		if err != nil {
+			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+		}
+
+		// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
+		authAttempt, authErr := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+		if authAttempt != nil {
+			auth = authAttempt
+			originalURL = authOriginalURL
+			ssoRequestData = authSSORequestData
+		} else if authErr != nil {
+			ssoErr = authErr
+		}
+	}
+
+	// if nil after two attempts, return an error.
+	if ssoErr != nil && auth == nil {
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
-		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
+		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, fleet.NewAuthFailedError(ssoErr.Error()))
 	}
 
 	// Store information for automatic account population/creation
