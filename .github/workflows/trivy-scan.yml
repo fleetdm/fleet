@@ -30,13 +30,54 @@ permissions:
   contents: read
 
 jobs:
+  discover:
+    # Only the nightly/manual runs scan extra branches; push/PR keep their
+    # single-ref behavior and skip this job.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.set.outputs.branches }}
+    steps:
+      - name: Determine branches to scan
+        id: set
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          latest_ver=${latest#fleet-v}
+
+          candidates=$(gh api "repos/${{ github.repository }}/branches" --paginate --jq '.[].name' \
+            | grep -E '^rc-(minor|patch)-fleet-v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+
+          active=()
+          for b in $candidates; do
+            v=$(echo "$b" | sed -E 's/^rc-(minor|patch)-fleet-v//')
+            top=$(printf '%s\n%s\n' "$v" "$latest_ver" | sort -V | tail -n1)
+            if [ "$top" = "$v" ] && [ "$v" != "$latest_ver" ]; then
+              active+=("$b")
+            fi
+          done
+
+          branches=$(printf '%s\n' "main" "${active[@]}" | jq -Rnc '[inputs]')
+          echo "branches=$branches" >> "$GITHUB_OUTPUT"
+          echo "Will scan: $branches"
+
   trivy:
+    needs: [discover]
+    # Run when discover succeeds (nightly/manual) or is skipped (push/PR).
+    if: always() && (needs.discover.result == 'success' || needs.discover.result == 'skipped')
     permissions:
       id-token: write # for aws-actions/configure-aws-credentials
       contents: read # for actions/checkout to fetch code
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
     name: Trivy sarif report
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # When discover is skipped, fall back to a single empty entry so we
+        # scan the triggering ref (push/PR default checkout behavior).
+        branch: ${{ fromJSON(needs.discover.outputs.branches || '[""]') }}
 
     steps:
       - name: Harden Runner
@@ -46,6 +87,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ matrix.branch || github.ref }}
 
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
@@ -69,3 +112,5 @@ jobs:
         uses: github/codeql-action/upload-sarif@8a470fddafa5cbb6266ee11b37ef4d8aae19c571 # v3.24.6
         with:
           sarif_file: "trivy-results.sarif"
+          # Distinct category per branch so matrix runs don't overwrite each other.
+          category: trivy-${{ matrix.branch || github.ref_name }}
