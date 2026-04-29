@@ -11,6 +11,7 @@ describe("UsersForm", () => {
     defaultLockEndUserInfo: false,
     defaultEnableManagedLocalAccount: false,
     isIdPConfigured: true,
+    teamHasAde: true,
   };
 
   const render = createCustomRenderer({
@@ -163,6 +164,18 @@ describe("UsersForm", () => {
       await user.click(checkbox);
 
       expect(checkbox).not.toBeChecked();
+    });
+
+    it("hides managed local account checkbox when team does not have ADE configured", () => {
+      render(<UsersForm {...defaultProps} teamHasAde={false} />);
+      expect(
+        screen.queryByText("Managed local account")
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows managed local account checkbox when team has ADE configured", () => {
+      render(<UsersForm {...defaultProps} teamHasAde />);
+      expect(screen.getByText("Managed local account")).toBeInTheDocument();
     });
   });
 });

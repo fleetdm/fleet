@@ -19,6 +19,7 @@ interface IUsersFormProps {
   defaultLockEndUserInfo: boolean;
   defaultEnableManagedLocalAccount: boolean;
   isIdPConfigured: boolean;
+  teamHasAde: boolean;
 }
 
 const UsersForm = ({
@@ -27,6 +28,7 @@ const UsersForm = ({
   defaultLockEndUserInfo,
   defaultEnableManagedLocalAccount,
   isIdPConfigured,
+  teamHasAde,
 }: IUsersFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
@@ -158,50 +160,52 @@ const UsersForm = ({
             </Checkbox>
           </div>
         )}
-        <TooltipWrapper
-          tipContent={
-            !isMacMdmEnabledAndConfigured ? (
-              <span>
-                To enable, first turn on{" "}
-                <CustomLink
-                  url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
-                  text="Apple MDM"
-                  variant="tooltip-link"
-                />
-                .
-              </span>
-            ) : undefined
-          }
-          disableTooltip={!!isMacMdmEnabledAndConfigured}
-          underline={false}
-          position="left"
-          showArrow
-        >
-          <Checkbox
-            disabled={gitOpsModeEnabled || !isMacMdmEnabledAndConfigured}
-            value={enableManagedLocalAccount}
-            onChange={onToggleManagedLocalAccount}
-            helpText={
-              <span>
-                Fleet generates a user (_fleetadmin) and unique password for
-                each host, accessible in <b>Host details</b> &gt;{" "}
-                <b>Show managed account</b>.
-              </span>
+        {teamHasAde && (
+          <TooltipWrapper
+            tipContent={
+              !isMacMdmEnabledAndConfigured ? (
+                <span>
+                  To enable, first turn on{" "}
+                  <CustomLink
+                    url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+                    text="Apple MDM"
+                    variant="tooltip-link"
+                  />
+                  .
+                </span>
+              ) : undefined
             }
+            disableTooltip={!!isMacMdmEnabledAndConfigured}
+            underline={false}
+            position="left"
+            showArrow
           >
-            <TooltipWrapper
-              tipContent={
-                <>
-                  Creates a hidden managed local admin account for
-                  <br />
-                  remote troubleshooting on macOS hosts.
-                </>
+            <Checkbox
+              disabled={gitOpsModeEnabled || !isMacMdmEnabledAndConfigured}
+              value={enableManagedLocalAccount}
+              onChange={onToggleManagedLocalAccount}
+              helpText={
+                <span>
+                  Fleet generates a user (_fleetadmin) and unique password for
+                  each host, accessible in <b>Host details</b> &gt;{" "}
+                  <b>Show managed account</b>.
+                </span>
               }
             >
-              Managed local account
-            </TooltipWrapper>
-          </Checkbox>
-        </TooltipWrapper>
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    Creates a hidden managed local admin account for
+                    <br />
+                    remote troubleshooting on macOS hosts.
+                  </>
+                }
+              >
+                Managed local account
+              </TooltipWrapper>
+            </Checkbox>
+          </TooltipWrapper>
+        )}
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

@@ -4,7 +4,11 @@ import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import mdmAppleBmAPI, {
+  IGetAbmTokensResponse,
+} from "services/entities/mdm_apple_bm";
 import { IConfig, IMdmConfig } from "interfaces/config";
+import { IMdmAbmToken } from "interfaces/mdm";
 import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
@@ -87,6 +91,26 @@ const isIdPConfigured = ({
   );
 };
 
+/** Returns true if any ABM token assigns the given team for macOS, iOS, or iPadOS.
+ *  For "No team" (id 0), checks for team_id 0 which represents unassigned hosts.
+ *
+ *  Note: This is a per-team ADE check. Other Setup Experience cards (SetupAssistant,
+ *  BootstrapPackage, RunScript, InstallSoftware) gate on the global
+ *  apple_bm_enabled_and_configured flag instead. Aligning those cards to use
+ *  per-team ADE checking would be a potential improvement for consistency. */
+export const isAdeConfiguredForTeam = (
+  teamId: number,
+  abmTokens?: IMdmAbmToken[]
+) => {
+  if (!abmTokens?.length) return false;
+  return abmTokens.some(
+    (token) =>
+      token.macos_team.team_id === teamId ||
+      token.ios_team.team_id === teamId ||
+      token.ipados_team.team_id === teamId
+  );
+};
+
 const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
@@ -106,6 +130,21 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     enabled: currentTeamId !== 0,
     select: (res) => res.fleet,
   });
+
+  const { data: abmTokensData } = useQuery<IGetAbmTokensResponse>(
+    ["abm_tokens"],
+    () => mdmAppleBmAPI.getTokens(),
+    {
+      refetchOnWindowFocus: false,
+      retry: false,
+      enabled: !!globalConfig?.mdm.apple_bm_enabled_and_configured,
+    }
+  );
+
+  const teamHasAde = isAdeConfiguredForTeam(
+    currentTeamId,
+    abmTokensData?.abm_tokens
+  );
 
   const defaultIsEndUserAuthEnabled = getEnabledEndUserAuth(
     currentTeamId,
@@ -138,6 +177,7 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           defaultLockEndUserInfo={defaultLockEndUserInfo}
           defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
           isIdPConfigured={isIdPConfigured(mdmConfig)}
+          teamHasAde={teamHasAde}
         />
       </SetupExperienceContentContainer>
     );
