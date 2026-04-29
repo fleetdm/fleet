@@ -369,32 +369,40 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 	// Insert command queue entries and host profile entries in batches, each
 	// batch in its own transaction to limit lock contention. Each host gets
 	// one command queue row and one host_mdm_windows_profiles row, inserted
-	// together so they stay consistent within the batch and so we don't end\
+	// together so they stay consistent within the batch and so we don't end
 	// up with queued commands that don't have corresponding host profile entries.
 	var (
-		queueArgs   []any
-		queueSB     strings.Builder
-		profileArgs []any
-		profileSB   strings.Builder
-		batchCount  int
+		batchHostUUIDs []string
+		profileArgs    []any
+		profileSB      strings.Builder
+		batchCount     int
 	)
 
 	executeBatch := func() error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Insert command queue entries.
-			queueStmt := fmt.Sprintf(`
-				INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-				VALUES %s`,
-				strings.TrimSuffix(queueSB.String(), ","),
-			)
-			if _, err := tx.ExecContext(ctx, queueStmt, queueArgs...); err != nil {
-				if IsDuplicate(err) {
-					return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+			// Insert command queue entries via INSERT ... SELECT so that
+			// enrollments deleted after the pre-check are silently skipped.
+			if len(batchHostUUIDs) > 0 {
+				queueQuery, queueArgs, err := sqlx.In(`
+					INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
+					SELECT MAX(mwe.id), ?
+					FROM mdm_windows_enrollments mwe
+					WHERE mwe.host_uuid IN (?)
+					GROUP BY mwe.host_uuid`,
+					cmd.CommandUUID, batchHostUUIDs,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building IN for MDMWindowsCommandQueue insert")
 				}
-				return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+				if _, err := tx.ExecContext(ctx, queueQuery, queueArgs...); err != nil {
+					if IsDuplicate(err) {
+						return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+					}
+					return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+				}
 			}
 
-			// Should never happen but could in the case of a bug in the batching logic or if the caller supplied bad args(we warn in the logs for this case)
+			// Should never happen
 			if len(profileArgs) == 0 {
 				return nil
 			}
@@ -425,8 +433,7 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 
 	resetBatch := func() {
 		batchCount = 0
-		queueArgs = queueArgs[:0]
-		queueSB.Reset()
+		batchHostUUIDs = batchHostUUIDs[:0]
 		profileArgs = profileArgs[:0]
 		profileSB.Reset()
 	}
@@ -441,17 +448,15 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 			resetBatch()
 		}
 
-		// Skip hosts without a valid enrollment — they can't receive MDM commands
-		enrollmentID, ok := enrollmentIDs[hostUUID]
-		if !ok {
-			ds.logger.WarnContext(ctx, "skipping Windows MDM command for host without enrollment",
+		// Skip hosts without a valid enrollment — they can't receive MDM command.
+		if _, ok := enrollmentIDs[hostUUID]; !ok {
+			ds.logger.DebugContext(ctx, "skipping Windows MDM command for host without enrollment",
 				"host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
 			continue
 		}
 
 		batchCount++
-		queueSB.WriteString("(?, ?),")
-		queueArgs = append(queueArgs, enrollmentID, cmd.CommandUUID)
+		batchHostUUIDs = append(batchHostUUIDs, hostUUID)
 
 		// Host profile entry.
 		p := payloadByHostUUID[hostUUID]

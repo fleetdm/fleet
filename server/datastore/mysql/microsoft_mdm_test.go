@@ -5214,15 +5214,12 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 	require.Len(t, hostProfiles, 1)
 	require.Equal(t, d1.HostUUID, hostProfiles[0].HostUUID)
 
-	// d2 (unenrolled) should have no command queue entry.
 	var queueCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queueCount,
-			`SELECT COUNT(*) FROM windows_mdm_command_queue wq
-			 JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
-			 WHERE mwe.host_uuid = ?`, d2.HostUUID)
+			`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
 	})
-	require.Zero(t, queueCount)
+	require.Equal(t, 1, queueCount)
 }
 
 // testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every
