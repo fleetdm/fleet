@@ -7415,3 +7415,11 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 		}
 	})
 }
+
+func TestGetDefaultMDMAppleSetupAssistantProfileFreeLicense(t *testing.T) {
+	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	_, _, err := svc.GetDefaultMDMAppleSetupAssistantProfile(ctx)
+	assert.ErrorIs(t, err, fleet.ErrMissingLicense)
+}

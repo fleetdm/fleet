@@ -1252,6 +1252,11 @@ const (
 	AccountConfigurationCmdName = "AccountConfiguration"
 )
 
+// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
+// via the AccountConfiguration MDM command when the managed local account
+// feature is enabled.
+const ManagedLocalAccountUsername = "_fleetadmin"
+
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`
