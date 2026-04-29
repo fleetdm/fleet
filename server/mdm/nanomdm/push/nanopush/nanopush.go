@@ -67,6 +67,7 @@ func WithExpiration(expiration time.Duration) Option {
 }
 
 // WithWorkers sets how many worker goroutines to use when sending pushes.
+// If not set, the default is 5. If set to less than 1, it will be set to 1.
 func WithWorkers(workers int) Option {
 	return func(f *Factory) {
 		if workers < 1 {
