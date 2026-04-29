@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -490,6 +491,9 @@ WHERE
 	// if listOpts.OrderDirection == "" {
 	// 	listOpts.OrderDirection = fleet.OrderDescending
 	// }
+	// Snapshot the params before the cursor helper appends to them. countStmt
+	// has no cursor placeholder, so it must run with the pre-cursor args.
+	countParams := slices.Clone(params)
 	// Validate order_key against the closed allowlist before it reaches
 	// ORDER BY (defense against SQL injection / information disclosure
 	// via arbitrary column references).
@@ -506,7 +510,7 @@ WHERE
 	var total *int64
 	if len(listOpts.Filters.CommandStatuses) == 1 && listOpts.Filters.CommandStatuses[0] == fleet.MDMCommandStatusFilterPending {
 		// Only get count if we only filter by pending
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, params...); err != nil {
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, countParams...); err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "count commands")
 		}
 	}

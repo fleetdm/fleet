@@ -19,6 +19,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -526,17 +527,18 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				)
 				require.NoError(t, err)
 				require.NotEmpty(t, all)
-				platforms := map[string]bool{}
+				platforms := map[string]struct{}{}
 				for _, c := range all {
 					switch c.HostUUID {
 					case macH.UUID:
-						platforms["darwin"] = true
+						platforms["darwin"] = struct{}{}
 					case windowsH.UUID:
-						platforms["windows"] = true
+						platforms["windows"] = struct{}{}
 					}
 				}
 				for _, p := range tc.wantPlatforms {
-					require.True(t, platforms[p], "expected commands from platform %s", p)
+					_, ok := platforms[p]
+					require.True(t, ok, "expected commands from platform %s", p)
 				}
 
 				// Cursor on updated_at — `updated_at` is exposed by multiple
@@ -634,6 +636,68 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				)
 				require.NoError(t, err)
 				require.Empty(t, afterHostname)
+
+				// Pending-only count + cursor
+				if tc.name == "apple_only" {
+					pendingFilters := fleet.MDMCommandFilters{
+						HostIdentifier:  tc.hostIdentifier,
+						CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
+					}
+					// Establish the unfiltered pending baseline so the post-cursor
+					// assertions don't depend on UUID lexicographic ordering.
+					allPending, totalPending, _, err := ds.ListMDMCommands(
+						ctx,
+						fleet.TeamFilter{User: test.UserAdmin},
+						&fleet.MDMCommandListOptions{
+							ListOptions: fleet.ListOptions{
+								PerPage:         100,
+								OrderKey:        "command_uuid",
+								OrderDirection:  fleet.OrderAscending,
+								IncludeMetadata: true,
+							},
+							Filters: pendingFilters,
+						},
+					)
+					require.NoError(t, err)
+					require.NotNil(t, totalPending)
+					require.Equal(t, int64(len(allPending)), *totalPending)
+					require.Greater(t, len(allPending), 1, "test setup expects multiple pending Apple commands")
+
+					// Drive the cursor from a known pending UUID so the post-cursor
+					// expectation is deterministic.
+					cursorUUID := allPending[0].CommandUUID
+					expectedAfter := allPending[1:]
+
+					afterPending, totalAfter, _, err := ds.ListMDMCommands(
+						ctx,
+						fleet.TeamFilter{User: test.UserAdmin},
+						&fleet.MDMCommandListOptions{
+							ListOptions: fleet.ListOptions{
+								PerPage:         100,
+								OrderKey:        "command_uuid",
+								OrderDirection:  fleet.OrderAscending,
+								After:           cursorUUID,
+								IncludeMetadata: true,
+							},
+							Filters: pendingFilters,
+						},
+					)
+					require.NoError(t, err)
+					// total comes from countStmt which has no cursor, so it
+					// must report the full pending count regardless of After.
+					require.NotNil(t, totalAfter)
+					require.Equal(t, *totalPending, *totalAfter)
+					require.Len(t, afterPending, len(expectedAfter))
+					gotUUIDs := make([]string, len(afterPending))
+					for i, c := range afterPending {
+						gotUUIDs[i] = c.CommandUUID
+					}
+					expectedUUIDs := make([]string, len(expectedAfter))
+					for i, c := range expectedAfter {
+						expectedUUIDs[i] = c.CommandUUID
+					}
+					require.Equal(t, expectedUUIDs, gotUUIDs)
+				}
 			})
 		}
 	})
@@ -763,6 +827,8 @@ func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
 	// Enroll one Windows host and one macOS host.
 	winHost := test.NewHost(t, ds, "paginate-win", "1.2.3.4", "paginate-node-win", uuid.NewString(), time.Now(), test.WithPlatform("windows"))
 	winDeviceID := windowsEnroll(t, ds, winHost)
+	winEnrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, winDeviceID)
+	require.NoError(t, err)
 
 	macHost := test.NewHost(t, ds, "paginate-mac", "1.2.3.5", "paginate-node-mac", uuid.NewString(), time.Now())
 	nanoEnroll(t, ds, macHost, false)
@@ -778,6 +844,7 @@ func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
 		require.NoError(t, commander.EnqueueCommand(ctx, []string{macHost.UUID}, raw))
 		allUUIDs = append(allUUIDs, cmdUUID)
 	}
+	winUUIDs := make([]string, 0, totalWin)
 	for range totalWin {
 		cmdUUID := uuid.NewString()
 		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{winDeviceID}, &fleet.MDMWindowsCommand{
@@ -785,8 +852,23 @@ func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
 			RawCommand:   []byte("<Exec></Exec>"),
 			TargetLocURI: "./test/uri",
 		}))
+		winUUIDs = append(winUUIDs, cmdUUID)
 		allUUIDs = append(allUUIDs, cmdUUID)
 	}
+
+	// Mark one Windows command as responded so the results-backed branch of the
+	// internal Windows UNION ALL is exercised. The dedupe NOT EXISTS clause
+	// must still keep the command from appearing twice across the pagination.
+	respondedWinUUID := winUUIDs[0]
+	_, err = ds.MDMWindowsSaveResponse(ctx, winEnrollment, fleet.EnrichedSyncML{
+		SyncML: &fleet.SyncML{Raw: []byte("<xml></xml>")},
+		CmdRefUUIDToStatus: map[string]fleet.SyncMLCmd{
+			respondedWinUUID: {Data: ptr.String("200")},
+		},
+		CmdRefUUIDs: []string{respondedWinUUID},
+	}, []string{})
+	require.NoError(t, err)
+
 	sort.Strings(allUUIDs)
 	totalCount := len(allUUIDs)
 
@@ -933,10 +1015,12 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column", PerPage: 5},
 			},
 		)
 		require.Error(t, err)
+		var invalidKeyErr common_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidKeyErr)
 	})
 
 	// the host-identifier branch uses a separate query; confirm it shares the allowlist
@@ -945,11 +1029,13 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column", PerPage: 5},
 				Filters:     fleet.MDMCommandFilters{HostIdentifier: macH.UUID},
 			},
 		)
 		require.Error(t, err)
+		var invalidKeyErr common_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidKeyErr)
 	})
 
 	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
