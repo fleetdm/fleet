@@ -14,8 +14,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":          "l.id",
+	"name":        "l.name",
+	"description": "l.description",
+	"query":       "l.query",
+	"platform":    "l.platform",
+	"label_type":  "l.label_type",
+	"created_at":  "l.created_at",
+	"updated_at":  "l.updated_at",
+	"host_count":  "host_count",
+}
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
@@ -801,7 +814,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, err
 	}
 
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err = appendListOptionsWithCursorToSQLSecure(query, params, &opt, labelsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list labels")
+	}
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
@@ -1244,10 +1260,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
-	if opt.ListOptions.OrderKey == "issues" {
-		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
+	query, whereParams, err = appendListOptionsWithCursorToSQLSecure(query, whereParams, &opt.ListOptions, hostAllowedOrderKeys)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "list hosts in label")
 	}
-	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
 	return query, append(joinParams, whereParams...), nil
 }
 

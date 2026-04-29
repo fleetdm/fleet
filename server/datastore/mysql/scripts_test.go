@@ -560,6 +560,19 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
+
+	for _, key := range []string{"id", "name", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {

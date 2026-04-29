@@ -19,6 +19,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var softwareTitlesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                "st.id",
+	"name":              "st.name",
+	"source":            "st.source",
+	"extension_for":     "st.extension_for",
+	"bundle_identifier": "st.bundle_identifier",
+	"hosts_count":       "hosts_count",
+	"counts_updated_at": "counts_updated_at",
+}
+
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 	var (
 		teamFilter                            string // used to filter software titles host counts by team
@@ -269,9 +279,12 @@ func (ds *Datastore) ListSoftwareTitles(
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	var softwareList []*softwareTitleWithInstallerFields
-	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
-	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
-	// we need to add it here
+	getTitlesStmt, args, err = appendListOptionsWithCursorToSQLSecure(getTitlesStmt, args, &opt.ListOptions, softwareTitlesAllowedOrderKeys)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list software titles")
+	}
+	// secondary sort columns must be added separately since the helper above
+	// only handles a single ORDER BY column.
 	getTitlesStmt = spliceSecondaryOrderBySoftwareTitlesSQL(getTitlesStmt, opt.ListOptions)
 
 	// Run list and count queries in parallel.

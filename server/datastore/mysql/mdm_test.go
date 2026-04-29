@@ -37,6 +37,8 @@ func TestMDMShared(t *testing.T) {
 	}{
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
+		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
+		{"TestListMDMAppleCommandsOrderKeys", testListMDMAppleCommandsOrderKeys},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
@@ -582,6 +584,157 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 		got = append(got, cmd.CommandUUID)
 	}
 	require.ElementsMatch(t, []string{teamCmdUUID, globalCmdUUID}, got)
+}
+
+func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ord-host",
+		OsqueryHostID:  ptr.String("ord-osq"),
+		NodeKey:        ptr.String("ord-node-key"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "ORD123",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	for range 3 {
+		err = commander.EnqueueCommand(ctx, []string{macH.UUID}, createRawAppleCmd("ProfileList", uuid.NewString()))
+		require.NoError(t, err)
+	}
+
+	for _, key := range []string{"command_uuid", "request_type", "status", "updated_at", "hostname", "host_uuid", "name"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			cmds, _, _, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 5},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+			},
+		)
+		require.Error(t, err)
+	})
+
+	// host-identifier branch shares the allowlist
+	t.Run("host_identifier_branch_rejects_unknown_key", func(t *testing.T) {
+		_, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+				Filters:     fleet.MDMCommandFilters{HostIdentifier: macH.UUID},
+			},
+		)
+		require.Error(t, err)
+	})
+
+	t.Run("cursor_pagination_with_allowed_key", func(t *testing.T) {
+		cmds, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, IncludeMetadata: true},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		afterCursor := cmds[0].CommandUUID
+		nextPage, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, nextPage, 1)
+		require.NotEqual(t, afterCursor, nextPage[0].CommandUUID)
+	})
+}
+
+func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ord-apple-host",
+		OsqueryHostID:  ptr.String("ord-apple-osq"),
+		NodeKey:        ptr.String("ord-apple-node-key"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "ORDA1",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	for range 2 {
+		err = commander.EnqueueCommand(ctx, []string{macH.UUID}, createRawAppleCmd("ProfileList", uuid.NewString()))
+		require.NoError(t, err)
+	}
+
+	for _, key := range []string{"command_uuid", "request_type", "status", "updated_at", "hostname", "device_id"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			cmds, err := ds.ListMDMAppleCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 5},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 2)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+			},
+		)
+		require.Error(t, err)
+	})
+
+	t.Run("cursor_pagination_with_allowed_key", func(t *testing.T) {
+		cmds, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		afterCursor := cmds[0].CommandUUID
+		nextPage, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, nextPage, 1)
+		require.NotEqual(t, afterCursor, nextPage[0].CommandUUID)
+	})
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {

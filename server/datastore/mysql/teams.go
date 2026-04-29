@@ -13,11 +13,20 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
 var teamSearchColumns = []string{"name"}
+
+var teamsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "t.id",
+	"name":       "t.name",
+	"created_at": "t.created_at",
+	"user_count": "user_count",
+	"host_count": "host_count",
+}
 
 const teamColumns = `id, created_at, name, filename, description, config`
 
@@ -423,7 +432,10 @@ func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	matchQuery := norm.NFC.String(opt.MatchQuery)
 	query, params := searchLike(query, nil, matchQuery, teamSearchColumns...)
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, teamsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list teams")
+	}
 	teams := []*fleet.Team{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list teams")

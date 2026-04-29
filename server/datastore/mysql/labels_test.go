@@ -107,6 +107,8 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
+		{"ListHostsInLabelOrderKeys", testListHostsInLabelOrderKeys},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -3605,4 +3607,103 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, h1.ID, hosts[0].ID)
+}
+
+func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: name, Query: "select 1"}})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, key := range []string{"id", "name", "description", "query", "platform", "label_type", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, false)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, len(labels), 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
+		require.Error(t, err)
+	})
+
+	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {
+		page0, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page0)
+		page1, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page1)
+		require.NotEqual(t, page0[0].Name, page1[0].Name)
+	})
+}
+
+func testListHostsInLabelOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	hosts := make([]*fleet.Host, 0, 3)
+	for i, name := range []string{"a-host", "b-host", "c-host"} {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("ord-osq-%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("ord-node-%d", i)),
+			UUID:            fmt.Sprintf("ord-uuid-%d", i),
+			Hostname:        name,
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	spec := &fleet.LabelSpec{Name: "ord-label", Query: "select 1"}
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{spec}))
+	lbls, err := ds.LabelIDsByName(ctx, []string{"ord-label"}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, lbls, 1)
+	labelID := lbls["ord-label"]
+	for _, h := range hosts {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{labelID: new(true)}, time.Now(), false))
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	for _, key := range []string{"id", "hostname", "uuid", "created_at", "platform", "display_name", "issues"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, err := ds.ListHostsInLabel(ctx, filter, labelID, fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10},
+			})
+			require.NoError(t, err)
+			require.Len(t, result, 3)
+		})
+	}
+
+	for _, key := range []string{"node_key", "h.node_key", "orbit_node_key", "h.orbit_node_key"} {
+		t.Run("rejects_"+key, func(t *testing.T) {
+			_, err := ds.ListHostsInLabel(ctx, filter, labelID, fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key},
+			})
+			require.Error(t, err)
+		})
+	}
+
+	t.Run("cursor_pagination_with_allowed_key", func(t *testing.T) {
+		first, err := ds.ListHostsInLabel(ctx, filter, labelID, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 1},
+		})
+		require.NoError(t, err)
+		require.Len(t, first, 1)
+		next, err := ds.ListHostsInLabel(ctx, filter, labelID, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 1, After: first[0].Hostname},
+		})
+		require.NoError(t, err)
+		require.Len(t, next, 1)
+		require.NotEqual(t, first[0].Hostname, next[0].Hostname)
+	})
 }

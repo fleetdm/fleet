@@ -12,10 +12,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
 var deleteIDsBatchSize = 1000
+
+// hostUpcomingActivitiesAllowedOrderKeys is empty: the query supplies its own
+// ORDER BY and the service layer forces opt.OrderKey to "".
+var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -279,7 +284,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// the ListOptions supported for this query are limited, only the pagination
 	// OFFSET and LIMIT can be added, so it's fine to have the ORDER BY already
 	// in the query before calling this (enforced at the server layer).
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(listStmt, args, &opt, hostUpcomingActivitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list upcoming activities")
+	}
 
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {

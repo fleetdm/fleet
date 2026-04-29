@@ -11,7 +11,15 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
+
+var scheduledQueriesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "sq.id",
+	"name":       "sq.name",
+	"query_name": "sq.query_name",
+	"interval":   "sq.interval",
+}
 
 // ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
 func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
@@ -42,7 +50,10 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 		WHERE sq.pack_id = ?
 	`
 	params := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery, id}
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opts)
+	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opts, scheduledQueriesAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
+	}
 	results := []*fleet.ScheduledQuery{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, params...); err != nil {

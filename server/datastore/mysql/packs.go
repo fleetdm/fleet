@@ -8,8 +8,20 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var packsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":          "id",
+	"name":        "name",
+	"description": "description",
+	"platform":    "platform",
+	"disabled":    "disabled",
+	"pack_type":   "pack_type",
+	"created_at":  "created_at",
+	"updated_at":  "updated_at",
+}
 
 func (ds *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -455,8 +467,11 @@ func (ds *Datastore) ListPacks(ctx context.Context, opt fleet.PackListOptions) (
 		query = `SELECT * FROM packs`
 	}
 	var packs []*fleet.Pack
-	query, params := appendListOptionsToSQL(query, &opt.ListOptions)
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &packs, query, params...)
+	query, params, err := appendListOptionsToSQLSecure(query, &opt.ListOptions, packsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list packs")
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &packs, query, params...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "listing packs")
 	}
