@@ -52,10 +52,17 @@ func BackfillLegacyCountries(ctx context.Context, ds fleet.Datastore, logger *sl
 		var filled int64
 		var filledMu sync.Mutex
 
+		// Cap concurrency so a tenant with many tokens doesn't burst Apple's
+		// /client/config endpoint at startup.
+		const maxConcurrent = 8
+		sem := make(chan struct{}, maxConcurrent)
+
 		for _, t := range needsBackfill {
 			wg.Add(1)
+			sem <- struct{}{}
 			go func(token *fleet.VPPTokenDB) {
 				defer wg.Done()
+				defer func() { <-sem }()
 
 				cfg, err := GetConfig(token.Token)
 				if err != nil {

@@ -138,20 +138,31 @@ func ensureVPPTokenCountry(ctx context.Context, ds fleet.Datastore, token *fleet
 	return nil
 }
 
-// getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
-// It returns an error if the token is expired. The token's country_code is
-// lazy-backfilled if missing.
+// getVPPToken returns the base64 encoded VPP token, ready for use in requests
+// to Apple's VPP API. Returns an error if the token is missing or expired.
+// Does NOT touch country_code: install-time callers only need the secret, and
+// any synchronous Apple call here would block installs whenever Apple is
+// unreachable. Country lookup happens in getVPPTokenInfo.
 func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
-	info, err := svc.getVPPTokenInfo(ctx, teamID)
+	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
-		return "", err
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+		}
+		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
-	return info.Secret, nil
+
+	if time.Now().After(token.RenewDate) {
+		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+	}
+
+	return token.Token, nil
 }
 
 // getVPPTokenInfo returns both the secret and the storefront country for the
 // VPP token associated with teamID. It lazy-backfills country_code if the
-// row was uploaded before the column existed.
+// row was uploaded before the column existed. Use this from add/refresh code
+// paths that actually need the country; install paths should use getVPPToken.
 func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppTokenInfo, error) {
 	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {
@@ -999,88 +1010,104 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 		region string
 		secret string
 	}
-
-	// Per-app anchor decisions and the platform-keyed metadata we need to
-	// fan back out at the end.
-	type perApp struct {
-		ids    []fleet.VPPAppTeam // all platform variants for the same adamID with their props
+	type appKey struct {
+		adamID   string
+		platform fleet.InstallableDevicePlatform
+	}
+	type perKey struct {
+		props  fleet.VPPAppTeam
 		anchor vppAddAnchor
 	}
-	byAdamID := make(map[string]*perApp)
+
+	// Anchoring is per (adam_id, platform), so resolve anchors per platform
+	// rather than per adamID — different platforms of the same app can have
+	// diverged anchor histories.
+	byKey := make(map[appKey]*perKey)
 	var reAnchors []vppReAnchor
 
 	for _, id := range ids {
-		entry, ok := byAdamID[id.AdamID]
-		if !ok {
-			anchor, err := svc.resolveAddAnchor(ctx, id.AdamID, id.Platform, teamTokenInfo)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "resolving anchor for batch vpp add")
-			}
-			entry = &perApp{anchor: anchor}
-			byAdamID[id.AdamID] = entry
-			if anchor.reAnchor {
-				reAnchors = append(reAnchors, vppReAnchor{AdamID: id.AdamID, Platform: id.Platform, CountryCode: anchor.anchorCountry})
-			}
+		key := appKey{adamID: id.AdamID, platform: id.Platform}
+		if _, exists := byKey[key]; exists {
+			continue
 		}
-		entry.ids = append(entry.ids, id)
+		anchor, err := svc.resolveAddAnchor(ctx, id.AdamID, id.Platform, teamTokenInfo)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "resolving anchor for batch vpp add")
+		}
+		byKey[key] = &perKey{props: id, anchor: anchor}
+		if anchor.reAnchor {
+			reAnchors = append(reAnchors, vppReAnchor{AdamID: id.AdamID, Platform: id.Platform, CountryCode: anchor.anchorCountry})
+		}
 	}
 
-	// Bundle adamIDs by their (region, secret) so each unique pair triggers
-	// only one Apple call.
-	bundles := make(map[bundleKey][]string)
-	for adamID, entry := range byAdamID {
-		key := bundleKey{region: entry.anchor.region, secret: entry.anchor.fetchSecret}
-		bundles[key] = append(bundles[key], adamID)
+	// Bundle adamIDs by (region, secret). Same adamID may appear in multiple
+	// bundles if its platforms anchor to different storefronts.
+	bundles := make(map[bundleKey]map[string]struct{})
+	for k, e := range byKey {
+		bk := bundleKey{region: e.anchor.region, secret: e.anchor.fetchSecret}
+		if bundles[bk] == nil {
+			bundles[bk] = make(map[string]struct{})
+		}
+		bundles[bk][k.adamID] = struct{}{}
 	}
 
-	// Per-bundle fetch.
-	allMetadata := make(map[string]apple_apps.Metadata)
+	// Per-bundle fetch. Index results by (bundleKey, adamID) so a row's
+	// metadata is matched to the storefront its platform anchored to.
+	type metaIndex struct {
+		bk     bundleKey
+		adamID string
+	}
+	allMetadata := make(map[metaIndex]apple_apps.Metadata)
 	cfg := svc.getVPPConfig(ctx)
-	for key, adamIDs := range bundles {
-		md, err := apple_apps.GetMetadata(adamIDs, key.region, key.secret, cfg)
+	for bk, adamSet := range bundles {
+		adamIDs := make([]string, 0, len(adamSet))
+		for adamID := range adamSet {
+			adamIDs = append(adamIDs, adamID)
+		}
+		md, err := apple_apps.GetMetadata(adamIDs, bk.region, bk.secret, cfg)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 		}
-		maps.Copy(allMetadata, md)
+		for adamID, m := range md {
+			allMetadata[metaIndex{bk: bk, adamID: adamID}] = m
+		}
 	}
 
 	var apps []*fleet.VPPApp
-	for adamID, entry := range byAdamID {
-		metadata, ok := allMetadata[adamID]
+	for k, e := range byKey {
+		bk := bundleKey{region: e.anchor.region, secret: e.anchor.fetchSecret}
+		metadata, ok := allMetadata[metaIndex{bk: bk, adamID: k.adamID}]
 		if !ok {
 			continue
 		}
-		platforms := apple_apps.ToVPPApps(metadata)
-		for _, props := range entry.ids {
-			retrieved, ok := platforms[props.Platform]
-			if !ok {
-				continue
-			}
-			app := &fleet.VPPApp{
-				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: fleet.VPPAppID{
-						AdamID:   adamID,
-						Platform: props.Platform,
-					},
-					SelfService:         props.SelfService,
-					InstallDuringSetup:  props.InstallDuringSetup,
-					ValidatedLabels:     props.ValidatedLabels,
-					AppTeamID:           props.AppTeamID,
-					Categories:          props.Categories,
-					CategoryIDs:         props.CategoryIDs,
-					DisplayName:         props.DisplayName,
-					AutoUpdateEnabled:   props.AutoUpdateEnabled,
-					AutoUpdateStartTime: props.AutoUpdateStartTime,
-					AutoUpdateEndTime:   props.AutoUpdateEndTime,
-				},
-				BundleIdentifier: retrieved.BundleIdentifier,
-				IconURL:          retrieved.IconURL,
-				Name:             retrieved.Name,
-				LatestVersion:    retrieved.LatestVersion,
-				CountryCode:      entry.anchor.anchorCountry,
-			}
-			apps = append(apps, app)
+		retrieved, ok := apple_apps.ToVPPApps(metadata)[k.platform]
+		if !ok {
+			continue
 		}
+		props := e.props
+		apps = append(apps, &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{
+					AdamID:   k.adamID,
+					Platform: k.platform,
+				},
+				SelfService:         props.SelfService,
+				InstallDuringSetup:  props.InstallDuringSetup,
+				ValidatedLabels:     props.ValidatedLabels,
+				AppTeamID:           props.AppTeamID,
+				Categories:          props.Categories,
+				CategoryIDs:         props.CategoryIDs,
+				DisplayName:         props.DisplayName,
+				AutoUpdateEnabled:   props.AutoUpdateEnabled,
+				AutoUpdateStartTime: props.AutoUpdateStartTime,
+				AutoUpdateEndTime:   props.AutoUpdateEndTime,
+			},
+			BundleIdentifier: retrieved.BundleIdentifier,
+			IconURL:          retrieved.IconURL,
+			Name:             retrieved.Name,
+			LatestVersion:    retrieved.LatestVersion,
+			CountryCode:      e.anchor.anchorCountry,
+		})
 	}
 
 	return apps, reAnchors, nil
@@ -1344,6 +1371,9 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		}
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
+	if clientCfg.CountryCode == "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business."))
+	}
 
 	data := fleet.VPPTokenData{
 		Token:       string(tokenBytes),
@@ -1398,6 +1428,9 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 			}
 		}
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+	if clientCfg.CountryCode == "" {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business."))
 	}
 
 	data := fleet.VPPTokenData{

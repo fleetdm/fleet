@@ -1507,20 +1507,33 @@ func (ds *Datastore) UpdateVPPAppCountryCode(ctx context.Context, adamID string,
 }
 
 // BackfillVPPAppCountriesFromTokens fills in `vpp_apps.country_code` for any
-// rows that are still NULL, by joining through `vpp_apps_teams` to the
-// `vpp_tokens` row whose `country_code` is set. Used by the one-shot legacy
-// backfill that runs at server startup; becomes a no-op once every row has
-// been populated.
+// rows that are still NULL, deriving the value from any vpp_tokens row that
+// owns the app via `vpp_apps_teams`. When multiple tokens own the same app
+// with different countries, the lowest-id token wins (deterministic). Used by
+// the one-shot legacy backfill at server startup; becomes a no-op once every
+// row has been populated.
 func (ds *Datastore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
 	const stmt = `
 UPDATE vpp_apps va
-JOIN vpp_apps_teams vat
-    ON vat.adam_id = va.adam_id AND vat.platform = va.platform
-JOIN vpp_tokens vt
-    ON vt.id = vat.vpp_token_id
-SET va.country_code = vt.country_code
+SET va.country_code = (
+    SELECT vt.country_code
+    FROM vpp_apps_teams vat
+    JOIN vpp_tokens vt ON vt.id = vat.vpp_token_id
+    WHERE vat.adam_id = va.adam_id
+      AND vat.platform = va.platform
+      AND vt.country_code IS NOT NULL
+    ORDER BY vt.id ASC
+    LIMIT 1
+)
 WHERE va.country_code IS NULL
-  AND vt.country_code IS NOT NULL
+  AND EXISTS (
+    SELECT 1
+    FROM vpp_apps_teams vat
+    JOIN vpp_tokens vt ON vt.id = vat.vpp_token_id
+    WHERE vat.adam_id = va.adam_id
+      AND vat.platform = va.platform
+      AND vt.country_code IS NOT NULL
+  )
 `
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {
@@ -2155,6 +2168,7 @@ INNER JOIN vpp_apps_teams vat ON vat.vpp_token_id = v.id
 WHERE vat.adam_id = ?
   AND vat.platform = ?
   AND v.country_code = ?
+  AND v.renew_at > NOW()
 ORDER BY v.id ASC
 LIMIT 1`
 

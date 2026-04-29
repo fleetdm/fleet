@@ -45,24 +45,31 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 
 	// Cache GetAssets results so we don't ask the same token twice — once for
 	// its own anchored country group, once during the cross-country fallback.
-	ownedByToken := make(map[uint]map[string]struct{}, len(tokens))
-	getOwned := func(tok *fleet.VPPTokenDB) map[string]struct{} {
-		if owned, ok := ownedByToken[tok.ID]; ok {
-			return owned
+	// On error we cache the error itself (not an empty set) so callers can
+	// distinguish "this token doesn't own the app" from "we don't know" — the
+	// latter must not trigger a cross-country re-anchor.
+	type ownedResult struct {
+		owned map[string]struct{}
+		err   error
+	}
+	ownedByToken := make(map[uint]ownedResult, len(tokens))
+	getOwned := func(tok *fleet.VPPTokenDB) ownedResult {
+		if r, ok := ownedByToken[tok.ID]; ok {
+			return r
 		}
 		assets, err := GetAssets(ctx, tok.Token, nil)
 		if err != nil {
-			// Best effort: cache an empty set so we don't retry this token
-			// repeatedly within one refresh run.
-			ownedByToken[tok.ID] = map[string]struct{}{}
-			return ownedByToken[tok.ID]
+			r := ownedResult{err: err}
+			ownedByToken[tok.ID] = r
+			return r
 		}
 		owned := make(map[string]struct{}, len(assets))
 		for _, a := range assets {
 			owned[a.AdamID] = struct{}{}
 		}
-		ownedByToken[tok.ID] = owned
-		return owned
+		r := ownedResult{owned: owned}
+		ownedByToken[tok.ID] = r
+		return r
 	}
 
 	// For each adamID with a non-empty anchored country, pick exactly one
@@ -80,16 +87,30 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 		}
 
 		// First pass: tokens of the anchored country.
+		anchoredErrored := false
 		for _, t := range tokens {
 			if t.CountryCode != anchored {
 				continue
 			}
-			if _, ok := getOwned(t)[adamID]; ok {
+			r := getOwned(t)
+			if r.err != nil {
+				// Don't treat an error as "doesn't own" — that would risk
+				// re-anchoring to a different country on a transient failure.
+				anchoredErrored = true
+				continue
+			}
+			if _, ok := r.owned[adamID]; ok {
 				picks[adamID] = pick{token: t}
 				break
 			}
 		}
 		if _, ok := picks[adamID]; ok {
+			continue
+		}
+		if anchoredErrored {
+			// Some anchored-country tokens errored, so we can't be sure none
+			// of them own this app. Skip the fallback to avoid an incorrect
+			// re-anchor; the app will retry on the next refresh run.
 			continue
 		}
 
@@ -99,7 +120,11 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 			if t.CountryCode == anchored || t.CountryCode == "" {
 				continue
 			}
-			if _, ok := getOwned(t)[adamID]; ok {
+			r := getOwned(t)
+			if r.err != nil {
+				continue
+			}
+			if _, ok := r.owned[adamID]; ok {
 				picks[adamID] = pick{token: t}
 				break
 			}
@@ -145,6 +170,12 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 			for _, app := range appsByAdamID[adamID] {
 				current, ok := retrievedByPlatform[app.Platform]
 				if !ok {
+					continue
+				}
+
+				// Don't overwrite stored metadata with empty values — Apple
+				// occasionally returns blanks for transiently-degraded apps.
+				if current.Name == "" || current.LatestVersion == "" {
 					continue
 				}
 
