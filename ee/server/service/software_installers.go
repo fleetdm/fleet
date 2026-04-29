@@ -2088,6 +2088,16 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
+	// + dry-run has nothing to validate or stage, so skip the async round-trip.
+	// The client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 {
+		svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload",
+			"team_id", teamID,
+		)
+		return "", nil
+	}
+
 	var allScripts []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
