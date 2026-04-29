@@ -3,7 +3,8 @@
   critical: false
   description: |-
     Workstations should not accept inbound SSH (Remote Login).
-    Supports ISO 27001 A.6.7 (remote working / endpoint exposure), A.8.2 (privileged access), and SOC 2 CC 6.6.
   resolution: |-
-    Turn off Remote Login in System Settings > General > Sharing > Remote Login, or ask IT to enforce via MDM.
+    Turn off Remote Login in  > System Settings > General > Sharing > Remote Login.
+
+    If you need help, please reach out in #help-it.
   platform: darwin

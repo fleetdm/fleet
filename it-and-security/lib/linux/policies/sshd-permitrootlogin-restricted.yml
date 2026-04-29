@@ -9,7 +9,9 @@
   critical: false
   description: |-
     Passes if sshd_config (including any drop-in files in /etc/ssh/sshd_config.d/) does not set PermitRootLogin to yes (absent or set to no/prohibit-password/without-password is OK).
-    Requires the augeas osquery table and augeas lenses on the host. Supports ISO 27001 A.8.2 and SOC 2 CC 6.6.
+    Requires the augeas osquery table and augeas lenses on the host.
   resolution: |-
-    Set `PermitRootLogin no` (or `prohibit-password`) in `/etc/ssh/sshd_config` and ensure no drop-in file in `/etc/ssh/sshd_config.d/` overrides it with `yes`, then restart `sshd`. If this fails because augeas is unavailable, install augeas or use another control.
+    Set `PermitRootLogin no` (or `prohibit-password`) in `/etc/ssh/sshd_config`, ensure no drop-in file in `/etc/ssh/sshd_config.d/` overrides it with `yes`, then restart `sshd`.
+
+    If you need help, please reach out in #help-it.
   platform: linux

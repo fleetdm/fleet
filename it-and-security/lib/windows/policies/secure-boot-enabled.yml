@@ -7,7 +7,6 @@
   critical: false
   description: |-
     Verifies UEFI Secure Boot is enabled.
-    Supports SOC 2 CC 6.6 / CC 8.1 (hardening) and ISO 27001 A.8.9 (security configuration of hardware and software).
   resolution: |-
-    Enable Secure Boot in firmware (UEFI) settings. On managed PCs, coordinate with IT before changing firmware options.
+    Enable Secure Boot in firmware (UEFI) settings. On managed PCs, please reach out in #help-it before changing firmware options.
   platform: windows

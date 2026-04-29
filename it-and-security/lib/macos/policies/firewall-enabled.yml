@@ -3,7 +3,6 @@
   critical: false
   description: |-
     Verifies the macOS Application Layer Firewall is on (global_state 1 = enabled, 2 = enabled blocking all inbound).
-    Supports SOC 2 CC 6.6 (network controls) and ISO 27001 A.8.20 (network security).
   resolution: |-
     Firewall should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
     If it still fails, drop a note in #help-it.

@@ -3,7 +3,7 @@
   critical: false
   description: |-
     Verifies Gatekeeper is enabled so only trusted software runs.
-    Supports ISO 27001 A.8.19 (secure installation of software) and A.8.7 (malware protection), and SOC 2 CC 6.8.
   resolution: |-
-    Gatekeeper should be enforced by MDM (`enable-gatekeeper.mobileconfig`). Contact IT if this policy fails after a restart.
+    Gatekeeper should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
   platform: darwin
