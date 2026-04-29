@@ -1602,9 +1602,15 @@ LIMIT 1
 }
 
 func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
+	// Empty/null incoming is a no-op: callers should use DeleteInHouseAppConfiguration
+	// to explicitly clear an existing config.
+	if len(newConfig) == 0 {
+		return false, nil
+	}
+
 	const stmt = `
 SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
+	BINARY ? != configuration AS has_changed
 FROM
 	in_house_app_configurations
 WHERE
@@ -1615,7 +1621,7 @@ WHERE
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return len(newConfig) > 0, nil
+			return true, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
 	}

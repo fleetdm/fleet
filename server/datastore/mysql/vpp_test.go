@@ -3119,17 +3119,27 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 	})
 }
 
+// setupTestVPPApp creates a VPP app for use in datastore tests. Caller is
+// responsible for creating the global VPP token first (test.CreateInsertGlobalVPPToken).
 func setupTestVPPApp(t *testing.T, ds *Datastore, adamID string, platform fleet.InstallableDevicePlatform) {
-	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
-		INSERT INTO vpp_apps (adam_id, platform, bundle_identifier, name, latest_version, icon_url)
-		VALUES (?, ?, ?, 'Test App', '1.0', 'http://example.com/icon.png')
-	`, adamID, platform, "com.example."+adamID)
+	_, err := ds.InsertVPPAppWithTeam(testCtx(), &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: platform,
+			},
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		BundleIdentifier: "com.example." + adamID,
+		Name:             "Test App",
+		LatestVersion:    "1.0",
+	}, nil)
 	require.NoError(t, err)
 }
 
 const testIOSPlist = `<dict>
 	<key>ServerURL</key>
-	<string>https://fleetdm.com</string>
+	<string>https://example.com</string>
 	<key>EnableTelemetry</key>
 	<true/>
 </dict>`
@@ -3137,6 +3147,7 @@ const testIOSPlist = `<dict>
 func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	const adamID = "1234567890"
+	test.CreateInsertGlobalVPPToken(t, ds)
 	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
 	setupTestVPPApp(t, ds, adamID, fleet.IPadOSPlatform)
 	teamID := setupTestTeam(t, ds)
@@ -3196,6 +3207,7 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	const adamID = "1234567890"
+	test.CreateInsertGlobalVPPToken(t, ds)
 	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
 	teamID := setupTestTeam(t, ds)
 
@@ -3210,8 +3222,8 @@ func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}{
 		{"identical", stored, adamID, false},
 		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), adamID, true},
-		{"empty against existing", nil, adamID, true},
-		{"empty against non-existing", nil, "9999999999", false},
+		{"empty incoming is a no-op against existing", nil, adamID, false},
+		{"empty incoming is a no-op against non-existing", nil, "9999999999", false},
 		{"non-empty against non-existing", stored, "9999999999", true},
 	}
 	for _, c := range cases {

@@ -2536,6 +2536,7 @@ func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, in
 				incomingApp.Configuration = json.RawMessage("{}")
 			}
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			// TODO(#43969): gitops should call DeleteVPPAppConfiguration for configs removed from YAML.
 			configurationChanged, err = ds.HasVPPAppConfigurationChanged(ctx, incomingApp.Platform, existingApp.AdamID, ptr.ValOrZero(teamID), incomingApp.Configuration)
 			if err != nil {
 				return appStoreAppChanges{}, ctxerr.Wrap(ctx, err, "getting existing configuration for vpp app")
@@ -2806,9 +2807,15 @@ SELECT EXISTS(
 }
 
 func (ds *Datastore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
+	// Empty/null incoming is a no-op: callers should use DeleteVPPAppConfiguration
+	// to explicitly clear an existing config.
+	if len(newConfig) == 0 {
+		return false, nil
+	}
+
 	const stmt = `
 SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
+	BINARY ? != configuration AS has_changed
 FROM
 	vpp_app_configurations
 WHERE
@@ -2821,7 +2828,7 @@ WHERE
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, adamID, teamID, platform)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return len(newConfig) > 0, nil
+			return true, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "compare vpp app configuration")
 	}

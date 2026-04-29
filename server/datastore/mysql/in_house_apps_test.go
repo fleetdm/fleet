@@ -1837,21 +1837,27 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 
 }
 
-func setupTestInHouseApp(t *testing.T, ds *Datastore, filename, storageID string, platform fleet.InstallableDevicePlatform) uint {
-	res, err := ds.writer(testCtx()).ExecContext(testCtx(), `
-		INSERT INTO in_house_apps (filename, storage_id, platform)
-		VALUES (?, ?, ?)
-	`, filename, storageID, platform)
+// setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename
+// (insertInHouseApp creates them as a pair) and returns both IDs.
+func setupTestInHouseApp(t *testing.T, ds *Datastore, filename string) (iosID, ipadID uint) {
+	iosID, _, err := ds.insertInHouseApp(testCtx(), &fleet.InHouseAppPayload{
+		Title:           filename,
+		Filename:        filename,
+		BundleID:        "com.example." + filename,
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.IOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
 	require.NoError(t, err)
-	id, err := res.LastInsertId()
+	err = sqlx.GetContext(testCtx(), ds.reader(testCtx()), &ipadID,
+		`SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ipados'`, filename)
 	require.NoError(t, err)
-	return uint(id) //nolint:gosec
+	return iosID, ipadID
 }
 
 func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
-	iosID := setupTestInHouseApp(t, ds, "ios.ipa", "abc123", fleet.IOSPlatform)
-	ipadID := setupTestInHouseApp(t, ds, "ipad.ipa", "def456", fleet.IPadOSPlatform)
+	iosID, ipadID := setupTestInHouseApp(t, ds, "test.ipa")
 
 	// NotFound on empty table.
 	_, err := ds.GetInHouseAppConfiguration(ctx, iosID)
@@ -1899,15 +1905,14 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Cascade: dropping the parent in_house_apps row removes the config row.
-	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM in_house_apps WHERE id = ?`, ipadID)
-	require.NoError(t, err)
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
 	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.ErrorContains(t, err, "not found")
 }
 
 func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	appID := setupTestInHouseApp(t, ds, "test.ipa", "abc123", fleet.IOSPlatform)
+	appID, _ := setupTestInHouseApp(t, ds, "test.ipa")
 
 	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
 	require.NoError(t, ds.updateInHouseAppConfigurationTx(testCtx(), ds.writer(testCtx()), appID, stored))
@@ -1920,8 +1925,8 @@ func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}{
 		{"identical", stored, appID, false},
 		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), appID, true},
-		{"empty against existing", nil, appID, true},
-		{"empty against non-existing", nil, 999999, false},
+		{"empty incoming is a no-op against existing", nil, appID, false},
+		{"empty incoming is a no-op against non-existing", nil, 999999, false},
 		{"non-empty against non-existing", stored, 999999, true},
 	}
 	for _, c := range cases {
