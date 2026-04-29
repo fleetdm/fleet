@@ -334,4 +334,3 @@ func (svc *Service) updateOrgLogoURLs(ctx context.Context, modes []fleet.OrgLogo
 	}
 	return nil
 }
-

@@ -16,7 +16,7 @@ type orgLogoNotFoundError struct{}
 
 var _ fleet.NotFoundError = (*orgLogoNotFoundError)(nil)
 
-func (orgLogoNotFoundError) Error() string  { return "org logo not found" }
+func (orgLogoNotFoundError) Error() string    { return "org logo not found" }
 func (orgLogoNotFoundError) IsNotFound() bool { return true }
 
 type OrgLogoStore struct {
