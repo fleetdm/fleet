@@ -1,6 +1,6 @@
 # Fleet MCP server
 
-> **Experimental**: This feature is under active development and may change or break without notice. Use in production environments at your own risk.
+> **Experimental**: This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. Fleet is currently using it internally.
 
 Fleet's [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server lets AI tools like Claude Code, Claude Desktop, and Cursor interact directly with your Fleet instance — querying endpoints, running live osquery, checking policies, and investigating CVEs.
 
