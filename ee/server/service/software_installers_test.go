@@ -1276,20 +1276,34 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 	})
 
+	// Cover both the team-scoped (tmName != "") and no-team (tmName == "") paths.
+	// The customer's reported failure mode in #42607 was on the global / no-team
+	// endpoint, which skips the TeamByName lookup entirely and flows straight
+	// to the short-circuit.
 	cases := []struct {
-		name     string
-		payloads []*fleet.SoftwareInstallerPayload
+		name             string
+		tmName           string
+		payloads         []*fleet.SoftwareInstallerPayload
+		expectTeamLookup bool
 	}{
-		{"nil payloads", nil},
-		{"empty payloads", []*fleet.SoftwareInstallerPayload{}},
+		{"team scoped, nil payloads", "TestEmpty", nil, true},
+		{"team scoped, empty payloads", "TestEmpty", []*fleet.SoftwareInstallerPayload{}, true},
+		{"no team, nil payloads", "", nil, false},
+		{"no team, empty payloads", "", []*fleet.SoftwareInstallerPayload{}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "TestEmpty", c.payloads, true)
+			kvs.SetFuncInvoked = false
+			kvs.GetFuncInvoked = false
+			ds.TeamByNameFuncInvoked = false
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
 			require.NoError(t, err)
 			require.Empty(t, requestUUID, "dry-run + empty payload should return empty request_uuid")
 			require.False(t, kvs.SetFuncInvoked, "keyValueStore.Set must not be called")
 			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
+			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
+				"TeamByName should only be called when tmName != \"\"")
 		})
 	}
 }

@@ -14250,8 +14250,22 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDryRunEmp
 	})
 	require.NoError(t, err)
 
-	// Dry-run with nil software should short-circuit and return an empty
-	// request_uuid (no async round-trip, no Redis key written).
+	// No-team / global endpoint: the path the customer named in #42607.
+	// Omit the team_name query arg to exercise the global flow.
+	var globalResp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: nil},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + nil software should return empty request_uuid")
+
+	globalResp = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}},
+		http.StatusAccepted, &globalResp)
+	require.Empty(t, globalResp.RequestUUID, "global dry-run + empty software should return empty request_uuid")
+
+	// Team-scoped: dry-run with nil software should short-circuit and return an
+	// empty request_uuid (no async round-trip, no Redis key written).
 	var batchResp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch?dry_run=true",
 		batchSetSoftwareInstallersRequest{Software: nil},
