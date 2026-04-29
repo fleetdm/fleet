@@ -801,6 +801,11 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, pending, 0)
 	})
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
+		require.Error(t, err)
+	})
 }
 
 func testBatchSetScripts(t *testing.T, ds *Datastore) {

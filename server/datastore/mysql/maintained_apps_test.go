@@ -452,6 +452,19 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
+
+	for _, key := range []string{"id", "name", "platform", "slug"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: key, PerPage: 10, IncludeMetadata: true})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: "h.node_key", IncludeMetadata: true})
+		require.Error(t, err)
+	})
 }
 
 func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {

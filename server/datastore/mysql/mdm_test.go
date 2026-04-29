@@ -1463,6 +1463,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantMeta, gotMeta)
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testBulkSetPendingMDMHostProfilesBatch2(t *testing.T, ds *Datastore) {
