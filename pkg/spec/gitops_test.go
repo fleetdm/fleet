@@ -655,7 +655,7 @@ labels:
 			} else {
 				require.Error(t, err)
 				for _, wantErr := range tt.wantErrs {
-					assert.ErrorContains(t, err, wantErr)
+					require.ErrorContains(t, err, wantErr)
 				}
 			}
 			for _, notWantErr := range tt.notWantErrs {
