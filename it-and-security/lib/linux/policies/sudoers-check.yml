@@ -1,0 +1,23 @@
+- name: Linux - No non-root users in sudoers
+  query: >-
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM sudoers
+      WHERE header NOT IN ('root', 'Defaults', '#include', '#includedir', '@include', '@includedir')
+        AND header NOT LIKE '\%%'
+        AND header NOT LIKE 'Host_Alias%'
+        AND header NOT LIKE 'User_Alias%'
+        AND header NOT LIKE 'Cmnd_Alias%'
+        AND header NOT LIKE 'Runas_Alias%'
+    );
+  critical: false
+  description: >-
+    This policy checks that no individual users other than root have direct entries in /etc/sudoers or /etc/sudoers.d/ files.
+    Individual sudoers entries increase the risk of privilege escalation and unauthorized administrative access if those accounts are compromised.
+    Group-based sudo access (e.g., %sudo or %wheel) is expected and not flagged by this policy.
+  resolution: |-
+    Remove individual non-root user entries from /etc/sudoers and /etc/sudoers.d/ files. Use group-based sudo access (e.g., %sudo or %wheel) instead of granting sudo privileges to individual users.
+
+    If the issue persists, please reach out in #help-it.
+  platform: linux
+  run_script:
+    path: ../scripts/remove-non-root-sudoers-entries.sh
