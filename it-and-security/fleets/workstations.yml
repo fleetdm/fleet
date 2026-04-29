@@ -526,3 +526,7 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: microsoft-powerpoint/windows # Microsoft PowerPoint for Windows
+      self_service: true
+      categories:
+        - Productivity
