@@ -468,7 +468,10 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return errors.New("SCEP profiles must include exactly one <Exec> element.")
 	}
 
-	// Verify that we do not have any non-scep loc URIs present
+	// Verify that we do not have any non-SCEP LocURIs present. This
+	// constraint also means SCEP profiles are always SCEP-only, which the
+	// ESP (EnrollmentStatusTracking) relies on to track them under
+	// Certificates instead of Security policies.
 	if v.totalLocURIs != len(v.foundLocURIs) {
 		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
 	}

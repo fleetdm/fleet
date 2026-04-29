@@ -15,7 +15,7 @@ import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
@@ -197,8 +197,9 @@ const Variables = () => {
         <div className={`${baseClass}__page-header`}>
           {renderPageDescription()}
         </div>
-        <EmptyTable
-          header="No custom variables"
+        <EmptyState
+          variant="header-list"
+          header="No custom variables created yet"
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
             canEdit ? (

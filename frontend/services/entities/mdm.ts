@@ -68,6 +68,12 @@ export interface IAppleSetupEnrollmentProfileResponse {
   enrollment_profile: Record<string, unknown>;
 }
 
+export interface IDefaultAppleSetupEnrollmentProfileResponse {
+  updated_at?: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, unknown>;
+}
+
 export interface IMDMSSOParams {
   deviceinfo: string;
   initiator: string;
@@ -300,6 +306,11 @@ const mdmService = {
       { fleet_id: teamId }
     )}`;
     return sendRequest("GET", path);
+  },
+
+  getDefaultSetupEnrollmentProfile: (): Promise<IDefaultAppleSetupEnrollmentProfileResponse> => {
+    const { MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE);
   },
 
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {

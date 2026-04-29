@@ -8,7 +8,7 @@ import {
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -48,7 +48,7 @@ const LocalUserAccounts = ({
         paddingSize="xlarge"
       >
         <CardHeader header="Local user accounts" />
-        <EmptyTable
+        <EmptyState
           header="User collection has been disabled"
           info={
             <>
@@ -85,7 +85,7 @@ const LocalUserAccounts = ({
             inputPlaceHolder="Search local user accounts by username"
             onQueryChange={onUsersTableSearchChange}
             emptyComponent={() => (
-              <EmptyTable
+              <EmptyState
                 header="No users match your search criteria"
                 info="Try a different search."
               />
@@ -99,7 +99,7 @@ const LocalUserAccounts = ({
             hideFooter={usersState.length < DEFAULT_PAGE_SIZE}
           />
         ) : (
-          <EmptyTable
+          <EmptyState
             header="No users detected on this host"
             info="Expecting to see users? Try again in a few seconds as the system
               catches up."

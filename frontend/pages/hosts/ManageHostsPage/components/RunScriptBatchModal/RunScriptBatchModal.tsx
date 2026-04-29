@@ -28,7 +28,7 @@ import scriptsAPI, {
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
@@ -229,7 +229,8 @@ const RunScriptBatchModal = ({
     }
     if (!scripts.length) {
       return (
-        <EmptyTable
+        <EmptyState
+          variant="header-list"
           header="No scripts available for this fleet"
           info={
             <>

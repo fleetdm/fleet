@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.11.5",
+      "version": "5.11.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Transmit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Transmit' AND version_compare(bundle_short_version, '5.11.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.panic.Transmit' AND version_compare(bundle_short_version, '5.11.6') < 0);"
       },
-      "installer_url": "https://download-cdn.panic.com/transmit/Transmit%205.11.5.zip",
+      "installer_url": "https://download-cdn.panic.com/transmit/Transmit%205.11.6.zip",
       "install_script_ref": "638a918e",
       "uninstall_script_ref": "098dc5d4",
-      "sha256": "9557a8dceb9af8d9f031fdff6f7ca351e02c18180816c77d542f8caa11550366",
+      "sha256": "6761097e3ec7141058f0fa67815ff2244e2ca68f9fcdce06edeaf04279a10208",
       "default_categories": [
         "Productivity"
       ]

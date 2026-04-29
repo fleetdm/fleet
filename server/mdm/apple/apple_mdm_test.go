@@ -33,7 +33,7 @@ func TestDEPService(t *testing.T) {
 		logger := slog.New(slog.DiscardHandler)
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger)
-		defaultProfile := depSvc.getDefaultProfile()
+		defaultProfile := depSvc.GetDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
