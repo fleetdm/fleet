@@ -30,7 +30,7 @@ import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 

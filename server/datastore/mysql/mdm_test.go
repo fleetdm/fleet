@@ -56,6 +56,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
+		{"TestBulkSetPendingDefersWindowsReconciliation", testBulkSetPendingDefersWindowsReconciliation},
+		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
@@ -1487,6 +1489,12 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	// This test asserts on host_mdm_windows_profiles row state and on
+	// updates.WindowsConfigProfile immediately after BulkSetPendingMDMHostProfiles.
+	// In production, those side effects are deferred to the
+	// mdm_windows_profile_manager cron, so the test must opt into the
+	// eager-reconciliation hook to keep its Apple-parity assertions valid.
+	ds.EnableTestWindowsEagerHook(t)
 	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
 	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
 	// adding to it.
@@ -8147,6 +8155,10 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	// Opt into the eager Windows reconciliation hook: this test asserts
+	// on host_mdm_windows_profiles state immediately after BulkSet, which
+	// production defers to the cron.
+	ds.EnableTestWindowsEagerHook(t)
 	test.AddBuiltinLabels(t, ds)
 	ctx := context.Background()
 
@@ -8563,8 +8575,201 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 		hostUUIDs = append(hostUUIDs, uuid.NewString())
 	}
 
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, ds.writer(ctx), hostUUIDs, nil)
+	_, err := ds.bulkSetPendingMDMWindowsHostProfilesForTests(ctx, hostUUIDs, nil)
 	require.NoError(t, err)
+}
+
+// testBulkSetPendingDefersWindowsReconciliation verifies the production
+// behavior of BulkSetPendingMDMHostProfiles: it does not synchronously
+// write host_mdm_windows_profiles (the mdm_windows_profile_manager cron
+// handles that on its next 30s tick), and updates.WindowsConfigProfile
+// stays false here. The accurate "Windows profile changed" signal comes
+// from batchSetMDMWindowsProfilesDB inside BatchSetMDMProfiles, which is
+// the only consumer.
+func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
+	require.NoError(t, err)
+
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "DW1", "DW1"),
+	}
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(team.ID))
+	windowsEnroll(t, ds, host)
+
+	// Sanity: host_mdm_windows_profiles starts empty for this host.
+	before, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, before)
+
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	// Production path leaves WindowsConfigProfile false: the lone consumer
+	// of this field (service/mdm.go's BatchSetMDMProfiles flow) ORs it with
+	// profUpdates.WindowsConfigProfile from BatchSetMDMProfiles, which is
+	// the accurate transactional signal. With the eager hook disabled here
+	// to match production, this method does not compute the activity
+	// signal itself.
+	assert.False(t, updates.WindowsConfigProfile,
+		"production path leaves WindowsConfigProfile false; activity is logged by BatchSetMDMProfiles")
+
+	// host_mdm_windows_profiles must not have been written synchronously.
+	// In production the cron will write it on the next tick; in this test
+	// nothing else runs and we go straight to the assertion.
+	after, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, after,
+		"BulkSetPendingMDMHostProfiles must not write host_mdm_windows_profiles synchronously")
+
+	// Round-trip: the cron's listing must observe this host as pending so
+	// the deferred reconciliation can run on the next tick. Without this,
+	// the empty post-state above would also be consistent with a
+	// regression that silently drops the pending signal.
+	pending, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 10)
+	require.NoError(t, err)
+	require.Contains(t, pending, host.UUID,
+		"host must appear in cron listing so deferred reconciliation can run")
+}
+
+// testListNextPendingMDMWindowsHostUUIDsCursor exercises the host-window
+// query that drives the cron's batched reconciliation. With multiple
+// Windows hosts that all need a team profile installed, repeated calls
+// with the previous batch's last UUID as the cursor must return the
+// remaining hosts in lexicographic order, then return empty.
+func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-test"})
+	require.NoError(t, err)
+	InsertWindowsProfileForTest(t, ds, team.ID)
+
+	// Windows hosts that should be listed. Zero-pad the UUID suffix so
+	// lexicographic ordering matches numeric ordering for any N (without
+	// padding, "host-uuid-10" sorts before "host-uuid-2").
+	type hostFixture struct {
+		host *fleet.Host
+		uuid string
+	}
+	const numHosts = 5
+	fixtures := make([]hostFixture, numHosts)
+	for i := range numHosts {
+		uuid := fmt.Sprintf("host-uuid-%02d", i)
+		h := test.NewHost(t, ds,
+			fmt.Sprintf("recon-cursor-host-%d", i),
+			fmt.Sprintf("1.1.1.%d", i),
+			fmt.Sprintf("recon-cursor-key-%d", i),
+			uuid,
+			time.Now(),
+			test.WithPlatform("windows"), test.WithTeamID(team.ID),
+		)
+		windowsEnroll(t, ds, h)
+		fixtures[i] = hostFixture{host: h, uuid: uuid}
+	}
+
+	// Filter-probe hosts that must NEVER appear in the listing. Without
+	// these, the assertions below would pass for an implementation that
+	// returns every enrolled host instead of filtering by desired state.
+	//
+	//   * cross-team Windows host: a team with no profile means no
+	//     desired state, so this host has nothing to install.
+	//   * same-team darwin host: the desired-state JOIN requires
+	//     hosts.platform='windows'.
+	//
+	// UUIDs are chosen so they would sort *before* and *after* the
+	// fixture UUIDs ("c..." < "host..." < "s...") if filtering broke.
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-other-team"})
+	require.NoError(t, err)
+	crossTeamHost := test.NewHost(t, ds,
+		"recon-cursor-cross-team", "2.2.2.1", "recon-cursor-cross-team-key",
+		"cross-team-windows-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(otherTeam.ID),
+	)
+	windowsEnroll(t, ds, crossTeamHost)
+	sameTeamDarwinHost := test.NewHost(t, ds,
+		"recon-cursor-darwin", "3.3.3.1", "recon-cursor-darwin-key",
+		"same-team-darwin-uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team.ID),
+	)
+	excluded := []string{crossTeamHost.UUID, sameTeamDarwinHost.UUID}
+
+	// Trigger the listing's "needs work" predicate by running BulkSet so
+	// the team-profile -> host pairs become candidates. Include the
+	// probe hosts so the same code path runs over them; the listing must
+	// still exclude them.
+	hostIDs := make([]uint, 0, numHosts+len(excluded))
+	for _, f := range fixtures {
+		hostIDs = append(hostIDs, f.host.ID)
+	}
+	hostIDs = append(hostIDs, crossTeamHost.ID, sameTeamDarwinHost.ID)
+	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// First batch: 3 of 5 hosts, sorted ascending.
+	batch1, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 3)
+	require.NoError(t, err)
+	require.Len(t, batch1, 3)
+	for i := 1; i < len(batch1); i++ {
+		require.Less(t, batch1[i-1], batch1[i], "result must be sorted ascending")
+	}
+
+	// Second batch: starts after the previous batch's last UUID, returns
+	// the remaining 2 hosts.
+	batch2, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch1[len(batch1)-1], 3)
+	require.NoError(t, err)
+	require.Len(t, batch2, 2)
+	for i := 1; i < len(batch2); i++ {
+		require.Less(t, batch2[i-1], batch2[i], "result must be sorted ascending")
+	}
+	// Inter-batch ordering: the cursor's strict-greater-than semantics
+	// require that every UUID in batch2 is strictly greater than batch1's
+	// last UUID. Without this, a regression that partitions the universe
+	// in the wrong order could still pass the set-coverage check below.
+	require.Less(t, batch1[len(batch1)-1], batch2[0],
+		"batch2 must start strictly after batch1's last UUID")
+
+	// The two batches together cover every host exactly once. Compare
+	// against the fixture UUIDs so the test fails on over-broad or
+	// mis-scoped results, not just on the count.
+	covered := make(map[string]bool, numHosts)
+	for _, u := range batch1 {
+		covered[u] = true
+	}
+	for _, u := range batch2 {
+		require.False(t, covered[u], "host %s appeared in both batches", u)
+		covered[u] = true
+	}
+	expected := make(map[string]bool, numHosts)
+	for _, f := range fixtures {
+		expected[f.uuid] = true
+	}
+	require.Equal(t, expected, covered)
+
+	// Filter-probe hosts must not have leaked into any batch.
+	for _, u := range excluded {
+		require.NotContains(t, covered, u, "host %s should be filtered out", u)
+	}
+
+	// Third call past the last host: empty (cursor has reached the end).
+	batch3, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch2[len(batch2)-1], 3)
+	require.NoError(t, err)
+	require.Empty(t, batch3, "no more hosts after the end of the universe")
+
+	// batchSize <= 0 must short-circuit to an empty result without error,
+	// matching the explicit guard in ListNextPendingMDMWindowsHostUUIDs.
+	zero, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, zero, "batchSize=0 must short-circuit to empty")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
@@ -9264,16 +9469,18 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	// Create Windows hosts enrolled in MDM and assigned to the team.
 	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
 	host1.Platform = "windows"
-	host1.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID})))
+	host1.TeamID = &team.ID
 	windowsEnroll(t, ds, host1)
 
 	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
 	host2.Platform = "windows"
-	host2.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host2)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+	host2.TeamID = &team.ID
 	windowsEnroll(t, ds, host2)
 
 	// Simulate profiles delivered to both hosts (install + verified).

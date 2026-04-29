@@ -1,4 +1,4 @@
-import { hasStatusKey } from "pages/hosts/ManageHostsPage/helpers";
+import { hasStatusKey } from "interfaces/errors";
 
 const DEFAULT_ERR_MESSAGE = "Couldn't cancel activity. Please try again.";
 const LOCK_WIPE_ERR_MESSAGE =

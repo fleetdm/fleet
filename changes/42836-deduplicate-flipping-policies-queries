@@ -1,1 +1,0 @@
-- Reduced redundant database queries during policy result submission by computing flipping policies once per host check-in instead of multiple times.

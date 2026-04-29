@@ -1940,7 +1940,7 @@ func (c *Client) DoGitOps(
 		if !exceptions.Secrets && !incoming.SecretsPresent {
 			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
 		}
 		delete(incoming.OrgSettings, "secrets")
@@ -2184,7 +2184,7 @@ func (c *Client) DoGitOps(
 			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			team["secrets"] = teamSecrets
 		}
 

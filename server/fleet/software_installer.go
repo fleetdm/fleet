@@ -442,6 +442,7 @@ Exit code: %d (Failed)
 %s
 `
 	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -471,6 +472,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerDownloadFailed:
 		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	case ExitCodeInstallerNotFound:
+		*h.Output = SoftwareInstallerNotFoundCopy
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -582,19 +586,20 @@ func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
-	PackageIDList    string  `db:"package_ids"`
-	PackageIDs       []string
-	StorageID        string  `db:"storage_id"`
-	HTTPETag         *string `db:"http_etag"`
+	InstallerID            uint    `db:"installer_id"`
+	TeamID                 *uint   `db:"team_id"`
+	Filename               string  `db:"filename"`
+	Extension              string  `db:"extension"`
+	Version                string  `db:"version"`
+	Platform               string  `db:"platform"`
+	Source                 string  `db:"source"`
+	BundleIdentifier       *string `db:"bundle_identifier"`
+	Title                  string  `db:"title"`
+	PackageIDList          string  `db:"package_ids"`
+	PackageIDs             []string
+	StorageID              string  `db:"storage_id"`
+	HTTPETag               *string `db:"http_etag"`
+	InstallScriptContentID uint    `db:"install_script_content_id"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -1022,6 +1027,11 @@ const (
 	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
 	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
 	ExitCodeInstallerDownloadFailed = -3
+	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
+	// details from the server for longer than the retry window (e.g. because the
+	// installer was deleted/replaced while a setup-experience install was in flight).
+	ExitCodeInstallerNotFound = -4
 )
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.

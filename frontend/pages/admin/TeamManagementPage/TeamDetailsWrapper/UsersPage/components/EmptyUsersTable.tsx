@@ -1,7 +1,7 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -68,7 +68,7 @@ const EmptyMembersTable = ({
 }: IEmptyUsersTableProps) => {
   if (searchString !== "") {
     return (
-      <EmptyTable
+      <EmptyState
         header="No users match the current criteria"
         info="Expecting to see users? Try again in a few seconds as the system catches up."
       />
@@ -76,8 +76,7 @@ const EmptyMembersTable = ({
   }
 
   return (
-    <EmptyTable
-      graphicName="empty-users"
+    <EmptyState
       header="No users on this fleet"
       info={infoLink}
       primaryButton={

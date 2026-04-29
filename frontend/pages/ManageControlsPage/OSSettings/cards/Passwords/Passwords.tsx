@@ -19,7 +19,7 @@ import PATHS from "router/paths";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -144,12 +144,15 @@ const Passwords = ({
       {!isPremiumTier && <PremiumFeatureMessage />}
       {isPremiumTier && mdmEnabled === undefined && <Spinner />}
       {isPremiumTier && mdmEnabled === false && (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Manage your hosts"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
           info="MDM must be turned on to apply password settings."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       )}
       {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}

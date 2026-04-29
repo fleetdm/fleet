@@ -1,1 +1,0 @@
-* Fixed database locking issues on the policy_membership table by batching cleanup DELETE operations and moving them outside the primary GitOps apply transaction.

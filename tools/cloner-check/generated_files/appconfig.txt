@@ -33,6 +33,7 @@ github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ActivityExpirySettings	fleet.ActivityExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryWindow	int
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	PreserveHostActivitiesOnReenrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
