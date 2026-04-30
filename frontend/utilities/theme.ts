@@ -1,5 +1,4 @@
 const THEME_KEY = "fleet-theme";
-const LEGACY_DARK_KEY = "fleet-dark-mode";
 const TRANSITION_MS = 300;
 
 export type ThemeMode = "system" | "light" | "dark";
@@ -15,23 +14,9 @@ const systemPrefersDark = (): boolean => {
   );
 };
 
-// Migrate the old boolean dark-mode key to the new tri-state key the first
-// time we encounter it, so existing users keep their explicit choice.
 const readStoredMode = (): ThemeMode => {
   const stored = localStorage.getItem(THEME_KEY);
-  if (isThemeMode(stored)) {
-    return stored;
-  }
-
-  const legacy = localStorage.getItem(LEGACY_DARK_KEY);
-  if (legacy === "true" || legacy === "false") {
-    const migrated: ThemeMode = legacy === "true" ? "dark" : "light";
-    localStorage.setItem(THEME_KEY, migrated);
-    localStorage.removeItem(LEGACY_DARK_KEY);
-    return migrated;
-  }
-
-  return "system";
+  return isThemeMode(stored) ? stored : "system";
 };
 
 export const getThemeMode = (): ThemeMode => readStoredMode();
