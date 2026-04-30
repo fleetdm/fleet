@@ -1275,7 +1275,7 @@ type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceI
 
 type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
 
-type HasWindowsSetupExperienceItemsForHostUUIDFunc func(ctx context.Context, hostUUID string) (bool, error)
+type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -3782,8 +3782,8 @@ type DataStore struct {
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
 
-	HasWindowsSetupExperienceItemsForHostUUIDFunc        HasWindowsSetupExperienceItemsForHostUUIDFunc
-	HasWindowsSetupExperienceItemsForHostUUIDFuncInvoked bool
+	HasWindowsSetupExperienceItemsForTeamFunc        HasWindowsSetupExperienceItemsForTeamFunc
+	HasWindowsSetupExperienceItemsForTeamFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -9109,11 +9109,11 @@ func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Con
 	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) HasWindowsSetupExperienceItemsForHostUUID(ctx context.Context, hostUUID string) (bool, error) {
+func (s *DataStore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
 	s.mu.Lock()
-	s.HasWindowsSetupExperienceItemsForHostUUIDFuncInvoked = true
+	s.HasWindowsSetupExperienceItemsForTeamFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasWindowsSetupExperienceItemsForHostUUIDFunc(ctx, hostUUID)
+	return s.HasWindowsSetupExperienceItemsForTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {

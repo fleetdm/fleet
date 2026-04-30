@@ -2109,6 +2109,34 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// don't propagate profile failures into the block decision.
 	var hasSoftwareFailure bool
 
+	// loadTeamID lazily fetches the host's team_id (writer-routed) and memoizes
+	// the result for the rest of this checkin. Only the empty-results
+	// disambiguation in Stage 3 and the require_all_software_windows lookup at
+	// finalization need team_id; Stage 1/2 early-exit checkins skip this query
+	// entirely. Within a single checkin, at most one writer host lookup runs.
+	//
+	// Writer routing guards two replica-lag races: (1) spurious notFound during
+	// the brief gap between orbit's host registration and the next management
+	// session, and (2) stale team_id if a host transferred teams mid-enrollment,
+	// which could let require_all_software_windows be read from the wrong team
+	// and bypass the gate.
+	var (
+		cachedTeamID *uint
+		hostLoaded   bool
+	)
+	loadTeamID := func() (*uint, error) {
+		if hostLoaded {
+			return cachedTeamID, nil
+		}
+		host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP team_id")
+		}
+		cachedTeamID = host.TeamID
+		hostLoaded = true
+		return cachedTeamID, nil
+	}
+
 	if !timedOut {
 		// Profile delivery has two stages, each covered by a different query:
 		//
@@ -2171,9 +2199,17 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// this race. Disambiguate by checking whether items are configured
 		// for the host's team.
 		if len(results) == 0 {
-			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, device.HostUUID)
+			teamID, err := loadTeamID()
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for host")
+				return nil, err
+			}
+			var teamIDForQuery uint
+			if teamID != nil {
+				teamIDForQuery = *teamID
+			}
+			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamIDForQuery)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for team")
 			}
 			if hasItems {
 				svc.logger.DebugContext(ctx, "ESP: setup experience configured but not yet initialized; waiting",
@@ -2206,26 +2242,23 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// here would permanently bypass the policy after the Active->None
 	// transition below.
 	//
-	// The host lookup is forced to the primary DB to avoid two replica-lag
-	// races during ESP: (1) spurious notFound during the brief gap between
-	// orbit's host registration and the next management session, and (2)
-	// stale team_id if a host transferred teams mid-enrollment, which could
-	// read require_all_software_windows from the wrong team. The team-config
-	// read (TeamLite/AppConfig) is fine on the replica/cache because team
-	// settings are stable on the ESP timescale.
-	host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+	// loadTeamID memoizes the writer-routed host lookup, so this reuses the
+	// fetch from the empty-results disambiguation if it already ran this
+	// checkin. The team-config read (TeamLite/AppConfig) uses the replica/cache
+	// because team settings are stable on the ESP timescale.
+	teamID, err := loadTeamID()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP finalization")
+		return nil, err
 	}
 	var requireAll bool
-	if host.TeamID == nil {
+	if teamID == nil {
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
 		}
 		requireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
 	} else {
-		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+		team, err := svc.ds.TeamLite(ctx, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
 		}

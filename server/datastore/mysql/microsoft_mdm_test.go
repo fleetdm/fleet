@@ -5647,25 +5647,18 @@ func testMDMWindowsAwaitingConfigurationByHostUUID(t *testing.T, ds *Datastore) 
 	require.True(t, fleet.IsNotFound(err), "unknown host UUID must return NotFound, got: %v", err)
 }
 
-// testMDMWindowsHasSetupExperienceItems verifies
-// HasWindowsSetupExperienceItemsForHostUUID counts only Windows software
-// installers and only when active + install_during_setup. The function
-// must NOT count scripts (darwin-only) or non-Windows installers,
-// otherwise the Windows ESP wait gate could hang forever on a team that
-// only has a setup-experience script configured.
+// testMDMWindowsHasSetupExperienceItems verifies HasWindowsSetupExperienceItemsForTeam counts only Windows
+// software installers and only when active + install_during_setup. The function must NOT count scripts
+// (darwin-only) or non-Windows installers, otherwise the Windows ESP wait gate could hang forever on a team
+// that only has a setup-experience script configured.
 func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	host := test.NewHost(t, ds, "win-items", "10.0.0.30", "win-items-key", "win-items-uuid", time.Now())
-	host.Platform = "windows"
-	require.NoError(t, ds.UpdateHost(ctx, host))
-
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "HasItemsTeam"})
 	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
 	// No installers configured at all -> false.
-	hasItems, err := ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.False(t, hasItems, "no installers configured")
 
@@ -5706,7 +5699,7 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	// 1. Windows installer with install_during_setup=false -> false.
 	id1 := insertInstaller(t, "windows", 1, 0)
-	hasItems, err = ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.False(t, hasItems, "Windows installer without install_during_setup must not count")
 
@@ -5716,7 +5709,7 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 			`UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, id1)
 		return err
 	})
-	hasItems, err = ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.True(t, hasItems, "Windows installer with install_during_setup must count")
 
@@ -5726,7 +5719,7 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 			`UPDATE software_installers SET is_active = 0 WHERE id = ?`, id1)
 		return err
 	})
-	hasItems, err = ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.False(t, hasItems, "inactive installer must not count")
 
@@ -5737,7 +5730,7 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 			`UPDATE software_installers SET is_active = 1, platform = 'darwin' WHERE id = ?`, id1)
 		return err
 	})
-	hasItems, err = ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.False(t, hasItems, "non-Windows installer must not count")
 
@@ -5750,7 +5743,7 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 			team.ID, team.ID, "test-script.sh", scriptID)
 		return err
 	})
-	hasItems, err = ds.HasWindowsSetupExperienceItemsForHostUUID(ctx, host.UUID)
+	hasItems, err = ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 	require.NoError(t, err)
 	require.False(t, hasItems, "setup_experience_scripts is darwin-only and must not count for Windows")
 }

@@ -1427,7 +1427,7 @@ func TestGetESPCommands(t *testing.T) {
 		}
 		// Default: no setup experience items configured. Tests that
 		// expect waiting due to items configured override this.
-		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
@@ -1738,7 +1738,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
-		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
 		setRequireAll(ds, true)
@@ -2026,7 +2026,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
-		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return false, nil
 		}
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -2060,16 +2060,19 @@ func TestGetESPCommands(t *testing.T) {
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 			return nil, nil
 		}
-		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
 			return true, nil
+		}
+		// HostLite is needed by the empty-results disambiguation (loadTeamID feeds the EXISTS query) but
+		// the wait outcome must NOT trigger the Active->None transition.
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: nil}, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait for orbit to initialize setup experience")
-		// Must NOT have proceeded to require_all lookup or state transition.
-		assert.False(t, ds.HostLiteByIdentifierFuncInvoked,
-			"must not look up host (require_all chain) when waiting for orbit init")
+		// Must NOT have proceeded to the Active->None transition.
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
 			"must not transition state while waiting for orbit init")
 	})

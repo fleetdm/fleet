@@ -133,36 +133,15 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
-// HasWindowsSetupExperienceItemsForHostUUID returns true if any Windows
-// setup experience software installers (with install_during_setup) are
-// configured for the team that the host with the given UUID belongs to.
+// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
+// installers with install_during_setup=TRUE are configured for the given team. teamID=0 means "no team /
+// global", matching the value EnqueueSetupExperienceItems passes in for hosts on no team.
 //
-// We deliberately do NOT count rows in setup_experience_scripts: those are
-// only enqueued for darwin in EnqueueSetupExperienceItems, so for a Windows
-// host they would never produce setup_experience_status_results. Including
-// them here would cause Windows ESP release to wait forever when only a
-// script is configured (results stay empty + hasItems=true).
-//
-// Both queries use the writer to avoid replica-lag false negatives on the
-// security-relevant ESP release gate.
-func (ds *Datastore) HasWindowsSetupExperienceItemsForHostUUID(ctx context.Context, hostUUID string) (bool, error) {
-	var teamID sql.NullInt64
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &teamID,
-		`SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID))
-		}
-		return false, ctxerr.Wrap(ctx, err, "get host team_id for setup experience items check")
-	}
-
-	// global_or_team_id uses 0 for "no team / global", matching the value
-	// EnqueueSetupExperienceItems passes in for hosts on no team.
-	var globalOrTeamID uint
-	if teamID.Valid {
-		globalOrTeamID = uint(teamID.Int64) //nolint:gosec // dismiss G115; team_id is a non-negative DB primary key
-	}
-
+// Reader is fine: software_installers is admin-managed and stable on the ESP timescale. The narrow race
+// (admin uploads installers and a device enrolls in rapid succession from different sources, replica is
+// lagging behind the installer write) at worst causes the device to release one checkin too early; the next
+// checkin would naturally observe the populated rows and finalize correctly.
+func (ds *Datastore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
 	const stmt = `
 SELECT EXISTS (
 	SELECT 1 FROM software_installers
@@ -172,7 +151,7 @@ SELECT EXISTS (
 		AND is_active = TRUE
 )`
 	var hasItems bool
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hasItems, stmt, globalOrTeamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasItems, stmt, teamID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check setup experience items configured")
 	}
 	return hasItems, nil
