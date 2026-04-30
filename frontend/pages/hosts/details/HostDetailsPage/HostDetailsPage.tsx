@@ -1033,6 +1033,9 @@ const HostDetailsPage = ({
           host.mdm.os_settings?.recovery_lock_password?.password_available ??
           false
         }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
         isManagedLocalAccountEnabled={
           mdmConfig?.macos_setup?.enable_managed_local_account ?? false
         }
