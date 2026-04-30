@@ -1,1 +1,1 @@
-- Fixed `PATCH /api/v1/fleet/teams/:id` rejecting `mdm.enable_disk_encryption` on Fleet deployments where only Windows MDM is configured. Team-level BitLocker enforcement can now be toggled when either Apple MDM or Windows MDM is configured.
+- Fixed the team PATCH endpoint rejecting `mdm.enable_disk_encryption` on Fleet deployments where only Windows MDM is configured. Team-level BitLocker enforcement can now be toggled when either Apple MDM or Windows MDM is configured.
