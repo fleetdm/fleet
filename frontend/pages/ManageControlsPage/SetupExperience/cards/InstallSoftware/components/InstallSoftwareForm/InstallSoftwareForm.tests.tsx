@@ -8,6 +8,7 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import mdmAPI from "services/entities/mdm";
 
 import InstallSoftwareForm from "./InstallSoftwareForm";
 
@@ -189,6 +190,37 @@ describe("InstallSoftware", () => {
       expect(checkbox).toBeVisible();
       expect(checkbox).toBeChecked();
     });
+  });
+
+  it("calls the Windows require-all API on Save when the Windows checkbox is toggled", async () => {
+    const updateRequireAllSoftwareWindowsSpy = jest
+      .spyOn(mdmAPI, "updateRequireAllSoftwareWindows")
+      .mockResolvedValue({});
+
+    const { user } = render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows={false}
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle()]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Cancel setup if software fails/,
+      })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(updateRequireAllSoftwareWindowsSpy).toHaveBeenCalledWith(1, true);
+    });
+
+    updateRequireAllSoftwareWindowsSpy.mockRestore();
   });
 
   it("should disable adding software for macos with manual agent install", async () => {
