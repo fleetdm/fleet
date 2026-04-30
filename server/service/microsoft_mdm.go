@@ -2043,10 +2043,9 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			// DMClient CSP spec. Both must be false for the ESP to stay visible.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
-			// BlockInStatusPage=1: block user, show "Reset PC" button on
-			// failure. Per DMClient CSP docs: 1=Reset PC, 2=Try Again,
-			// 4=Continue Anyway. We pre-configure Reset here so it's already
-			// set when/if the failure UI renders.
+			// BlockInStatusPage=1: block user, show "Reset PC" button on failure.
+			// Per DMClient CSP docs: 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+			// We pre-configure Reset here so it's already set when/if the failure UI renders.
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
 			// AllowCollectLogsButton: pre-configure Collect Logs button so
 			// it's visible on both progress and failure pages.
@@ -2083,43 +2082,35 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	return []*mdm_types.SyncMLCmd{dpCmd}, nil
 }
 
-// handleESPRelease handles awaiting_configuration=Active. It waits for all
-// profiles and setup experience items to reach a terminal state, then either
-// releases the device or, when require_all_software_windows is true and any
-// item failed (or the 3-hour timeout was hit), blocks the device on the ESP
-// failure screen.
+// handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
+// a terminal state, then either releases the device or, when require_all_software_windows is true and any item failed
+// (or the 3-hour timeout was hit), blocks the device on the ESP failure screen.
 func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
 	}
 
-	// Check timeout first: if we've exceeded the 3-hour window, finalize
-	// regardless of profile/software status.
+	// Check timeout first: if we've exceeded the 3-hour window, finalize regardless of profile/software status.
 	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
 	if timedOut {
 		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
 	}
 
-	// hasSoftwareFailure tracks setup-experience software failures only.
-	// Profile delivery failures intentionally do NOT set this: the setting
-	// `require_all_software_windows` is software-scoped (matching the macOS
-	// equivalent), and Windows profile failures often have benign causes
-	// (CSP not supported on the host's edition, conflicting policies). We
-	// still wait for profiles to reach a terminal state in Stage 2, but we
-	// don't propagate profile failures into the block decision.
+	// hasSoftwareFailure tracks setup-experience software failures only. Profile delivery failures intentionally do NOT
+	// set this: the setting `require_all_software_windows` is software-scoped (matching the macOS equivalent), and
+	// Windows profile failures often have benign causes (CSP not supported on the host's edition, conflicting policies).
+	// We still wait for profiles to reach a terminal state in Stage 2, but we don't propagate profile failures into the
+	// block decision.
 	var hasSoftwareFailure bool
 
-	// loadTeamID lazily fetches the host's team_id (writer-routed) and memoizes
-	// the result for the rest of this checkin. Only the empty-results
-	// disambiguation in Stage 3 and the require_all_software_windows lookup at
-	// finalization need team_id; Stage 1/2 early-exit checkins skip this query
-	// entirely. Within a single checkin, at most one writer host lookup runs.
+	// loadTeamID lazily fetches the host's team_id (writer-routed) and memoizes the result for the rest of this checkin.
+	// Only the empty-results disambiguation in Stage 3 and the require_all_software_windows lookup at finalization need
+	// team_id; Stage 1/2 early-exit checkins skip this query entirely. Within a single checkin, at most one writer host
+	// lookup runs.
 	//
-	// Writer routing guards two replica-lag races: (1) spurious notFound during
-	// the brief gap between orbit's host registration and the next management
-	// session, and (2) stale team_id if a host transferred teams mid-enrollment,
-	// which could let require_all_software_windows be read from the wrong team
-	// and bypass the gate.
+	// Writer routing guards two replica-lag races: (1) spurious notFound during the brief gap between orbit's host
+	// registration and the next management session, and (2) stale team_id if a host transferred teams mid-enrollment,
+	// which could let require_all_software_windows be read from the wrong team and bypass the gate.
 	var (
 		cachedTeamID *uint
 		hostLoaded   bool

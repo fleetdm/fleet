@@ -136,11 +136,6 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 // HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 // installers with install_during_setup=TRUE are configured for the given team. teamID=0 means "no team /
 // global", matching the value EnqueueSetupExperienceItems passes in for hosts on no team.
-//
-// Reader is fine: software_installers is admin-managed and stable on the ESP timescale. The narrow race
-// (admin uploads installers and a device enrolls in rapid succession from different sources, replica is
-// lagging behind the installer write) at worst causes the device to release one checkin too early; the next
-// checkin would naturally observe the populated rows and finalize correctly.
 func (ds *Datastore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
 	const stmt = `
 SELECT EXISTS (
@@ -160,8 +155,7 @@ SELECT EXISTS (
 // GetMDMWindowsAwaitingConfigurationByHostUUID returns just the
 // awaiting_configuration value for the Windows MDM enrollment of the host
 // with the given UUID. This is a lightweight read intended for the hot
-// /orbit/config polling path; it uses the read replica and returns
-// notFound if the host isn't enrolled. Eventual consistency is acceptable
+// /orbit/config polling path. Eventual consistency is acceptable
 // here because RunSetupExperience just signals orbit to call init; the ESP
 // state machine is reconciled on subsequent management sessions.
 func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
@@ -257,14 +251,6 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
 		delSetupExpStmt = "DELETE FROM setup_experience_status_results WHERE host_uuid = ?"
-		// Clear ALL queued upcoming activities for this host on
-		// re-enrollment (software_install, software_uninstall, script,
-		// vpp_app_install, etc). The unified queue can hold any
-		// activity_type; on Autopilot re-enrollment any pending work
-		// from the previous enrollment is stale because the device
-		// state has been wiped or reset. Use a JOIN on hosts so this
-		// runs in a single statement and can't be silently skipped on
-		// a host lookup failure.
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
@@ -282,13 +268,11 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				if _, err := tx.ExecContext(ctx, delProfilesStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
 				}
-				// Clear setup experience results so they get re-enqueued
-				// on the new enrollment.
+				// Clear setup experience results so they get re-enqueued on the new enrollment.
 				if _, err := tx.ExecContext(ctx, delSetupExpStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete setup_experience_status_results for host")
 				}
-				// Clear ALL stale upcoming activities (any activity_type)
-				// so they don't block new activities on re-enrollment.
+				// Clear ALL stale upcoming activities (any activity_type) so they don't block new activities on re-enrollment.
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
 				}
