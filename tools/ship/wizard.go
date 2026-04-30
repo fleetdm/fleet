@@ -30,9 +30,9 @@ type wizardModel struct {
 type wizardStep int
 
 const (
-	stepNgrok wizardStep = iota
-	stepMDMKey
-	stepPremium
+	wizStepNgrok wizardStep = iota
+	wizStepMDMKey
+	wizStepPremium
 )
 
 func newWizardModel(initial Config, hasPrivateKey bool) wizardModel {
@@ -51,7 +51,7 @@ func newWizardModel(initial Config, hasPrivateKey bool) wizardModel {
 	mdm.EchoCharacter = '•'
 
 	return wizardModel{
-		step:       stepNgrok,
+		step:       wizStepNgrok,
 		ngrokInput: ngrok,
 		mdmInput:   mdm,
 		premium:    initial.Fleet.Premium,
@@ -67,18 +67,18 @@ func (w wizardModel) update(msg tea.Msg) (wizardModel, tea.Cmd) {
 		case "esc":
 			return w.back()
 		case "left", "h":
-			if w.step == stepPremium {
+			if w.step == wizStepPremium {
 				w.premium = true
 			}
 			return w, nil
 		case "right", "l":
-			if w.step == stepPremium {
+			if w.step == wizStepPremium {
 				w.premium = false
 			}
 			return w, nil
 		case " ":
 			// space toggles the premium choice — common ergonomic shortcut.
-			if w.step == stepPremium {
+			if w.step == wizStepPremium {
 				w.premium = !w.premium
 				return w, nil
 			}
@@ -87,9 +87,9 @@ func (w wizardModel) update(msg tea.Msg) (wizardModel, tea.Cmd) {
 
 	var cmd tea.Cmd
 	switch w.step {
-	case stepNgrok:
+	case wizStepNgrok:
 		w.ngrokInput, cmd = w.ngrokInput.Update(msg)
-	case stepMDMKey:
+	case wizStepMDMKey:
 		w.mdmInput, cmd = w.mdmInput.Update(msg)
 	}
 	return w, cmd
@@ -99,25 +99,25 @@ func (w wizardModel) update(msg tea.Msg) (wizardModel, tea.Cmd) {
 // last one. Skips the MDM key step when a key is already on disk.
 func (w wizardModel) advance() (wizardModel, tea.Cmd) {
 	switch w.step {
-	case stepNgrok:
+	case wizStepNgrok:
 		if strings.TrimSpace(w.ngrokInput.Value()) == "" {
 			return w, nil // require a domain — nothing else makes sense without it
 		}
 		if w.askMDMKey {
-			w.step = stepMDMKey
+			w.step = wizStepMDMKey
 			w.ngrokInput.Blur()
 			w.mdmInput.Focus()
 		} else {
-			w.step = stepPremium
+			w.step = wizStepPremium
 			w.ngrokInput.Blur()
 		}
-	case stepMDMKey:
+	case wizStepMDMKey:
 		if strings.TrimSpace(w.mdmInput.Value()) == "" {
 			return w, nil
 		}
-		w.step = stepPremium
+		w.step = wizStepPremium
 		w.mdmInput.Blur()
-	case stepPremium:
+	case wizStepPremium:
 		w.done = true
 	}
 	return w, nil
@@ -125,16 +125,16 @@ func (w wizardModel) advance() (wizardModel, tea.Cmd) {
 
 func (w wizardModel) back() (wizardModel, tea.Cmd) {
 	switch w.step {
-	case stepMDMKey:
-		w.step = stepNgrok
+	case wizStepMDMKey:
+		w.step = wizStepNgrok
 		w.mdmInput.Blur()
 		w.ngrokInput.Focus()
-	case stepPremium:
+	case wizStepPremium:
 		if w.askMDMKey {
-			w.step = stepMDMKey
+			w.step = wizStepMDMKey
 			w.mdmInput.Focus()
 		} else {
-			w.step = stepNgrok
+			w.step = wizStepNgrok
 			w.ngrokInput.Focus()
 		}
 	}
@@ -166,20 +166,20 @@ func (w wizardModel) view(width int) string {
 
 	var body string
 	switch w.step {
-	case stepNgrok:
+	case wizStepNgrok:
 		body = renderField(
 			"ngrok static domain",
 			"Get one for free at "+styleURL.Render("https://dashboard.ngrok.com/domains"),
 			w.ngrokInput.View(),
 		)
-	case stepMDMKey:
+	case wizStepMDMKey:
 		body = renderField(
 			"MDM server private key",
 			"Paste from your 1Password Fleet dev login. Stored at "+
 				styleURL.Render("~/.config/fleet-ship/server_private_key"),
 			w.mdmInput.View(),
 		)
-	case stepPremium:
+	case wizStepPremium:
 		body = renderPremiumChoice(w.premium)
 	}
 
@@ -245,9 +245,9 @@ func stepLabel(w wizardModel) string {
 	}
 	current := 1
 	switch w.step {
-	case stepMDMKey:
+	case wizStepMDMKey:
 		current = 2
-	case stepPremium:
+	case wizStepPremium:
 		if w.askMDMKey {
 			current = 3
 		} else {
