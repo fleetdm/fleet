@@ -50,6 +50,10 @@ charts/fleet/charts
 # Fleet local development DB backups
 backup.sql.gz
 
+# Fleet ship per-session state (PIDs, log paths, etc.) and stray dev binaries
+/tools/ship/.state/
+/tools/ship/fleet-ship
+
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json

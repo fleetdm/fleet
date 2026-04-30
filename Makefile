@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help ship
 
 export GO111MODULE=on
 
@@ -131,6 +131,11 @@ fdm:
 		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
+
+.help-short--ship:
+	@echo "Launch Fleet ship — interactive dev environment (macOS only)"
+ship:
+	cd tools/ship && go run . $(ARGS)
 
 .help-short--serve:
 	@echo "Start the fleet server"
