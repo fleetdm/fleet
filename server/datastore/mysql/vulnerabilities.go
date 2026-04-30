@@ -24,6 +24,7 @@ var vulnerabilitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"created_at":             "created_at",
 	"host_count":             "hosts_count",
 	"hosts_count":            "hosts_count",
+	"host_count_updated_at":  "hosts_count_updated_at",
 	"hosts_count_updated_at": "hosts_count_updated_at",
 }
 
