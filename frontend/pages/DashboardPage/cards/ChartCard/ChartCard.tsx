@@ -217,6 +217,7 @@ const ChartCard = ({
       return (
         <DataCollectionDisabledState
           datasetLabel={DATASET_LABEL[datasetConfigKey]}
+          currentTeamId={currentTeamId}
         />
       );
     }

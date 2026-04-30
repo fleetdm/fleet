@@ -154,7 +154,7 @@ describe("ChartCard", () => {
       screen.getByText(/Data collection is disabled/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Manage data collection in Advanced settings/i)
+      screen.getByRole("button", { name: /Turn on/i })
     ).toBeInTheDocument();
   });
 
