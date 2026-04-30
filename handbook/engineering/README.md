@@ -415,6 +415,12 @@ The release process — QA Day, release candidates, agent releases, post-release
 Processes for maintaining and releasing changes to fleetdm.com — local testing, dependency triage, browser compatibility checks, and related runbooks — live on their own page. See the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
 
 
+## Runbooks
+
+Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
+
+- [AI coding tool outage](./runbooks/ai-coding-tool-outage.md) — fall back to GitHub Copilot when Claude Code is unavailable.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
