@@ -1,8 +1,14 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { size } from "lodash";
 import classNames from "classnames";
 
-import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
+import getCustomTargetOptions from "pages/policies/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -85,6 +91,10 @@ const SaveNewPolicyModal = ({
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions(isPremiumTier),
+    [isPremiumTier]
+  );
 
   const onSelectLabel = ({
     name: labelName,
@@ -136,28 +146,29 @@ const SaveNewPolicyModal = ({
     });
 
     if (!disableSave && validName) {
-      onCreatePolicy({
+      const payload: IPolicyFormData = {
         description: lastEditedQueryDescription,
         name: lastEditedQueryName,
         query: queryValue,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
         critical: lastEditedQueryCritical,
-        labels_include_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsIncludeAny"
+      };
+      if (isPremiumTier) {
+        const customLabelNames =
+          selectedTargetType === "Custom"
             ? Object.entries(selectedLabels)
                 .filter(([, selected]) => selected)
                 .map(([labelName]) => labelName)
-            : [],
-        labels_exclude_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsExcludeAny"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
-      });
+            : [];
+        payload.labels_include_any =
+          selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
+        payload.labels_include_all =
+          selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
+        payload.labels_exclude_any =
+          selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+      }
+      onCreatePolicy(payload);
     }
   };
 
@@ -273,19 +284,13 @@ const SaveNewPolicyModal = ({
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
-              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              customTargetOptions={customTargetOptions}
               onSelectCustomTarget={setSelectedCustomTarget}
               selectedLabels={selectedLabels}
               className={`${baseClass}__target`}
               onSelectTargetType={setSelectedTargetType}
               onSelectLabel={onSelectLabel}
               labels={labels || []}
-              customHelpText={
-                <span className="form-field__help-text">
-                  Policy will target hosts on selected platforms that{" "}
-                  <b>have any</b> of these labels:
-                </span>
-              }
               suppressTitle
               disableOptions={disableForm}
             />

@@ -7,7 +7,7 @@ const labelsIncludeAnyOption: IDropdownOption = {
   label: "Include any",
   helpText: (
     <>
-      Policy will target hosts that <b>have any</b> of these labels:
+      Report will target hosts that <b>have any</b> of these labels:
     </>
   ),
   disabled: false,
@@ -18,34 +18,22 @@ const labelsIncludeAllOption: IDropdownOption = {
   label: "Include all",
   helpText: (
     <>
-      Policy will target hosts that <b>have all</b> of these labels:
+      Report will target hosts that <b>have all</b> these labels:
     </>
   ),
   disabled: false,
 };
 
-const labelsExcludeAnyOption: IDropdownOption = {
-  value: "labelsExcludeAny",
-  label: "Exclude any",
-  helpText: (
-    <>
-      Policy will target hosts that <b>don&rsquo;t have any</b> of these labels:
-    </>
-  ),
-  disabled: false,
-};
-
-// getCustomTargetOptions returns the policy label-scope options for the
+// getQueryCustomTargetOptions returns the report label-scope options for the
 // "Custom" target dropdown. The "Include all" option is premium-only.
-const getCustomTargetOptions = (
+const getQueryCustomTargetOptions = (
   isPremiumTier: boolean | undefined
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [labelsIncludeAnyOption];
   if (isPremiumTier) {
     options.push(labelsIncludeAllOption);
   }
-  options.push(labelsExcludeAnyOption);
   return options;
 };
 
-export default getCustomTargetOptions;
+export default getQueryCustomTargetOptions;
