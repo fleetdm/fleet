@@ -160,7 +160,13 @@ const Secrets = () => {
           info="Add a custom variable to make it available in scripts and profiles."
           primaryButton={
             canEdit ? (
-              <Button onClick={onClickAddSecret}>Add custom variable</Button>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button onClick={onClickAddSecret} disabled={disableChildren}>
+                    Add custom variable
+                  </Button>
+                )}
+              />
             ) : undefined
           }
         />
@@ -197,7 +203,6 @@ const Secrets = () => {
             <span>Custom variables</span>
             {canEdit && (
               <GitOpsModeTooltipWrapper
-                entityType="secrets"
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button
