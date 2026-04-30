@@ -118,6 +118,8 @@
                     <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else if(feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p class='d-flex flex-row align-items-center mb-0'>Click <img src='/images/icon-more-info-25-14x14@2x.png' class='mx-1' style='height: 12px; display: inline;' alt='more info'> to learn more</p>"></a></td>
                     <% } else {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <% } %>
@@ -142,7 +144,7 @@
               <strong class="d-block">
                 {{feature.name}}{{feature.comingSoon ? '*' : ''}}
               </strong>
-              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description || feature.documentationUrl">
             </div>
             <div class="d-flex flex-row justify-content-between align-items-center">
               Free
@@ -193,6 +195,8 @@
                     <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else if(feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p class='d-flex flex-row align-items-center mb-0'>Click <img src='/images/icon-more-info-25-14x14@2x.png' class='mx-1' style='height: 12px; display: inline;' alt='more info'> to learn more</p>"></a></td>
                     <% } else {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <% } %>
@@ -216,7 +220,7 @@
             <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
               <strong class="d-block">
                 {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+                <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description || feature.documentationUrl">
               </strong>
             </div>
             <div class="d-flex flex-row justify-content-between align-items-center">
@@ -266,6 +270,8 @@
                     <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else if(feature.documentationUrl) {%>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p class='d-flex flex-row align-items-center mb-0'>Click <img src='/images/icon-more-info-25-14x14@2x.png' class='mx-1' style='height: 12px; display: inline;' alt='more info'> to learn more</p>"></a></td>
                     <% } else {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <% } %>
@@ -290,7 +296,7 @@
               <strong class="d-block">
                 {{feature.name}}{{feature.comingSoon ? '*' : ''}}
               </strong>
-              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+              <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description || feature.documentationUrl">
             </div>
             <div class="d-flex flex-row justify-content-between align-items-center">
               Free
@@ -398,7 +404,7 @@
   </div>
   <modal purpose="mobile-tooltip" v-if="modal === 'mobileTooltip'" @close="closeModal()">
     <div>
-      <p class="mb-0">{{selectedFeature.description}}</p>
+      <p class="mb-0" v-if="selectedFeature.description">{{selectedFeature.description}}</p>
       <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl" no-icon>Learn more</a>
     </div>
   </modal>
