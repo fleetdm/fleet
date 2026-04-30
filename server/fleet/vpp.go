@@ -1,9 +1,11 @@
 package fleet
 
 import (
-	"encoding/json"
 	"fmt"
+	"regexp"
 	"time"
+
+	"howett.net/plist"
 )
 
 type VPPAppID struct {
@@ -56,12 +58,12 @@ type VPPAppTeam struct {
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
-	Configuration       json.RawMessage `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool           `json:"-"`
-	AutoUpdateStartTime *string         `json:"-"`
-	AutoUpdateEndTime   *string         `json:"-"`
+	// Configuration is the managed app configuration payload. JSON for Android,
+	// plist XML for iOS / iPadOS.
+	Configuration       []byte  `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool   `json:"-"`
+	AutoUpdateStartTime *string `json:"-"`
+	AutoUpdateEndTime   *string `json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {
@@ -129,9 +131,9 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
+	// Configuration is the managed app configuration payload. JSON for Android,
+	// plist XML for iOS / iPadOS.
+	Configuration []byte `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
@@ -197,6 +199,76 @@ type AppStoreAppUpdatePayload struct {
 	LabelsIncludeAll []string
 	Categories       []string
 	DisplayName      *string
-	Configuration    json.RawMessage
+	Configuration    []byte
 	SoftwareAutoUpdateConfig
 }
+
+// FleetVarsSupportedInAppleAppConfig is the allow-list of Fleet variables that
+// can appear in an iOS / iPadOS managed app configuration plist. Subset of the
+// variables supported in Apple configuration profiles — credential variables
+// (NDES, SCEP, DigiCert) don't fit the InstallApplication command shape.
+var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
+	FleetVarHostUUID,
+	FleetVarHostHardwareSerial,
+	FleetVarHostPlatform,
+	FleetVarHostEndUserEmailIDP,
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+}
+
+var fleetVarTokenRegexp = regexp.MustCompile(`\$(?:\{)?FLEET_VAR_([A-Z0-9_]+)(?:\})?`)
+
+// ValidateAppleAppConfiguration validates a managed app configuration payload
+// for an iOS or iPadOS InstallApplication command. The payload must be a plist
+// whose root element is a <dict>; string values may contain Fleet variable
+// tokens drawn from FleetVarsSupportedInAppleAppConfig. Empty input is allowed
+// — callers decide whether to store or clear.
+func ValidateAppleAppConfiguration(config []byte) error {
+	if len(config) == 0 {
+		return nil
+	}
+
+	var root map[string]any
+	if _, err := plist.Unmarshal(config, &root); err != nil {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
+	}
+
+	allowed := make(map[FleetVarName]struct{}, len(FleetVarsSupportedInAppleAppConfig))
+	for _, v := range FleetVarsSupportedInAppleAppConfig {
+		allowed[v] = struct{}{}
+	}
+
+	return walkAppleAppConfigStrings(root, func(s string) error {
+		for _, m := range fleetVarTokenRegexp.FindAllStringSubmatch(s, -1) {
+			name := FleetVarName(m[1])
+			if _, ok := allowed[name]; !ok {
+				return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+			}
+		}
+		return nil
+	})
+}
+
+func walkAppleAppConfigStrings(v any, fn func(string) error) error {
+	switch val := v.(type) {
+	case string:
+		return fn(val)
+	case map[string]any:
+		for _, child := range val {
+			if err := walkAppleAppConfigStrings(child, fn); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, child := range val {
+			if err := walkAppleAppConfigStrings(child, fn); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+

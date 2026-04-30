@@ -2588,7 +2588,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	config1 := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1":1}}`)
-	expectedConfig1 := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
+	expectedConfig1 := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
 
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("name 1")},
@@ -2611,9 +2611,9 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
-	require.Equal(t, json.RawMessage(nil), assigned[app2.VPPAppID].Configuration)
-	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, []byte(nil), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, []byte(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
 
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -2645,9 +2645,9 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
-	require.Equal(t, json.RawMessage(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
-	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, []byte(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, []byte(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
 
 	// Delete all
