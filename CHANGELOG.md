@@ -1,3 +1,18 @@
+## Fleet 4.84.1 (May 1, 2026)
+
+### Bug fixes
+
+- Fixed a dead SQL condition in `hostVPPInstalls` that was misleading but harmless: Android VPP apps never produce `nano_command_results` entries (they use Google's Android Management API, not nanoMDM), so the previous `(hvsi.platform != 'android' OR ncr.id IS NULL)` guard was a tautology. Replaced with a clarifying comment.
+- Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.
+- Fixed Fleet's Docker image failing to start in Kubernetes with an `unknown userid` error, triggered by a fleetctl dependency side effect.
+- Fixed a bug where host environment variables in script-only packages would cause gitops to fail
+- Updated go to 1.26.2
+- Fixed SCEP renewals not retrying after initial failure
+- Extend SCEP enrollment/renewal challenge credential TTL
+- Fixed an issue where trying to wipe a device after its certificate was renewed could fail due to a missing bootstrap token. _Note: The device might still have wiped_
+- Fixed a bug where duplicate software installers for linux could be added.
+- Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.
+
 ## Fleet 4.84.0 (Apr 24, 2026)
 
 ### IT Admins
