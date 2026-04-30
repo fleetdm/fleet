@@ -183,3 +183,4 @@ All visual creatives must be approved by the Head of Design. The CEO-requested c
 | Log every experiment result, even failures | Overspend without pulling from Evergreen first |
 
 <meta name="maintainedBy" value="akuthiala">
+<meta name="title" value="🫧 Fleet social media">
