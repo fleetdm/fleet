@@ -310,7 +310,7 @@ var (
 	ErrQueryConflictingLabels = errors.New("report can include at most one of labels_include_any or labels_include_all")
 )
 
-// verifyQueryLabelScopeMutualExclusion enforces that at most scope rule is set.
+// verifyQueryLabelScopeMutualExclusion enforces that at most one scope rule is set.
 func verifyQueryLabelScopeMutualExclusion(includeAny, includeAll []string) error {
 	if len(includeAny) > 0 && len(includeAll) > 0 {
 		return ErrQueryConflictingLabels

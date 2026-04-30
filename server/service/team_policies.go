@@ -617,7 +617,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 	}
 	// If the client sent any of the three label scope fields, treat all three as authoritative
-	// for the policy's label state. The validator on ModifyPolicyPayload enforces that at most
+	// for the policy's label state. The validator on ModifyPolicyPayload (Verify()) enforces that at most
 	// one is non-nil, so a single field switches scope and clears the others. Sending none of
 	// the three leaves labels untouched.
 	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil {

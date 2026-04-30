@@ -16931,7 +16931,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 	})
 }
 
-// TestLabelScopePremiumGate verifies that the new label scope fields are
+// TestLabelScopePremiumGate verifies that the include_all scope fields is
 // premium-gated on all entry points for the free-tier (core) server, while
 // existing free-tier label fields (policy include/exclude_any) still work.
 func (s *integrationTestSuite) TestLabelScopePremiumGate() {

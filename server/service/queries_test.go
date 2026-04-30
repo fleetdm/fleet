@@ -163,7 +163,7 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 	}
 }
 
-func TestModifyQueryLabelsIncludeAnyRequiresPremium(t *testing.T) {
+func TestModifyQueryLabelsScopeRequiresPremium(t *testing.T) {
 	ds := new(mock.Store)
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		return &fleet.Query{ID: id, Name: "test query", Query: "select 1"}, nil
