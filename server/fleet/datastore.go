@@ -3004,6 +3004,9 @@ type Datastore interface {
 	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
 	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
 	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
+
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 }
 
 type AndroidDatastore interface {
@@ -3132,6 +3135,10 @@ type ProfileVerificationStore interface {
 	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
 	// Windows host
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
+
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)

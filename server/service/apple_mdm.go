@@ -4081,6 +4081,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.CommandUUID,
 			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
 			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
+			svc.newActivityFn,
 		)
 	case "RemoveProfile":
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
