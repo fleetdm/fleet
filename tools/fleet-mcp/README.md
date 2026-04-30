@@ -44,9 +44,10 @@ The server exposes 18 tools across three domains: **hosts**, **queries**, and **
 |------|-------------|
 | `get_queries` | List all saved Fleet queries (global + per-team) |
 | `prepare_live_query` | Step 1 of 2: validate targets and return the OSQuery schema needed to author a valid SQL statement |
-| `run_live_query` | Step 2 of 2: execute an OSQuery SQL statement against live Fleet devices. Targets can be resolved server-side via direct selectors like `hostnames` / `host_ids` and by intersecting filters including `fleet`, `platform`, `label`, `status`, `query`, `policy_id`, `policy_response`, and `cve_id`. |
-| `create_saved_query` | Create a new saved query in Fleet (with platform-aware SQL pre-validation) |
-| `get_osquery_schema` | Get the hardcoded, accurate schema for the most important Fleet/Osquery tables, optionally filtered by platform |
+| `run_live_query` | Step 2 of 2: execute an OSQuery SQL statement against live Fleet devices. **Schema-first contract**: callers must call `get_osquery_schema` (or `prepare_live_query`) first; SQL is pre-validated against canonical column types — TEXT-vs-bare-integer comparisons are rejected. Targets resolve server-side via direct selectors like `hostnames` / `host_ids` and intersecting filters including `fleet`, `platform`, `label`, `status`, `query`, `policy_id`, `policy_response`, and `cve_id`. **Team-scoped**: when `fleet` is set, the transient saved query the tool creates internally is scoped to that team (not Global) so RBAC, listings, and audit trail align with the intended Fleet. |
+| `create_saved_query` | Create a new saved query in Fleet (with platform-aware SQL pre-validation, including TEXT-column type checks). Pass `fleet` to scope the query to a team — the saved query then appears under that team in the Fleet UI and inherits its RBAC. Omit `fleet` only for Global-scope queries. |
+| `get_osquery_schema` | Returns the canonical, source-of-truth schema for Fleet/osquery tables. Sourced from the Fleet monorepo `schema/osquery_fleet_schema.json` (also rendered at <https://fleetdm.com/tables>) and refreshed in the background — column TYPES are always accurate. Defaults to a curated short list filtered by `platform`; pass `tables` (comma-separated) for full canonical coverage of any of the 360+ tables. |
+| `refresh_osquery_schema` | Force-refresh the in-memory schema from <https://raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json>. Use when `get_osquery_schema` returns data that conflicts with the live Fleet docs. Background refresh handles routine drift; this tool is for the rare manual override. |
 | `get_vetted_queries` | Get a library of 100% vetted, production-safe CIS-8.1 policy queries for macOS, Windows, and Linux |
 
 ### Policies & Vulnerabilities
@@ -305,10 +306,16 @@ tools/fleet-mcp/
   mcp_tools_hosts.go       # host-domain MCP tools (7 tools)
   mcp_tools_queries.go     # query-domain MCP tools (6 tools)
   mcp_tools_policies.go    # policy/vuln MCP tools (5 tools)
-  schema.go                # hardcoded osquery schema for AI
+  schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
+  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Refresh via `go generate ./tools/fleet-mcp/...`.
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```
+
+Tunables (env vars) for the schema layer:
+
+- `FLEET_MCP_SCHEMA_REFRESH_INTERVAL` — refresh cadence for the background goroutine, accepts any `time.Duration` string (e.g. `6h`, `30m`). Default `24h`.
+- `FLEET_MCP_SCHEMA_REFRESH_DISABLE` — when set, the live refresh goroutine is not started and the binary uses the embedded snapshot only. Useful for air-gapped environments.
 
 ### Adding a new tool
 
@@ -332,6 +339,7 @@ A few non-obvious behaviors discovered while building this:
   - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2026-31431 yields 50 hosts via `?cve=`, but the correct answer is 1).
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
 - **Team-scoped policy compliance** uses `/teams/:team_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
+- **Saved-query team scope is independent of host targeting.** `POST /api/v1/fleet/queries` accepts a `team_id` field that controls *where the saved query lives* (RBAC, listings, audit) — it does NOT filter target hosts. Host filtering still happens at execution time via `host_ids` on `POST /queries/:id/run`. The MCP threads `team_id` through both `create_saved_query` (explicit `fleet` arg) and `run_live_query` (resolved from `spec.Fleet` via `resolveLiveQueryTeamID`) so the transient saved query is owned by the right team. Omitting `fleet` keeps the query at Global scope. Single-host ad-hoc queries via `POST /hosts/:id/query` create no saved query and need no team scoping.
 - **`/api/v1/fleet/host_summary` is the right endpoint for aggregate platform counts** — `GET /hosts` defaults to a 100-host page, so any client-side aggregation over `GetEndpoints(0)` is silently wrong on Fleets larger than 100 hosts. `get_aggregate_platforms` uses `host_summary` directly so totals match the Fleet UI at any inventory size.
 - **`fetchHostsFromPath` paginates internally** with a hard cap (`fetchHostsHardCap = 10000`). Without this, a single call could buffer the full host inventory in memory (~2KB per Endpoint × 50k hosts ≈ 100MB) and OOM the MCP. When the cap fires a warning is logged so operators see truncation rather than silently getting a partial host set.
 - **Per-team fan-out (`get_queries`, `get_policies`) is bounded-concurrent.** 8 in-flight goroutines, order-stable merge by team index. On enterprise Fleets with 50+ teams the sequential path was the dominant latency source; the bounded concurrency amortizes round-trip count without flooding Fleet with thousands of simultaneous requests.

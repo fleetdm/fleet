@@ -52,7 +52,9 @@ func SeedFleet(config *Config, client *FleetClient) {
 
 	success := 0
 	for _, q := range queries {
-		if _, err := client.CreateSavedQuery(context.Background(), q.Name, q.Description, q.SQL, q.Platform); err != nil {
+		// Seed queries are intentionally Global — they are demo/sample data
+		// not tied to any specific team.
+		if _, err := client.CreateSavedQuery(context.Background(), q.Name, q.Description, q.SQL, q.Platform, nil); err != nil {
 			logrus.Errorf("failed to create %q: %v", q.Name, err)
 			continue
 		}

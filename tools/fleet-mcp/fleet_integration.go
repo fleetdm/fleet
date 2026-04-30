@@ -267,12 +267,19 @@ type LiveQueryResult struct {
 	Results            []map[string]interface{} `json:"results"`
 }
 
-// CreateQueryRequest represents the payload for creating a saved query
+// CreateQueryRequest represents the payload for creating a saved query.
+//
+// TeamID, when non-nil, scopes the query to a specific team (Fleet) — the
+// query then appears under that team in the Fleet UI and inherits the team's
+// RBAC. Nil leaves the query at the Global scope. The Fleet API treats the
+// fields equivalently for execution; the difference matters for ownership,
+// listing, and authorization.
 type CreateQueryRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Query       string `json:"query"`
 	Platform    string `json:"platform,omitempty"`
+	TeamID      *uint  `json:"team_id,omitempty"`
 }
 
 // normalizePlatform normalizes platform input to Fleet's canonical platform string.
@@ -1432,8 +1439,13 @@ func filterHostsByPlatformOrLabel(hosts []Endpoint, platform, labelName string) 
 	return out
 }
 
-// CreateSavedQuery creates a new saved query in Fleet
-func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, sql, platform string) (*Query, error) {
+// CreateSavedQuery creates a new saved query in Fleet. When teamID is non-nil
+// the query is scoped to that team (Fleet) — the resulting query appears
+// under that team in the Fleet UI, inherits its RBAC, and is listed by
+// per-team query enumeration. Nil teamID creates the query at the Global
+// scope. The Fleet API treats the fields equivalently for SQL execution; the
+// difference matters for ownership, listing, and authorization.
+func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, sql, platform string, teamID *uint) (*Query, error) {
 	endpoint := "/api/v1/fleet/reports"
 
 	reqBody := CreateQueryRequest{
@@ -1441,6 +1453,7 @@ func (fc *FleetClient) CreateSavedQuery(ctx context.Context, name, description, 
 		Description: description,
 		Query:       sql,
 		Platform:    platform,
+		TeamID:      teamID,
 	}
 
 	resp, err := fc.makeFleetRequest(ctx, "POST", endpoint, reqBody)
@@ -1664,6 +1677,12 @@ func (fc *FleetClient) RunLiveQuery(ctx context.Context, sql string, hostnames, 
 // RunLiveQueryWithSpec resolves the spec to an exact target host list using
 // the same intersection semantics as ResolveLiveQueryTargets, then dispatches
 // to single-host or multi-host osquery distribution.
+//
+// When spec.Fleet (or the legacy spec.LegacyFleets[0]) is set, the team is
+// resolved here and the team_id is threaded through runMultiHostQuery so the
+// transient saved query is created under that team instead of Global. The
+// host targeting itself is already team-scoped via ResolveLiveQueryTargets;
+// this additionally aligns the saved-query ownership / RBAC with the team.
 func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spec LiveQueryTargetSpec) (*LiveQueryResult, error) {
 	targets, err := fc.ResolveLiveQueryTargets(ctx, spec)
 	if err != nil {
@@ -1671,6 +1690,11 @@ func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spe
 	}
 	if len(targets) == 0 {
 		return nil, fmt.Errorf("no matching hosts found for the provided targets")
+	}
+
+	teamID, err := fc.resolveLiveQueryTeamID(ctx, spec)
+	if err != nil {
+		return nil, err
 	}
 
 	hostIDs := make([]uint, 0, len(targets))
@@ -1681,9 +1705,33 @@ func (fc *FleetClient) RunLiveQueryWithSpec(ctx context.Context, sql string, spe
 	}
 
 	if len(hostIDs) == 1 {
+		// Ad-hoc single-host path uses POST /hosts/:id/query directly — no
+		// saved query is created so team scoping does not apply.
 		return fc.runAdHocSingleHost(ctx, hostIDs[0], sql, nameByID)
 	}
-	return fc.runMultiHostQuery(ctx, hostIDs, sql, nameByID)
+	return fc.runMultiHostQuery(ctx, hostIDs, sql, nameByID, teamID)
+}
+
+// resolveLiveQueryTeamID translates spec.Fleet (with LegacyFleets fallback)
+// into a *uint team_id suitable for CreateSavedQuery / CreateQueryRequest.
+// Returns (nil, nil) when no team is requested — that's the Global scope.
+func (fc *FleetClient) resolveLiveQueryTeamID(ctx context.Context, spec LiveQueryTargetSpec) (*uint, error) {
+	teamName := strings.TrimSpace(spec.Fleet)
+	if teamName == "" && len(spec.LegacyFleets) > 0 {
+		teamName = strings.TrimSpace(spec.LegacyFleets[0])
+	}
+	if teamName == "" {
+		return nil, nil
+	}
+	ids, err := fc.resolveTeamNames(ctx, []string{teamName})
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve fleet %q for query scoping: %w", teamName, err)
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("fleet %q resolved to no team IDs", teamName)
+	}
+	id := ids[0]
+	return &id, nil
 }
 
 // runAdHocSingleHost uses POST /api/v1/fleet/hosts/:id/query (Fleet 4.43+ synchronous REST).
@@ -1744,9 +1792,12 @@ func (fc *FleetClient) runAdHocSingleHost(ctx context.Context, hostID uint, sql 
 // the leftover is logged at error level so an operator can run the startup
 // sweeper or clean it up by hand. SweepLeftoverTempQueries() also removes any
 // such residue at next MCP boot.
-func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint) (*LiveQueryResult, error) {
+func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sql string, endpointByID map[uint]Endpoint, teamID *uint) (*LiveQueryResult, error) {
 	tempName := fmt.Sprintf("%s%d-%s", tempQueryNamePrefix, time.Now().UnixMilli(), randomHexSuffix(8))
-	savedQuery, err := fc.CreateSavedQuery(ctx, tempName, "Temporary MCP live query", sql, "")
+	// teamID propagates from the caller's spec.Fleet — when set, the temp
+	// saved query lives under that team (Fleet) instead of Global, so RBAC,
+	// listings, and audit trail all reflect the intended scope.
+	savedQuery, err := fc.CreateSavedQuery(ctx, tempName, "Temporary MCP live query", sql, "", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary query: %w", err)
 	}
