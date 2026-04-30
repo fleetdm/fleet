@@ -1602,15 +1602,9 @@ LIMIT 1
 }
 
 func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
-	// Empty/null incoming is a no-op: callers should use DeleteInHouseAppConfiguration
-	// to explicitly clear an existing config.
-	if len(newConfig) == 0 {
-		return false, nil
-	}
-
 	const stmt = `
 SELECT
-	BINARY ? != configuration AS has_changed
+	BINARY COALESCE(?, '') != configuration AS has_changed
 FROM
 	in_house_app_configurations
 WHERE
@@ -1621,14 +1615,14 @@ WHERE
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return true, nil
+			return len(newConfig) > 0, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
 	}
 	return hasChanged, nil
 }
 
-func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) (*[]byte, error) {
+func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
 	var config []byte
@@ -1640,7 +1634,7 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {

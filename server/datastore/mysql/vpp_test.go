@@ -3172,10 +3172,10 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	// Get: per-platform isolation, byte-for-byte round-trip including newlines.
 	gotIOS, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
 	require.NoError(t, err)
-	require.Equal(t, iosCfg, *gotIOS)
+	require.Equal(t, iosCfg, gotIOS)
 	gotIPad, err := ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
 	require.NoError(t, err)
-	require.Equal(t, ipadCfg, *gotIPad)
+	require.Equal(t, ipadCfg, gotIPad)
 
 	// BulkGet: returns matched rows, ignores unknown adam_ids.
 	bulk, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID, "9999999999"}, teamID)
@@ -3183,12 +3183,28 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.Len(t, bulk, 1)
 	require.Equal(t, iosCfg, bulk[adamID])
 
+	// Cross-team isolation: same (adamID, platform) on a different team is independent.
+	otherTeamID := teamID + 1
+	otherTeamCfg := []byte(`<dict><key>team</key><string>other</string></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, otherTeamID, adamID, otherTeamCfg))
+	gotOther, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, otherTeamID)
+	require.NoError(t, err)
+	require.Equal(t, otherTeamCfg, gotOther)
+	// The original team's row was not touched.
+	gotOriginal, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, iosCfg, gotOriginal)
+	// BulkGet against the other team only returns its row.
+	bulk, err = ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID}, otherTeamID)
+	require.NoError(t, err)
+	require.Equal(t, otherTeamCfg, bulk[adamID])
+
 	// Update: upsert overwrites.
 	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
 	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, updated))
 	gotIOS, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
 	require.NoError(t, err)
-	require.Equal(t, updated, *gotIOS)
+	require.Equal(t, updated, gotIOS)
 
 	// Delete iOS only — iPadOS row survives.
 	require.NoError(t, ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID))
@@ -3222,8 +3238,8 @@ func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}{
 		{"identical", stored, adamID, false},
 		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), adamID, true},
-		{"empty incoming is a no-op against existing", nil, adamID, false},
-		{"empty incoming is a no-op against non-existing", nil, "9999999999", false},
+		{"empty incoming against existing means delete", nil, adamID, true},
+		{"empty incoming against non-existing", nil, "9999999999", false},
 		{"non-empty against non-existing", stored, "9999999999", true},
 	}
 	for _, c := range cases {

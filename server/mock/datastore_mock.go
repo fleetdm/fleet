@@ -1745,7 +1745,7 @@ type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, 
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
-type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) (*[]byte, error)
+type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
 
 type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
 
@@ -1753,7 +1753,7 @@ type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.In
 
 type DeleteVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error
 
-type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) (*[]byte, error)
+type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) ([]byte, error)
 
 type HasInHouseAppConfigurationChangedFunc func(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
 
@@ -10804,7 +10804,7 @@ func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []
 	return s.ListMDMAndroidUUIDsToHostIDsFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) (*[]byte, error) {
+func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetVPPAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
@@ -10832,7 +10832,7 @@ func (s *DataStore) DeleteVPPAppConfiguration(ctx context.Context, platform flee
 	return s.DeleteVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
 }
 
-func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) (*[]byte, error) {
+func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetInHouseAppConfigurationFuncInvoked = true
 	s.mu.Unlock()

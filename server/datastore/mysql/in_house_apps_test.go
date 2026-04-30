@@ -1879,10 +1879,10 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	// Get: byte-for-byte round-trip.
 	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.NoError(t, err)
-	require.Equal(t, iosCfg, *gotIOS)
+	require.Equal(t, iosCfg, gotIOS)
 	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.NoError(t, err)
-	require.Equal(t, ipadCfg, *gotIPad)
+	require.Equal(t, ipadCfg, gotIPad)
 
 	// BulkGet: returns matched rows, ignores unknown ids.
 	bulk, err := ds.BulkGetInHouseAppConfigurations(ctx, []uint{iosID, 999999})
@@ -1895,7 +1895,7 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, updated))
 	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
 	require.NoError(t, err)
-	require.Equal(t, updated, *gotIOS)
+	require.Equal(t, updated, gotIOS)
 
 	// Delete iOS only — iPadOS row survives.
 	require.NoError(t, ds.DeleteInHouseAppConfiguration(ctx, iosID))
@@ -1925,8 +1925,8 @@ func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}{
 		{"identical", stored, appID, false},
 		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), appID, true},
-		{"empty incoming is a no-op against existing", nil, appID, false},
-		{"empty incoming is a no-op against non-existing", nil, 999999, false},
+		{"empty incoming against existing means delete", nil, appID, true},
+		{"empty incoming against non-existing", nil, 999999, false},
 		{"non-empty against non-existing", stored, 999999, true},
 	}
 	for _, c := range cases {
