@@ -85,7 +85,6 @@ export default {
 
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
-  SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`, // TODO: Legacy route redirect to software library
   SOFTWARE_INVENTORY: `${URL_PREFIX}/software/inventory`,
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
