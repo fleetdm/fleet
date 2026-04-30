@@ -296,6 +296,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // - "All fleets" can't view Library
   const isOnLibraryTab = location.pathname.startsWith(PATHS.SOFTWARE_LIBRARY);
   useEffect(() => {
+    // Wait for config to load before deciding — isPremiumTier is undefined
+    // until then, and !undefined would incorrectly bounce premium users.
+    if (isPremiumTier === undefined) return;
+
     if (isOnLibraryTab && (!isPremiumTier || isAllTeamsSelected)) {
       router.replace(
         getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
