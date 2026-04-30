@@ -303,7 +303,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         })
       );
     }
-  }, [isPremiumTier, isAllTeamsSelected, isOnLibraryTab, currentTeamId, router]);
+  }, [
+    isPremiumTier,
+    isAllTeamsSelected,
+    isOnLibraryTab,
+    currentTeamId,
+    router,
+  ]);
 
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {
