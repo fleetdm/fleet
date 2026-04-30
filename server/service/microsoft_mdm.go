@@ -2224,19 +2224,6 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	failed := timedOut || hasSoftwareFailure
 	shouldBlock := failed && requireAll
 
-	// Pick the user-facing error text to surface on the failure UI. Software
-	// failures get the software-specific text; pure timeout (no software
-	// failed) gets the timeout text so the user sees an accurate reason.
-	// Software failure takes precedence when both happen because it's more
-	// actionable.
-	var errorText string
-	switch {
-	case hasSoftwareFailure:
-		errorText = microsoft_mdm.ESPSoftwareFailureErrorText
-	case timedOut:
-		errorText = microsoft_mdm.ESPTimeoutErrorText
-	}
-
 	// On timeout (regardless of require_all) and on software-failure+require_all=true,
 	// cancel any pending items. The canceled_setup_experience activity is
 	// already emitted by maybeCancelPendingSetupExperienceSteps in the
@@ -2257,21 +2244,29 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	provID := syncml.DocProvisioningAppProviderID
 	var cmds []*mdm_types.SyncMLCmd
 	if shouldBlock {
+		// Pick the user-facing error text to surface on the failure UI.
+		// Software failure takes precedence over timeout because it's more
+		// actionable; pure timeout (no software failed) uses the timeout
+		// text so the user sees an accurate reason.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
+		}
 		cmds = buildESPBlockCommands(provID, errorText)
 	} else {
-		var maybeErrorText *string
-		if errorText != "" {
-			maybeErrorText = &errorText
-		}
-		cmds = buildESPReleaseCommands(provID, maybeErrorText)
+		// Release path: device proceeds to login. We do not send CustomErrorText
+		// here because the failure UI never renders on a release (no
+		// BlockInStatusPage, no forced timeout), so any error text would be
+		// dead state on the DMClient node.
+		cmds = buildESPReleaseCommands(provID)
 	}
 
 	// Persist all the finalization commands as a backup so they're resent
 	// on the next session if this response is dropped. The block path
 	// includes CustomErrorText / BlockInStatusPage / AllowCollectLogsButton;
-	// the release-with-error path includes CustomErrorText alongside the
-	// release commands. Persisting the full payload ensures the user sees
-	// the configured error UI even if the inline response is lost.
+	// the release path is just the ServerHasFinishedProvisioning + InstallationState
+	// commands. Persisting the full payload ensures the user sees the
+	// configured outcome even if the inline response is lost.
 	svc.persistESPFinalCommands(ctx, device.HostUUID, cmds)
 
 	svc.logger.InfoContext(ctx, "ESP: finalizing",
@@ -2335,24 +2330,22 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 }
 
 // buildESPReleaseCommands builds SyncML commands that release the device
-// from the ESP. If errorText is non-nil it's set as CustomErrorText (used
-// when items failed but require_all_software_windows is false, or on
-// timeout with require_all=false).
-func buildESPReleaseCommands(provID string, errorText *string) []*mdm_types.SyncMLCmd {
-	var cmds []*mdm_types.SyncMLCmd
-	if errorText != nil {
-		cmds = append(cmds, newSyncMLCmdText(fleet.CmdReplace,
-			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
-			*errorText))
-	}
-	cmds = append(cmds,
+// from the ESP. The release path advances DevicePreparation to "complete" and
+// signals ServerHasFinishedProvisioning so Windows proceeds to login.
+//
+// We deliberately do not include CustomErrorText: that node is only rendered
+// on the ESP failure UI, which never appears on the release path (no
+// BlockInStatusPage, no forced timeout). Any error text written here would
+// be dead state on the DMClient node.
+func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
+	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
-	)
+	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}

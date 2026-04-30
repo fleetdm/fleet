@@ -1596,8 +1596,10 @@ func TestGetESPCommands(t *testing.T) {
 			return nil
 		}
 		var persistedURIs []string
+		var persistedCmdUUIDs []string
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			persistedURIs = append(persistedURIs, cmd.TargetLocURI)
+			persistedCmdUUIDs = append(persistedCmdUUIDs, cmd.CommandUUID)
 			return nil
 		}
 
@@ -1612,6 +1614,20 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Contains(t, joined, "CustomErrorText", "must persist CustomErrorText")
 		assert.Contains(t, joined, "BlockInStatusPage", "must persist BlockInStatusPage")
 		assert.Contains(t, joined, "AllowCollectLogsButton", "must persist AllowCollectLogsButton")
+
+		// Persisted CmdIDs MUST equal the inline CmdIDs so that when the
+		// device acks the inline send, the persisted backup row clears via
+		// the existing ack-matching path. A regression that generates new
+		// UUIDs for the persisted record (e.g., uuid.New() instead of
+		// cmd.CmdID.Value) would silently break this contract: the server
+		// would re-send the persisted commands on every subsequent session
+		// because the device's ack would never match.
+		var inlineCmdUUIDs []string
+		for _, c := range cmds {
+			inlineCmdUUIDs = append(inlineCmdUUIDs, c.CmdID.Value)
+		}
+		assert.ElementsMatch(t, inlineCmdUUIDs, persistedCmdUUIDs,
+			"persisted CommandUUIDs must equal inline CmdID.Value (1-to-1) so the device ack clears the backup")
 
 		// Block path must include CustomErrorText, BlockInStatusPage=4, AllowCollectLogsButton.
 		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
@@ -1673,16 +1689,16 @@ func TestGetESPCommands(t *testing.T) {
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "should return release commands with error text")
+		require.NotEmpty(t, cmds, "should return release commands")
 
-		// Release-with-error path must include CustomErrorText AND ServerHasFinishedProvisioning.
-		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
-		require.NotNil(t, errCmd, "release-with-error must include CustomErrorText")
-		require.NotNil(t, errCmd.Items[0].Data)
-		assert.Equal(t, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content)
+		// Release path: device proceeds to login. We do not send CustomErrorText
+		// because the failure UI never renders on a release, so any error text
+		// would be dead state on the DMClient node.
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"release path must not include CustomErrorText (failure UI never renders)")
 
 		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-			"release-with-error must include ServerHasFinishedProvisioning")
+			"release path must include ServerHasFinishedProvisioning")
 		// Should NOT include BlockInStatusPage (we're not blocking).
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
 
@@ -1878,11 +1894,10 @@ func TestGetESPCommands(t *testing.T) {
 		assert.True(t, cancelled, "timeout cancels pending steps regardless of require_all")
 		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
 			"timeout with require_all=false releases the device")
-		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
-		require.NotNil(t, errCmd, "release-with-error includes CustomErrorText")
-		require.NotNil(t, errCmd.Items[0].Data)
-		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
-			"timeout without software failure uses timeout-specific error text")
+		// Release path does not include CustomErrorText: the failure UI never
+		// renders on a release, so any error text would be dead state.
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"release path must not include CustomErrorText (failure UI never renders)")
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
 	})
 

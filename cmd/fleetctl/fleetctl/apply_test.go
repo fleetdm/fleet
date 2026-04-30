@@ -2764,6 +2764,36 @@ spec:
 		assert.YAMLEq(t, expectedWithWindowsRequire, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
 	})
 
+	t.Run("require_all_software_windows rejected when Windows MDM not configured", func(t *testing.T) {
+		// Spec invariant: setting `require_all_software_windows=true` while
+		// `MDM.WindowsEnabledAndConfigured=false` MUST be rejected -- enabling
+		// the gate without the underlying MDM channel would block ESP for
+		// devices that can't actually receive MDM commands.
+		ds := setupServer(t, true)
+
+		mockStore.Lock()
+		mockStore.appConfig.MDM.WindowsEnabledAndConfigured = false
+		mockStore.Unlock()
+
+		windowsRequireSpec := `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: tm1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`
+		name := writeTmpYml(t, windowsRequireSpec)
+		// Apply must fail with an error that names the offending field. We
+		// match on `require_all_software_windows` rather than a specific
+		// English string so the test stays robust if copy is rewritten.
+		RunAppCheckErr(t, []string{"apply", "-f", name}, "require_all_software_windows")
+		assert.False(t, ds.SaveTeamFuncInvoked,
+			"team must not be saved when require_all_software_windows is rejected")
+	})
+
 	t.Run("new bootstrap package", func(t *testing.T) {
 		cases := []struct {
 			pkgName     string
