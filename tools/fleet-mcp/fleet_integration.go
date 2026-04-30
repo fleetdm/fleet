@@ -1546,7 +1546,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 	if hasFilter {
 		switch {
 		case spec.CVEID != "":
-			cveHosts, err := fc.GetHostsForCVE(context.Background(), spec.CVEID, spec.Fleet, spec.Platform, spec.Status, spec.Query, spec.Label, livePerPage)
+			cveHosts, err := fc.GetHostsForCVE(ctx, spec.CVEID, spec.Fleet, spec.Platform, spec.Status, spec.Query, spec.Label, livePerPage)
 			if err != nil {
 				return nil, fmt.Errorf("CVE filter resolution failed: %w", err)
 			}
