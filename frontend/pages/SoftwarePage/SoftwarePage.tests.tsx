@@ -32,12 +32,7 @@ describe("SoftwarePage tab configuration", () => {
   describe("premiumSoftwareSubNav (premium tier)", () => {
     it("includes Inventory, OS, Vulnerabilities, and Library tabs", () => {
       const names = premiumSoftwareSubNav.map((item) => item.name);
-      expect(names).toEqual([
-        "Inventory",
-        "OS",
-        "Vulnerabilities",
-        "Library",
-      ]);
+      expect(names).toEqual(["Inventory", "OS", "Vulnerabilities", "Library"]);
     });
 
     it("points Library to SOFTWARE_LIBRARY path", () => {
@@ -50,15 +45,15 @@ describe("SoftwarePage tab configuration", () => {
 
   describe("getTabIndex", () => {
     it("returns the Inventory tab index for the inventory path", () => {
-      expect(
-        getTabIndex(PATHS.SOFTWARE_INVENTORY, premiumSoftwareSubNav)
-      ).toBe(0);
+      expect(getTabIndex(PATHS.SOFTWARE_INVENTORY, premiumSoftwareSubNav)).toBe(
+        0
+      );
     });
 
     it("returns the Inventory tab index for the versions path", () => {
-      expect(
-        getTabIndex(PATHS.SOFTWARE_VERSIONS, premiumSoftwareSubNav)
-      ).toBe(0);
+      expect(getTabIndex(PATHS.SOFTWARE_VERSIONS, premiumSoftwareSubNav)).toBe(
+        0
+      );
     });
 
     it("returns the OS tab index for the OS path", () => {
@@ -78,9 +73,7 @@ describe("SoftwarePage tab configuration", () => {
     });
 
     it("returns -1 for an unknown path", () => {
-      expect(
-        getTabIndex("/software/unknown", premiumSoftwareSubNav)
-      ).toBe(-1);
+      expect(getTabIndex("/software/unknown", premiumSoftwareSubNav)).toBe(-1);
     });
   });
 });
