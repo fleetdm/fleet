@@ -230,8 +230,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				appStoreApp.SelfService = true
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
-			case fleet.IOSPlatform, fleet.IPadOSPlatform:
-				if payload.Configuration != nil {
+			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
+				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
 					decoded, err := decodeAppleAppConfiguration(payload.Configuration)
 					if err != nil {
 						return nil, err
@@ -241,8 +241,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					}
 					appStoreApp.Configuration = decoded
 				}
-				incomingAppleApps = append(incomingAppleApps, appStoreApp)
-			case fleet.MacOSPlatform:
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
 
@@ -720,7 +718,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		assetMD := assetMetadata[asset.AdamID]
 
-		// macOS App Store apps don't support managed configuration.
 		if appID.Platform == fleet.MacOSPlatform {
 			appID.Configuration = nil
 		}
@@ -796,9 +793,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
 				return 0, err
 			}
-			// Datastore receives the decoded raw plist bytes; appID.Configuration
-			// stays in its JSON-encoded form so the activity emission below
-			// produces valid JSON.
+			// keep appID.Configuration in wire form for the activity below.
 			app.Configuration = decoded
 		}
 	}
@@ -996,17 +991,12 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
-	// macOS App Store apps don't support managed configuration; ignore any
-	// configuration sent for them.
 	if meta.Platform == fleet.MacOSPlatform {
 		payload.Configuration = nil
 	}
 
-	// datastoreConfig holds what gets persisted via InsertVPPAppWithTeam.
-	// For Android we store the JSON-encoded form; for iOS / iPadOS we decode
-	// the JSON-string wrapper and store the raw plist bytes.
-	// payload.Configuration stays in its original JSON-encoded form so the
-	// activity emission below produces valid JSON.
+	// datastoreConfig is the decoded plist for iOS/iPadOS; payload.Configuration
+	// stays in wire form for the activity emission below.
 	datastoreConfig := payload.Configuration
 	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
 		decoded, err := decodeAppleAppConfiguration(payload.Configuration)
@@ -1405,10 +1395,8 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	return packageName, nil
 }
 
-// decodeAppleAppConfiguration decodes an iOS/iPadOS managed app configuration
-// from a JSON request payload. Clients send the plist as a JSON string —
-// "configuration": "<dict>...</dict>" — and this returns the unwrapped XML
-// bytes ready for validation and storage.
+// decodeAppleAppConfiguration unwraps the JSON-string wire format into raw
+// plist bytes.
 func decodeAppleAppConfiguration(raw []byte) ([]byte, error) {
 	if len(raw) == 0 {
 		return nil, nil

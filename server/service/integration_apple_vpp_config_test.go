@@ -14,9 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Sub-task 04 acceptance: verifies service-layer wiring for iOS / iPadOS
-// managed app configuration. The wire format is "configuration": "<plist XML>"
-// (a JSON string). Empty/absent → no-op; explicit `null` → delete row.
 func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
