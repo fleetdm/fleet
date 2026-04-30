@@ -944,7 +944,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	// Emit one activity per historical_data sub-key whose value flipped.
 	// Dataset names are the public config sub-keys, not internal dataset names.
-	if err := fleet.EmitHistoricalDataActivities(
+	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
 		authz.UserFromContext(ctx),

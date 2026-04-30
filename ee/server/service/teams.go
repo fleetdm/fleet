@@ -411,7 +411,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	if err := fleet.EmitHistoricalDataActivities(
+	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
 		authz.UserFromContext(ctx),
@@ -1563,6 +1563,7 @@ func (svc *Service) editTeamFromSpec(
 
 	// replace (don't merge) the features with the new ones, using a config
 	// that has the global defaults applied.
+	oldHistoricalData := team.Config.Features.HistoricalData
 	features, err := unmarshalWithGlobalDefaults(spec.Features)
 	if err != nil {
 		return err
@@ -1858,6 +1859,18 @@ func (svc *Service) editTeamFromSpec(
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
 			return err
 		}
+	}
+
+	// Emit one activity per historical_data sub-key whose value flipped.
+	if err := fleet.OnHistoricalDataChanged(
+		ctx,
+		svc,
+		authz.UserFromContext(ctx),
+		oldHistoricalData,
+		team.Config.Features.HistoricalData,
+		&team.ID, &team.Name,
+	); err != nil {
+		return err
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {

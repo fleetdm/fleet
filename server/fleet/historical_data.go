@@ -6,18 +6,18 @@ import (
 )
 
 // HistoricalDataActivityEmitter is the narrow interface needed by
-// EmitHistoricalDataActivities. Both the free service and the EE service
+// OnHistoricalDataChanged. Both the free service and the EE service
 // satisfy it via their NewActivity method.
 type HistoricalDataActivityEmitter interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 }
 
-// EmitHistoricalDataActivities emits one activity per historical_data sub-key
-// whose value differs between oldHD and newHD. fleetID and fleetName are nil
-// for global toggles and populated for per-fleet toggles. Dataset names in
-// the activity payload are the public config sub-keys ("uptime",
-// "vulnerabilities"), not internal dataset names.
-func EmitHistoricalDataActivities(
+// OnHistoricalDataChanged is the hook called when historical_data config changes.
+// It emits one activity per historical_data sub-key whose value differs between
+// oldHD and newHD. fleetID and fleetName are nil for global toggles and populated
+// for per-fleet toggles. Dataset names in the activity payload are the public
+// config sub-keys ("uptime", "vulnerabilities"), not internal dataset names.
+func OnHistoricalDataChanged(
 	ctx context.Context,
 	emitter HistoricalDataActivityEmitter,
 	user *User,
