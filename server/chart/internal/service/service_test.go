@@ -59,6 +59,8 @@ type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time) ([]uint, error)
+	affectedHostIDsByCVEFn    func(ctx context.Context) (map[string][]uint, error)
+	trackedCriticalCVEsFn     func(ctx context.Context) ([]string, error)
 	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
 	recordBucketDataInvoked   bool
 }
@@ -66,6 +68,20 @@ type mockDatastore struct {
 func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
 	if m.findRecentlySeenHostIDsFn != nil {
 		return m.findRecentlySeenHostIDsFn(ctx, since)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
+	if m.affectedHostIDsByCVEFn != nil {
+		return m.affectedHostIDsByCVEFn(ctx)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
+	if m.trackedCriticalCVEsFn != nil {
+		return m.trackedCriticalCVEsFn(ctx)
 	}
 	return nil, nil
 }
@@ -219,7 +235,7 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 		resolutionStr string
 		bucketSize    time.Duration
 	}{
-		{"default", 0, "daily", 24 * time.Hour},
+		{"default", 0, "3-hour", 3 * time.Hour},
 		{"hourly override", 1, "hourly", time.Hour},
 		{"4-hour override", 4, "4-hour", 4 * time.Hour},
 	} {
@@ -243,6 +259,80 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 			assert.Equal(t, api.SampleStrategySnapshot, gotStrategy)
 		})
 	}
+}
+
+func TestGetChartDataCVEUsesCuratedFilter(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+		return []string{"CVE-A", "CVE-B"}, nil
+	}
+	var gotEntityIDs []string
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+		gotEntityIDs = entityIDs
+		return nil, nil
+	}
+
+	_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"CVE-A", "CVE-B"}, gotEntityIDs)
+}
+
+func TestGetChartDataCVEEmptySetReturnsZeros(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	// Non-nil empty slice — the resolver produced no matches but a filter
+	// was requested. The service MUST pass this through verbatim so the
+	// storage layer's "AND 1=0" path fires.
+	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+		return []string{}, nil
+	}
+	var gotEntityIDs []string
+	gotEntityIDsIsNil := true
+	ds.getSCDDataFunc = func(_ context.Context, _ string, startDate, endDate time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+		gotEntityIDs = entityIDs
+		gotEntityIDsIsNil = entityIDs == nil
+		numBuckets := int(endDate.Sub(startDate) / bucketSize)
+		points := make([]api.DataPoint, numBuckets)
+		for i := range points {
+			points[i] = api.DataPoint{Timestamp: startDate.Add(time.Duration(i+1) * bucketSize), Value: 0}
+		}
+		return points, nil
+	}
+
+	resp, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
+	require.NoError(t, err)
+	assert.False(t, gotEntityIDsIsNil, "service must pass non-nil empty slice so storage layer emits AND 1=0")
+	assert.Empty(t, gotEntityIDs)
+	require.NotEmpty(t, resp.Data)
+	for _, dp := range resp.Data {
+		assert.Zero(t, dp.Value)
+	}
+}
+
+func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.UptimeDataset{})
+
+	// Stub TrackedCriticalCVEs so an accidental call would fail loudly.
+	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+		t.Fatal("uptime path must not call TrackedCriticalCVEs")
+		return nil, nil
+	}
+	gotEntityIDsIsNil := false
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+		gotEntityIDsIsNil = entityIDs == nil
+		return nil, nil
+	}
+
+	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
+	require.NoError(t, err)
+	assert.True(t, gotEntityIDsIsNil, "uptime must pass nil entityIDs — the CVE branch must not leak")
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
@@ -470,6 +560,36 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	assert.True(t, ds.recordBucketDataInvoked)
 }
 
+func TestCollectDatasetsCVE(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+	svc.RegisterDataset(&chart.CVEDataset{})
+
+	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
+	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
+
+	ds.affectedHostIDsByCVEFn = func(_ context.Context) (map[string][]uint, error) {
+		return map[string][]uint{
+			"CVE-2024-0001": {1, 2, 3},
+			"CVE-2024-0002": {2, 4},
+		}, nil
+	}
+	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
+		assert.Equal(t, "cve", dataset)
+		assert.Equal(t, wantBucketStart, bucketStart)
+		assert.Equal(t, time.Hour, bucketSize)
+		assert.Equal(t, api.SampleStrategySnapshot, strategy)
+		require.Len(t, entityBitmaps, 2)
+		assert.NotEmpty(t, entityBitmaps["CVE-2024-0001"])
+		assert.NotEmpty(t, entityBitmaps["CVE-2024-0002"])
+		return nil
+	}
+
+	err := svc.CollectDatasets(t.Context(), now)
+	require.NoError(t, err)
+	assert.True(t, ds.recordBucketDataInvoked)
+}
+
 func TestUptimeDatasetMetadata(t *testing.T) {
 	d := &chart.UptimeDataset{}
 	assert.Equal(t, "uptime", d.Name())
@@ -481,7 +601,7 @@ func TestUptimeDatasetMetadata(t *testing.T) {
 func TestCVEDatasetMetadata(t *testing.T) {
 	d := &chart.CVEDataset{}
 	assert.Equal(t, "cve", d.Name())
-	assert.Equal(t, 24, d.DefaultResolutionHours())
+	assert.Equal(t, 3, d.DefaultResolutionHours())
 	assert.Equal(t, api.SampleStrategySnapshot, d.SampleStrategy())
 	assert.Equal(t, "line", d.DefaultVisualization())
 }

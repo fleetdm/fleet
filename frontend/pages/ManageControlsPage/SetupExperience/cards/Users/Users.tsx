@@ -9,7 +9,6 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -30,11 +29,15 @@ const getEnabledManagedLocalAccount = (
 
   if (currentTeamId === 0) {
     return (
-      globalConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false
+      globalConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+      false
     );
   }
 
-  return teamConfig?.mdm?.macos_setup?.enable_managed_local_account ?? false;
+  return (
+    teamConfig?.mdm?.setup_experience?.enable_create_local_admin_account ??
+    false
+  );
 };
 
 const getEnabledEndUserAuth = (
@@ -129,22 +132,13 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     const mdmConfig = globalConfig.mdm;
     return (
       <SetupExperienceContentContainer>
-        {!isIdPConfigured(mdmConfig) ? (
-          <GenericMsgWithNavButton
-            header="Require end user authentication during setup"
-            info="Connect Fleet to your identity provider (IdP) to get started."
-            buttonText="Connect"
-            router={router}
-            path={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
-          />
-        ) : (
-          <UsersForm
-            currentTeamId={currentTeamId}
-            defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-            defaultLockEndUserInfo={defaultLockEndUserInfo}
-            defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          />
-        )}
+        <UsersForm
+          currentTeamId={currentTeamId}
+          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+          defaultLockEndUserInfo={defaultLockEndUserInfo}
+          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
+          isIdPConfigured={isIdPConfigured(mdmConfig)}
+        />
       </SetupExperienceContentContainer>
     );
   };

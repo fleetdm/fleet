@@ -1,0 +1,1 @@
+* Fixed a dead SQL condition in `hostVPPInstalls` that was misleading but harmless: Android VPP apps never produce `nano_command_results` entries (they use Google's Android Management API, not nanoMDM), so the previous `(hvsi.platform != 'android' OR ncr.id IS NULL)` guard was a tautology. Replaced with a clarifying comment.

@@ -18,6 +18,7 @@ interface IUsersFormProps {
   defaultIsEndUserAuthEnabled: boolean;
   defaultLockEndUserInfo: boolean;
   defaultEnableManagedLocalAccount: boolean;
+  isIdPConfigured: boolean;
 }
 
 const UsersForm = ({
@@ -25,10 +26,11 @@ const UsersForm = ({
   defaultIsEndUserAuthEnabled,
   defaultLockEndUserInfo,
   defaultEnableManagedLocalAccount,
+  isIdPConfigured,
 }: IUsersFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
     defaultIsEndUserAuthEnabled
@@ -68,7 +70,8 @@ const UsersForm = ({
     setEnableManagedLocalAccount(newCheckVal);
   };
 
-  const onClickSave = async () => {
+  const onClickSave = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsUpdating(true);
     const canLockEndUserInfo = isEndUserAuthEnabled && lockEndUserInfo;
 
@@ -91,27 +94,49 @@ const UsersForm = ({
   return (
     <div className={baseClass}>
       <form onSubmit={onClickSave}>
-        <Checkbox
-          disabled={gitOpsModeEnabled}
-          value={isEndUserAuthEnabled}
-          onChange={onToggleEndUserAuth}
-          helpText={
-            <span>
-              End users are required to authenticate with your{" "}
-              <CustomLink
-                url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
-                text="identity provider (IdP)"
-              />{" "}
-              when setting up new hosts.
-            </span>
+        <TooltipWrapper
+          tipContent={
+            !isIdPConfigured ? (
+              <span>
+                To enable, first connect Fleet to
+                <br />
+                your{" "}
+                <CustomLink
+                  url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
+                  text="identity provider (IdP)"
+                  variant="tooltip-link"
+                />
+                .
+              </span>
+            ) : undefined
           }
+          disableTooltip={isIdPConfigured}
+          underline={false}
+          position="left"
+          showArrow
         >
-          End user authentication
-        </Checkbox>
+          <Checkbox
+            disabled={gitOpsModeEnabled || !isIdPConfigured}
+            value={isEndUserAuthEnabled}
+            onChange={onToggleEndUserAuth}
+            helpText={
+              <span>
+                End users are required to authenticate with your{" "}
+                <CustomLink
+                  url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
+                  text="identity provider (IdP)"
+                />{" "}
+                when setting up new hosts.
+              </span>
+            }
+          >
+            End user authentication
+          </Checkbox>
+        </TooltipWrapper>
         {isEndUserAuthEnabled && (
           <div className={`${baseClass}__advanced-options`}>
             <Checkbox
-              disabled={gitOpsModeEnabled}
+              disabled={gitOpsModeEnabled || !isIdPConfigured}
               onChange={onChangeLockEndUserInfo}
               value={lockEndUserInfo}
             >
@@ -133,22 +158,50 @@ const UsersForm = ({
             </Checkbox>
           </div>
         )}
-        <Checkbox
-          disabled={gitOpsModeEnabled}
-          value={enableManagedLocalAccount}
-          onChange={onToggleManagedLocalAccount}
-          helpText={
-            <span>
-              Fleet generates a user (_fleetadmin) and unique password for each
-              host, accessible in <b>Host details</b> &gt;{" "}
-              <b>Show managed account</b>.
-            </span>
+        <TooltipWrapper
+          tipContent={
+            !isMacMdmEnabledAndConfigured ? (
+              <span>
+                To enable, first turn on{" "}
+                <CustomLink
+                  url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+                  text="Apple MDM"
+                  variant="tooltip-link"
+                />
+                .
+              </span>
+            ) : undefined
           }
+          disableTooltip={!!isMacMdmEnabledAndConfigured}
+          underline={false}
+          position="left"
+          showArrow
         >
-          <TooltipWrapper tipContent="Creates a hidden managed local admin account for remote troubleshooting on macOS hosts.">
-            Managed local account
-          </TooltipWrapper>
-        </Checkbox>
+          <Checkbox
+            disabled={gitOpsModeEnabled || !isMacMdmEnabledAndConfigured}
+            value={enableManagedLocalAccount}
+            onChange={onToggleManagedLocalAccount}
+            helpText={
+              <span>
+                Fleet generates a user (_fleetadmin) and unique password for
+                each host, accessible in <b>Host details</b> &gt;{" "}
+                <b>Show managed account</b>.
+              </span>
+            }
+          >
+            <TooltipWrapper
+              tipContent={
+                <>
+                  Creates a hidden managed local admin account for
+                  <br />
+                  remote troubleshooting on macOS hosts.
+                </>
+              }
+            >
+              Managed local account
+            </TooltipWrapper>
+          </Checkbox>
+        </TooltipWrapper>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

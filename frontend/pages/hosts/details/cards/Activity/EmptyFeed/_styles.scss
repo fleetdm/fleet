@@ -1,15 +1,1 @@
-.empty-feed {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
-
-  p {
-    font-size: $x-small;
-    margin: 0;
-  }
-
-  &__title {
-    font-weight: $bold;
-    font-size: $small;
-  }
-}
+// Styles now handled by EmptyState component

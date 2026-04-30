@@ -247,12 +247,10 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
-	const (
-		fleetAdminShortName = "_fleetadmin"
-		fleetAdminFullName  = "Fleet Admin"
-	)
+	const fleetAdminFullName = "Fleet Admin"
 
-	if ssoEnabled || managedAdminAccountEnabled {
+	// Only send AccountConfiguration for macOS devices.
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
 		var password string
 		cmdUUID := uuid.New().String()
 		if managedAdminAccountEnabled {
@@ -262,7 +260,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				return err
 			}
 			adminAccount = &apple_mdm.AdminAccountConfig{
-				ShortName:    fleetAdminShortName,
+				ShortName:    fleet.ManagedLocalAccountUsername,
 				FullName:     fleetAdminFullName,
 				PasswordHash: passwordHash,
 				Hidden:       true,

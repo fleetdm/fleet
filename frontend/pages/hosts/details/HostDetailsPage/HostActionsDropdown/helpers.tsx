@@ -340,7 +340,9 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (hostPlatform !== "darwin") return false;
   if (!isConnectedToFleetMdm) return false;
   if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
-  if (!isManagedLocalAccountEnabled) return false;
+  if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
+    return false;
+  }
   return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 };
 

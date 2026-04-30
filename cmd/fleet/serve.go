@@ -1517,6 +1517,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if err := apiendpoints.Init(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
+		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
@@ -1963,6 +1964,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
+	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return auth.AuthenticatedUser(svc, next)
