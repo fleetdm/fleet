@@ -35,11 +35,7 @@ const SetupScriptStatusCell = ({ status }: ISetupScriptStatusCell) => {
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__icon`}>
-        {icon === "spinner" ? (
-          <Spinner size="x-small" />
-        ) : (
-          <Icon name={icon} />
-        )}
+        {icon === "spinner" ? <Spinner size="x-small" /> : <Icon name={icon} />}
       </div>
       <span className={`${baseClass}__label`}>{label}</span>
     </div>
