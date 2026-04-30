@@ -81,9 +81,55 @@ if [ "$extension_installed" = false ]; then
 		"$extension_name"
 
 	# Wait until the extension is accepted by the user ("gdbus call" command above is asynchronous).
-	while [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" ]; do
+	# Cap the wait so we don't hang forever if InstallRemoteExtension can't deliver — for
+	# example on openSUSE Leap 16, where extensions.gnome.org doesn't list a compatible
+	# build of this extension and the install never completes.
+	timeout=90
+	while [ ! -d "$extension_path" ] && [ "$timeout" -gt 0 ]; do
 		sleep 1
+		timeout=$((timeout - 1))
 	done
+
+	# If the official install path didn't deliver, fall back to fetching the extension
+	# tarball from upstream. This is required on openSUSE Leap 16, which neither packages
+	# the extension via zypper nor serves a compatible build through extensions.gnome.org.
+	# We use curl + tar (both present on a base Leap/Fedora/Debian install) rather than
+	# git, which isn't installed by default on Leap 16.
+	if [ ! -d "$extension_path" ]; then
+		extensions_dir="/home/$username/.local/share/gnome-shell/extensions"
+		tarball_url="https://github.com/ubuntu/gnome-shell-extension-appindicator/archive/refs/heads/master.tar.gz"
+		tmp_dir=$(mktemp -d /tmp/fleet-appindicator.XXXXXX)
+		tarball="$tmp_dir/extension.tar.gz"
+
+		# Download tarball — curl preferred, wget as fallback. Bail out cleanly if neither
+		# can fetch it (e.g. no network) so we don't leave a half-installed extension.
+		fetched=false
+		if command -v curl >/dev/null 2>&1; then
+			if curl -fsSL --max-time 60 -o "$tarball" "$tarball_url"; then
+				fetched=true
+			fi
+		elif command -v wget >/dev/null 2>&1; then
+			if wget -q --timeout=60 -O "$tarball" "$tarball_url"; then
+				fetched=true
+			fi
+		fi
+
+		if [ "$fetched" = true ] && [ -s "$tarball" ]; then
+			sudo -u $username -H mkdir -p "$extensions_dir"
+			# Extract to a staging dir, then move the inner directory into place under
+			# the user's UUID-named extension path. Run as the user so file ownership is right.
+			staging="$tmp_dir/staging"
+			mkdir -p "$staging"
+			if tar -xzf "$tarball" -C "$staging" --strip-components=1; then
+				sudo -u $username -H cp -r "$staging" "$extension_path"
+				if [ -d "$extension_path/schemas" ] && command -v glib-compile-schemas >/dev/null 2>&1; then
+					sudo -u $username -H glib-compile-schemas "$extension_path/schemas/"
+				fi
+			fi
+		fi
+
+		rm -rf "$tmp_dir"
+	fi
 
 	# Sleep to give some time for files to be downloaded.
 	sleep 15
