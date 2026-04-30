@@ -2,11 +2,19 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
 
@@ -406,4 +415,100 @@ func TestRequestCertificate(t *testing.T) {
 		})
 		require.ErrorAs(t, err, &invalidCSR)
 	})
+
+	t.Run("Request a certificate - return_pem_certificate true", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		issuedDER := generateTestCertDER(t)
+		envelope, err := pkcs7.DegenerateCertificate(issuedDER)
+		require.NoError(t, err)
+		hydrantSimpleEnrollResponse = base64.StdEncoding.EncodeToString(envelope)
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:                   hydrantCA.ID,
+			CSR:                  goodCSR,
+			ReturnPEMCertificate: true,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+
+		block, rest := pem.Decode([]byte(*cert))
+		require.NotNil(t, block)
+		require.Equal(t, "CERTIFICATE", block.Type)
+		require.Equal(t, issuedDER, block.Bytes)
+		require.Empty(t, rest)
+	})
+
+	t.Run("Request a certificate - return_pem_certificate true with whitespace in EST response", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		issuedDER := generateTestCertDER(t)
+		envelope, err := pkcs7.DegenerateCertificate(issuedDER)
+		require.NoError(t, err)
+		// EST servers may insert line breaks in the base64 body; ensure we tolerate them.
+		b64 := base64.StdEncoding.EncodeToString(envelope)
+		var withNewlines strings.Builder
+		for i := 0; i < len(b64); i += 64 {
+			end := min(i+64, len(b64))
+			withNewlines.WriteString(b64[i:end])
+			withNewlines.WriteByte('\n')
+		}
+		hydrantSimpleEnrollResponse = withNewlines.String()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:                   hydrantCA.ID,
+			CSR:                  goodCSR,
+			ReturnPEMCertificate: true,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+
+		block, _ := pem.Decode([]byte(*cert))
+		require.NotNil(t, block)
+		require.Equal(t, "CERTIFICATE", block.Type)
+		require.Equal(t, issuedDER, block.Bytes)
+	})
+
+	t.Run("Request a certificate - return_pem_certificate true, malformed PKCS7 returns error", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+		// hydrantSimpleEnrollResponse defaults to "abc123" which is not a valid PKCS7 envelope.
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:                   hydrantCA.ID,
+			CSR:                  goodCSR,
+			ReturnPEMCertificate: true,
+		})
+		require.Error(t, err)
+		require.Nil(t, cert)
+	})
+
+	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:                   hydrantCA.ID,
+			CSR:                  goodCSR,
+			ReturnPEMCertificate: false,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
+	})
+}
+
+// generateTestCertDER returns DER-encoded bytes of a freshly generated self-signed certificate
+// for use in tests that need a realistic PKCS7 envelope payload.
+func generateTestCertDER(t *testing.T) []byte {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "fleetie@example.com"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return der
 }
