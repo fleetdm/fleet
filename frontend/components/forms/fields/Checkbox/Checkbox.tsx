@@ -17,7 +17,8 @@ export interface ICheckboxProps {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
-  onChange?: any; // TODO: meant to be an event; figure out type for this
+  /** Called with a boolean when used directly, or { name, value } when parseTarget is set */
+  onChange?: ((value: boolean) => void) | ((target: { name?: string; value: boolean }) => void);
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   value?: boolean | null;
   wrapperClassName?: string;

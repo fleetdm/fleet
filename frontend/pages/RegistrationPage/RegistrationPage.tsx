@@ -10,6 +10,7 @@ import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";
 import { INotification } from "interfaces/notification";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
@@ -56,7 +57,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPageProgress(max([nextPage, pageProgress]) || 1);
   };
 
-  const onRegistrationFormSubmit = async (formData: any) => {
+  const onRegistrationFormSubmit = async (formData: IRegistrationFormData) => {
     const { DASHBOARD } = paths;
 
     setIsLoading(true);
