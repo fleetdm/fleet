@@ -762,12 +762,6 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// Queue rows are no longer deleted on ACK. The dispatch query
-		// (MDMWindowsGetPendingCommands) already uses NOT EXISTS against
-		// windows_mdm_command_results to skip ACKed commands, so stale
-		// queue rows are invisible. Periodic GC via
-		// CleanupWindowsMDMCommandQueue handles table hygiene.
-
 		return nil
 	}); err != nil {
 		return nil, err
@@ -3449,8 +3443,10 @@ INNER JOIN (
     WHERE r.created_at < NOW() - INTERVAL 1 HOUR
     LIMIT ?
 ) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
-	const maxBatches = 500
-	for i := 0; i < maxBatches; i++ {
+	const maxBatches = 500 // cap total work per cron tick (500k rows)
+	var totalDeleted int64
+	exhausted := true
+	for range maxBatches {
 		if err := ctx.Err(); err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue canceled")
 		}
@@ -3458,13 +3454,16 @@ INNER JOIN (
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
 		}
-		n, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue rows affected")
-		}
+		n, _ := res.RowsAffected()
+		totalDeleted += n
 		if n < int64(batchSize) {
+			exhausted = false
 			break
 		}
+	}
+	if exhausted {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm command queue did not finish, remaining rows will be cleaned on next run",
+			"deleted", totalDeleted, "max_batches", maxBatches)
 	}
 	return nil
 }

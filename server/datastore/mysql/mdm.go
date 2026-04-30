@@ -93,6 +93,10 @@ SELECT
     NULL as name
 FROM windows_mdm_commands wmc
 LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+    AND NOT EXISTS (
+        SELECT 1 FROM windows_mdm_command_results r
+        WHERE r.enrollment_id = wmcq.enrollment_id AND r.command_uuid = wmcq.command_uuid
+    )
 LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
 INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
@@ -287,6 +291,10 @@ WHERE
 
 	WHERE
 		mwe.host_uuid IN (?)
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results r
+			WHERE r.enrollment_id = wq.enrollment_id AND r.command_uuid = wq.command_uuid
+		)
 
 		%[1]s
 
