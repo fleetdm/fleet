@@ -483,6 +483,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
 - Add a few seconds of silence at the start and end of each recording.
 - Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+- Make sure videos are shared as downloadable
 
 #### Best practices
 **Browser and terminal:**
@@ -501,7 +502,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during recording (they're added later if needed).
+- Don't enable closed captions during sprint demo recording (they're added later if needed).
 
 
 ## Feedback

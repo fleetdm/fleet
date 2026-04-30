@@ -1,7 +1,7 @@
 # Fleet 4.84.0 | Python scripts, Entra for Windows, auto-rotate Recovery Lock, and more...
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/tNi7AcMH_sk?si=YBDsDvKPc4H3cbg7" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/mpKDV7zpb-I?si=PG5inruNQNzHrPVw" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.84.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.

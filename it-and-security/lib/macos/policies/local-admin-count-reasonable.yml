@@ -1,0 +1,17 @@
+- name: macOS - Local admin accounts within limit
+  query: |-
+    SELECT 1 WHERE (
+      SELECT COUNT(DISTINCT u.uid)
+      FROM users u
+      INNER JOIN user_groups ug ON u.uid = ug.uid
+      INNER JOIN groups g ON ug.gid = g.gid
+      WHERE g.groupname = 'admin'
+    ) <= 5;
+  critical: false
+  description: |-
+    Flags Macs with more than five distinct users in the local `admin` group (review for over-privileged accounts).
+  resolution: |-
+    Review local administrators in  > System Settings > Users & Groups. Remove unnecessary admin rights and use a standard user account day-to-day.
+
+    If you need help, please reach out in #help-it.
+  platform: darwin

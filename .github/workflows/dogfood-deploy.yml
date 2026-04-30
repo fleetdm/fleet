@@ -10,6 +10,10 @@ on:
         description: Dry run only? No "terraform apply"
         type: boolean
         default: false
+      skip_free:
+        description: Skip "Terraform Apply Free" and only run the dogfood apply?
+        type: boolean
+        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -75,7 +79,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.10.2
+          terraform_version: 1.12.0
           terraform_wrapper: false
       - name: Terraform Init
         id: init
@@ -113,7 +117,7 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         # Note: This will cause the geolite2 image to be built twice, but that cannot be avoided without refactoring the terraform to not tag it based upon timestamp.
       - name: Terraform Apply Free
-        if: inputs.dry_run == false
+        if: inputs.dry_run == false && inputs.skip_free == false
         id: apply-free
         run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
       - name: Terraform Apply

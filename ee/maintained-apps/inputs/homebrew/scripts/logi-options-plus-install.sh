@@ -2,7 +2,7 @@
 
 # variables
 APPDIR="/Applications/"
-TMPDIR=$(dirname "$(realpath $INSTALLER_PATH)")
+TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"

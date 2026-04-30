@@ -18617,6 +18617,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
+    "name": "network_quality",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Output from the macOS `networkQuality` binary, reporting download and upload throughput.",
+    "columns": [
+      {
+        "name": "dl_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Download throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "ul_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Upload throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "dl_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Download throughput in megabits per second, formatted to two decimal places."
+      },
+      {
+        "name": "ul_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Upload throughput in megabits per second, formatted to two decimal places."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\nThe `/usr/bin/networkQuality` binary is only available on macOS 12 (Monterey) and later. On hosts where the binary is not present, the table returns no rows.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/network_quality",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_quality.yml"
+  },
+  {
     "name": "nfs_shares",
     "description": "NFS shares exported by the host.",
     "url": "https://fleetdm.com/tables/nfs_shares",
