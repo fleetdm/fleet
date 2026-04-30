@@ -129,16 +129,25 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Len(t, errs, 2)
 	})
 
-	t.Run("ValidKeysProvider accepts declared keys", func(t *testing.T) {
-		// GoogleCalendarApiKey implements ValidKeysProvider to declare accepted
-		// keys for its custom JSON marshaling.
+	t.Run("api_key_json keys are not validated", func(t *testing.T) {
+		// GoogleCalendarApiKey accepts the full Google service-account JSON blob,
+		// so unknown-key validation is intentionally skipped for its contents.
 		data := map[string]any{
 			"google_calendar": []any{
 				map[string]any{
 					"domain": "example.com",
 					"api_key_json": map[string]any{
-						"client_email": "test@example.com",
-						"private_key":  "some value",
+						"client_email":                "test@example.com",
+						"private_key":                 "some value",
+						"type":                        "service_account",
+						"project_id":                  "fleet-dogfood",
+						"private_key_id":              "abc123",
+						"client_id":                   "1234567890",
+						"auth_uri":                    "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                   "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":        "https://www.googleapis.com/robot/v1/metadata/x509/foo",
+						"universe_domain":             "googleapis.com",
 					},
 				},
 			},
@@ -147,22 +156,20 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Empty(t, errs)
 	})
 
-	t.Run("ValidKeysProvider rejects undeclared keys", func(t *testing.T) {
+	t.Run("unknown keys at google_calendar entry level are still rejected", func(t *testing.T) {
+		// Skipping validation for api_key_json must not leak into siblings.
 		data := map[string]any{
 			"google_calendar": []any{
 				map[string]any{
-					"domain": "example.com",
-					"api_key_json": map[string]any{
-						"client_email": "test@example.com",
-						"private_key":  "nothing to see here",
-						"bad_field":    "unknown",
-					},
+					"domain":       "example.com",
+					"api_key_json": map[string]any{"client_email": "x", "private_key": "y"},
+					"bad_sibling":  true,
 				},
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[fleet.Integrations](), []string{"org_settings", "integrations"}, "test.yml")
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), "bad_field")
+		assert.Contains(t, errs[0].Error(), "bad_sibling")
 	})
 
 	t.Run("scalar data no errors", func(t *testing.T) {
