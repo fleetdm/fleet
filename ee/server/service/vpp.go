@@ -232,7 +232,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
 				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
-					decoded, err := decodeAppleAppConfiguration(payload.Configuration)
+					decoded, err := appleConfigFromRawMessage(payload.Configuration)
 					if err != nil {
 						return nil, err
 					}
@@ -786,7 +786,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			}
 			androidConfigChanged = changed
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			decoded, err := decodeAppleAppConfiguration(appID.Configuration)
+			decoded, err := appleConfigFromRawMessage(appID.Configuration)
 			if err != nil {
 				return 0, err
 			}
@@ -999,7 +999,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	// stays in wire form for the activity emission below.
 	datastoreConfig := payload.Configuration
 	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
-		decoded, err := decodeAppleAppConfiguration(payload.Configuration)
+		decoded, err := appleConfigFromRawMessage(payload.Configuration)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1395,9 +1395,9 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	return packageName, nil
 }
 
-// decodeAppleAppConfiguration unwraps the JSON-string wire format into raw
-// plist bytes.
-func decodeAppleAppConfiguration(raw []byte) ([]byte, error) {
+// appleConfigFromRawMessage strips the JSON-string wrapper around the plist
+// XML so we don't pass quotes/escapes to the plist parser.
+func appleConfigFromRawMessage(raw json.RawMessage) ([]byte, error) {
 	if len(raw) == 0 {
 		return nil, nil
 	}
