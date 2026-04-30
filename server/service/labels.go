@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
 
@@ -109,6 +110,13 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, err
 	}
 
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeCreatedLabel{
+		ID:   label.ID,
+		Name: label.Name,
+	}); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "create activity for label creation")
+	}
+
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
 		hostIDs := p.HostIDs
 		if len(p.Hosts) > 0 {
@@ -207,7 +215,21 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		}
 	}
 
-	return svc.ds.SaveLabel(ctx, &label.Label, filter)
+	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, filter)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedLabel{
+		ID:        saved.ID,
+		Name:      saved.Name,
+		FleetID:   saved.TeamID,
+		FleetName: saved.TeamName,
+	}); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "create activity for label edit")
+	}
+
+	return saved, savedHostIDs, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -481,7 +503,23 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return err
 	}
 
-	return svc.ds.DeleteLabel(ctx, name, filter)
+	if err := svc.ds.DeleteLabel(ctx, name, filter); err != nil {
+		return err
+	}
+
+	teamName, err := svc.lookupTeamNameForLabel(ctx, label.TeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "lookup team name for deleted label")
+	}
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
+		ID:        label.ID,
+		Name:      label.Name,
+		FleetID:   label.TeamID,
+		FleetName: teamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for label deletion")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,7 +566,19 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		}
 	}
 
-	return svc.ds.DeleteLabel(ctx, label.Name, filter)
+	if err := svc.ds.DeleteLabel(ctx, label.Name, filter); err != nil {
+		return err
+	}
+
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
+		ID:        label.ID,
+		Name:      label.Name,
+		FleetID:   label.TeamID,
+		FleetName: label.TeamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for label deletion")
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -648,11 +698,179 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return nil
 	}
 
+	// Look up which regular specs already exist in the target team scope so we
+	// can emit "created" vs "edited" label activities below. The only mutable
+	// label field via spec apply is the description, so we skip the activity
+	// when an existing label's description matches the spec.
+	regularSpecNames := make([]string, 0, len(regularSpecs))
+	for _, s := range regularSpecs {
+		regularSpecNames = append(regularSpecNames, s.Name)
+	}
+	scopeFilter := fleet.TeamFilter{User: user.User, IncludeObserver: true}
+	if teamID != nil {
+		scopeFilter.TeamID = teamID // filter to fetch team labels only
+	} else {
+		scopeFilter.TeamID = new(uint(0)) // filter to fetch global labels only
+	}
+	beforeApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up labels before apply")
+	}
+	beforeByName := make(map[string]*fleet.Label, len(beforeApply))
+	for name, l := range beforeApply {
+		if labelMatchesScope(l, teamID) {
+			beforeByName[name] = l
+		}
+	}
+
+	// For manual labels whose spec.Hosts is non-nil, snapshot current host IDs
+	// so we can detect host-membership changes after apply (the apply path
+	// always rewrites membership in this case). We bypass team-filtered Label
+	// reads here so the comparison sees the true membership including hosts on
+	// teams the caller can't see.
+	beforeHostIDs := make(map[string][]uint)
+	for _, spec := range regularSpecs {
+		existing, ok := beforeByName[spec.Name]
+		if !ok || existing.LabelMembershipType != fleet.LabelMembershipTypeManual || spec.Hosts == nil {
+			continue
+		}
+		ids, err := svc.ds.LabelMembershipHostIDs(ctx, existing.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get pre-apply label host IDs")
+		}
+		beforeHostIDs[spec.Name] = ids
+	}
+
 	if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
 
-	return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
+	if err := svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID())); err != nil {
+		return err
+	}
+
+	// Emit created/edited activities for regular specs that were applied.
+	afterApply, err := svc.ds.LabelsByName(ctx, regularSpecNames, scopeFilter)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up labels after apply for activity")
+	}
+	teamName, err := svc.lookupTeamNameForLabel(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "lookup team name for label spec activity")
+	}
+	for _, spec := range regularSpecs {
+		label, ok := afterApply[spec.Name]
+		if !ok || !labelMatchesScope(label, teamID) {
+			continue
+		}
+		existing, existed := beforeByName[spec.Name]
+		if existed {
+			fieldsMatch := labelSpecMatchesLabel(spec, existing)
+			hostsMatch := true
+			if before, tracked := beforeHostIDs[spec.Name]; tracked {
+				after, err := svc.ds.LabelMembershipHostIDs(ctx, label.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get post-apply label host IDs")
+				}
+				hostsMatch = uintSetsEqual(before, after)
+			}
+			if fieldsMatch && hostsMatch {
+				continue
+			}
+			if err := svc.NewActivity(ctx, user.User, fleet.ActivityTypeEditedLabel{
+				ID:        label.ID,
+				Name:      label.Name,
+				FleetID:   label.TeamID,
+				FleetName: teamName,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for edited label via spec")
+			}
+		} else {
+			if err := svc.NewActivity(ctx, user.User, fleet.ActivityTypeCreatedLabel{
+				ID:        label.ID,
+				Name:      label.Name,
+				FleetID:   label.TeamID,
+				FleetName: teamName,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for created label via spec")
+			}
+		}
+	}
+	return nil
+}
+
+// labelMatchesScope reports whether the given label belongs to the team scope
+// identified by teamID (nil means global scope).
+func labelMatchesScope(l *fleet.Label, teamID *uint) bool {
+	if teamID == nil {
+		return l.TeamID == nil
+	}
+	return l.TeamID != nil && *l.TeamID == *teamID
+}
+
+// labelSpecMatchesLabel reports whether the spec's editable top-level fields
+// match the existing label. Fields compared are the ones GitOps can change:
+// description, query, label_membership_type, and host vitals criteria. Host
+// membership for manual labels is compared separately by snapshotting host
+// IDs around the apply.
+func labelSpecMatchesLabel(spec *fleet.LabelSpec, label *fleet.Label) bool {
+	if spec.Description != label.Description {
+		return false
+	}
+	if spec.Query != label.Query {
+		return false
+	}
+	if spec.LabelMembershipType != label.LabelMembershipType {
+		return false
+	}
+	return jsonRawMessageEqual(spec.HostVitalsCriteria, label.HostVitalsCriteria)
+}
+
+// jsonRawMessageEqual compares two json.RawMessage values for semantic
+// equality. The label.criteria column is MySQL json type, which normalizes
+// whitespace and may reorder keys, so a byte comparison would report false
+// negatives across a round-trip.
+func jsonRawMessageEqual(a, b *json.RawMessage) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return len(rawJSONBytes(a)) == 0 && len(rawJSONBytes(b)) == 0
+	}
+	var av, bv any
+	if err := json.Unmarshal(*a, &av); err != nil {
+		return false
+	}
+	if err := json.Unmarshal(*b, &bv); err != nil {
+		return false
+	}
+	return reflect.DeepEqual(av, bv)
+}
+
+func rawJSONBytes(m *json.RawMessage) []byte {
+	if m == nil {
+		return nil
+	}
+	return *m
+}
+
+func uintSetsEqual(a, b []uint) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	set := make(map[uint]struct{}, len(a))
+	for _, x := range a {
+		set[x] = struct{}{}
+	}
+	for _, x := range b {
+		if _, ok := set[x]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -745,4 +963,17 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 		}
 	}
 	return byName, nil
+}
+
+// lookupTeamNameForLabel returns the team name for the given team ID, or nil
+// if the team ID is nil (global label).
+func (svc *Service) lookupTeamNameForLabel(ctx context.Context, teamID *uint) (*string, error) {
+	if teamID == nil {
+		return nil, nil
+	}
+	team, err := svc.ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get team for label activity")
+	}
+	return &team.Name, nil
 }

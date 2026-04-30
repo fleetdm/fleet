@@ -3581,7 +3581,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err, "add labels to host")
 	}
 
-	return nil
+	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
 }
 
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -3620,6 +3620,57 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		return ctxerr.Wrap(ctx, err, "remove labels from host")
 	}
 
+	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
+}
+
+// emitEditedLabelActivities emits an edited_label activity per label affected
+// by an add/remove-labels-on-host call. labelNames are assumed already
+// validated against the host's team scope.
+func (svc *Service) emitEditedLabelActivities(ctx context.Context, labelNames []string, hostTeamID uint) error {
+	if len(labelNames) == 0 {
+		return nil
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	labels, err := svc.ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{
+		User:   authz.UserFromContext(ctx),
+		TeamID: &hostTeamID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up labels for edited_label activity")
+	}
+	// Validated labels are either global or on hostTeamID, so at most one
+	// distinct non-nil team_id is involved — resolve its name once.
+	var teamName *string
+	for _, l := range labels {
+		if l.TeamID != nil {
+			teamName, err = svc.lookupTeamNameForLabel(ctx, l.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "lookup team name for label activity")
+			}
+			break
+		}
+	}
+	for _, name := range labelNames {
+		l, ok := labels[name]
+		if !ok {
+			continue
+		}
+		fleetName := teamName
+		if l.TeamID == nil {
+			fleetName = nil
+		}
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedLabel{
+			ID:        l.ID,
+			Name:      l.Name,
+			FleetID:   l.TeamID,
+			FleetName: fleetName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for edited label")
+		}
+	}
 	return nil
 }
 
