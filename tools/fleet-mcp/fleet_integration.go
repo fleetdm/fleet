@@ -985,7 +985,14 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		if policyResponse != "" {
 			params.Set("policy_response", policyResponse)
 		}
-		return fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
+		hosts, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
+		if err != nil {
+			return nil, err
+		}
+		if perPage > 0 && len(hosts) > perPage {
+			hosts = hosts[:perPage]
+		}
+		return hosts, nil
 	}
 
 	// Path 2: label/platform routing — call /labels/:id/hosts with the
