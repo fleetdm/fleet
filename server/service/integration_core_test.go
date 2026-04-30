@@ -1036,18 +1036,19 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 			preChangeJSON)
 		return err
 	})
+	t.Cleanup(func() {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+				previousRawConfig)
+			return err
+		})
+	})
+
 	loadedCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	require.True(t, loadedCfg.Features.HistoricalData.Uptime, "pre-change row reads back as default true")
 	require.True(t, loadedCfg.Features.HistoricalData.Vulnerabilities, "pre-change row reads back as default true")
-
-	// Restore the prior raw config so subsequent tests aren't affected.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
-			previousRawConfig)
-		return err
-	})
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {

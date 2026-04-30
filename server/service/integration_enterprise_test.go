@@ -1760,12 +1760,26 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	// Unknown features sub-fields (e.g. enable_host_users — settable per-fleet
 	// only via /spec/fleets) are silently ignored on the fleet PATCH endpoint;
 	// the stored fleet state should be unchanged for the unknown field.
-	priorEnableHostUsers := modResp.Team.Config.Features.EnableHostUsers
+	priorFeatures := modResp.Team.Config.Features
+	priorEnabledActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	priorDisabledActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
 		json.RawMessage(`{"features": {"enable_host_users": false}}`),
 		http.StatusOK, &modResp)
-	require.Equal(t, priorEnableHostUsers, modResp.Team.Config.Features.EnableHostUsers,
+	require.Equal(t, priorFeatures.EnableHostUsers, modResp.Team.Config.Features.EnableHostUsers,
 		"unknown features sub-field is ignored")
+	require.Equal(t, priorFeatures.HistoricalData, modResp.Team.Config.Features.HistoricalData,
+		"historical data unchanged when unknown field patched")
+	require.Equal(t, priorEnabledActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no enable historical data activity for ignored patch")
+	require.Equal(t, priorDisabledActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no disable historical data activity for ignored patch")
 }
 
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {

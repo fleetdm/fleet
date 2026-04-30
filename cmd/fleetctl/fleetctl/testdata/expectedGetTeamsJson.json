@@ -9,8 +9,8 @@
         "enable_host_users": true,
         "enable_software_inventory": true,
         "historical_data": {
-          "uptime": false,
-          "vulnerabilities": false
+          "uptime": true,
+          "vulnerabilities": true
         }
       },
       "host_count": 42,
@@ -93,8 +93,8 @@
         "enable_host_users": true,
         "enable_software_inventory": true,
         "historical_data": {
-          "uptime": false,
-          "vulnerabilities": false
+          "uptime": true,
+          "vulnerabilities": true
         }
       },
       "host_count": 42,
@@ -198,8 +198,8 @@
         "enable_host_users": false,
         "enable_software_inventory": false,
         "historical_data": {
-          "uptime": false,
-          "vulnerabilities": false
+          "uptime": true,
+          "vulnerabilities": true
         }
       },
       "host_count": 43,
@@ -297,8 +297,8 @@
         "enable_host_users": false,
         "enable_software_inventory": false,
         "historical_data": {
-          "uptime": false,
-          "vulnerabilities": false
+          "uptime": true,
+          "vulnerabilities": true
         }
       },
       "host_count": 43,

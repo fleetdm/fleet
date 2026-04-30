@@ -2365,4 +2365,3 @@ func isValidHostname(h string) bool {
 
 	return true
 }
-
