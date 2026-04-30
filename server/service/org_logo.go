@@ -3,11 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -224,14 +226,30 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
+	// Buffer once so each Put gets its own reader without re-Seeking the
+	// underlying source — and so a mid-loop failure can roll back.
+	body, err := io.ReadAll(io.LimitReader(content, orgLogoMaxFileSize+1))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "buffering logo content")
+	}
+	if int64(len(body)) > orgLogoMaxFileSize {
+		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
+	}
+
 	modes := mode.Modes()
+	var stored []fleet.OrgLogoMode
 	for _, m := range modes {
-		if _, err := content.Seek(0, io.SeekStart); err != nil {
-			return ctxerr.Wrap(ctx, err, "rewinding logo content")
-		}
-		if err := svc.orgLogoStore.Put(ctx, m, content); err != nil {
+		if err := svc.orgLogoStore.Put(ctx, m, bytes.NewReader(body)); err != nil {
+			// Best-effort rollback so the store doesn't end up with a
+			// half-written set (e.g. light stored, dark failed). We
+			// don't fail the request on rollback errors — the original
+			// Put error is what the caller cares about.
+			for _, sm := range stored {
+				_ = svc.orgLogoStore.Delete(ctx, sm)
+			}
 			return ctxerr.Wrapf(ctx, err, "storing org logo (%s)", m)
 		}
+		stored = append(stored, m)
 	}
 	if err := svc.updateOrgLogoURLs(ctx, modes, true); err != nil {
 		return err
@@ -261,11 +279,20 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
+	// Try every requested mode even if one fails so a partial in-store
+	// state isn't left where one blob is gone but another lingers under a
+	// URL we already cleared. URLs are only cleared if all deletes
+	// succeeded — on a partial failure the caller retries and Delete is
+	// idempotent.
 	modes := mode.Modes()
+	var errs []error
 	for _, m := range modes {
 		if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting org logo (%s)", m)
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting org logo (%s)", m))
 		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	if err := svc.updateOrgLogoURLs(ctx, modes, false); err != nil {
 		return err
@@ -328,6 +355,11 @@ func orgLogoServingURL(mode fleet.OrgLogoMode) string {
 // AppConfig URL fields for the given modes. The dual-write between the
 // new and deprecated fields is handled by NormalizeLogoFields.
 func (svc *Service) updateOrgLogoURLs(ctx context.Context, modes []fleet.OrgLogoMode, uploaded bool) error {
+	// Bypass the AppConfig cache so this read-modify-write picks up any
+	// concurrent writes to other fields (e.g. a settings PATCH that
+	// landed between the upload start and now). Otherwise we'd save a
+	// stale snapshot and clobber that other write.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading app config")

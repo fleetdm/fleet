@@ -12,7 +12,7 @@ describe("OrgDetails - form", () => {
   });
 
   it("renders", () => {
-    render(<OrgDetails handleSubmit={handleSubmitSpy} />);
+    render(<OrgDetails handleSubmit={handleSubmitSpy} currentPage />);
 
     expect(
       screen.getByRole("textbox", { name: "Organization name" })

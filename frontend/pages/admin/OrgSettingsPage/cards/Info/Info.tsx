@@ -258,16 +258,30 @@ const Info = ({
     setIsSaving(true);
 
     try {
-      const formDataToSubmit = {
-        org_info: {
-          org_name: orgName,
-          contact_url: orgSupportURL,
-        },
-      };
+      // Step 1: org_info PATCH. Errors here surface as an org-info
+      // failure so the user knows which half of the form failed; logo
+      // ops never fire if this fails.
+      let orgInfoOk = false;
+      try {
+        const formDataToSubmit = {
+          org_info: {
+            org_name: orgName,
+            contact_url: orgSupportURL,
+          },
+        };
+        orgInfoOk = await handleSubmit(formDataToSubmit);
+      } catch (e) {
+        renderFlash(
+          "error",
+          "Couldn't save organization info. Please try again."
+        );
+        return;
+      }
+      if (!orgInfoOk) return;
 
-      const ok = await handleSubmit(formDataToSubmit);
-      if (!ok) return;
-
+      // Step 2: logo ops. Their own try so a logo failure shows a
+      // logo-specific message and doesn't hide a successful org-info
+      // save behind a misleading flash.
       const lightDeleted = lightLogo.pendingDelete && !!lightOriginalUrl;
       const darkDeleted = darkLogo.pendingDelete && !!darkOriginalUrl;
       const logoOps: (() => Promise<unknown>)[] = [];
@@ -294,20 +308,22 @@ const Info = ({
         }
       }
 
-      // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
-      for (const op of logoOps) {
-        // eslint-disable-next-line no-await-in-loop
-        await op();
-      }
+      try {
+        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+        for (const op of logoOps) {
+          // eslint-disable-next-line no-await-in-loop
+          await op();
+        }
 
-      const reset = (prev: ILogoModeState) => {
-        if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
-        return { ...prev, pendingUpload: null, pendingDelete: false };
-      };
-      setLightLogo(reset);
-      setDarkLogo(reset);
-    } catch (e) {
-      renderFlash("error", "Couldn't update logo. Please try again.");
+        const reset = (prev: ILogoModeState) => {
+          if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+          return { ...prev, pendingUpload: null, pendingDelete: false };
+        };
+        setLightLogo(reset);
+        setDarkLogo(reset);
+      } catch (e) {
+        renderFlash("error", "Couldn't update logo. Please try again.");
+      }
     } finally {
       setIsSaving(false);
     }

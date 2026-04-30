@@ -22,7 +22,7 @@ interface IOrgDetailsErrors {
 
 interface IOrgDetailsProps {
   className?: string;
-  currentPage?: boolean;
+  currentPage: boolean;
   formData?: Partial<IOrgDetailsFormData>;
   handleSubmit: (formData: IOrgDetailsFormData) => void;
 }

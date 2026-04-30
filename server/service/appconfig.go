@@ -607,6 +607,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
+	// Validate logo fields immediately after the merge
+	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
+	// instead of letting the request silently complete its side effects.
+	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
+	}
+
 	if newAppConfig.AgentOptions != nil {
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
@@ -903,14 +910,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
-	}
-
-	// Final logo-field mirror after the merge — guarantees the persisted
-	// config has both deprecated and new fields populated identically per
-	// mode. Surfaces a 422 if the merged state still has a conflict (e.g.
-	// corrupt or directly-edited DB row).
-	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
-		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
