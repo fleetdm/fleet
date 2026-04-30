@@ -5,7 +5,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Team
 
-| Role                            | Contributor(s)           |
+| Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -35,7 +35,10 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 3. Open a new pull request containing your article into `main` and add the pull request to the milestone this feature will be shipped in. The pull request will automatically be assigned to the appropriate reviewer.
 
 
-### Create an engineering-initiated story
+### Stories and bugs
+
+
+#### Create an engineering-initiated story
 
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
@@ -49,30 +52,45 @@ Engineering-initiated stories are for work that no customer or stakeholder has d
 
 These categories compete for priority in the normal product pipeline so that product and customer stakeholders have full visibility into the work being done on their behalf.
 
+**To file the story:**
+
 1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
 2. Remove the "Product" section and checklist from the issue description.
 
 3. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
-> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
+**To draft the story:**
 
-
-### Draft an engineering-initiated story
-
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer. 
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning an engineer.
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming sprint. 
+2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming sprint.
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 
-### Fix a bug
+#### Fix a bug
 
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
-### Review a community pull request
+#### Notify stakeholders when a user story is pushed to the next release
+
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
+
+1. Add the `~pushed` label to the user story.
+2. Update the user story's milestone to the next minor version milestone.
+3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
+
+> Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
+
+
+### Community contributions
+
+#### Review a community pull request
 
 If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
 
@@ -92,7 +110,7 @@ The PD will be the contact point for the contributor and will ensure the PR is r
 - Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
-### Merge a community pull request
+#### Merge a community pull request
 
 When merging a pull request from a community contributor:
 
@@ -103,7 +121,19 @@ When merging a pull request from a community contributor:
 - Share the merged PR with the team in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 
-### AI code review
+#### Close a stale community issue
+
+If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
+
+
+#### Close a stale community PR
+
+If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
+
+
+### AI tooling
+
+#### AI code review
 
 Fleet uses AI code review tools to supplement human review on pull requests. Three options are available:
 
@@ -114,7 +144,7 @@ Fleet uses AI code review tools to supplement human review on pull requests. Thr
 > **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit—including minor or stale changes—leading to unnecessary long-running review cycles and added cost.
 
 
-### AI coding tools
+#### AI coding tools
 
 Fleet uses AI coding tools like [Kilo Code](https://kilocode.ai) and [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to help contributors make changes to the codebase.
 
@@ -131,24 +161,28 @@ The right tool depends on the type of change:
 > [Ownership](https://fleetdm.com/handbook/company#ownership) is one of Fleet's key values. When a bot opens a PR on your behalf, it's easier to feel detached from the change. Everyone should take ownership of code they contribute, especially when it's AI-generated.
 
 
-### Close a stale community issue
+#### Claude remote control
 
-If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
+Claude Code's `/remote-control` command (currently in preview) lets engineers trigger a Claude Code session on their local machine from a remote surface, such as a Slack message or webhook. The session runs in the working directory where remote control was enabled, using the engineer's local git credentials and file access.
+
+Use it for short, well-scoped tasks worth kicking off when you're away from your terminal: drafting a PR description from a pushed branch, running a script and reporting the output, or starting an investigation you'll review later.
+
+Because remote-triggered sessions run as you, on your machine, take the following precautions:
+
+- **Only enable trusted surfaces.** Anyone who can send the trigger can run commands as you.
+- **Don't enable auto-approval for remote sessions.** You won't be at the keyboard to catch a bad tool call. Keep destructive actions gated on a prompt.
+- **Stop the listener when you're done.** Treat it like any other long-running local server — don't leave it open overnight or while traveling.
+- **You still own the PR.** As with [AI coding tools](#ai-coding-tools), review any diff before merging. The remote trigger is a convenience, not a delegation of ownership.
 
 
-### Close a stale community PR
-
-If a community PR hasn't had any updates or response from the author after one week, convert the PR to draft and add a comment tagging the author to let them know they are welcome to push any updates and convert it back to non-draft. After one year, our bot will auto-close it with a comment if it doesn't get updated.
+### On-call
 
 
-### Schedule on-call engineer workload
+#### On-call engineer
 
 Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
 On-call engineers are available during the business hours of 9am - 5pm Central. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
-
-
-#### Assume on-call engineer alias
 
 The on-call engineer is responsible for:
 
@@ -160,16 +194,13 @@ The on-call engineer is responsible for:
 To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
 
 
-### Schedule incident on-call engineer workload
+#### Incident on-call engineer
 
 Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
 
 Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 
 > If an incident occurs after hours, the engineer's manager should arrange coverage during business hours to allow adequate time for recovery.
-
-
-#### Assume incident on-call engineer alias
 
 Incident on-call engineer rotation, alias assignment, and incident notification are managed through incident.io and reported in the #help-incidents channel.
 
@@ -182,13 +213,14 @@ The incident on-call engineer is responsible for:
 - Performing the [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities).
 
 
-### Incident response process
+#### Incident response process
 
 All emergency issues designated `P0` require a new [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). As soon as the issue is created, it will initiate our on-call incident notification process via incident.io.
 
 Populate the title, then create the issue to immediately initiate the incident notification process. Edit the issue to add any additional context while awaiting response.
 
-#### Incident notification path
+
+##### Incident notification path
 
 ```mermaid
 flowchart TD
@@ -205,248 +237,29 @@ Mitigating the outage may require writing and merging code. The current infrastr
 > If outside of business hours, the incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning, and should file P1 issues for any immediate follow-up items. During business hours, the incident on-call engineer triages the incident and coordinates a response across engineering, QA, CS, and infrastructure until the incident has been resolved. See [incident on-call responsibilities](https://fleetdm.com/handbook/company/product-groups#incident-on-call-responsibilities) for details.
 
 
-### Participate in QA Day
-
-Once per sprint, each product group is expected to take a day to assist in QA-related activities. On that day, generally the most straightforward way to assist the QA team is to validate issues in the `Awaiting QA` stage marked with the `~assisting-qa` label. Start with issues milestoned for the lowest-version-number active release candidate, and clear your product group's queue for that release before assisting another team with QA. You may not QA issues where you made code changes, to ensure that two people run through the test plan (the implementing engineer and the person performing QA).
-
-For each issue:
-
-1. Add yourself as an assignee when you start QA. If other work comes up that prevents you from completing the QA process, remove yourself as an assignee to ensure someone else picks the issue up.
-2. Validate the changes, either via the test plan (for stories) or by reproducing the bug on an older version and the fix in the current version (for bugs).
-3. Document QA steps performed and outcome in a comment on the story (not subtask) or bug.
-4. If changes are needed to make QA pass, either create an unreleased bug (if changes required are small relative to the size of the original bug or story, e.g. a missed edge case) or move the issue (and relevant subtasks, if there are any) back to `In progress` (if changes required are significant relative to the size of the ticket, e.g. if an item listed in the test plan fails). Mention in the relevant product group's Slack channel when you take either of these actions to ensure QA failures are addressed quickly (e.g. the product group's tech lead may need to assign an unreleased bug fix to an engineer other than the developer(s) on the original bug or story).
-5. Once QA passes, move the issue to `Ready for release`.
-
-### Create a release candidate
-
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the first Monday of the next sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
-
-1. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
-
-2. Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch.
-
-During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
-
-
-### Merge unreleased bug fixes into the release candidate
-
-Only merge unreleased bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate:
-
-1. Merge the fix into `main`. 
-2. `git checkout` the release candidate branch and create a new local branch. 
-3. `git cherry-pick` your commit from `main` into your new local branch.
-4. Create a pull request from your new branch to the release candidate. 
-
-This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
-
-If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](#rituals), the release candidate [feature merge exception process](https://fleetdm.com/handbook/engineering#request-release-candidate-feature-merge-exception) may be followed.
-
-
-### Request release candidate feature merge exception
-
-1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut and requires a feature merge exception.
-2. EM notifies QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
-3. EM, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
-
-> This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
-
-
-### Confirm latest versions of dependencies
-
-Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
-
-1. **Go**: Latest minor release
-- Check the [Go version specified in Fleet's go.mod file](https://github.com/fleetdm/fleet/blob/main/go.mod) (`go 1.XX.YY`).
-- Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
-- If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release.
-- If the latest major version is greater than the version included in Fleet, [create a story](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the current oncall engineer. This will be considered for an upcoming sprint. The release can proceed without upgrading the major version.
-
-> In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
-
-Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
-
-3. **osquery**: Latest release
-- Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
-- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/.github/workflows/generate-osqueryd-targets.yml#L27).
-- If the latest release of osquery is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#business-hours-oncall-engineer).
-- Do not add the `~release blocker` label. 
-- Update the bug description to note that changes to [osquery command-line flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) require updates to Fleet's flag validation and related documentation [as shown in this pull request](https://github.com/fleetdm/fleet/pull/16239/files). 
-
-4. Vulnerability data sources
-- Check the [NIST National Vulnerability Database website](https://nvd.nist.gov/) for any announcements that might impact our [NVD data feed](https://github.com/fleetdm/fleet/blob/5e22f1fb4647a6a387ca29db6dd75d492f1864d6/cmd/cpe/generate.go#L53). 
-- Check the [CISA website](https://www.cisa.gov/) for any news or announcements that might impact our [CISA data feed](https://github.com/fleetdm/fleet/blob/5e22f1fb4647a6a387ca29db6dd75d492f1864d6/server/vulnerabilities/nvd/sync.go#L137). 
-
-If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#business-hours-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
-
-5. Vulnerability OS coverage
-- Check whether any new major operating system versions have been released since the last check.
-- **Windows**: Verify that new Windows Server and Windows desktop versions are included in the [MSRC product mapping](https://github.com/fleetdm/fleet/blob/main/server/vulnerabilities/msrc/parsed/product.go).
-
-If a new OS version is missing, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=).
-
-
-### Indicate your product group is release-ready
-
-Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their GitHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
-
-
-### Submit test coverage requests to QA Wolf
-
-Fleet QA owns the test planning process and identifies what needs to be automated. After each sprint, we review merged PRs, release notes, and demo recordings to find new automation candidates.
-We track these in a shared [Google Doc](https://docs.google.com/document/d/1jr8wxZZNTvcAB2IMOrsqY4NTW4eceX-3CABiYKpb_pY/edit?usp=sharing) and categorize them as:
-- New test requests (feature + what to test)
-- Existing tests to update
-
-Once coverage is agreed on, Fleet QA submits the request via [QA Wolf’s Coverage Request form](https://app.qawolf.com/fleet/coverage-requests). The most recent sprints are prioritized first.
-This workflow lets QA Wolf focus on test implementation while Fleet QA stays accountable for identifying clear, high-value test needs.
-
-
-### Prepare Fleet release
-
-See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md).
-
-### Prepare fleetd agent release
-
-#### macOS, Windows, Linux
-
-Fleetd for macOS, Windows and Linux is an agent composed of several components. The latest released versions in TUF are documented in the [TUF version tracking doc](https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md).
-For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
-
-#### Android
-
-Our Android app is managed through Google Play. Follow the [Android release guide](https://github.com/fleetdm/fleet/blob/main/android/RELEASE.md).
-
-#### ChromeOS
-
-The Chrome extension is released via [Google Admin](https://admin.google.com).
-For testing, use the [test extension deployment guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/deploying-chrome-test-ext.md).
-For production releases, follow the [Chrome extension
-README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
-
-### Deploy a new release to dogfood
-
-After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. To avoid interruptions to sales demos using this instance, deploys should occur outside of the business hours of 7am - 5pm Pacific time Monday - Friday. If a deployment is necessary during business hours, coordinate with the Sales department in the #g-sales Slack channel.
-
-How to deploy a new release to dogfood:
-
-1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
-2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
-3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0".
-4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
-5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
-
-> Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
->
-> Note that "fleetdm/fleet:main" is not an image name, instead use the commit hash in place of "main".
-
-
-### Conclude current milestone 
-
-Immediately after publishing a new release of Fleet or fleetd, close out the associated GitHub issues and milestones. 
-
-1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
-
-2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
-
-3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
-
-4. **Confirm and celebrate**: Open the [Drafting](https://github.com/orgs/fleetdm/projects/67) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals). [Engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) (`~engineering-initiated` label) can be closed without confirm and celebrate.
-
-5. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
-
-6. Announce that the release milestone has been closed in #help-engineering.
-
-7. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
-
-
-### Update the Fleet releases calendar
-
-The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
-
-When target release dates are changed on the calendar, the release ritual DRI also updates the milestone due date.
-
-
-### Discuss release dates
-
-A single Slack thread is created in the #help-releases channel for every release candidate. Any discussions about release dates should be kept within the release candidate's thread.
-
-
-### Handle process exceptions for non-released code
-
-Some of our code does not go through a scheduled release process and is released immediately via GitHub workflows:
-
-1. The [fleetdm/nvd](https://github.com/fleetdm/nvd) repository.
-2. The [fleetdm/vulnerabilities](https://github.com/fleetdm/vulnerabilities) repository.
-3. Our [website](https://github.com/fleetdm/fleet/tree/main/website) directory.
-
-In these cases there are two differences in our pull request process:
-
-- QA is done before merging the code change to the main branch.
-- Tickets are not moved to "Ready for release". Bugs are closed, and user stories are moved to the product drafting board's "Confirm and celebrate" column.
-
-
-### Notify stakeholders when a user story is pushed to the next release
-
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
-
-1. Add the `~pushed` label to the user story.
-2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
-
-> Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
-
-
-### Run Fleet locally for QA purposes
-
-To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
-
-To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`.
-
-To start a preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
-
-For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
-
-For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the milestone is set to the version that the feature will be released in. For example, if the feature will be released in v4.71.0 and the bug did not exist prior to that version, the milestone is set to `v4.71.0`. The engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
-
-
-### Interview a developer candidate
-
-Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
-
-1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
-2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. Check for any existing non-competes that could impact a candidate’s ability to join Fleet.
-3. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
-4. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
-5. **Start the interview process**: Follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
-6. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
-7. **Schedule HOP interview**: Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
-8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
-9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
-
-If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
-
-
-### Perform an incident postmortem
+#### Perform an incident postmortem
 
 Conduct a postmortem for every service or feature outage and every critical bug, whether in a customer's environment or on fleetdm.com.
 
 1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible to make the best use of time.
 2. Invite stakeholders. Typically the EM, PM, QA, and engineers involved. If a customer incident, include the CSM.
 3. Follow and populate the document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
-4. Assign each action item an owner who is responsible for creating an [engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) promptly, labeled `~postmortem-action-item`, and working with their EM to prioritize
+4. Assign each action item an owner who is responsible for creating an [engineering-initiated story](#create-an-engineering-initiated-story) promptly, labeled `~postmortem-action-item`, and working with their EM to prioritize
 5. Share the completed postmortem with [Customer Success](https://fleetdm.com/handbook/customer-success) so they can share it with the affected customer if requested. All postmortems should be written in a state that they can be shared directly with affected customers.
 
 [Example finished document](https://docs.google.com/document/d/1J35KUdhEaayE8Xoytxf6aVVoCXHwk2IPGk2rXHJgRNk/edit?usp=sharing)
 
 > It is the EM of the affected product group's responsibility to conduct the postmortem and make sure action items are prioritized promptly.
 
-### Maintain TUF repo for secure agent updates
+
+### Engineering practices
+
+#### Maintain TUF repo for secure agent updates
 
 Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
-### Fix flaky Go tests
+#### Fix flaky Go tests
 
 Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
 
@@ -464,7 +277,7 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
 
 
-### Create and use Architectural Decision Records (ADRs)
+#### Create and use Architectural Decision Records (ADRs)
 
 Architectural Decision Records (ADRs) document important architectural decisions made along with their context and consequences. They help teams understand why certain technical decisions were made, provide historical context, and ensure knowledge is preserved as the team evolves.
 
@@ -515,24 +328,26 @@ ADRs should be reviewed by:
 The goal of the review is to ensure the decision is well-documented, the context is clear, and the consequences are thoroughly considered.
 
 
-### Request product group transfer
+#### Request product group transfer
 
-Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) or the [CTO](https://fleetdm.com/handbook/engineering#team) to be considered for transfer the next time the requested product group has an available position.
+Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) or the [CTO](#team) to be considered for transfer the next time the requested product group has an available position.
 
 
-### Record engineering KPIs
+#### Record engineering KPIs
 
 We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
 
 At the end of each week, the Engineering KPIs are recorded by the engineering output DRI using the [get bug and PR report script](https://github.com/fleetdm/fleet/blob/main/website/scripts/get-bug-and-pr-report.js).
 
 
-### Edit a DNS record
+### Infrastructure
+
+#### Edit a DNS record
 
 All Fleet DNS records are managed via Terraform. Submit a PR to the appropriate Terraform file in the [Cloudflare infrastructure directory](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloudflare).
 
 
-### Accept new Apple developer account terms
+#### Accept new Apple developer account terms
 
 Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
 
@@ -549,7 +364,7 @@ When this occurs, we will begin receiving the following error message when attem
 5. Accept the new terms of service.
 
 
-### Renew MDM certificate signing request (CSR) 
+#### Renew MDM certificate signing request (CSR) 
 
 The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
 
@@ -571,184 +386,171 @@ Steps to renew the certificate:
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 
-### QA a change to fleetdm.com
+### Hiring
 
-Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
+#### Interview a developer candidate
 
-1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
+Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
-2. [View the website locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) and follow the QA steps in the request ticket to test changes.
+1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
+2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role. Check for any existing non-competes that could impact a candidate’s ability to join Fleet.
+3. **Deliver technical assessment**: Download the zip of the [code challenge](https://github.com/fleetdm/wordgame) and ask them to complete and send their project back within 5 business days.
+4. **Test technical assessment**: Verify the code runs and completes the challenge correctly. Check the code for best practices, good style, and tests that meet our standards.
+5. **Start the interview process**: Follow the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member) to create a "Why hire" document that will be used to consolidate interview feedback.
+6. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a Software Engineer on your team where the goal is to understand the technical capabilities of the candidate. An additional Software Engineer can optionally join if available. Share the candidate's project with the Software Engineers and ask them to review in advance so they are prepared with questions about the candidate's code.
+7. **Schedule HOP interview**: Send the candidate a calendly link for 30m talk with the Head of People @ireedy.
+8. **Schedule HOPD interview**: Send the candidate a calendly link for 30m talk with the Head of Product Design @noahtalerman.
+9. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
-3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/engineering#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
-
-
-### Test fleetdm.com locally 
-
-When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-Once you have the above follow these steps:
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running this script, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
+If the candidate passes all of these steps, then continue with scheduling a CEO interview following the process documented in [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
-2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
-  - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
-  - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
+### Releases
 
-    > When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
-    
-    > Note: You can run `npm run start-dev` in the `website/` folder to run the `build-static-content` script and start the website server with a single command.
-
-3. Once the script is complete, start the website server:
-  - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
-  - **With Sails.js installed globally:** start the server by running `sails lift`.
-
-4. When the server has started, the Fleet website will be available at [http://localhost:2024](http://localhost:2024)
-    
-  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, `@`mention `eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+The release process — QA Day, release candidates, agent releases, post-release tasks, and related rituals — lives on its own page. See the [Releases handbook page](https://fleetdm.com/handbook/engineering/releases).
 
 
-### Check production dependencies of fleetdm.com
+### fleetdm.com
 
-Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this [manual process](https://www.loom.com/share/153613cc1c5347478d3a9545e438cc97?sid=5102dafc-7e27-43cb-8c62-70c8789e5559) can be replaced with Dependabot.
+Processes for maintaining and releasing changes to fleetdm.com — local testing, dependency triage, browser compatibility checks, and related runbooks — live on their own page. See the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
 
-
-### Triage and address vulnerabilities in the `website/` code base
-
-When Dependabot or code scanning surfaces critical or high-severity vulnerabilities in the `/website` directory:
-
-1. **Filter out development-only dependencies** — Dismiss any alerts for packages that are only used during development and never ship to production. When dismissing, include a message with proof, e.g.:
-   > devdep, unused in prod. Proof:
-   > https://github.com/fleetdm/fleet/blob/3a6ecb5a11fdbdf290faf7fdd7ffa6b29335892f/website/package-lock.json#L10798 _(link to the relevant line)_
-
-2. **Assess real-world applicability** — Some vulnerabilities only apply under specific conditions (e.g., a path-to-regex vulnerability that only triggers with 3+ dynamic path params, which fleetdm.com doesn't use). Note these for upstream fixes but deprioritize if not exploitable in our setup.
-
-3. **Address real vulnerabilities** — For confirmed production-impacting vulnerabilities:
-   - Identify the root cause (e.g., a transitive dependency using a `~` semver range instead of `^`).
-   - Publish patch releases of affected upstream packages (e.g., `@sailshq/router`, `sails-hook-organics`) as needed.
-   - Regenerate the lockfile in `fleetdm/fleet:website` after upstream fixes are published.
-
-4. **Reference video walkthrough** — For a detailed walkthrough of this process, see [this confidential video](https://drive.google.com/file/d/17JF1jtEjVc7wkeXYA-2GIJbh9GDPWJEc/view?usp=sharing) (accessible to fleeties only).
-
-
-### Respond to a 5xx error on fleetdm.com
-
-Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
-- investigate the problem to determine the root cause.
-- identify affected users.
-- escalate if necessary.
-- understand and remediate the problem.
-- notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
-- Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
-
-
-### Check browser compatibility for fleetdm.com
-
-A [browser compatibility check](https://www.loom.com/share/4b1945ccffa14b7daca8ab9546b8fbb9?sid=eaa4d27a-236b-426d-a7cb-9c3bdb2c8cdc) of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
-
-- We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
-- Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
-- Document any issues in GitHub as a [bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/handbook/product-design#team).
-
-
-<!-- Commenting this out as we don't have any planned landing pages in the future see: https://github.com/fleetdm/fleet/issues/21117
-### Generate a new landing page
-
-Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
-
-Website experiments and landing pages live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
-
-Some examples of experiments that would live behind the `/imagine` url:
-- A flyer for a meetup "Free shirt to the person who can solve this riddle!"
-- A landing page for a movie screening presented by Fleet
-- A landing page for a private event
-- A landing page for an ad campaign that is running for 4 weeks.
-- An A/B test on product positioning
-- A giveaway page for a conference
-- Table-top signage for a conference booth or meetup
-
-The Fleet website has a built-in landing page generator that can be used to quickly create a new page that lives under the /imagine/ url.
-
-To generate a new page, you'll need: 
-
-- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
-- [Node.js](https://nodejs.org/en/download/)
-- (Optional) [Sails.js](https://sailsjs.com/) installed globally on your machine (`npm install sails -g`)
-
-1. Open your terminal program, and navigate to the `website/` folder of your local copy of the Fleet repo.
-    
-    > Note: If this is your first time running the website locally, you will need to run `npm install` inside of the website/ folder to install the website's dependencies.
-
-2. Call the `landing-page` generator by running `node ./node_modules/sails/bin/sails generate landing-page [page-name]`, replacing `[page-name]` with the kebab-cased name (words separated by dashes `-`) of your page.
-
-3. After the files have been generated, you'll need to manually update the website's routes. To do this, copy and paste the generated route for the new page to the "Imagine" section of `website/config/routes.js`.
-
-4. Next you need to update the stylesheets so that the page can inherit the correct styles. To do this, copy and paste the generated import statement to the "Imagine" section of `website/assets/styles/importer.less`.
-
-5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be available at `http://localhost:1337/imagine/{page-name}`.
-
-6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
--->
-
-### Check for new versions of osquery schema
-
-When a new version of osquery is released, the Fleet website needs to be updated to use the latest version of the osquery schema. To do this, we update the website's `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` configuration variable in [website/config/custom.js](https://github.com/fleetdm/fleet/blob/6eb6884c4f02dc24b49f394abe9dde5fd1875c55/website/config/custom.js#L327). The osquery schema is combined with Fleet's [YAML overrides](https://github.com/fleetdm/fleet/tree/main/schema/tables) to generate the [JSON schema](https://github.com/fleetdm/fleet/blob/main/schema/osquery_fleet_schema.json) used by the table schema side panel in Fleet, as well as fleetdm.com's [table schema](/tables).
-
-> Note: The version number used in the `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` variable must correspond to a version of the JSON osquery schema in the [osquery/osquery-site repo](https://github.com/osquery/osquery-site/tree/main/src/data/osquery_schema_versions).
-
-
-### Restart Algolia manually
-
-At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
-
-When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
-You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
-
-No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
-
-
-### Change the "Integrations admin" Salesforce account password
-
-Salesforce requires that the password to the "Integrations admin" account is changed every 90 days. When this happens, the Salesforce integrations on the Fleet website/Hydroplane will fail with an `INVALID_LOGIN` error. To prevent this from happening:
-
-1. Log into the "Integrations admin" account in Salesforce.
-2. Change the password and save it in the shared 1Password vault.
-3. Request a new security token for the "Integrations admin" account by clicking the profile picture » `Settings` » `Reset my security token` (This will be sent to the email address associated with the account).
-4. Update the `sails_config__custom_salesforceIntegrationPasskey` config variable in Heroku to be `[password][security token]` (For both the Fleet website and Hydroplane).
-
-
-### Re-run the "Deploy Fleet Website" action
-
-If the action fails, please complete the following steps:
-1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
-2. Select "Roll back to here" on the second to most recent deploy.
-3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
-
-### Enable merge commits to allow large features branches with multiple contributors to retain git history
-
-1. A github admin must go to Settings -> General -> Enable the `allow merge commits` checkbox near the bottom
-2. A github admin must go to the branch settings for main and uncheck `require linear history`
-3. Merge in the PR with the merge dropdown option 'Create a merge commit'
-4. A github admin must re-enable the branch `require linear history`
-5. A github admin must disable the `allow merge commits`
 
 ## Rituals
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
 
+
 #### Stubs
+
 The following stubs are included only to make links backward compatible.
 
 ##### Provide same-day support for major version macOS releases
 
 Please see [Fleet supports Apple’s latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26)
+
+##### Draft an engineering-initiated story
+
+Please see [Create an engineering-initiated story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story).
+
+##### Schedule on-call engineer workload
+
+Please see [On-call engineer](https://fleetdm.com/handbook/engineering#on-call-engineer).
+
+##### Assume on-call engineer alias
+
+Please see [On-call engineer](https://fleetdm.com/handbook/engineering#on-call-engineer).
+
+##### Schedule incident on-call engineer workload
+
+Please see [Incident on-call engineer](https://fleetdm.com/handbook/engineering#incident-on-call-engineer).
+
+##### Assume incident on-call engineer alias
+
+Please see [Incident on-call engineer](https://fleetdm.com/handbook/engineering#incident-on-call-engineer).
+
+##### Participate in QA Day
+
+Please see [Participate in QA Day](https://fleetdm.com/handbook/engineering/releases#participate-in-qa-day).
+
+##### Create a release candidate
+
+Please see [Create a release candidate](https://fleetdm.com/handbook/engineering/releases#create-a-release-candidate).
+
+##### Merge unreleased bug fixes into the release candidate
+
+Please see [Merge unreleased bug fixes into the release candidate](https://fleetdm.com/handbook/engineering/releases#merge-unreleased-bug-fixes-into-the-release-candidate).
+
+##### Request release candidate feature merge exception
+
+Please see [Request release candidate feature merge exception](https://fleetdm.com/handbook/engineering/releases#request-release-candidate-feature-merge-exception).
+
+##### Confirm latest versions of dependencies
+
+Please see [Confirm latest versions of dependencies](https://fleetdm.com/handbook/engineering/releases#confirm-latest-versions-of-dependencies).
+
+##### Indicate your product group is release-ready
+
+Please see [Indicate your product group is release-ready](https://fleetdm.com/handbook/engineering/releases#indicate-your-product-group-is-release-ready).
+
+##### Submit test coverage requests to QA Wolf
+
+Please see [Submit test coverage requests to QA Wolf](https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf).
+
+##### Prepare Fleet release
+
+Please see [Prepare Fleet release](https://fleetdm.com/handbook/engineering/releases#prepare-fleet-release).
+
+##### Prepare fleetd agent release
+
+Please see [Prepare fleetd agent release](https://fleetdm.com/handbook/engineering/releases#prepare-fleetd-agent-release).
+
+##### Deploy a new release to dogfood
+
+Please see [Deploy a new release to dogfood](https://fleetdm.com/handbook/engineering/releases#deploy-a-new-release-to-dogfood).
+
+##### Conclude current milestone
+
+Please see [Conclude current milestone](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone).
+
+##### Update the Fleet releases calendar
+
+Please see [Update the Fleet releases calendar](https://fleetdm.com/handbook/engineering/releases#update-the-fleet-releases-calendar).
+
+##### Discuss release dates
+
+Please see [Discuss release dates](https://fleetdm.com/handbook/engineering/releases#discuss-release-dates).
+
+##### Handle process exceptions for non-released code
+
+Please see [Handle process exceptions for non-released code](https://fleetdm.com/handbook/engineering/releases#handle-process-exceptions-for-non-released-code).
+
+##### Run Fleet locally for QA purposes
+
+Please see [Run Fleet locally for QA purposes](https://fleetdm.com/handbook/engineering/releases#run-fleet-locally-for-qa-purposes).
+
+##### QA a change to fleetdm.com
+
+Please see [QA a change to fleetdm.com](https://fleetdm.com/handbook/engineering/website#qa-a-change-to-fleetdm-com).
+
+##### Test fleetdm.com locally
+
+Please see [Test fleetdm.com locally](https://fleetdm.com/handbook/engineering/website#test-fleetdm-com-locally).
+
+##### Check production dependencies of fleetdm.com
+
+Please see [Check production dependencies of fleetdm.com](https://fleetdm.com/handbook/engineering/website#check-production-dependencies-of-fleetdm-com).
+
+##### Triage and address vulnerabilities in the `website/` code base
+
+Please see [Triage and address vulnerabilities in the `website/` code base](https://fleetdm.com/handbook/engineering/website#triage-and-address-vulnerabilities-in-the-website-code-base).
+
+##### Respond to a 5xx error on fleetdm.com
+
+Please see [Respond to a 5xx error on fleetdm.com](https://fleetdm.com/handbook/engineering/website#respond-to-a-5xx-error-on-fleetdm-com).
+
+##### Check browser compatibility for fleetdm.com
+
+Please see [Check browser compatibility for fleetdm.com](https://fleetdm.com/handbook/engineering/website#check-browser-compatibility-for-fleetdm-com).
+
+##### Check for new versions of osquery schema
+
+Please see [Check for new versions of osquery schema](https://fleetdm.com/handbook/engineering/website#check-for-new-versions-of-osquery-schema).
+
+##### Restart Algolia manually
+
+Please see [Restart Algolia manually](https://fleetdm.com/handbook/engineering/website#restart-algolia-manually).
+
+##### Change the "Integrations admin" Salesforce account password
+
+Please see [Change the "Integrations admin" Salesforce account password](https://fleetdm.com/handbook/engineering/website#change-the-integrations-admin-salesforce-account-password).
+
+##### Re-run the "Deploy Fleet Website" action
+
+Please see [Re-run the "Deploy Fleet Website" action](https://fleetdm.com/handbook/engineering/website#re-run-the-deploy-fleet-website-action).
+
+##### Enable merge commits to allow large features branches with multiple contributors to retain git history
+
+Please see [Enable merge commits for large feature branches](https://fleetdm.com/docs/contributing/committing-changes#enable-merge-commits-for-large-feature-branches).
 
 
 <meta name="maintainedBy" value="lukeheath">
