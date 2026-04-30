@@ -200,6 +200,7 @@ describe("InstallSoftware", () => {
     const { user } = render(
       <InstallSoftwareForm
         savedRequireAllSoftwareWindows={false}
+        isWindowsMdmEnabled
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle()]}
         hasManualAgentInstall={false}
@@ -221,6 +222,26 @@ describe("InstallSoftware", () => {
     });
 
     updateRequireAllSoftwareWindowsSpy.mockRestore();
+  });
+
+  it("disables the Windows checkbox when Windows MDM is not configured", async () => {
+    render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows={false}
+        isWindowsMdmEnabled={false}
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle()]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: /Cancel setup if software fails/,
+    });
+    expect(checkbox).toHaveAttribute("aria-disabled", "true");
   });
 
   it("should disable adding software for macos with manual agent install", async () => {

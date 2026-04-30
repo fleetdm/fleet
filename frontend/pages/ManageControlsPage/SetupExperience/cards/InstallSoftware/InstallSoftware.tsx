@@ -160,28 +160,25 @@ const InstallSoftware = ({
         !appleMdmAndAbmEnabled;
 
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
-      const turnOnWindowsMdm = platform === "windows" && !isWindowsMdmEnabled;
 
-      const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm || turnOnWindowsMdm;
-
-      const isAndroidOrWindows =
-        platform === "android" || platform === "windows";
-
-      let mdmEmptyStateHeader = "Additional configuration required";
-      if (platform === "android") {
-        mdmEmptyStateHeader = "Turn on Android MDM";
-      } else if (platform === "windows") {
-        mdmEmptyStateHeader = "Turn on Windows MDM";
-      }
+      // Only Apple and Android setup experience require MDM. Windows admins can
+      // pre-stage setup-experience software without MDM, but the
+      // require_all_software_windows option does require Windows MDM to be on
+      // (gated at the checkbox level inside InstallSoftwareForm).
+      const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
       return (
         <SetupExperienceContentContainer>
           <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
           {turnOnMdm ? (
             <EmptyState
-              header={mdmEmptyStateHeader}
+              header={
+                platform === "android"
+                  ? "Turn on Android MDM"
+                  : "Additional configuration required"
+              }
               info={
-                isAndroidOrWindows
+                platform === "android"
                   ? "Turn on MDM to install software during setup experience."
                   : "Turn on MDM and automatic enrollment to install software during setup experience."
               }
@@ -213,6 +210,7 @@ const InstallSoftware = ({
                   : globalConfig?.mdm?.setup_experience
                       ?.require_all_software_windows
               }
+              isWindowsMdmEnabled={!!isWindowsMdmEnabled}
               router={router}
               refetchSoftwareTitles={refetchSoftwareTitles}
             />

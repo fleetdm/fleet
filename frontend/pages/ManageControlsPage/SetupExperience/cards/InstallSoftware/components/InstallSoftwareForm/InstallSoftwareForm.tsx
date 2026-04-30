@@ -76,6 +76,7 @@ interface IInstallSoftwareFormProps {
   platform: SetupExperiencePlatform;
   savedRequireAllSoftwareMacOS?: boolean | null;
   savedRequireAllSoftwareWindows?: boolean | null;
+  isWindowsMdmEnabled?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitles: () => void;
 }
@@ -87,6 +88,7 @@ const InstallSoftwareForm = ({
   platform,
   savedRequireAllSoftwareMacOS,
   savedRequireAllSoftwareWindows,
+  isWindowsMdmEnabled = true,
   router,
   refetchSoftwareTitles,
 }: IInstallSoftwareFormProps) => {
@@ -299,11 +301,17 @@ const InstallSoftwareForm = ({
         {platform === "windows" && (
           <div className={`${baseClass}__windows_options`}>
             <Checkbox
-              disabled={gitOpsModeEnabled}
+              disabled={gitOpsModeEnabled || !isWindowsMdmEnabled}
               value={requireAllSoftwareWindows}
               onChange={handleChangeRequireAllWindows}
             >
-              <TooltipWrapper tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled.">
+              <TooltipWrapper
+                tipContent={
+                  isWindowsMdmEnabled
+                    ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                    : "Turn on Windows MDM to use this option."
+                }
+              >
                 Cancel setup if software fails
               </TooltipWrapper>
             </Checkbox>
