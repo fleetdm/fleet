@@ -1,4 +1,1 @@
-- Extended the one-time SCEP enrollment/renewal challenge TTL from 1 hour to 7 days so devices that pick up a renewal profile after going offline (sleeping laptops, planes) can still complete the SCEP handshake.
-- Restricted the managed-cert renewal cron to settled delivery states (`verified`, `failed`) so an in-flight renewal isn't repeatedly re-fired while the device hasn't yet picked up the original.
-- Added a 24-hour backoff before the renewal cron retries `failed` profiles to avoid hot-looping permanent render-time failures (deleted CA, missing IDP variables, etc.).
-- Added an ingest-side safety net that backfills `host_mdm_managed_certificates` from `host_certificates` when the primary toInsert matcher missed a renewed cert (replica lag, transaction race), so silently failing renewals can self-recover without manual re-push.
+- Fixed SCEP certificates failing to auto-renew, including on devices that go offline between profile push and SCEP request.
