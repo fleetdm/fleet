@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IOrgLogoStorableMode } from "interfaces/org_logo";
@@ -163,12 +163,27 @@ const Info = ({
   const lightInputRef = useRef<HTMLInputElement | null>(null);
   const darkInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Revoke every live blob URL on unmount
+  const pendingUrlsRef = useRef<string[]>([]);
+  useEffect(() => {
+    pendingUrlsRef.current = [
+      lightLogo.pendingUpload?.url,
+      darkLogo.pendingUpload?.url,
+    ].filter((u): u is string => !!u);
+  }, [lightLogo.pendingUpload, darkLogo.pendingUpload]);
+  useEffect(
+    () => () => {
+      pendingUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    },
+    []
+  );
+
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     setFormData({ ...formData, [name]: value });
     setFormErrors({});
   };
 
-  const validateForm = () => {
+  const computeFormErrors = (): IOrgInfoFormErrors => {
     const errors: IOrgInfoFormErrors = {};
 
     if (!orgName) {
@@ -183,7 +198,11 @@ const Info = ({
       errors.org_support_url = "Organization support URL is not a valid URL";
     }
 
-    setFormErrors(errors);
+    return errors;
+  };
+
+  const validateForm = () => {
+    setFormErrors(computeFormErrors());
   };
 
   const setLogoFile = (
@@ -229,9 +248,26 @@ const Info = ({
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    // Validate synchronously before any API call so an invalid org name or
+    // support URL aborts the submit before logo ops run.
+    const errors = computeFormErrors();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
     setIsSaving(true);
 
     try {
+      const formDataToSubmit = {
+        org_info: {
+          org_name: orgName,
+          contact_url: orgSupportURL,
+        },
+      };
+
+      const ok = await handleSubmit(formDataToSubmit);
+      if (!ok) return;
+
       const lightDeleted = lightLogo.pendingDelete && !!lightOriginalUrl;
       const darkDeleted = darkLogo.pendingDelete && !!darkOriginalUrl;
       const logoOps: (() => Promise<unknown>)[] = [];
@@ -264,22 +300,12 @@ const Info = ({
         await op();
       }
 
-      const formDataToSubmit = {
-        org_info: {
-          org_name: orgName,
-          contact_url: orgSupportURL,
-        },
+      const reset = (prev: ILogoModeState) => {
+        if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+        return { ...prev, pendingUpload: null, pendingDelete: false };
       };
-
-      const ok = await handleSubmit(formDataToSubmit);
-      if (ok) {
-        const reset = (prev: ILogoModeState) => {
-          if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
-          return { ...prev, pendingUpload: null, pendingDelete: false };
-        };
-        setLightLogo(reset);
-        setDarkLogo(reset);
-      }
+      setLightLogo(reset);
+      setDarkLogo(reset);
     } catch (e) {
       renderFlash("error", "Couldn't update logo. Please try again.");
     } finally {
