@@ -1,61 +1,52 @@
+// redis-stress: cluster-aware Redis stress tool with multiple modes.
+//
+// See ./README.md for full docs.
 package main
 
 import (
-	"flag"
 	"fmt"
-	"log"
-	"time"
-
-	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"os"
 )
 
-var (
-	addrFlag       = flag.String("addr", "", "Redis address, including port")
-	indexStartFlag = flag.Int("index-start", 1, "Index to start from when inserting keys")
-	debugFlag      = flag.Bool("debug", false, "Print debug logs")
-	waitFlag       = flag.Duration("wait", 10*time.Minute, "Amount of time to do SETs")
-)
+const usage = `redis-stress: cluster-aware Redis stress tool with multiple modes.
+
+USAGE:
+  redis-stress <command> [flags]
+
+COMMANDS:
+  write   Steady SET-only load (fill the cluster at a configurable rate).
+  race    Tight SET-then-GET race detection (chase SET-visibility issues
+          like Redis cluster replica-read lag, MOVED redirect blips, etc).
+
+For per-command help:
+  redis-stress <command> -h
+`
 
 func main() {
-	flag.Parse()
-
-	pool, err := redis.NewPool(redis.PoolConfig{Server: *addrFlag, UseTLS: false})
-	if err != nil {
-		log.Fatal(err)
+	if len(os.Args) < 2 {
+		fmt.Fprint(os.Stderr, usage)
+		os.Exit(2)
 	}
-	defer pool.Close()
-
-	log.Println("pool created successfully")
-
-	conn := pool.Get()
-	defer conn.Close()
-
-	ticker := time.NewTicker(1 * time.Second)
-	quit := make(chan struct{})
-	go func() {
-		i := 0
-		if indexStartFlag != nil {
-			i = *indexStartFlag
+	// Backward-compat with the original (subcommand-less) tool: if the first arg
+	// starts with `-`, treat it as flags for write mode. Lets old invocations
+	// like `redis-stress -addr=X -wait=10m` keep working.
+	if len(os.Args[1]) > 0 && os.Args[1][0] == '-' {
+		if os.Args[1] == "-h" || os.Args[1] == "--help" {
+			fmt.Fprint(os.Stdout, usage)
+			return
 		}
-		for {
-			select {
-			case <-ticker.C:
-				_, err := conn.Do("SET", fmt.Sprintf("error:%d", i), 1, "EX", (10 * time.Minute).Seconds())
-				if debugFlag != nil && *debugFlag {
-					log.Println("SET", i)
-					if err != nil {
-						log.Println("err", err)
-					}
-				}
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-			i++
-		}
-	}()
-
-	time.Sleep(*waitFlag)
-	close(quit)
-	log.Println("done")
+		runWrite(os.Args[1:])
+		return
+	}
+	switch os.Args[1] {
+	case "write":
+		runWrite(os.Args[2:])
+	case "race":
+		runRace(os.Args[2:])
+	case "help":
+		fmt.Fprint(os.Stdout, usage)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", os.Args[1], usage)
+		os.Exit(2)
+	}
 }

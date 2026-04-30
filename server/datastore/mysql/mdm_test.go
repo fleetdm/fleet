@@ -594,10 +594,10 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 	macH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "ord-host",
 		OsqueryHostID:  ptr.String("ord-osq"),
-		NodeKey:        ptr.String("ord-node-key"),
+		NodeKey:        ptr.String("ord-nk"),
 		UUID:           uuid.NewString(),
 		Platform:       "darwin",
-		HardwareSerial: "ORD123",
+		HardwareSerial: "ORDABC",
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macH, false)
@@ -627,26 +627,27 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
 			},
 		)
 		require.Error(t, err)
 	})
 
 	// host-identifier branch shares the allowlist
-	t.Run("host_identifier_branch_rejects_unknown_key", func(t *testing.T) {
+	// the host-identifier branch uses a separate query; confirm it shares the allowlist
+	t.Run("rejects_unknown_key_host_identifier", func(t *testing.T) {
 		_, _, _, err := ds.ListMDMCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
 				Filters:     fleet.MDMCommandFilters{HostIdentifier: macH.UUID},
 			},
 		)
 		require.Error(t, err)
 	})
 
-	t.Run("cursor_pagination_with_allowed_key", func(t *testing.T) {
+	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
 		cmds, _, _, err := ds.ListMDMCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
@@ -657,7 +658,7 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		afterCursor := cmds[0].CommandUUID
-		nextPage, _, _, err := ds.ListMDMCommands(
+		next, _, _, err := ds.ListMDMCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
@@ -665,8 +666,8 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			},
 		)
 		require.NoError(t, err)
-		require.Len(t, nextPage, 1)
-		require.NotEqual(t, afterCursor, nextPage[0].CommandUUID)
+		require.Len(t, next, 1)
+		require.NotEqual(t, afterCursor, next[0].CommandUUID)
 	})
 }
 
@@ -676,7 +677,7 @@ func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
 	macH, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "ord-apple-host",
 		OsqueryHostID:  ptr.String("ord-apple-osq"),
-		NodeKey:        ptr.String("ord-apple-node-key"),
+		NodeKey:        ptr.String("ord-apple-nk"),
 		UUID:           uuid.NewString(),
 		Platform:       "darwin",
 		HardwareSerial: "ORDA1",
@@ -709,13 +710,13 @@ func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
 			},
 		)
 		require.Error(t, err)
 	})
 
-	t.Run("cursor_pagination_with_allowed_key", func(t *testing.T) {
+	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
 		cmds, err := ds.ListMDMAppleCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
@@ -726,7 +727,7 @@ func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		afterCursor := cmds[0].CommandUUID
-		nextPage, err := ds.ListMDMAppleCommands(
+		next, err := ds.ListMDMAppleCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
@@ -734,8 +735,8 @@ func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			},
 		)
 		require.NoError(t, err)
-		require.Len(t, nextPage, 1)
-		require.NotEqual(t, afterCursor, nextPage[0].CommandUUID)
+		require.Len(t, next, 1)
+		require.NotEqual(t, afterCursor, next[0].CommandUUID)
 	})
 }
 
