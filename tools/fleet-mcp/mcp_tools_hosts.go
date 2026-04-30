@@ -343,7 +343,7 @@ func registerGetHostPolicies(s *server.MCPServer, fleetClient *FleetClient) {
 func resolveHostWithPolicies(ctx context.Context, fleetClient *FleetClient, hostIDArg, identifier string) (host *HostWithPolicies, ambiguous bool, candidates []Endpoint, err error) {
 	// Case 1: explicit numeric host_id wins.
 	if hostIDArg != "" {
-		id, parseErr := strconv.ParseUint(hostIDArg, 10, 64)
+		id, parseErr := strconv.ParseUint(hostIDArg, 10, strconv.IntSize)
 		if parseErr != nil || id == 0 {
 			return nil, false, nil, fmt.Errorf("host_id must be a positive integer, got %q", hostIDArg)
 		}
