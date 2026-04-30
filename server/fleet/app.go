@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1255,6 +1256,35 @@ func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
 		return invalid
 	}
 	return nil
+}
+
+// orgLogoServingPathPrefix is the relative path Fleet writes into the
+// OrgLogo*URL fields after a successful logo upload (see
+// orgLogoServingURL in server/service/org_logo.go). AbsolutizeLogoURLs
+// uses this to recognize Fleet-hosted logos that need the current
+// ServerURL prepended on read.
+const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
+
+// AbsolutizeLogoURLs rewrites any Fleet-hosted relative logo URL into a
+// fully-qualified URL using the supplied serverURL. URLs that don't
+// match the Fleet-hosted serving path (i.e. external URLs set by
+// customers) are left unchanged. Empty values are left empty.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	if serverURL == "" {
+		return
+	}
+	serverURL = strings.TrimRight(serverURL, "/")
+
+	abs := func(u string) string {
+		if strings.HasPrefix(u, orgLogoServingPathPrefix) {
+			return serverURL + u
+		}
+		return u
+	}
+	o.OrgLogoURL = abs(o.OrgLogoURL)
+	o.OrgLogoURLLightBackground = abs(o.OrgLogoURLLightBackground)
+	o.OrgLogoURLDarkMode = abs(o.OrgLogoURLDarkMode)
+	o.OrgLogoURLLightMode = abs(o.OrgLogoURLLightMode)
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"

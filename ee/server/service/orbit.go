@@ -173,6 +173,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
+	appCfg.OrgInfo.AbsolutizeLogoURLs(appCfg.ServerSettings.ServerURL)
+
 	payload := &fleet.SetupExperienceStatusPayload{
 		BootstrapPackage:      bootstrapPkgResult,
 		ConfigurationProfiles: cfgProfResults,

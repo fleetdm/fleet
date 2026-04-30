@@ -209,6 +209,11 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// Conflicts are not possible at this point since the persisted config
 	// has already been normalized on write.
 	_ = appConfig.OrgInfo.NormalizeLogoFields()
+	// Rewrite Fleet-hosted relative logo URLs to fully-qualified URLs
+	// using the current ServerURL. The persisted form stays relative —
+	// this is purely a read-time view, so the URL stays valid if the
+	// customer changes their Fleet server URL after a logo upload.
+	appConfig.OrgInfo.AbsolutizeLogoURLs(appConfig.ServerSettings.ServerURL)
 
 	features := appConfig.Features
 	response := appConfigResponse{

@@ -232,6 +232,8 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			EnableConditionalAccessBypass: ac.ConditionalAccess != nil && ac.ConditionalAccess.BypassEnabled(),
 		},
 	}
+	
+	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
 
 	return getDeviceHostResponse{
 		Host:                      resp,
