@@ -2919,10 +2919,12 @@ settings:
 	require.Equal(t, "icon.png", teamIconFilenames[1])
 }
 
-// TestGitOpsIconSilentNoOpOnMissingStorage exercises the case where the
-// software_title_icons row matches the local hash but the bytes on disk are
-// gone: gitops short-circuits to no-op and never re-uploads.
-func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconSilentNoOpOnMissingStorage() {
+// TestGitOpsIconRecoversAfterClearingStaleHash documents the recovery path
+// when an icon row's storage_id refers to bytes that are no longer in the
+// store. The planner short-circuits any subsequent gitops run because the
+// row's hash still matches the local YAML; clearing the row's storage_id
+// forces the next run to re-upload.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconRecoversAfterClearingStaleHash() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -3011,24 +3013,43 @@ settings:
 	info, err := os.Stat(iconPath)
 	require.NoError(t, err)
 	originalSize := info.Size()
-	require.Greater(t, originalSize, int64(0))
+	require.Positive(t, originalSize)
 
-	// Truncate the bytes on disk while leaving the row intact, then re-run.
+	// Truncate the bytes on disk while leaving the icon row intact.
 	require.NoError(t, os.Truncate(iconPath, 0))
 
+	// A second gitops run with the unchanged YAML silently no-ops because
+	// the planner short-circuits before any API call. This pins down that
+	// known limitation; the recovery below is what restores the icon.
 	secondRunOut := fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(),
 		"-f", globalFile.Name(), "-f", teamFile.Name(),
 	})
 	s.assertRealRunOutput(t, secondRunOut)
-
-	// Pin down the buggy behaviour. Once the planner detects the missing
-	// bytes, these should flip to "set icons on 1 software title" and
-	// originalSize.
 	require.Contains(t, secondRunOut, "set icons on 0 software titles")
 	info, err = os.Stat(iconPath)
 	require.NoError(t, err)
 	require.Equal(t, int64(0), info.Size())
+
+	// Recovery: clearing storage_id forces a hash mismatch and re-upload
+	// on the next run.
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE software_title_icons SET storage_id = '' WHERE team_id = ? AND software_title_id = ?",
+			team.ID, titles[0].ID)
+		return err
+	})
+
+	thirdRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, thirdRunOut)
+	require.Contains(t, thirdRunOut, "set icons on 1 software title")
+
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, originalSize, info.Size())
 }
 
 // TestGitOpsTeamLabels tests operations around team labels
