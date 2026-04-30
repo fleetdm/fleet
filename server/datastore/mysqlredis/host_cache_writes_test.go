@@ -19,14 +19,14 @@ import (
 func primeCachedHost(t *testing.T, d *Datastore, id uint, nk string) {
 	t.Helper()
 	ctx := t.Context()
-	d.hostCachePut(ctx, &fleet.Host{ID: id, NodeKey: &nk, Hostname: "primed-" + nk})
-	_, result := d.hostCacheGet(ctx, nk)
+	d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: id, NodeKey: &nk, Hostname: "primed-" + nk})
+	_, result := d.hostCacheGetByNodeKey(ctx, nk)
 	require.Equal(t, hostCacheLookupHit, result, "primeCachedHost failed to prime %q", nk)
 }
 
 func requireCacheMiss(t *testing.T, d *Datastore, nk string) {
 	t.Helper()
-	_, result := d.hostCacheGet(t.Context(), nk)
+	_, result := d.hostCacheGetByNodeKey(t.Context(), nk)
 	require.Equal(t, hostCacheLookupMiss, result, "expected miss for %q, got %v", nk, result)
 }
 
@@ -222,7 +222,7 @@ func TestWritePathInvalidation(t *testing.T) {
 			d := New(ds, pool, WithHostCache(30*time.Second))
 
 			// Someone probed this node_key before enrollment and we cached notFound.
-			d.hostCachePutNotFound(ctx, nk)
+			d.hostCachePutNotFoundByNodeKey(ctx, nk)
 
 			h, err := d.NewHost(ctx, &fleet.Host{NodeKey: &nk})
 			require.NoError(t, err)
@@ -313,17 +313,17 @@ func TestWritePathInvalidation(t *testing.T) {
 			nk := "nk-dual"
 			onk := "onk-dual"
 			host := &fleet.Host{ID: 101, NodeKey: &nk, OrbitNodeKey: &onk, Hostname: "dual"}
-			d.hostCachePut(ctx, host)
-			d.hostCachePutByOrbit(ctx, host)
+			d.hostCachePutByNodeKey(ctx, host)
+			d.hostCachePutByOrbitNodeKey(ctx, host)
 
-			_, res := d.hostCacheGet(ctx, nk)
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
 			require.Equal(t, hostCacheLookupHit, res)
 			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
 			require.Equal(t, hostCacheLookupHit, res)
 
 			require.NoError(t, d.UpdateHost(ctx, host))
 
-			_, res = d.hostCacheGet(ctx, nk)
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
 			assert.Equal(t, hostCacheLookupMiss, res)
 			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
 			assert.Equal(t, hostCacheLookupMiss, res)
@@ -342,7 +342,7 @@ func TestWritePathInvalidation(t *testing.T) {
 			require.ErrorIs(t, err, boom)
 
 			// Cache must still hold the pre-written value. A failed write operation must not evict valid cached data.
-			_, result := d.hostCacheGet(ctx, nk)
+			_, result := d.hostCacheGetByNodeKey(ctx, nk)
 			assert.Equal(t, hostCacheLookupHit, result)
 		})
 	}

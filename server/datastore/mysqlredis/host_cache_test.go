@@ -105,9 +105,9 @@ func TestHostCacheHelpers(t *testing.T) {
 				Platform:            "darwin",
 				HasHostIdentityCert: &certTrue,
 			}
-			wrapped.hostCachePut(ctx, stored)
+			wrapped.hostCachePutByNodeKey(ctx, stored)
 
-			loaded, result := wrapped.hostCacheGet(ctx, nk)
+			loaded, result := wrapped.hostCacheGetByNodeKey(ctx, nk)
 			require.Equal(t, hostCacheLookupHit, result)
 			require.NotNil(t, loaded)
 			assert.Equal(t, stored.ID, loaded.ID)
@@ -131,7 +131,7 @@ func TestHostCacheHelpers(t *testing.T) {
 		t.Run("miss returns hostCacheLookupMiss", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
-			host, result := wrapped.hostCacheGet(ctx, "node-never-cached")
+			host, result := wrapped.hostCacheGetByNodeKey(ctx, "node-never-cached")
 			assert.Nil(t, host)
 			assert.Equal(t, hostCacheLookupMiss, result)
 		})
@@ -139,8 +139,8 @@ func TestHostCacheHelpers(t *testing.T) {
 		t.Run("negative cache returns hostCacheLookupNegative", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
-			wrapped.hostCachePutNotFound(ctx, "node-missing")
-			host, result := wrapped.hostCacheGet(ctx, "node-missing")
+			wrapped.hostCachePutNotFoundByNodeKey(ctx, "node-missing")
+			host, result := wrapped.hostCacheGetByNodeKey(ctx, "node-missing")
 			assert.Nil(t, host)
 			assert.Equal(t, hostCacheLookupNegative, result)
 		})
@@ -151,10 +151,10 @@ func TestHostCacheHelpers(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
 			nk := "node-both"
-			wrapped.hostCachePutNotFound(ctx, nk)
-			wrapped.hostCachePut(ctx, &fleet.Host{ID: 9, NodeKey: &nk, Hostname: "wins"})
+			wrapped.hostCachePutNotFoundByNodeKey(ctx, nk)
+			wrapped.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 9, NodeKey: &nk, Hostname: "wins"})
 
-			loaded, result := wrapped.hostCacheGet(ctx, nk)
+			loaded, result := wrapped.hostCacheGetByNodeKey(ctx, nk)
 			require.Equal(t, hostCacheLookupHit, result)
 			assert.Equal(t, "wins", loaded.Hostname)
 		})
@@ -169,12 +169,12 @@ func TestHostCacheHelpers(t *testing.T) {
 			// node_key regardless of which are live," so we populate all three to verify the
 			// delete clears them all.
 			nk := "node-del-nk"
-			wrapped.hostCachePut(ctx, &fleet.Host{ID: 10, NodeKey: &nk})
-			wrapped.hostCachePutNotFound(ctx, nk)
+			wrapped.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 10, NodeKey: &nk})
+			wrapped.hostCachePutNotFoundByNodeKey(ctx, nk)
 
 			wrapped.hostCacheDeleteByNodeKey(ctx, nk, 10, "update")
 
-			_, result := wrapped.hostCacheGet(ctx, nk)
+			_, result := wrapped.hostCacheGetByNodeKey(ctx, nk)
 			assert.Equal(t, hostCacheLookupMiss, result)
 
 			conn := redis.ConfigureDoer(pool, pool.Get())
@@ -194,11 +194,11 @@ func TestHostCacheHelpers(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 
 			nk := "node-del-id"
-			wrapped.hostCachePut(ctx, &fleet.Host{ID: 11, NodeKey: &nk})
+			wrapped.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 11, NodeKey: &nk})
 
 			wrapped.hostCacheDeleteByID(ctx, 11, "team")
 
-			_, result := wrapped.hostCacheGet(ctx, nk)
+			_, result := wrapped.hostCacheGetByNodeKey(ctx, nk)
 			assert.Equal(t, hostCacheLookupMiss, result)
 
 			conn := redis.ConfigureDoer(pool, pool.Get())
@@ -490,18 +490,18 @@ func TestHostCacheUnifiedInvalidation(t *testing.T) {
 		nk := "nk-both"
 		onk := "onk-both"
 		host := &fleet.Host{ID: 99, NodeKey: &nk, OrbitNodeKey: &onk, Hostname: "both"}
-		wrapped.hostCachePut(ctx, host)
-		wrapped.hostCachePutByOrbit(ctx, host)
+		wrapped.hostCachePutByNodeKey(ctx, host)
+		wrapped.hostCachePutByOrbitNodeKey(ctx, host)
 
 		// Sanity: both hot.
-		_, res := wrapped.hostCacheGet(ctx, nk)
+		_, res := wrapped.hostCacheGetByNodeKey(ctx, nk)
 		require.Equal(t, hostCacheLookupHit, res)
 		_, res = wrapped.hostCacheGetByOrbitNodeKey(ctx, onk)
 		require.Equal(t, hostCacheLookupHit, res)
 
 		wrapped.hostCacheDeleteByID(ctx, 99, "update")
 
-		_, res = wrapped.hostCacheGet(ctx, nk)
+		_, res = wrapped.hostCacheGetByNodeKey(ctx, nk)
 		assert.Equal(t, hostCacheLookupMiss, res)
 		_, res = wrapped.hostCacheGetByOrbitNodeKey(ctx, onk)
 		assert.Equal(t, hostCacheLookupMiss, res)

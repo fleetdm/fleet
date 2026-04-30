@@ -1210,12 +1210,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
 	man.addConfigBool("redis.host_cache_enabled", true,
-		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths")
+		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
+			"and serve every check-in from MySQL.")
 	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
-		"TTL for Redis-backed host lookup cache entries; actual per-entry TTL is jittered by ±10%")
-	// Hide from --help: this is a feature flag, not an operator-facing tunable.
-	man.hideConfig("redis.host_cache_enabled")
-	man.hideConfig("redis.host_cache_ttl")
+		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
+			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
+			"redis.host_cache_enabled=false to disable the cache.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",

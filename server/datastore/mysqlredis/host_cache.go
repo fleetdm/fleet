@@ -194,8 +194,8 @@ func (d *Datastore) hostCacheGetFamily(ctx context.Context, fam cacheFamily, key
 	}
 }
 
-// hostCacheGet is the osquery-family wrapper of hostCacheGetFamily.
-func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Host, hostCacheLookup) {
+// hostCacheGetByNodeKey is the osquery-family wrapper of hostCacheGetFamily.
+func (d *Datastore) hostCacheGetByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, hostCacheLookup) {
 	return d.hostCacheGetFamily(ctx, osqueryCacheFamily, nodeKey)
 }
 
@@ -213,8 +213,7 @@ func (d *Datastore) hostCacheGet(ctx context.Context, nodeKey string) (*fleet.Ho
 // mid-pipeline with RetryConn also failing), the orphan primaryKey survives until TTL because
 // invalidate-by-ID can't find it via the missing indexKey. This is a very rare fail, and TTL bounds the staleness.
 //
-// Both SETs use EXAT (absolute Unix-second expiration) with a single computed expiresAt. Requires
-// Redis 6.2+, which Fleet's docker-compose.yml pins.
+// Both SETs use EXAT (absolute Unix-second expiration) with a single computed expiresAt. EXAT requires Redis 6.2+
 func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, host *fleet.Host) {
 	if !d.hostCacheEnabled || host == nil {
 		return
@@ -254,13 +253,17 @@ func (d *Datastore) hostCachePutFamily(ctx context.Context, fam cacheFamily, hos
 	}
 }
 
-// hostCachePut is the osquery-family wrapper of hostCachePutFamily.
-func (d *Datastore) hostCachePut(ctx context.Context, host *fleet.Host) {
+// hostCachePutByNodeKey is the osquery-family wrapper of hostCachePutFamily.
+func (d *Datastore) hostCachePutByNodeKey(ctx context.Context, host *fleet.Host) {
 	d.hostCachePutFamily(ctx, osqueryCacheFamily, host)
 }
 
 // hostCachePutNotFoundFamily stores a short-lived negative-cache entry under the given family. Used when the
 // database returns NotFound; bounded by hostCacheNegativeTTL.
+//
+// Why per-key SET, not SADD: native Redis sets have set-level TTL only, so we can't expire individual members at
+// the per-entry 5s granularity we want. Per-key SETs also spread across cluster slots and pair cleanly with the
+// positive/index DELs in the variadic-DEL batched paths.
 func (d *Datastore) hostCachePutNotFoundFamily(ctx context.Context, fam cacheFamily, key string) {
 	if !d.hostCacheEnabled || key == "" {
 		return
@@ -272,8 +275,8 @@ func (d *Datastore) hostCachePutNotFoundFamily(ctx context.Context, fam cacheFam
 	}
 }
 
-// hostCachePutNotFound is the osquery-family wrapper of hostCachePutNotFoundFamily.
-func (d *Datastore) hostCachePutNotFound(ctx context.Context, nodeKey string) {
+// hostCachePutNotFoundByNodeKey is the osquery-family wrapper of hostCachePutNotFoundFamily.
+func (d *Datastore) hostCachePutNotFoundByNodeKey(ctx context.Context, nodeKey string) {
 	d.hostCachePutNotFoundFamily(ctx, osqueryCacheFamily, nodeKey)
 }
 
@@ -327,8 +330,8 @@ func (d *Datastore) hostCacheGetByOrbitNodeKey(ctx context.Context, orbitNodeKey
 	return d.hostCacheGetFamily(ctx, orbitCacheFamily, orbitNodeKey)
 }
 
-// hostCachePutByOrbit is the orbit-family wrapper of hostCachePutFamily.
-func (d *Datastore) hostCachePutByOrbit(ctx context.Context, host *fleet.Host) {
+// hostCachePutByOrbitNodeKey is the orbit-family wrapper of hostCachePutFamily.
+func (d *Datastore) hostCachePutByOrbitNodeKey(ctx context.Context, host *fleet.Host) {
 	d.hostCachePutFamily(ctx, orbitCacheFamily, host)
 }
 
