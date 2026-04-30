@@ -29347,3 +29347,217 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 	s.Do("POST", "/api/latest/fleet/spec/reports", map[string]any{"specs": []any{}}, http.StatusForbidden)
 	s.Do("POST", "/api/latest/fleet/spec/fleets", map[string]any{"specs": []any{}}, http.StatusForbidden)
 }
+
+// TestPolicyLabelsIncludeAll exercises the full create/modify/spec stack for the
+// new include_all label scope on policies, including strict mutex rejection
+// at every API entry point and end-to-end host targeting.
+func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Two labels.
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lblA := lblResp.Label
+	lblResp = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 2"}, http.StatusOK, &lblResp)
+	lblB := lblResp.Label
+
+	// Three hosts: none, A only, A+B.
+	mkHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(t.Name() + suffix),
+			NodeKey:         ptr.String(t.Name() + suffix),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s-%s.local", t.Name(), suffix),
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostNone := mkHost("none")
+	hostA := mkHost("a")
+	hostBoth := mkHost("both")
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostA.ID, []uint{lblA.ID}))
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostBoth.ID, []uint{lblA.ID, lblB.ID}))
+
+	// 1. Create global policy with include_all=[A,B] via POST.
+	var createResp fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "include-all-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAll: []string{lblA.Name, lblB.Name},
+	}, http.StatusOK, &createResp)
+	require.NotNil(t, createResp.Policy)
+	require.Empty(t, createResp.Policy.LabelsIncludeAny)
+	require.Empty(t, createResp.Policy.LabelsExcludeAny)
+	require.Len(t, createResp.Policy.LabelsIncludeAll, 2)
+
+	// 2. Mutex rejection on POST: include_all + include_any. Assert on the
+	// specific validation error so a generic 400 (e.g., name required) cannot
+	// silently satisfy the test.
+	rej1Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "rej1-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAll: []string{lblA.Name},
+		LabelsIncludeAny: []string{lblB.Name},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rej1Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+
+	// Mutex rejection on POST: include_all + exclude_any.
+	rej2Resp := s.Do("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "rej2-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAll: []string{lblA.Name},
+		LabelsExcludeAny: []string{lblB.Name},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rej2Resp.Body), fleet.ErrPolicyConflictingLabels.Error())
+
+	// 3. PATCH: switch existing include_all policy to include_any. Other slices should clear.
+	switchAny := []string{lblA.Name}
+	var patchResp fleet.ModifyGlobalPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAny: switchAny},
+	}, http.StatusOK, &patchResp)
+	require.Empty(t, patchResp.Policy.LabelsIncludeAll)
+	require.Empty(t, patchResp.Policy.LabelsExcludeAny)
+	require.Len(t, patchResp.Policy.LabelsIncludeAny, 1)
+
+	// Switch back to include_all so end-to-end targeting test below uses it.
+	switchAll := []string{lblA.Name, lblB.Name}
+	patchResp = fleet.ModifyGlobalPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: switchAll},
+	}, http.StatusOK, &patchResp)
+	require.Len(t, patchResp.Policy.LabelsIncludeAll, 2)
+	require.Empty(t, patchResp.Policy.LabelsIncludeAny)
+
+	// PATCH mutex rejection. Assert on the specific validation error so a
+	// generic 400 cannot silently satisfy the test.
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			LabelsIncludeAll: []string{lblA.Name},
+			LabelsIncludeAny: []string{lblB.Name},
+		},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+
+	// 4. End-to-end host targeting: only hostBoth should match the include_all policy.
+	policy, err := s.ds.Policy(ctx, createResp.Policy.ID)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		host  *fleet.Host
+		match bool
+	}{
+		{hostNone, false},
+		{hostA, false},
+		{hostBoth, true},
+	} {
+		queries, err := s.ds.PolicyQueriesForHost(ctx, tc.host)
+		require.NoError(t, err)
+		_, ok := queries[fmt.Sprint(policy.ID)]
+		require.Equal(t, tc.match, ok, "host %s match expectation", tc.host.Hostname)
+	}
+}
+
+// TestQueryLabelsIncludeAll mirrors TestPolicyLabelsIncludeAll for queries (reports),
+// covering the new LabelsIncludeAll field. Reports do not support exclude_any,
+// so the 2-way mutex (include_any vs include_all) is exercised here.
+func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
+	t := s.T()
+	ctx := context.Background()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lblA := lblResp.Label
+	lblResp = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 2"}, http.StatusOK, &lblResp)
+	lblB := lblResp.Label
+
+	// Create a query with include_all.
+	autoOn := true
+	var createResp fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:               ptr.String("q-include-all-" + t.Name()),
+		Query:              ptr.String("SELECT 1"),
+		Logging:            ptr.String(fleet.LoggingSnapshot),
+		Interval:           ptr.Uint(60),
+		AutomationsEnabled: &autoOn,
+		LabelsIncludeAll:   []string{lblA.Name, lblB.Name},
+	}, http.StatusOK, &createResp)
+	require.NotNil(t, createResp.Query)
+	require.Len(t, createResp.Query.LabelsIncludeAll, 2)
+	require.Empty(t, createResp.Query.LabelsIncludeAny)
+
+	// Mutex rejection on create. Assert on the specific validation error so a
+	// generic 400 (e.g., name required) cannot silently satisfy the test.
+	rejCreateResp := s.Do("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
+		Name:             ptr.String("q-rej-" + t.Name()),
+		Query:            ptr.String("SELECT 1"),
+		Logging:          ptr.String(fleet.LoggingSnapshot),
+		LabelsIncludeAll: []string{lblA.Name},
+		LabelsIncludeAny: []string{lblB.Name},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejCreateResp.Body), fleet.ErrQueryConflictingLabels.Error())
+
+	// PATCH: switch from include_all to include_any (clears include_all).
+	includeAny := []string{lblA.Name}
+	var modifyResp fleet.ModifyQueryResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: includeAny,
+	}, http.StatusOK, &modifyResp)
+	require.Empty(t, modifyResp.Query.LabelsIncludeAll)
+	require.Len(t, modifyResp.Query.LabelsIncludeAny, 1)
+
+	// PATCH mutex rejection. Assert on the specific validation error.
+	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAny: []string{lblA.Name},
+		LabelsIncludeAll: []string{lblB.Name},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrQueryConflictingLabels.Error())
+
+	// Switch back to include_all so the end-to-end test below uses it.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createResp.Query.ID), fleet.QueryPayload{
+		LabelsIncludeAll: []string{lblA.Name, lblB.Name},
+	}, http.StatusOK, &modifyResp)
+	require.Len(t, modifyResp.Query.LabelsIncludeAll, 2)
+	require.Empty(t, modifyResp.Query.LabelsIncludeAny)
+
+	// End-to-end: scheduled-query distribution should only return the query
+	// for hosts that are members of BOTH labels.
+	mkHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+			OsqueryHostID: ptr.String("q" + suffix + t.Name()), NodeKey: ptr.String("q" + suffix + t.Name()),
+			UUID: uuid.New().String(), Hostname: t.Name() + "-" + suffix + ".local", Platform: "linux",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostA := mkHost("a")
+	hostBoth := mkHost("both")
+	hostNone := mkHost("none")
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostA.ID, []uint{lblA.ID}))
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, hostBoth.ID, []uint{lblA.ID, lblB.ID}))
+
+	queryName := createResp.Query.Name
+	hasQueryFor := func(hostID uint) bool {
+		queries, err := s.ds.ListScheduledQueriesForAgents(ctx, nil, &hostID, false)
+		require.NoError(t, err)
+		// ListScheduledQueriesForAgents does not project q.id, so match by name.
+		for _, q := range queries {
+			if q.Name == queryName {
+				return true
+			}
+		}
+		return false
+	}
+	require.False(t, hasQueryFor(hostNone.ID), "host with no labels should not match include_all query")
+	require.False(t, hasQueryFor(hostA.ID), "host with one of two required labels should not match include_all query")
+	require.True(t, hasQueryFor(hostBoth.ID), "host with both required labels should match include_all query")
+}
