@@ -6598,6 +6598,52 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 	// Only the host with BOTH labels should retain membership.
 	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// include_all cleanup via ApplyPolicySpecs (GitOps path).
+	// Re-record membership for all hosts so cleanup has something to remove.
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy3.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy3.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy3.Name,
+			Query:            policy3.Query,
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	// Spec apply should trigger the same membership cleanup — only hostLabelBoth remains.
+	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	freshName := "cleanup test policy 4 include_all create"
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             freshName,
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	var freshPolicy *fleet.Policy
+	for _, p := range allPolicies {
+		if p.Name == freshName {
+			freshPolicy = p
+			break
+		}
+	}
+	require.NotNil(t, freshPolicy, "fresh policy created via spec should exist")
+	require.Len(t, freshPolicy.LabelsIncludeAll, 2)
+	require.Empty(t, freshPolicy.LabelsIncludeAny)
+	require.Empty(t, freshPolicy.LabelsExcludeAny)
 }
 
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {

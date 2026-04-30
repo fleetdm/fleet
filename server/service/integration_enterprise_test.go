@@ -29748,3 +29748,77 @@ func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
 	s.token = s.getTestAdminToken()
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 }
+
+func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() {
+	t := s.T()
+	ctx := context.Background()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lblA := lblResp.Label
+	lblResp = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 2"}, http.StatusOK, &lblResp)
+	lblB := lblResp.Label
+
+	validAnyName := "batch-any-" + t.Name()
+	validAllName := "batch-all-" + t.Name()
+	invalidName := "batch-invalid-" + t.Name()
+
+	assertNonePersisted := func(label string) {
+		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		require.NoError(t, err)
+		for _, p := range policies {
+			require.NotEqual(t, validAnyName, p.Name, "%s: no spec from rejected batch should persist", label)
+			require.NotEqual(t, validAllName, p.Name, "%s: no spec from rejected batch should persist", label)
+			require.NotEqual(t, invalidName, p.Name, "%s: no spec from rejected batch should persist", label)
+		}
+	}
+
+	// Batch with the mutex-violating spec at the END — proves we don't persist
+	// preceding valid specs once a later one fails validation.
+	rejResp := s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+		},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	assertNonePersisted("violator-last")
+
+	// Batch with the mutex-violating spec at the FRONT — proves we don't persist
+	// trailing valid specs after a per-spec validation pass that the loop never reaches.
+	rejResp = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+		},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	assertNonePersisted("violator-first")
+
+	// Fully-valid 3-spec batch (one per scope) succeeds.
+	validExclName := "batch-excl-" + t.Name()
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+			{Name: validExclName, Query: "SELECT 1", LabelsExcludeAny: []string{lblB.Name}},
+		},
+	}, http.StatusOK)
+
+	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	byName := make(map[string]*fleet.Policy, len(policies))
+	for _, p := range policies {
+		byName[p.Name] = p
+	}
+	require.Contains(t, byName, validAnyName)
+	require.Contains(t, byName, validAllName)
+	require.Contains(t, byName, validExclName)
+	require.Len(t, byName[validAnyName].LabelsIncludeAny, 1)
+	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
+	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
+}
+

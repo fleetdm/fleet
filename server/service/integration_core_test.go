@@ -17175,6 +17175,26 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
+
+	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
+	// so the gate fires at the service layer and returns 402 (PaymentRequired).
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:             "spec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+
+	// Same for QuerySpec.
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{{
+			Name:             "qspec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			Logging:          fleet.LoggingSnapshot,
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyQuerySpecsResponse{})
 }
 
 func (s *integrationTestSuite) TestOrgLogoUpload() {

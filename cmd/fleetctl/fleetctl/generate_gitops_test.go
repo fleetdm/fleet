@@ -368,6 +368,22 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					SoftwareTitleID: 1,
 				},
 			},
+			{
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "Global Policy Include All",
+					Query:       "SELECT * FROM global_policy WHERE id = 2",
+					Resolution:  ptr.String("Do another global thing"),
+					Description: "This is a global policy with include_all scope",
+					Platform:    "darwin",
+					LabelsIncludeAll: []fleet.LabelIdent{{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					}},
+					Type: fleet.PolicyTypeDynamic,
+				},
+			},
 		}, nil
 	}
 	policies := []*fleet.Policy{
@@ -472,6 +488,23 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 				}},
 				MinOsqueryVersion: "1.2.3",
 				Logging:           "stdout",
+			},
+			{
+				ID:                 2,
+				Name:               "Global Query Include All",
+				Query:              "SELECT * FROM users;",
+				Description:        "This is a global query with include_all scope",
+				Platform:           "darwin",
+				Interval:           7200,
+				ObserverCanRun:     false,
+				AutomationsEnabled: false,
+				LabelsIncludeAll: []fleet.LabelIdent{{
+					LabelName: "Label C",
+				}, {
+					LabelName: "Label D",
+				}},
+				MinOsqueryVersion: "1.2.3",
+				Logging:           "snapshot",
 			},
 		}, nil
 	}
