@@ -1154,7 +1154,7 @@
 #  ╩╚═╚═╝╚═╝ ╩   ╩ ╩╩  ╩
 - industryName: REST API
   friendlyName: Automate any feature
-  description: Programmatically access and automate every Fleet feature using a comprehensive REST API, including managing hosts, queries, policies, software, and more.
+  description: Programmatically access and automate every Fleet feature using a comprehensive REST API, including managing hosts, reports, policies, software, and more.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
