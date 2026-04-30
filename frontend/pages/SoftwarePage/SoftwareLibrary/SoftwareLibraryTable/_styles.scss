@@ -1,6 +1,6 @@
 .software-library-table {
-  // Library has no customFiltersButton so we override the grid container
-  // to a simple flex layout to avoid an empty grid column gap.
+  // Override the grid container to a simple flex layout
+  // to avoid an empty grid column gap.
   .container {
     display: flex;
     flex-wrap: wrap;

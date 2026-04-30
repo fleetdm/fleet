@@ -294,7 +294,7 @@ const SoftwareTable = ({
         searchable={showFilterHeaders}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        customFiltersButton={
+        customControl={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
         stackControls

@@ -222,7 +222,7 @@ const HostSoftwareTable = ({
             searchQuery={searchQuery}
           />
         )}
-        customFiltersButton={
+        customControl={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
         stackControls
