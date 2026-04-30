@@ -37,6 +37,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
 } from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
+import { isQueryablePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -214,7 +215,9 @@ const ManagePolicyPage = ({
     DEFAULT_SORT_DIRECTION)();
   const page =
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
-  const targetedPlatformParam = queryParams?.platform;
+  const targetedPlatformParam = isQueryablePlatform(queryParams?.platform)
+    ? queryParams?.platform
+    : undefined;
   const initialAutomationFilter = (() => {
     const automationQueryParam = queryParams.automation_type;
 
