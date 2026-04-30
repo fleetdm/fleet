@@ -1059,7 +1059,7 @@
 #  ╚═╝╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╩ ╩╝╚╝╝╚╝╩╝╚╝╚═╝
 - industryName: Continuous scanning
   friendlyName: Detect vulnerable software
-  description: Automatically and continuously scan all enrolled hosts for known vulnerabilities (CVEs) in installed software, matching against the National Vulnerability Database and other sources.
+  description: Automatically and continuously scan all enrolled hosts for known vulnerabilities (CVEs) in installed software, matching against the National Vulnerability Database (NVD) and other sources.
   documentationUrl: https://fleetdm.com/vulnerability-management
   productCategories: [Vulnerability management]
   pricingTableCategories: [Devices]
