@@ -3552,20 +3552,34 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	}
 
 	// Check whether we want to set a install operation as 'verifying' for an iOS/iPadOS device.
-	var isIOSIPadOSInstallVerifiying bool
+	// For non-managed-cert profiles, iOS/iPadOS short-circuits to 'verified' because there is
+	// no osquery available to drive the standard verifying -> verified transition. Managed-cert
+	// profiles instead use CertificateList ingestion (updateHostMDMManagedCertDetailsDB) as
+	// their verification trigger; leaving them at 'verifying' here closes the renewal-cron race
+	// where 'verified' would arrive before fresh cert metadata had been ingested. See #44111.
+	var iOSAckCheck struct {
+		IsIOS         bool `db:"is_ios"`
+		IsManagedCert bool `db:"is_managed_cert"`
+	}
 	if profile.OperationType == fleet.MDMOperationTypeInstall && profile.Status != nil && *profile.Status == fleet.MDMDeliveryVerifying {
-		if err := ds.writer(ctx).GetContext(ctx, &isIOSIPadOSInstallVerifiying, `
-          SELECT platform = 'ios' OR platform = 'ipados' FROM hosts WHERE uuid = ?`,
-			profile.HostUUID,
+		if err := ds.writer(ctx).GetContext(ctx, &iOSAckCheck, `
+          SELECT
+              (h.platform = 'ios' OR h.platform = 'ipados') AS is_ios,
+              EXISTS(SELECT 1 FROM host_mdm_managed_certificates WHERE host_uuid = h.uuid AND profile_uuid = ?) AS is_managed_cert
+          FROM hosts h
+          WHERE h.uuid = ?`,
+			profile.ProfileUUID, profile.HostUUID,
 		); err != nil {
 			return err
 		}
 	}
 
 	status := profile.Status
-	if isIOSIPadOSInstallVerifiying {
-		// iOS/iPadOS devices do not have osquery,
-		// thus they go from 'pending' straight to 'verified'
+	if iOSAckCheck.IsIOS && !iOSAckCheck.IsManagedCert {
+		// iOS/iPadOS devices do not have osquery, thus they go from 'pending'
+		// straight to 'verified'. Managed-cert profiles are the exception and
+		// transition via updateHostMDMManagedCertDetailsDB once fresh metadata
+		// arrives.
 		status = &fleet.MDMDeliveryVerified
 	}
 
