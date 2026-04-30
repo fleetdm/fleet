@@ -76,6 +76,24 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			wantErr: true,
 			errSub:  "unsupported variable $FLEET_VAR_BOGUS_NAME",
 		},
+		{
+			name: "all standard plist value types accepted",
+			input: `<dict>
+	<key>S</key><string>val</string>
+	<key>I</key><integer>42</integer>
+	<key>R</key><real>3.14</real>
+	<key>T</key><true/>
+	<key>F</key><false/>
+	<key>D</key><data>YWJj</data>
+	<key>A</key><array><string>x</string><integer>1</integer></array>
+</dict>`,
+		},
+		{
+			name:    "ASCII control character in string value",
+			input:   "<dict><key>K</key><string>x\x01y</string></dict>",
+			wantErr: true,
+			errSub:  "invalid plist",
+		},
 	}
 
 	for _, c := range cases {
