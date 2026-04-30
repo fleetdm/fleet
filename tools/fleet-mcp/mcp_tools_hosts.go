@@ -116,7 +116,7 @@ func registerGetHost(s *server.MCPServer, fleetClient *FleetClient) {
 		// Case 1: explicit numeric host_id wins. Always exact.
 		if hostIDArg != "" {
 			id, parseErr := strconv.ParseUint(hostIDArg, 10, 64)
-			if parseErr != nil || id == 0 {
+			if parseErr != nil || id == 0 || id > uint64(^uint(0)) {
 				return mcp.NewToolResultError(fmt.Sprintf("host_id must be a positive integer, got %q", hostIDArg)), nil
 			}
 			host, err := fleetClient.GetHostByID(ctx, uint(id))
