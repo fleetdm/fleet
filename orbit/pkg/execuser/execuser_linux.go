@@ -181,8 +181,7 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	// command. On some distributions (e.g. openSUSE Leap 16) that environment
 	// indirection causes our `env KEY=val ... fleet-desktop` invocation to lose env
 	// vars, so fleet-desktop exits with "missing URL environment ..." and Orbit
-	// respawns it in a tight loop. -H sets HOME to the target user; sudo's default
-	// env_reset already sets USER/LOGNAME/SHELL.
+	// respawns it in a tight loop.
 	args = []string{"-n", "-u", user, "-H"}
 	env = make([]string, 0)
 
