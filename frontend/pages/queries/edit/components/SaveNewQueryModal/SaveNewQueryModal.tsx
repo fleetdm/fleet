@@ -8,7 +8,10 @@ import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 
-import getQueryCustomTargetOptions from "pages/queries/helpers";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -96,13 +99,13 @@ const SaveNewQueryModal = ({
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
   const [discardData, setDiscardData] = useState(false);
   const customTargetOptions = useMemo(
-    () => getQueryCustomTargetOptions(isPremiumTier),
+    () => getCustomTargetOptions({ entity: "report", isPremiumTier }),
     [isPremiumTier]
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -187,7 +190,7 @@ const SaveNewQueryModal = ({
               .filter(([, selected]) => selected)
               .map(([labelName]) => labelName)
           : [];
-      const labelsForScope = (scope: string): string[] | undefined => {
+      const labelsForScope = (scope: LabelScope) => {
         if (!isPremiumTier) {
           return undefined;
         }
@@ -316,7 +319,9 @@ const SaveNewQueryModal = ({
             selectedTargetType={selectedTargetType}
             selectedCustomTarget={selectedCustomTarget}
             customTargetOptions={customTargetOptions}
-            onSelectCustomTarget={setSelectedCustomTarget}
+            onSelectCustomTarget={(val) =>
+              setSelectedCustomTarget(val as LabelScope)
+            }
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
             onSelectTargetType={setSelectedTargetType}

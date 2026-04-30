@@ -64,7 +64,10 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import PageDescription from "components/PageDescription";
 
-import getQueryCustomTargetOptions from "pages/queries/helpers";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 
 import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -117,7 +120,7 @@ const getLabelsForScope = (
   selectedTargetType: string,
   selectedCustomTarget: string,
   selectedLabels: Record<string, boolean>,
-  scope: string
+  scope: LabelScope
 ): string[] | undefined => {
   if (!isPremiumTier) {
     return undefined;
@@ -208,12 +211,12 @@ const EditQueryForm = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
   const customTargetOptions = useMemo(
-    () => getQueryCustomTargetOptions(isPremiumTier),
+    () => getCustomTargetOptions({ entity: "report", isPremiumTier }),
     [isPremiumTier]
   );
 
@@ -737,7 +740,9 @@ const EditQueryForm = ({
                   selectedTargetType={selectedTargetType}
                   selectedCustomTarget={selectedCustomTarget}
                   customTargetOptions={customTargetOptions}
-                  onSelectCustomTarget={setSelectedCustomTarget}
+                  onSelectCustomTarget={(val) =>
+                    setSelectedCustomTarget(val as LabelScope)
+                  }
                   selectedLabels={selectedLabels}
                   className={`${baseClass}__target`}
                   onSelectTargetType={setSelectedTargetType}

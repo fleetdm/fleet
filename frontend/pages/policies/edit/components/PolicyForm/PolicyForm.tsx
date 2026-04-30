@@ -14,7 +14,10 @@ import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 import PATHS from "router/paths";
-import getCustomTargetOptions from "pages/policies/helpers";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
@@ -122,7 +125,7 @@ const PolicyForm = ({
   const [showQueryEditor, setShowQueryEditor] = useState(false);
 
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
@@ -185,7 +188,7 @@ const PolicyForm = ({
   } = useContext(AppContext);
 
   const customTargetOptions = useMemo(
-    () => getCustomTargetOptions(isPremiumTier),
+    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
     [isPremiumTier]
   );
 
@@ -302,7 +305,7 @@ const PolicyForm = ({
         : "Custom"
     );
 
-    let customTarget: string | undefined;
+    let customTarget: LabelScope | undefined;
     let activeLabels: typeof lastEditedQueryLabelsIncludeAny = [];
     if (lastEditedQueryLabelsExcludeAny.length) {
       customTarget = "labelsExcludeAny";
@@ -656,7 +659,9 @@ const PolicyForm = ({
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
               customTargetOptions={customTargetOptions}
-              onSelectCustomTarget={setSelectedCustomTarget}
+              onSelectCustomTarget={(val) =>
+                setSelectedCustomTarget(val as LabelScope)
+              }
               selectedLabels={selectedLabels}
               className={`${baseClass}__target`}
               onSelectTargetType={setSelectedTargetType}

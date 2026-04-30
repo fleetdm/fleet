@@ -8,7 +8,10 @@ import React, {
 import { size } from "lodash";
 import classNames from "classnames";
 
-import getCustomTargetOptions from "pages/policies/helpers";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -87,12 +90,12 @@ const SaveNewPolicyModal = ({
   );
 
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
   const customTargetOptions = useMemo(
-    () => getCustomTargetOptions(isPremiumTier),
+    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
     [isPremiumTier]
   );
 
@@ -285,7 +288,9 @@ const SaveNewPolicyModal = ({
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
               customTargetOptions={customTargetOptions}
-              onSelectCustomTarget={setSelectedCustomTarget}
+              onSelectCustomTarget={(val) =>
+                setSelectedCustomTarget(val as LabelScope)
+              }
               selectedLabels={selectedLabels}
               className={`${baseClass}__target`}
               onSelectTargetType={setSelectedTargetType}
