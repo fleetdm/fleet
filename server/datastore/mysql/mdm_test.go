@@ -633,7 +633,6 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 	})
 
-	// host-identifier branch shares the allowlist
 	// the host-identifier branch uses a separate query; confirm it shares the allowlist
 	t.Run("rejects_unknown_key_host_identifier", func(t *testing.T) {
 		_, _, _, err := ds.ListMDMCommands(
