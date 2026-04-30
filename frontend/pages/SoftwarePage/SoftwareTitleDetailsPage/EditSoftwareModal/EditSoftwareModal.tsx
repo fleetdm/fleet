@@ -236,6 +236,8 @@ const EditSoftwareModal = ({
           </>
         );
       }
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
@@ -307,6 +309,8 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
