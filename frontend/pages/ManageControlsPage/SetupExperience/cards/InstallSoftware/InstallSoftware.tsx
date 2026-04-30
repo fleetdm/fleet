@@ -199,6 +199,13 @@ const InstallSoftware = ({
                   : globalConfig?.mdm?.setup_experience
                       ?.require_all_software_macos
               }
+              savedRequireAllSoftwareWindows={
+                currentTeamId
+                  ? teamConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+                  : globalConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+              }
               router={router}
               refetchSoftwareTitles={refetchSoftwareTitles}
             />

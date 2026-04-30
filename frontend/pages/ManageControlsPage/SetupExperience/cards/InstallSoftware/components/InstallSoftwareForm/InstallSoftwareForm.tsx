@@ -75,6 +75,7 @@ interface IInstallSoftwareFormProps {
   softwareTitles: ISoftwareTitle[] | null;
   platform: SetupExperiencePlatform;
   savedRequireAllSoftwareMacOS?: boolean | null;
+  savedRequireAllSoftwareWindows?: boolean | null;
   router: InjectedRouter;
   refetchSoftwareTitles: () => void;
 }
@@ -85,6 +86,7 @@ const InstallSoftwareForm = ({
   softwareTitles,
   platform,
   savedRequireAllSoftwareMacOS,
+  savedRequireAllSoftwareWindows,
   router,
   refetchSoftwareTitles,
 }: IInstallSoftwareFormProps) => {
@@ -94,6 +96,9 @@ const InstallSoftwareForm = ({
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
   );
+  const [requireAllSoftwareWindows, setRequireAllSoftwareWindows] = useState(
+    savedRequireAllSoftwareWindows ?? false
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const initialSelectedSoftware = useMemo(
@@ -101,12 +106,17 @@ const InstallSoftwareForm = ({
     [softwareTitles]
   );
 
-  // Track if the user changed the macOS checkbox since the last save.
+  // Track if the user changed the require-all checkbox since the last save.
   // We don't compare against props here to avoid races with parent refetch timing.
   const [touchedRequireAll, setTouchedRequireAll] = useState(false);
 
-  const handleChangeRequireAll = (value: boolean) => {
+  const handleChangeRequireAllMacOS = (value: boolean) => {
     setRequireAllSoftwareMacOS(value);
+    setTouchedRequireAll(true);
+  };
+
+  const handleChangeRequireAllWindows = (value: boolean) => {
+    setRequireAllSoftwareWindows(value);
     setTouchedRequireAll(true);
   };
 
@@ -136,7 +146,8 @@ const InstallSoftwareForm = ({
   );
 
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
-  const shouldUpdateRequireAll = platform === "macos" && touchedRequireAll;
+  const shouldUpdateRequireAll =
+    (platform === "macos" || platform === "windows") && touchedRequireAll;
 
   const onClickSave = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -170,13 +181,20 @@ const InstallSoftwareForm = ({
       }
     }
 
-    // 2. macOS “require all software” update
+    // 2. "require all software" update (macOS or Windows)
     if (shouldUpdateRequireAll) {
       try {
-        await mdmAPI.updateRequireAllSoftwareMacOS(
-          currentTeamId,
-          requireAllSoftwareMacOS
-        );
+        if (platform === "windows") {
+          await mdmAPI.updateRequireAllSoftwareWindows(
+            currentTeamId,
+            requireAllSoftwareWindows
+          );
+        } else {
+          await mdmAPI.updateRequireAllSoftwareMacOS(
+            currentTeamId,
+            requireAllSoftwareMacOS
+          );
+        }
         hadSuccess = true;
         setTouchedRequireAll(false);
       } catch (e) {
@@ -185,7 +203,7 @@ const InstallSoftwareForm = ({
           alertType: "error",
           isVisible: true,
           message:
-            "Couldn't update 'Cancel setup if software install fails'. Please try again.",
+            "Couldn't update 'Cancel setup if software fails'. Please try again.",
           persistOnPageChange: false,
         });
       }
@@ -270,10 +288,23 @@ const InstallSoftwareForm = ({
             <Checkbox
               disabled={gitOpsModeEnabled || manualAgentInstallBlockingSoftware}
               value={requireAllSoftwareMacOS}
-              onChange={handleChangeRequireAll}
+              onChange={handleChangeRequireAllMacOS}
             >
-              <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
-                Cancel setup if software install fails
+              <TooltipWrapper tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled.">
+                Cancel setup if software fails
+              </TooltipWrapper>
+            </Checkbox>
+          </div>
+        )}
+        {platform === "windows" && (
+          <div className={`${baseClass}__windows_options`}>
+            <Checkbox
+              disabled={gitOpsModeEnabled}
+              value={requireAllSoftwareWindows}
+              onChange={handleChangeRequireAllWindows}
+            >
+              <TooltipWrapper tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled.">
+                Cancel setup if software fails
               </TooltipWrapper>
             </Checkbox>
           </div>

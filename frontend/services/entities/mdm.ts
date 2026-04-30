@@ -268,6 +268,14 @@ const mdmService = {
     });
   },
 
+  updateRequireAllSoftwareWindows: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP, {
+      fleet_id: teamId,
+      require_all_software_windows: isEnabled,
+    });
+  },
+
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {

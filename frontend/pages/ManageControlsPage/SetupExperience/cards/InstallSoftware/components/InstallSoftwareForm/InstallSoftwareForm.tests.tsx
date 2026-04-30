@@ -126,7 +126,7 @@ describe("InstallSoftware", () => {
     });
   });
 
-  it('should render the "Cancel setup if software install fails" form for macos platform', async () => {
+  it('should render the "Cancel setup if software fails" form for macos platform', async () => {
     render(
       <InstallSoftwareForm
         savedRequireAllSoftwareMacOS
@@ -155,7 +155,36 @@ describe("InstallSoftware", () => {
 
     await waitFor(() => {
       const checkbox = screen.getByRole("checkbox", {
-        name: /Cancel setup if software install fails/,
+        name: /Cancel setup if software fails/,
+      });
+      expect(checkbox).toBeVisible();
+      expect(checkbox).toBeChecked();
+    });
+  });
+
+  it('should render the "Cancel setup if software fails" form for windows platform', async () => {
+    render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(),
+        ]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    await waitFor(() => {
+      const checkbox = screen.getByRole("checkbox", {
+        name: /Cancel setup if software fails/,
       });
       expect(checkbox).toBeVisible();
       expect(checkbox).toBeChecked();
