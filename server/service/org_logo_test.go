@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -121,7 +120,7 @@ func checkOrgLogoAuth(t *testing.T, shouldFail bool, err error) {
 		return
 	}
 	if err != nil {
-		require.False(t, errors.As(err, &forbidden),
+		require.NotErrorAs(t, err, &forbidden,
 			"expected non-authz error, got authz Forbidden: %v", err)
 	}
 }
