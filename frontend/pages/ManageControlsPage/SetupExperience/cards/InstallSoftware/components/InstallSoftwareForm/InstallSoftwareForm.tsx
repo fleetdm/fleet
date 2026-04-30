@@ -9,7 +9,6 @@ import { ISoftwareTitle } from "interfaces/software";
 import { INotification } from "interfaces/notification";
 
 import { NotificationContext } from "context/notification";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -88,13 +87,12 @@ const InstallSoftwareForm = ({
   platform,
   savedRequireAllSoftwareMacOS,
   savedRequireAllSoftwareWindows,
-  isWindowsMdmEnabled = true,
+  isWindowsMdmEnabled = false,
   router,
   refetchSoftwareTitles,
 }: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
   );
@@ -287,34 +285,52 @@ const InstallSoftwareForm = ({
         />
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
-            <Checkbox
-              disabled={gitOpsModeEnabled || manualAgentInstallBlockingSoftware}
-              value={requireAllSoftwareMacOS}
-              onChange={handleChangeRequireAllMacOS}
-            >
-              <TooltipWrapper tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled.">
-                Cancel setup if software fails
-              </TooltipWrapper>
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              entityType="software"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={
+                    disableChildren || manualAgentInstallBlockingSoftware
+                  }
+                  value={requireAllSoftwareMacOS}
+                  onChange={handleChangeRequireAllMacOS}
+                >
+                  <TooltipWrapper
+                    tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
           </div>
         )}
         {platform === "windows" && (
           <div className={`${baseClass}__windows_options`}>
-            <Checkbox
-              disabled={gitOpsModeEnabled || !isWindowsMdmEnabled}
-              value={requireAllSoftwareWindows}
-              onChange={handleChangeRequireAllWindows}
-            >
-              <TooltipWrapper
-                tipContent={
-                  isWindowsMdmEnabled
-                    ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
-                    : "Turn on Windows MDM to use this option."
-                }
-              >
-                Cancel setup if software fails
-              </TooltipWrapper>
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              entityType="software"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren || !isWindowsMdmEnabled}
+                  value={requireAllSoftwareWindows}
+                  onChange={handleChangeRequireAllWindows}
+                >
+                  <TooltipWrapper
+                    tipContent={
+                      isWindowsMdmEnabled
+                        ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                        : "Turn on Windows MDM to use this option."
+                    }
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
           </div>
         )}
         <GitOpsModeTooltipWrapper

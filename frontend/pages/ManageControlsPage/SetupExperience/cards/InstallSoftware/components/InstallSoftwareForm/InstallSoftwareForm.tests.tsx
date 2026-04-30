@@ -15,6 +15,10 @@ import InstallSoftwareForm from "./InstallSoftwareForm";
 const render = createCustomRenderer({ withBackendMock: true });
 
 describe("InstallSoftware", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("should render the expected message if there are no software titles to select from", () => {
     render(
       <InstallSoftwareForm
@@ -167,6 +171,7 @@ describe("InstallSoftware", () => {
     render(
       <InstallSoftwareForm
         savedRequireAllSoftwareWindows
+        isWindowsMdmEnabled
         currentTeamId={1}
         softwareTitles={[
           createMockSoftwareTitle({
@@ -220,8 +225,6 @@ describe("InstallSoftware", () => {
     await waitFor(() => {
       expect(updateRequireAllSoftwareWindowsSpy).toHaveBeenCalledWith(1, true);
     });
-
-    updateRequireAllSoftwareWindowsSpy.mockRestore();
   });
 
   it("disables the Windows checkbox when Windows MDM is not configured", async () => {

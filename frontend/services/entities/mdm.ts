@@ -261,16 +261,16 @@ const mdmService = {
   },
 
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
       require_all_software_macos: isEnabled,
     });
   },
 
   updateRequireAllSoftwareWindows: (teamId: number, isEnabled: boolean) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
       fleet_id: teamId,
       require_all_software_windows: isEnabled,
     });
