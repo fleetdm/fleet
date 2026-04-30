@@ -23,9 +23,10 @@ const failedEnrollmentProfileContentBody = (
         addSuffix: true,
       })})`
     : null;
+  const hostDisplayName = result.hostname || "this host";
   const messageText = (
     <span>
-      Fleet enrollment profile renewal failed for <b>{result.name}</b>
+      Fleet enrollment profile renewal failed for <b>{hostDisplayName}</b>
       {displayTime}.
     </span>
   );

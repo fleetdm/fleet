@@ -205,13 +205,12 @@ const CommandResultsModal = ({
       },
     ],
     async ({ queryKey }) => {
-      let apiEndpoint = commandApi.getHostCommandResults(queryKey[0]);
-      if (queryKey[0].host_identifier === "") {
-        // if host_identifier is not provided, use the getCommandResults endpoint which does not require host_identifier
-        apiEndpoint = commandApi.getCommandResults(queryKey[0].command_uuid);
-      }
+      const resp =
+        queryKey[0].host_identifier === ""
+          ? // if host_identifier is not provided, use the getCommandResults endpoint which does not require host_identifier
+            await commandApi.getCommandResults(queryKey[0].command_uuid)
+          : await commandApi.getHostCommandResults(queryKey[0]);
 
-      const resp = await apiEndpoint;
       if (!resp?.results) {
         // this should not happen, but just in case return the response as is
         return resp;
