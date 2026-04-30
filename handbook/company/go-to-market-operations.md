@@ -270,6 +270,12 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 
 
+### Remove a contact from the "Top contacts" list in Salesforce
+
+1. Navigate to the contact.
+2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
+
+
 ## Signatures
 
 
