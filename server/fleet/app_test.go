@@ -329,7 +329,7 @@ func TestFeaturesCopy(t *testing.T) {
 		require.NotNil(t, clone)
 		require.Equal(t, f.HistoricalData, clone.HistoricalData)
 
-		// Mutating the original SHALL NOT affect the clone.
+		// Mutating the original should not affect the clone.
 		f.HistoricalData.Uptime = false
 		f.HistoricalData.Vulnerabilities = true
 		require.True(t, clone.HistoricalData.Uptime)

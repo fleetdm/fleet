@@ -4367,16 +4367,14 @@ software:
 		return nil
 	}
 
-	// Apply explicit historical_data values via GitOps. The explicit
-	// `vulnerabilities: false` SHALL be honored.
+	// Apply explicit historical_data values via GitOps and verify they're applied.
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
 	require.NoError(t, err)
 	require.True(t, appConfig.Features.HistoricalData.Uptime)
 	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
 
-	// Apply a YAML that omits historical_data entirely (no features key
-	// either): both sub-keys SHALL default to true regardless of prior
-	// stored values.
+	// Apply a YAML that omits historical_data entirely and verify that values revert
+	// to defaults (true).
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
@@ -4386,7 +4384,7 @@ software:
 		"omitted historical_data defaults vulnerabilities to true")
 
 	// Apply a YAML with historical_data.uptime: false but no vulnerabilities
-	// key: uptime SHALL be honored, vulnerabilities SHALL default to true.
+	// key, and verify that uptime is set to false but vulnerabilities remains true.
 	globalFileWithUptimeOnly, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFileWithUptimeOnly.WriteString(fmt.Sprintf(

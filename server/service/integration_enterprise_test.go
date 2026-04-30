@@ -1698,7 +1698,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create a fleet — features.historical_data SHALL default to true/true.
+	// Create a fleet — features.historical_data should default to true/true.
 	teamName := t.Name() + "historicalDataFleet"
 	createPayload := &fleet.Team{
 		Name:        teamName,
@@ -1714,7 +1714,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
 	})
 
-	// PATCH only `vulnerabilities=false` — uptime SHALL remain true.
+	// PATCH only `vulnerabilities=false` — uptime should remain true.
 	var modResp teamResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
 		json.RawMessage(`{"features": {"historical_data": {"vulnerabilities": false}}}`),
@@ -1759,7 +1759,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 
 	// Unknown features sub-fields (e.g. enable_host_users — settable per-fleet
 	// only via /spec/fleets) are silently ignored on the fleet PATCH endpoint;
-	// the stored fleet state SHALL be unchanged for the unknown field.
+	// the stored fleet state should be unchanged for the unknown field.
 	priorEnableHostUsers := modResp.Team.Config.Features.EnableHostUsers
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
 		json.RawMessage(`{"features": {"enable_host_users": false}}`),
