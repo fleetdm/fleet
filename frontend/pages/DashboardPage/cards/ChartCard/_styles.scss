@@ -286,3 +286,23 @@
     }
   }
 }
+
+.data-collection-disabled-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: $pad-xxlarge $pad-large;
+  gap: $pad-small;
+
+  h3 {
+    margin: 0;
+    color: var(--core-fleet-black);
+  }
+
+  p {
+    margin: 0;
+    color: var(--ui-fleet-black-75);
+  }
+}

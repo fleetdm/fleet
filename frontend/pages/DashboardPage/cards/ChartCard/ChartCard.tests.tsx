@@ -141,4 +141,38 @@ describe("ChartCard", () => {
       expect(screen.getByText("Hosts active")).toBeInTheDocument();
     });
   });
+
+  it("renders the empty state when collection is disabled for the active dataset", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Manage data collection in Advanced settings/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders the chart normally when collection is enabled", async () => {
+    mockServer.use(chartHandler);
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: true, vulnerabilities: true }}
+      />
+    );
+
+    await waitFor(() => {
+      const rects = container.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
+    });
+    expect(
+      screen.queryByText(/Data collection is disabled/i)
+    ).not.toBeInTheDocument();
+  });
 });

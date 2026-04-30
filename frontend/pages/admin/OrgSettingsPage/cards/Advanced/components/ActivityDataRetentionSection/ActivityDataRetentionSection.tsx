@@ -18,6 +18,8 @@ const ActivityDataRetentionSection = ({
     deleteActivities,
     activityExpiryWindow,
     preserveHostActivitiesOnReenrollment,
+    disableHostsActive,
+    disableVulnerabilities,
   } = formData;
 
   const activityExpiryWindowOptions = useMemo(
@@ -150,6 +152,58 @@ const ActivityDataRetentionSection = ({
             helpText="Enabling this setting will delete all existing report results in Fleet."
           >
             Disable stored results
+          </Checkbox>
+        )}
+      />
+      <GitOpsModeTooltipWrapper
+        position="left"
+        renderChildren={(disableChildren) => (
+          <Checkbox
+            disabled={disableChildren}
+            onChange={onInputChange}
+            name="disableHostsActive"
+            value={disableHostsActive}
+            parseTarget
+            labelTooltipContent={
+              !disableChildren && (
+                <>
+                  When enabled, Fleet stops collecting hourly hosts-active
+                  <br />
+                  data used by the dashboard chart.{" "}
+                  <em>
+                    (Default: <strong>Off</strong>)
+                  </em>
+                </>
+              )
+            }
+          >
+            Disable hosts active
+          </Checkbox>
+        )}
+      />
+      <GitOpsModeTooltipWrapper
+        position="left"
+        renderChildren={(disableChildren) => (
+          <Checkbox
+            disabled={disableChildren}
+            onChange={onInputChange}
+            name="disableVulnerabilities"
+            value={disableVulnerabilities}
+            parseTarget
+            labelTooltipContent={
+              !disableChildren && (
+                <>
+                  When enabled, Fleet stops collecting historical
+                  <br />
+                  vulnerability-exposure data used by the dashboard chart.{" "}
+                  <em>
+                    (Default: <strong>Off</strong>)
+                  </em>
+                </>
+              )
+            }
+          >
+            Disable vulnerabilities
           </Checkbox>
         )}
       />
