@@ -637,7 +637,7 @@ func newAgent(
 	// "normalized" platform, so "ubuntu" and not "linux", "macos" and not
 	// "darwin". osVariant is the part after the underscore, e.g., "8" / "9" /
 	// "10" for RHEL templates, used to pick the right kernel list.
-	templateBase := strings.TrimRight(templates.Name(), ".tmpl")
+	templateBase := strings.TrimSuffix(templates.Name(), ".tmpl")
 	agentOS, osVariant, _ := strings.Cut(templateBase, "_")
 
 	var (
