@@ -99,6 +99,8 @@ const CheckerboardViz = ({
         return {
           dayIndex: 0,
           hourRow: i,
+          value: point.value,
+          total: point.total,
           percentage: point.percentage,
           dayLabel: format(date, "MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
