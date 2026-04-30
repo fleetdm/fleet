@@ -14331,3 +14331,4 @@ Response:
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
 <meta name="pageOrderInSection" value="30">
+<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, teams api, fleets api, mdm commands api, certificates api, labels api, activities api">

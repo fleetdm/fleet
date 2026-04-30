@@ -59,3 +59,4 @@ Looking for other deployment options? Check out the [guides](https://fleetdm.com
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
 <meta name="title" value="Hosting Fleet">
+<meta name="keywordsForDocsearch" value="self-hosted, install fleet, fleet deployment, on-premise, cloud deployment">

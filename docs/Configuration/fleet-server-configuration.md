@@ -3497,3 +3497,4 @@ This content was moved to [Public IPs](http://fleetdm.com/docs/deploy/public-ip)
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="This page includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd.">
+<meta name="keywordsForDocsearch" value="server config, env vars, yaml config, log routing, log streaming, log shipping, server flags, cli flags, session expiry, secrets management, high availability">

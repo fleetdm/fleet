@@ -1317,3 +1317,4 @@ Unlike other options, omitting `smtp_settings` or leaving it blank won't reset t
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
+<meta name="keywordsForDocsearch" value="configuration as code, org settings, ci/cd, version control, declarative configuration">
