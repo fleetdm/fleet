@@ -423,6 +423,18 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
+// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
+
 type MDMCommandStatusFilter string
 
 const (

@@ -958,6 +958,8 @@ module.exports.routes = {
   'GET /compare/jamf': '/compare/jamf-vs-fleet',
   'GET /compare/fleet-vs-workspace-one': '/compare/workspace-one-vs-fleet',
   'GET /compare/fleet-vs-jamf-vs-intune': '/compare/jamf-vs-intune-vs-fleet',
+  'GET /articles/fleet-vs-jamf-vs-iru-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
+  'GET /articles/fleet-vs-jamf-vs-iru-kandji-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',

@@ -108,6 +108,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 	}
 	acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		// PerPage 1: only acctCmds[0] is read below.
+		ListOptions: fleet.ListOptions{PerPage: 1},
 		Filters: fleet.MDMCommandFilters{
 			HostIdentifier: host.UUID,
 			RequestType:    "AccountConfiguration",
