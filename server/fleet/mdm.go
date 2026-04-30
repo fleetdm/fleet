@@ -85,12 +85,8 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// OneTimeChallengeTTL is the time to live for one-time challenges. The challenge is
-	// generated at profile-render time but consumed when the device makes its SCEP request,
-	// which can be hours or days later if the device is offline (asleep, on a plane, etc.).
-	// 7 days covers a typical absence without being unbounded; once consumed, the challenge
-	// is deleted immediately regardless of TTL. See issue #44111.
-	OneTimeChallengeTTL = 7 * 24 * time.Hour
+	// OneTimeChallengeTTL is the time to live for one-time challenges.
+	OneTimeChallengeTTL = 1 * time.Hour
 )
 
 // HasCAVariables returns true if any of the given Fleet variable names
