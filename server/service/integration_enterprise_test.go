@@ -29088,8 +29088,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		return createResp.Token
 	}
 
-	// With no endpoint restrictions the user can reach any endpoint in the catalog.
-	t.Run("no restrictions allows all catalog endpoints", func(t *testing.T) {
+	// With no endpoint restrictions the api_only middleware skips entirely, so
+	// the user can reach any registered route — gated only by role-based authz
+	// further down the chain.
+	t.Run("no restrictions skips the middleware", func(t *testing.T) {
 		s.token = createAPIOnlyUser("api-only-mw-no-restrictions", nil)
 
 		s.Do("GET", "/api/latest/fleet/version", nil, http.StatusOK)
@@ -29097,12 +29099,10 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 		s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusOK)
 	})
 
-	// Paths not registered in the API endpoint catalog are always rejected for
-	// api-only users, regardless of whether they have endpoint restrictions.
-	t.Run("non-catalog path is rejected", func(t *testing.T) {
-		s.token = createAPIOnlyUser("api-only-mw-non-catalog-unrestricted", nil)
-		s.Do("PATCH", "/api/latest/fleet/users/api_only/1", map[string]any{"name": "x"}, http.StatusForbidden)
-
+	// For api-only users with restrictions, requests to paths not in the API
+	// endpoint catalog are rejected by the middleware before reaching the
+	// service layer.
+	t.Run("non-catalog path is rejected for restricted users", func(t *testing.T) {
 		s.token = createAPIOnlyUser("api-only-mw-non-catalog-restricted", []map[string]any{
 			{"method": "GET", "path": "/api/v1/fleet/version"},
 		})
