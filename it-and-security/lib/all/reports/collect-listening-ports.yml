@@ -1,6 +1,7 @@
 - name: Collect listening TCP/UDP ports
   description: |-
     Processes listening on network ports for anomaly detection and firewall reviews.
+
     Maps to **NET-91** / ISO **A.8.20**, **MON-121** / **A.8.16**, and SOC2 **CC 6.6** / **CC 7.2**.
   query: |-
     SELECT

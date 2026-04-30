@@ -135,16 +135,11 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			ID: policyID,
+			ID:               policyID,
+			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
+			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
+			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
 		},
-	}
-
-	for _, labelInclude := range args.LabelsIncludeAny {
-		dummyPolicy.LabelsIncludeAny = append(dummyPolicy.LabelsIncludeAny, fleet.LabelIdent{LabelName: labelInclude})
-	}
-
-	for _, labelExclude := range args.LabelsExcludeAny {
-		dummyPolicy.LabelsExcludeAny = append(dummyPolicy.LabelsExcludeAny, fleet.LabelIdent{LabelName: labelExclude})
 	}
 
 	if err := updatePolicyLabelsTx(ctx, db, dummyPolicy); err != nil {
@@ -160,26 +155,46 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		INSERT INTO policy_labels (
 			policy_id,
 			label_id,
-			exclude
+			exclude,
+			require_all
 		)
-		SELECT ?, id, ?
+		SELECT ?, id, ?, ?
 		FROM labels
 		WHERE name IN (?)
 	`
 
-	if len(policy.LabelsIncludeAny) > 0 && len(policy.LabelsExcludeAny) > 0 {
-		return ctxerr.New(ctx, "cannot have both labels_include_any and labels_exclude_any on a policy")
+	// Scopes are mutually exclusive
+	scopesSet := 0
+	if len(policy.LabelsIncludeAny) > 0 {
+		scopesSet++
+	}
+	if len(policy.LabelsIncludeAll) > 0 {
+		scopesSet++
+	}
+	if len(policy.LabelsExcludeAny) > 0 {
+		scopesSet++
+	}
+	if scopesSet > 1 {
+		return ctxerr.Wrap(ctx, fleet.ErrPolicyConflictingLabels)
 	}
 
-	var labelNames []string
-
-	exclude := false
-	if len(policy.LabelsExcludeAny) > 0 {
+	var (
+		labelNames []string
+		exclude    bool
+		requireAll bool
+	)
+	switch {
+	case len(policy.LabelsIncludeAll) > 0:
+		requireAll = true
+		for _, label := range policy.LabelsIncludeAll {
+			labelNames = append(labelNames, label.LabelName)
+		}
+	case len(policy.LabelsExcludeAny) > 0:
 		exclude = true
 		for _, label := range policy.LabelsExcludeAny {
 			labelNames = append(labelNames, label.LabelName)
 		}
-	} else {
+	default:
 		for _, label := range policy.LabelsIncludeAny {
 			labelNames = append(labelNames, label.LabelName)
 		}
@@ -189,11 +204,11 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		return ctxerr.Wrap(ctx, err, "deleting old policy labels")
 	}
 
-	if len(policy.LabelsIncludeAny) == 0 && len(policy.LabelsExcludeAny) == 0 {
+	if len(labelNames) == 0 {
 		return nil
 	}
 
-	labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, labelNames)
+	labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, requireAll, labelNames)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "constructing policy label update query")
 	}
@@ -221,7 +236,8 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 			pl.policy_id,
 			l.name AS label_name,
 			l.id AS label_id,
-			pl.exclude
+			pl.exclude,
+			pl.require_all
 		FROM policy_labels pl
 		INNER JOIN labels l ON l.id = pl.label_id
 		WHERE pl.policy_id IN (?)
@@ -236,6 +252,7 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 
 	for _, policy := range policies {
 		policy.LabelsIncludeAny = nil
+		policy.LabelsIncludeAll = nil
 		policy.LabelsExcludeAny = nil
 		policyIDs = append(policyIDs, policy.ID)
 		policyMap[policy.ID] = policy
@@ -247,10 +264,11 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 	}
 
 	rows := []struct {
-		PolicyID  uint   `db:"policy_id"`
-		LabelName string `db:"label_name"`
-		LabelID   uint   `db:"label_id"`
-		Exclude   bool   `db:"exclude"`
+		PolicyID   uint   `db:"policy_id"`
+		LabelName  string `db:"label_name"`
+		LabelID    uint   `db:"label_id"`
+		Exclude    bool   `db:"exclude"`
+		RequireAll bool   `db:"require_all"`
 	}{}
 
 	if err := sqlx.SelectContext(ctx, db, &rows, stmt, args...); err != nil {
@@ -258,10 +276,15 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 	}
 
 	for _, row := range rows {
-		if row.Exclude {
-			policyMap[row.PolicyID].LabelsExcludeAny = append(policyMap[row.PolicyID].LabelsExcludeAny, fleet.LabelIdent{LabelName: row.LabelName, LabelID: row.LabelID})
-		} else {
-			policyMap[row.PolicyID].LabelsIncludeAny = append(policyMap[row.PolicyID].LabelsIncludeAny, fleet.LabelIdent{LabelName: row.LabelName, LabelID: row.LabelID})
+		ident := fleet.LabelIdent{LabelName: row.LabelName, LabelID: row.LabelID}
+		policy := policyMap[row.PolicyID]
+		switch {
+		case row.Exclude:
+			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, ident)
+		case row.RequireAll:
+			policy.LabelsIncludeAll = append(policy.LabelsIncludeAll, ident)
+		default:
+			policy.LabelsIncludeAny = append(policy.LabelsIncludeAny, ident)
 		}
 	}
 
@@ -1020,16 +1043,25 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 	// Uses a LEFT JOIN on an aggregated subquery over policy_labels + label_membership
 	// instead of correlated EXISTS/NOT EXISTS subqueries. This evaluates the label
 	// scoping once for all policies rather than re-evaluating per policy row.
+	//
+	// Scope encoding:
+	//   exclude=0, require_all=0 -> include_any
+	//   exclude=0, require_all=1 -> include_all
+	//   exclude=1, require_all=0 -> exclude_any
 	const stmt = `
 		SELECT p.id, p.query
 		FROM policies p
 		LEFT JOIN (
 			SELECT pl.policy_id,
-				-- 1 if this policy has any include labels
-				MAX(CASE WHEN pl.exclude = 0 THEN 1 ELSE 0 END) AS has_include_labels,
-				-- 1 if this host is a member of at least one include label
-				MAX(CASE WHEN pl.exclude = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_include,
-				-- 1 if this host is a member of at least one exclude label
+				-- 1 if this policy has any include_any labels
+				MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 THEN 1 ELSE 0 END) AS has_include_any,
+				-- 1 if this host is a member of at least one include_any label
+				MAX(CASE WHEN pl.exclude = 0 AND pl.require_all = 0 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_include_any,
+				-- count of include_all labels on this policy
+				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 THEN 1 ELSE 0 END) AS include_all_count,
+				-- count of include_all labels this host is a member of
+				SUM(CASE WHEN pl.exclude = 0 AND pl.require_all = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_include_all_count,
+				-- 1 if this host is a member of at least one exclude_any label
 				MAX(CASE WHEN pl.exclude = 1 AND lm.host_id IS NOT NULL THEN 1 ELSE 0 END) AS host_in_exclude
 			FROM policy_labels pl
 			LEFT JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = ?
@@ -1038,9 +1070,11 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		WHERE
 			(p.team_id IS NULL OR p.team_id = COALESCE(?, 0)) AND
 			(p.platforms = '' OR FIND_IN_SET(?, p.platforms)) AND
-			-- Policy has no include labels, or host is in at least one
-			(COALESCE(pl_agg.has_include_labels, 0) = 0 OR pl_agg.host_in_include = 1) AND
-			-- Host is not in any exclude label
+			-- Policy has no include_any labels, or host is in at least one
+			(COALESCE(pl_agg.has_include_any, 0) = 0 OR pl_agg.host_in_include_any = 1) AND
+			-- Policy has no include_all labels, or host is in all of them
+			(COALESCE(pl_agg.include_all_count, 0) = 0 OR pl_agg.host_include_all_count = pl_agg.include_all_count) AND
+			-- Host is not in any exclude_any label
 			COALESCE(pl_agg.host_in_exclude, 0) = 0
 `
 	var rows []struct {
@@ -1162,16 +1196,11 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			ID: policyID,
+			ID:               policyID,
+			LabelsIncludeAny: fleet.LabelNamesToIdents(args.LabelsIncludeAny),
+			LabelsIncludeAll: fleet.LabelNamesToIdents(args.LabelsIncludeAll),
+			LabelsExcludeAny: fleet.LabelNamesToIdents(args.LabelsExcludeAny),
 		},
-	}
-
-	for _, labelInclude := range args.LabelsIncludeAny {
-		dummyPolicy.LabelsIncludeAny = append(dummyPolicy.LabelsIncludeAny, fleet.LabelIdent{LabelName: labelInclude})
-	}
-
-	for _, labelExclude := range args.LabelsExcludeAny {
-		dummyPolicy.LabelsExcludeAny = append(dummyPolicy.LabelsExcludeAny, fleet.LabelIdent{LabelName: labelExclude})
 	}
 
 	if err := updatePolicyLabelsTx(ctx, db, dummyPolicy); err != nil {
@@ -1586,23 +1615,11 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					shouldRemoveAllPolicyMemberships = true
 				}
 
-				// Create LabelIdents to send to updatePolicyLabelsTx.
-				// Right now we only need the names.
-				// @future: use IDs instead of names.
-				labelsIncludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsIncludeAny))
-				for _, labelInclude := range spec.LabelsIncludeAny {
-					labelsIncludeAnyIdents = append(labelsIncludeAnyIdents, fleet.LabelIdent{LabelName: labelInclude})
-				}
-				labelsExcludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsExcludeAny))
-				for _, labelExclude := range spec.LabelsExcludeAny {
-					labelsExcludeAnyIdents = append(labelsExcludeAnyIdents, fleet.LabelIdent{LabelName: labelExclude})
-				}
-
 				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
-						LabelsIncludeAny: labelsIncludeAnyIdents,
-						LabelsExcludeAny: labelsExcludeAnyIdents,
+						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
+						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),
 					},
 				})
 				if err != nil {
@@ -1918,19 +1935,34 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 			  AND pm.host_id > ?
 			  AND NOT (
 			    (
-			      -- If the policy has no include labels, all hosts match this part.
+			      -- If the policy has no include_any labels, all hosts match this part.
 			      NOT EXISTS (
 			        SELECT 1 FROM policy_labels pl
-			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0 AND pl.require_all = 0
 			      )
-			      -- If the policy has include labels, the host must be in at least one of them.
+			      -- If the policy has include_any labels, the host must be in at least one of them.
 			      OR EXISTS (
 			        SELECT 1 FROM policy_labels pl
 			        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
-			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0
+			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0 AND pl.require_all = 0
 			      )
 			    )
-			    -- If the policy has exclude labels, the host must not be in any of them.
+			    -- If the policy has include_all labels, the host must be in all of them.
+			    AND (
+			      NOT EXISTS (
+			        SELECT 1 FROM policy_labels pl
+			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0 AND pl.require_all = 1
+			      )
+			      OR (
+			        SELECT COUNT(*) FROM policy_labels pl
+			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0 AND pl.require_all = 1
+			      ) = (
+			        SELECT COUNT(*) FROM policy_labels pl
+			        JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
+			        WHERE pl.policy_id = pm.policy_id AND pl.exclude = 0 AND pl.require_all = 1
+			      )
+			    )
+			    -- If the policy has exclude_any labels, the host must not be in any of them.
 			    AND NOT EXISTS (
 			      SELECT 1 FROM policy_labels pl
 			      JOIN label_membership lm ON lm.label_id = pl.label_id AND lm.host_id = pm.host_id
