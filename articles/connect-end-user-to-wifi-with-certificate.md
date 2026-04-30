@@ -584,7 +584,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydrant-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -595,6 +595,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydra
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -908,7 +910,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -919,6 +921,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-C
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
