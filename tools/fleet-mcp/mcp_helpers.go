@@ -140,7 +140,7 @@ func parseCSVUintArg(req mcp.CallToolRequest, key string) ([]uint, error) {
 		if t == "" {
 			continue
 		}
-		n, err := strconv.ParseUint(t, 10, 64)
+		n, err := strconv.ParseUint(t, 10, strconv.IntSize)
 		if err != nil || n == 0 {
 			return nil, fmt.Errorf("%s: %q is not a positive integer", key, t)
 		}
