@@ -1975,12 +1975,6 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetWindowsHostSetupExperienceRequireAllSoftware returns the value of the
-	// require_all_software_windows setting for the team that the host with
-	// the given UUID belongs to. Falls back to the global app config when the
-	// host is on no team.
-	GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.Context, hostUUID string) (bool, error)
-
 	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
 	// configuration value for the Windows MDM enrollment of the given host.
 	// This is a lightweight read for the orbit config polling path.
@@ -1989,10 +1983,7 @@ type Datastore interface {
 	// HasWindowsSetupExperienceItemsForHostUUID returns true if any Windows
 	// setup experience software installers (with install_during_setup) are
 	// configured for the team that the host with the given UUID belongs to.
-	// Setup experience scripts are deliberately excluded: they are only
-	// enqueued for darwin in EnqueueSetupExperienceItems, so including them
-	// here would cause Windows ESP release to wait forever on teams that
-	// have only a script configured. Used by the ESP release gate to
+	// Used by the ESP release gate to
 	// disambiguate between "no setup configured" (safe to release) and
 	// "setup configured but orbit hasn't initialized yet" (must wait) when
 	// setup_experience_status_results is empty.

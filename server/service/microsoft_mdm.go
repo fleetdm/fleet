@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -2204,9 +2205,31 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// Active and retries on the next management session: failing open
 	// here would permanently bypass the policy after the Active->None
 	// transition below.
-	requireAll, err := svc.ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, device.HostUUID)
+	//
+	// The host lookup is forced to the primary DB to avoid two replica-lag
+	// races during ESP: (1) spurious notFound during the brief gap between
+	// orbit's host registration and the next management session, and (2)
+	// stale team_id if a host transferred teams mid-enrollment, which could
+	// read require_all_software_windows from the wrong team. The team-config
+	// read (TeamLite/AppConfig) is fine on the replica/cache because team
+	// settings are stable on the ESP timescale.
+	host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "lookup require_all_software_windows for ESP finalization")
+		return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP finalization")
+	}
+	var requireAll bool
+	if host.TeamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
+		}
+		requireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
+	} else {
+		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
+		}
+		requireAll = team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows
 	}
 
 	// CAS Active -> None first so only one concurrent checkin does the

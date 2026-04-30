@@ -1273,8 +1273,6 @@ type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID 
 
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
-type GetWindowsHostSetupExperienceRequireAllSoftwareFunc func(ctx context.Context, hostUUID string) (bool, error)
-
 type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
 
 type HasWindowsSetupExperienceItemsForHostUUIDFunc func(ctx context.Context, hostUUID string) (bool, error)
@@ -3780,9 +3778,6 @@ type DataStore struct {
 
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
-
-	GetWindowsHostSetupExperienceRequireAllSoftwareFunc        GetWindowsHostSetupExperienceRequireAllSoftwareFunc
-	GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked bool
 
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
@@ -9105,13 +9100,6 @@ func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmD
 	s.SetMDMWindowsAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsAwaitingConfigurationFunc(ctx, mdmDeviceID, expectFrom, to)
-}
-
-func (s *DataStore) GetWindowsHostSetupExperienceRequireAllSoftware(ctx context.Context, hostUUID string) (bool, error) {
-	s.mu.Lock()
-	s.GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetWindowsHostSetupExperienceRequireAllSoftwareFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {

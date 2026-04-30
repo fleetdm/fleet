@@ -1405,6 +1405,20 @@ func TestGetESPCommands(t *testing.T) {
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
 	})
 
+	// setRequireAll wires the host -> require_all_software_windows lookup chain (HostLiteByIdentifier ->
+	// AppConfig) to return the given value via the no-team / app-config path. Tests don't need to
+	// exercise the team lookup separately; the team path is structurally the same.
+	setRequireAll := func(ds *mock.Store, requireAll bool) {
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: nil}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = requireAll
+			return ac, nil
+		}
+	}
+
 	// setReleaseMocks sets up mocks needed for tests that reach the release path
 	// (all profiles delivered + setup experience done).
 	setReleaseMocks := func(ds *mock.Store) {
@@ -1419,9 +1433,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
+		setRequireAll(ds, false)
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			return nil
 		}
@@ -1506,9 +1518,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
+		setRequireAll(ds, false)
 		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 			return nil
 		}
@@ -1584,9 +1594,7 @@ func TestGetESPCommands(t *testing.T) {
 				},
 			}, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
+		setRequireAll(ds, true)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1677,9 +1685,7 @@ func TestGetESPCommands(t *testing.T) {
 				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
 			}, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
+		setRequireAll(ds, false)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1735,9 +1741,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
 			return false, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
+		setRequireAll(ds, true)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1790,9 +1794,7 @@ func TestGetESPCommands(t *testing.T) {
 				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
 			}, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
+		setRequireAll(ds, true)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1827,9 +1829,7 @@ func TestGetESPCommands(t *testing.T) {
 				AwaitingConfigurationAt: &past,
 			}, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return true, nil
-		}
+		setRequireAll(ds, true)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1873,9 +1873,7 @@ func TestGetESPCommands(t *testing.T) {
 				AwaitingConfigurationAt: &past,
 			}, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return false, nil
-		}
+		setRequireAll(ds, false)
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
@@ -1942,6 +1940,74 @@ func TestGetESPCommands(t *testing.T) {
 			"success path must call ListSetupExperienceResultsByHostUUID")
 	})
 
+	t.Run("require_all read via team config blocks when team has require_all_software_windows=true", func(t *testing.T) {
+		// Covers the team-path branch of the require_all_software_windows
+		// lookup chain (HostLite returns TeamID set -> TeamLite -> team
+		// config). Other tests use the no-team path via setRequireAll.
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+
+		// Team-path mocks: HostLite returns a host with TeamID set; TeamLite
+		// returns the team config with require_all_software_windows=true.
+		teamID := uint(42)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: &teamID}, nil
+		}
+		var teamLiteCalled bool
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			require.Equal(t, teamID, tid, "TeamLite must be called with the host's team_id")
+			teamLiteCalled = true
+			return &fleet.TeamLite{
+				ID: tid,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftwareWindows: true,
+						},
+					},
+				},
+			}, nil
+		}
+		// AppConfig MUST NOT be consulted on the team path.
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			t.Fatal("AppConfig must not be called when host has a team_id")
+			return nil, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return nil
+		}
+		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+		assert.True(t, teamLiteCalled, "TeamLite must be called on the team path")
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"team config require_all_software_windows=true must drive the block path")
+	})
+
 	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {
 		ds, svc := newSvc(t)
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -1963,8 +2029,8 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HasWindowsSetupExperienceItemsForHostUUIDFunc = func(ctx context.Context, hUUID string) (bool, error) {
 			return false, nil
 		}
-		ds.GetWindowsHostSetupExperienceRequireAllSoftwareFunc = func(ctx context.Context, hUUID string) (bool, error) {
-			return false, errors.New("transient db error")
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return nil, errors.New("transient db error")
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
@@ -2002,8 +2068,8 @@ func TestGetESPCommands(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait for orbit to initialize setup experience")
 		// Must NOT have proceeded to require_all lookup or state transition.
-		assert.False(t, ds.GetWindowsHostSetupExperienceRequireAllSoftwareFuncInvoked,
-			"must not look up require_all when waiting for orbit init")
+		assert.False(t, ds.HostLiteByIdentifierFuncInvoked,
+			"must not look up host (require_all chain) when waiting for orbit init")
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
 			"must not transition state while waiting for orbit init")
 	})

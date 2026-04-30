@@ -63,7 +63,6 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 		{"TestMDMWindowsAwaitingConfigurationCAS", testMDMWindowsAwaitingConfigurationCAS},
 		{"TestMDMWindowsAwaitingConfigurationByHostUUID", testMDMWindowsAwaitingConfigurationByHostUUID},
-		{"TestMDMWindowsRequireAllSoftwareLookup", testMDMWindowsRequireAllSoftwareLookup},
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
@@ -5646,67 +5645,6 @@ func testMDMWindowsAwaitingConfigurationByHostUUID(t *testing.T, ds *Datastore) 
 	_, err = ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, "nonexistent-host-uuid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err), "unknown host UUID must return NotFound, got: %v", err)
-}
-
-// testMDMWindowsRequireAllSoftwareLookup verifies
-// GetWindowsHostSetupExperienceRequireAllSoftware returns the correct value
-// for hosts on a team, hosts with no team (falls back to app config), and
-// returns NotFound for unknown hosts.
-//
-// Note on the primary-DB invariant: the implementation reads the host->team_id
-// lookup from the writer (see comment in GetWindowsHostSetupExperienceRequireAllSoftware)
-// to avoid replica-lag false-negatives during the brief enrollment window
-// when the host is being assigned to a team. On a single-DB test setup
-// reader and writer hit the same connection, so this test cannot directly
-// exercise the routing. The routing is enforced by code review against the
-// implementation comment; this test exercises the correctness of the value
-// returned across the host's possible states.
-func testMDMWindowsRequireAllSoftwareLookup(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host := test.NewHost(t, ds, "win-req", "10.0.0.20", "win-req-key", "win-req-uuid", time.Now())
-	host.Platform = "windows"
-	require.NoError(t, ds.UpdateHost(ctx, host))
-
-	// No team, app config default (false).
-	got, err := ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, host.UUID)
-	require.NoError(t, err)
-	require.False(t, got, "default app config require_all_software_windows is false")
-
-	// No team, app config true.
-	ac, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-	ac.MDM.MacOSSetup.RequireAllSoftwareWindows = true
-	require.NoError(t, ds.SaveAppConfig(ctx, ac))
-
-	got, err = ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, host.UUID)
-	require.NoError(t, err)
-	require.True(t, got, "no-team host must read from app config")
-
-	// Move host onto a team where require_all_software_windows defaults to false.
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "RequireAllSoftwareTeam"})
-	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
-
-	got, err = ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, host.UUID)
-	require.NoError(t, err)
-	require.False(t, got,
-		"team with require_all_software_windows=false must override app config true")
-
-	// Set team to true.
-	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = true
-	_, err = ds.SaveTeam(ctx, team)
-	require.NoError(t, err)
-
-	got, err = ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, host.UUID)
-	require.NoError(t, err)
-	require.True(t, got)
-
-	// Unknown host UUID returns NotFound, not a silent "false".
-	_, err = ds.GetWindowsHostSetupExperienceRequireAllSoftware(ctx, "nonexistent-host-uuid")
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err),
-		"unknown host UUID must return NotFound (failing closed) -- got: %v", err)
 }
 
 // testMDMWindowsHasSetupExperienceItems verifies
