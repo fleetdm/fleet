@@ -167,6 +167,17 @@ func buildLiveQuerySpecFromRequest(req mcp.CallToolRequest) (LiveQueryTargetSpec
 	if policyResp != "" && policyResp != "passing" && policyResp != "failing" {
 		return LiveQueryTargetSpec{}, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResp)
 	}
+	if policyID != "" {
+		if _, err := parsePositiveUintString("policy_id", policyID); err != nil {
+			return LiveQueryTargetSpec{}, err
+		}
+	}
+	cveID := getOptionalString(req, "cve_id")
+	if cveID != "" {
+		if err := validateCVEID(cveID); err != nil {
+			return LiveQueryTargetSpec{}, err
+		}
+	}
 	return LiveQueryTargetSpec{
 		Fleet:           getOptionalString(req, "fleet"),
 		Platform:        getOptionalString(req, "platform"),
@@ -175,7 +186,7 @@ func buildLiveQuerySpecFromRequest(req mcp.CallToolRequest) (LiveQueryTargetSpec
 		Query:           getOptionalString(req, "query"),
 		PolicyID:        policyID,
 		PolicyResponse:  policyResp,
-		CVEID:           getOptionalString(req, "cve_id"),
+		CVEID:           cveID,
 		Hostnames:       parseCSVArg(req, "hostnames"),
 		HostIDs:         hostIDs,
 		LegacyFleets:    parseCSVArg(req, "fleets"),

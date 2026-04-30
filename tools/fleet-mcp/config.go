@@ -83,5 +83,5 @@ func resolveSecret(key string) string {
 			}
 		}
 	}
-	return os.Getenv(key)
+	return strings.TrimSpace(os.Getenv(key))
 }

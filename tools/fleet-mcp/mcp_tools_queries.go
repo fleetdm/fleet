@@ -320,6 +320,31 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 			return mcp.NewToolResultError("Targets resolved to 0 hosts — refine your filters."), nil
 		}
 
+		// When no explicit platform filter was given (e.g. caller filtered by
+		// hostname / label / CVE), the pre-flight above ran with an empty
+		// platform list and validated nothing. Now that targets are resolved,
+		// validate SQL against their actual platforms so a darwin-only table
+		// doesn't fan out to Windows hosts.
+		if len(validatePlatforms) == 0 {
+			seen := make(map[string]struct{})
+			targetPlatforms := make([]string, 0, 4)
+			for _, t := range targets {
+				if t.Platform == "" {
+					continue
+				}
+				if _, ok := seen[t.Platform]; ok {
+					continue
+				}
+				seen[t.Platform] = struct{}{}
+				targetPlatforms = append(targetPlatforms, t.Platform)
+			}
+			if len(targetPlatforms) > 0 {
+				if valErr := ValidateSQLForPlatforms(sql, targetPlatforms); valErr != nil {
+					return mcp.NewToolResultError(fmt.Sprintf("SQL platform validation failed: %v", valErr)), nil
+				}
+			}
+		}
+
 		// Resolve team scoping for the transient saved query that
 		// runMultiHostQuery creates. When `fleet` is set, the query lives
 		// under that team in Fleet's UI / RBAC instead of Global.

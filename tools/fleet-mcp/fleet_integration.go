@@ -1369,9 +1369,21 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	// Generous per_page on each fan-out; we cap the merged result at perPage.
 	baseParams.Set("per_page", "500")
 
+	// Client-side platform / label post-filter is folded into the per-page loop
+	// below. Fleet's /hosts endpoint silently ignores ?platform= and ?label_id=,
+	// so we verify membership locally using each host's labels (populate_labels=true).
+	needPostFilter := platform != "" || labelName != ""
+
 	seen := make(map[uint]bool)
 	hosts := make([]Endpoint, 0)
 	for _, vid := range versionIDs {
+		// Short-circuit: if the caller asked for at most perPage hosts and we
+		// already have enough qualifying hosts, skip the rest of the fan-out.
+		// On a CVE affecting dozens of versions this avoids 10s of MB of
+		// downloaded host pages we'd have just truncated away.
+		if perPage > 0 && len(hosts) >= perPage {
+			break
+		}
 		// Honor caller cancellation between version-id fan-outs.
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -1386,26 +1398,21 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 			logrus.Warnf("failed to fetch hosts for software_version_id=%d: %v", vid, fErr)
 			continue
 		}
+		if needPostFilter {
+			page = filterHostsByPlatformOrLabel(page, platform, labelName)
+		}
 		for _, h := range page {
 			if seen[h.ID] {
 				continue
 			}
 			seen[h.ID] = true
 			hosts = append(hosts, h)
+			if perPage > 0 && len(hosts) >= perPage {
+				break
+			}
 		}
 	}
 
-	// Step 4: client-side platform / label post-filter (Fleet's /hosts endpoint
-	// silently ignores ?platform= and ?label_id= so we can't push these
-	// dimensions server-side; populate_labels=true gives us the data needed
-	// to verify membership locally).
-	if platform != "" || labelName != "" {
-		hosts = filterHostsByPlatformOrLabel(hosts, platform, labelName)
-	}
-
-	if perPage > 0 && len(hosts) > perPage {
-		hosts = hosts[:perPage]
-	}
 	return hosts, nil
 }
 
@@ -1802,8 +1809,15 @@ func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sq
 		return nil, fmt.Errorf("failed to create temporary query: %w", err)
 	}
 	defer func() {
+		// Detach from the request ctx — if the caller cancelled (MCP client
+		// hung up, request timeout), we still want to clean up the temp
+		// query rather than wait for the next startup sweep. Bound the
+		// detached call with a short timeout so a wedged Fleet doesn't pin
+		// the goroutine forever.
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", savedQuery.ID)
-		r, delErr := fc.makeFleetRequest(ctx, "DELETE", delEndpoint, nil)
+		r, delErr := fc.makeFleetRequest(cleanupCtx, "DELETE", delEndpoint, nil)
 		if r != nil {
 			r.Body.Close()
 		}

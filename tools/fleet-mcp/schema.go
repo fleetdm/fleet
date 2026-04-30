@@ -48,10 +48,13 @@ type Column struct {
 // schemaSource records where the live schema came from on the most recent
 // successful load — surfaced in the get_osquery_schema response so callers can
 // tell whether the data is fresh from fleetdm.com or the embedded fallback.
+//
+// FetchedAt is only set on a live HTTP fetch. The embedded snapshot leaves it
+// nil so a vendored copy doesn't masquerade as freshly fetched data.
 type schemaSource struct {
-	Origin    string    `json:"origin"`     // "live" or "embed"
-	URL       string    `json:"url"`        // canonical URL fetched (or empty for embed)
-	FetchedAt time.Time `json:"fetched_at"` // last successful load time
+	Origin    string     `json:"origin"`               // "live" or "embed"
+	URL       string     `json:"url"`                  // canonical URL fetched (or empty for embed)
+	FetchedAt *time.Time `json:"fetched_at,omitempty"` // set only when Origin == "live"
 }
 
 const (
@@ -116,7 +119,7 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("fleet-mcp: failed to parse embedded osquery schema: %v", err))
 	}
-	storeSchema(tables, schemaSource{Origin: "embed", FetchedAt: time.Now()})
+	storeSchema(tables, schemaSource{Origin: "embed"})
 }
 
 // StartSchemaRefresh kicks off a background goroutine that fetches the
@@ -170,10 +173,11 @@ func RefreshSchemaNow() error {
 	if err != nil {
 		return fmt.Errorf("parse fetched schema: %w", err)
 	}
+	now := time.Now()
 	storeSchema(tables, schemaSource{
 		Origin:    "live",
 		URL:       canonicalSchemaURL,
-		FetchedAt: time.Now(),
+		FetchedAt: &now,
 	})
 	logrus.Infof("Refreshed osquery schema from %s (%d tables)", canonicalSchemaURL, len(tables))
 	return nil

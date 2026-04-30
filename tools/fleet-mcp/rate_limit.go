@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -95,32 +96,41 @@ func (rl *ipRateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
-// clientIP returns the request's client IP. Honors X-Forwarded-For when
-// running behind a trusted proxy (Render, ALB, etc.) — only the first
-// address is trusted because the rest are arbitrary client-supplied. If no
-// XFF header, falls back to RemoteAddr.
-//
-// Note: in deployments where the operator does NOT terminate TLS at a
-// trusted reverse proxy, the X-Forwarded-For header is attacker-controlled
-// and bypassing rate limits is trivial. For Render-style deployments this
-// is fine because Render sets XFF itself; for direct exposure document
-// the limitation in the README.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		// First entry is the original client per RFC 7239; subsequent entries
-		// are appended by intermediate proxies.
-		for i, b := 0, 0; i <= len(xff); i++ {
-			if i == len(xff) || xff[i] == ',' {
-				if first := xff[b:i]; first != "" {
-					return first
-				}
-				break
-			}
-		}
+// isTrustedProxy reports whether ip belongs to a network range we treat as a
+// trusted proxy: loopback (local dev) or private/link-local (typical
+// deployment topology where the app sits behind a sidecar or load balancer
+// in the same VPC, e.g. Render). Public source IPs are never trusted —
+// XFF from a public peer is attacker-controlled.
+func isTrustedProxy(ip net.IP) bool {
+	if ip == nil {
+		return false
 	}
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+}
+
+// clientIP returns the request's client IP. When the immediate peer
+// (r.RemoteAddr) is a trusted proxy per isTrustedProxy, honors the first
+// entry in X-Forwarded-For (per RFC 7239). Otherwise XFF is ignored and
+// the peer address is used directly — preventing rate-limit bypass via a
+// spoofed XFF header on directly-exposed deployments.
+func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		host = r.RemoteAddr
+	}
+	if !isTrustedProxy(net.ParseIP(host)) {
+		return host
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// First entry is the original client per RFC 7239; subsequent entries
+		// are appended by intermediate proxies. Trim because RFC 7230 allows
+		// optional whitespace after the comma (and before it, in the wild) —
+		// without trimming "1.2.3.4" and " 1.2.3.4" become distinct map keys
+		// and weaken per-IP throttling.
+		first, _, _ := strings.Cut(xff, ",")
+		if first = strings.TrimSpace(first); first != "" {
+			return first
+		}
 	}
 	return host
 }
