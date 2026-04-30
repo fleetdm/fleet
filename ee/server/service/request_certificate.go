@@ -173,17 +173,18 @@ func pkcs7EnvelopeToPEM(envelope []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing PKCS7 envelope: %w", err)
 	}
-	if len(p7.Certificates) == 0 {
-		return "", errors.New("PKCS7 envelope contained no certificates")
+	// Per RFC 7030 §4.2.3, the EST /simpleenroll SimplePKIResponse carries the single
+	// issued certificate. Reject anything else so callers don't have to guess which cert
+	// is the leaf.
+	if len(p7.Certificates) != 1 {
+		return "", fmt.Errorf("expected exactly 1 certificate in EST PKCS7 envelope, got %d", len(p7.Certificates))
 	}
 
-	var buf strings.Builder
-	for _, cert := range p7.Certificates {
-		if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
-			return "", fmt.Errorf("encoding certificate to PEM: %w", err)
-		}
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: p7.Certificates[0].Raw})
+	if pemBytes == nil {
+		return "", errors.New("encoding certificate to PEM")
 	}
-	return buf.String(), nil
+	return string(pemBytes), nil
 }
 
 func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {

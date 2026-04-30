@@ -482,6 +482,28 @@ func TestRequestCertificate(t *testing.T) {
 		require.Nil(t, cert)
 	})
 
+	t.Run("Request a certificate - return_pem_certificate true rejects envelope with multiple certs", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		// Build a PKCS7 SignedData containing two certificates to verify we reject anything
+		// that doesn't match RFC 7030's single-issued-certificate response shape.
+		signed, err := pkcs7.NewSignedData(nil)
+		require.NoError(t, err)
+		signed.AddCertificate(parseDERCert(t, generateTestCertDER(t)))
+		signed.AddCertificate(parseDERCert(t, generateTestCertDER(t)))
+		envelope, err := signed.Finish()
+		require.NoError(t, err)
+		hydrantSimpleEnrollResponse = base64.StdEncoding.EncodeToString(envelope)
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:                   hydrantCA.ID,
+			CSR:                  goodCSR,
+			ReturnPEMCertificate: true,
+		})
+		require.ErrorContains(t, err, "expected exactly 1 certificate")
+		require.Nil(t, cert)
+	})
+
 	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 
@@ -494,6 +516,14 @@ func TestRequestCertificate(t *testing.T) {
 		require.NotNil(t, cert)
 		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
+}
+
+// parseDERCert parses DER-encoded certificate bytes for use as input to PKCS7 SignedData.
+func parseDERCert(t *testing.T, der []byte) *x509.Certificate {
+	t.Helper()
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return cert
 }
 
 // generateTestCertDER returns DER-encoded bytes of a freshly generated self-signed certificate
