@@ -995,6 +995,29 @@ func TestLabelActivities(t *testing.T) {
 		require.Equal(t, teamName, *got.FleetName)
 	})
 
+	t.Run("delete team label aborts before delete when team lookup fails", func(t *testing.T) {
+		activities = activities[:0]
+		ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+			return &fleet.Label{ID: 250, Name: name, TeamID: ptr.Uint(teamID)}, nil
+		}
+		var deleteCalled bool
+		ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
+			deleteCalled = true
+			return nil
+		}
+		// Override TeamLite for this subtest only.
+		prevTeamLite := ds.TeamLiteFunc
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return nil, assert.AnError
+		}
+		t.Cleanup(func() { ds.TeamLiteFunc = prevTeamLite })
+
+		err := svc.DeleteLabel(ctx, "team-label-fail")
+		require.Error(t, err)
+		require.False(t, deleteCalled, "label must not be deleted when team lookup fails")
+		require.Empty(t, activities, "no activity should be emitted when delete is skipped")
+	})
+
 	t.Run("delete label by ID via UI emits deleted_label", func(t *testing.T) {
 		activities = activities[:0]
 		ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
@@ -1070,6 +1093,35 @@ func TestLabelActivities(t *testing.T) {
 		}
 		require.True(t, sawCreate, "expected created_label for new-spec")
 		require.True(t, sawEdit, "expected edited_label for edited-spec")
+	})
+
+	t.Run("apply specs detects platform-only change", func(t *testing.T) {
+		activities = activities[:0]
+
+		// Existing label "platform-spec" has Platform="darwin"; spec sets it to
+		// "linux" with all other fields unchanged.
+		var lookupCalls int
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			lookupCalls++
+			return map[string]*fleet.Label{
+				"platform-spec": {ID: 410, Name: "platform-spec", Platform: "darwin", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+			}, nil
+		}
+		ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			return nil
+		}
+		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+			return nil
+		}
+
+		err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{Name: "platform-spec", Platform: "windows", LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
+		}, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, activities, 1, "platform change should emit edited_label")
+		got, ok := activities[0].(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok, "expected edited_label, got %T", activities[0])
+		require.Equal(t, "platform-spec", got.Name)
 	})
 
 	t.Run("apply specs detects manual-label host membership change", func(t *testing.T) {
@@ -1179,6 +1231,37 @@ func TestLabelActivities(t *testing.T) {
 		require.Equal(t, targetTeamID, *byName["team-manual"].FleetID)
 		require.NotNil(t, byName["team-manual"].FleetName)
 		require.Equal(t, teamName, *byName["team-manual"].FleetName)
+	})
+
+	t.Run("AddLabelsToHost dedupes label names in activities", func(t *testing.T) {
+		activities = activities[:0]
+		const hostID = uint(7100)
+		host := &fleet.Host{ID: hostID, Platform: "darwin"}
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return host, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			require.Len(t, names, 1, "duplicates should be removed before validation")
+			require.Equal(t, "dup-label", names[0])
+			return map[string]uint{"dup-label": 800}, nil
+		}
+		ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+			return &fleet.LabelWithTeamName{Label: fleet.Label{ID: lid, LabelMembershipType: fleet.LabelMembershipTypeManual}}, nil, nil
+		}
+		ds.AddLabelsToHostFunc = func(ctx context.Context, h uint, ids []uint) error {
+			require.Equal(t, []uint{800}, ids)
+			return nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			require.Equal(t, []string{"dup-label"}, names, "duplicates should be removed before activity emission")
+			return map[string]*fleet.Label{"dup-label": {ID: 800, Name: "dup-label"}}, nil
+		}
+
+		require.NoError(t, svc.AddLabelsToHost(ctx, hostID, []string{"dup-label", "dup-label", "dup-label"}))
+		require.Len(t, activities, 1, "duplicate label names must produce a single activity")
+		got, ok := activities[0].(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok)
+		require.Equal(t, "dup-label", got.Name)
 	})
 
 	t.Run("RemoveLabelsFromHost emits edited_label", func(t *testing.T) {

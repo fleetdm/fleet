@@ -503,14 +503,15 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return err
 	}
 
-	if err := svc.ds.DeleteLabel(ctx, name, filter); err != nil {
-		return err
-	}
-
 	teamName, err := svc.lookupTeamNameForLabel(ctx, label.TeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "lookup team name for deleted label")
 	}
+
+	if err := svc.ds.DeleteLabel(ctx, name, filter); err != nil {
+		return err
+	}
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedLabel{
 		ID:        label.ID,
 		Name:      label.Name,
@@ -699,9 +700,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	}
 
 	// Look up which regular specs already exist in the target team scope so we
-	// can emit "created" vs "edited" label activities below. The only mutable
-	// label field via spec apply is the description, so we skip the activity
-	// when an existing label's description matches the spec.
+	// can emit "created" vs "edited" label activities below. Spec apply can
+	// update multiple edit-relevant fields for regular labels (for example
+	// description, platform, query, label membership type, host vitals criteria,
+	// and manual-label host membership), so we skip the activity only when an
+	// existing label already matches the spec for those fields.
 	regularSpecNames := make([]string, 0, len(regularSpecs))
 	for _, s := range regularSpecs {
 		regularSpecNames = append(regularSpecNames, s.Name)
@@ -815,6 +818,9 @@ func labelMatchesScope(l *fleet.Label, teamID *uint) bool {
 // IDs around the apply.
 func labelSpecMatchesLabel(spec *fleet.LabelSpec, label *fleet.Label) bool {
 	if spec.Description != label.Description {
+		return false
+	}
+	if spec.Platform != label.Platform {
 		return false
 	}
 	if spec.Query != label.Query {

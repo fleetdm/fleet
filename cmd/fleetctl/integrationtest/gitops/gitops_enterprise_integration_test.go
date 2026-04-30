@@ -3527,15 +3527,15 @@ labels:
 	apply()
 	got = flush()
 	require.Len(t, got, 3, "expected deleted_label for all three labels")
-	deletedNames := map[string]bool{}
+	deletedNames := map[string]struct{}{}
 	for _, a := range got {
 		d, ok := a.(fleet.ActivityTypeDeletedLabel)
 		require.True(t, ok, "expected deleted_label, got %T", a)
-		deletedNames[d.Name] = true
+		deletedNames[d.Name] = struct{}{}
 	}
-	require.True(t, deletedNames["lbl-global"])
-	require.True(t, deletedNames["lbl-team"])
-	require.True(t, deletedNames["lbl-host-vitals"])
+	require.Contains(t, deletedNames, "lbl-global")
+	require.Contains(t, deletedNames, "lbl-team")
+	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)

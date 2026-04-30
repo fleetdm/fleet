@@ -3569,6 +3569,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		tmID = *host.TeamID
 	}
 
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames, tmID)
 	if err != nil {
 		return err
@@ -3608,6 +3609,7 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		tmID = *host.TeamID
 	}
 
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames, tmID)
 	if err != nil {
 		return err
@@ -3678,8 +3680,6 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
-
-	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 
 	// Filter out empty label string.
 	for i, labelName := range labelNames {
