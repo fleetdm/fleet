@@ -560,6 +560,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  rotatedManagedLocalAccountPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        triggered rotation of the managed local account password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -1990,6 +1999,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CreatedManagedLocalAccount: {
       return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
+    }
+    case ActivityType.RotatedManagedLocalAccountPassword: {
+      return TAGGED_TEMPLATES.rotatedManagedLocalAccountPassword(activity);
     }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);

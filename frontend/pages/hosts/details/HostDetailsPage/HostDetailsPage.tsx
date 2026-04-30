@@ -1643,10 +1643,28 @@ const HostDetailsPage = ({
           {showManagedAccountModal && host && (
             <ManagedAccountModal
               hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
+              autoRotateAt={
+                host.mdm.os_settings?.managed_local_account?.auto_rotate_at
+              }
               onCancel={() => {
                 setShowManagedAccountModal(false);
                 // Opening the modal triggers a "viewed managed account"
-                // activity server-side, so refetch to show it in the feed.
+                // activity server-side and may set auto_rotate_at; refetch
+                // host details + activities so they reflect the new state.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+              onRotate={() => {
+                // The rotation activity and cleared auto_rotate_at land on
+                // host details / activities — refresh both so the banner and
+                // feed are in sync with the newly-rotated state.
+                refetchHostDetails();
                 refetchPastActivities();
               }}
             />

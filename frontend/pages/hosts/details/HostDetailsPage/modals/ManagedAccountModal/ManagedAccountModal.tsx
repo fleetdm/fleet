@@ -1,31 +1,49 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { IHostManagedAccountPasswordResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
+import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon";
+import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { monthDayTimeFormat } from "utilities/date_format";
 
 const baseClass = "managed-account-modal";
 
 interface IManagedAccountModalProps {
   hostId: number;
+  // TODO(JM-43890): Figma dev note says "Hide option if not Admin or
+  // maintainer role." We're hiding here per the design, but the analogous
+  // RecoveryLockPasswordModal disables-with-tooltip in the same situation.
+  // Following up to align the two patterns.
+  canRotatePassword: boolean;
+  autoRotateAt?: string;
   onCancel: () => void;
+  onRotate: () => void;
 }
 
 const ManagedAccountModal = ({
   hostId,
+  canRotatePassword,
+  autoRotateAt,
   onCancel,
+  onRotate,
 }: IManagedAccountModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [isRotating, setIsRotating] = useState(false);
+
   const {
     data: managedAccountData,
     error: managedAccountError,
     isLoading,
+    refetch: refetchManagedAccountPassword,
   } = useQuery<
     IHostManagedAccountPasswordResponse,
     unknown,
@@ -40,6 +58,28 @@ const ManagedAccountModal = ({
       cacheTime: 0,
     }
   );
+
+  const onRotatePassword = async () => {
+    setIsRotating(true);
+    try {
+      await hostAPI.rotateManagedLocalAccountPassword(hostId);
+      // Refetch the password so the modal shows the freshly-rotated value and
+      // the act of viewing it sets a new auto_rotate_at on the row.
+      await refetchManagedAccountPassword();
+      renderFlash(
+        "success",
+        "Successfully sent request to rotate managed local account password."
+      );
+      // Notify parent so it can refetch host details + activities.
+      onRotate();
+    } catch (e) {
+      renderFlash(
+        "error",
+        "Couldn’t rotate managed local account password. Please try again."
+      );
+    }
+    setIsRotating(false);
+  };
 
   return (
     <Modal title="Managed account" onExit={onCancel} className={baseClass}>
@@ -57,8 +97,25 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
+            {autoRotateAt && (
+              <InfoBanner color="yellow">
+                Password rotates automatically after{" "}
+                {monthDayTimeFormat(autoRotateAt)}.
+              </InfoBanner>
+            )}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
+              {canRotatePassword && (
+                <Button
+                  variant="inverse"
+                  onClick={onRotatePassword}
+                  disabled={isRotating}
+                  className={`${baseClass}__rotate-button`}
+                >
+                  <Icon name="refresh" />
+                  {isRotating ? "Rotating..." : "Rotate password"}
+                </Button>
+              )}
             </div>
           </>
         )
