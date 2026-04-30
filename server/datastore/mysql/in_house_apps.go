@@ -1548,6 +1548,28 @@ WHERE
 	return exists == 1, nil
 }
 
+func (ds *Datastore) checkInstallerExistsByName(ctx context.Context, q sqlx.QueryerContext, teamID *uint, name, source, platform string) (bool, error) {
+	const stmt = `
+SELECT 1
+FROM
+	software_titles st
+	INNER JOIN software_installers ON st.id = software_installers.title_id
+		AND software_installers.global_or_team_id = ?
+WHERE
+	st.name = ?
+	AND st.source = ?
+	AND st.extension_for = ''
+	AND software_installers.platform = ?
+`
+
+	var exists int
+	err := sqlx.GetContext(ctx, q, &exists, stmt, ptr.ValOrZero(teamID), name, source, platform)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check installer exists by name")
+	}
+	return exists == 1, nil
+}
+
 func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
 	const stmt = `
 SELECT st.name

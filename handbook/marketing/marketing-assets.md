@@ -76,7 +76,7 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 ## 🔵 Editorial & thought leadership
 
-Opinion, industry analysis, executive POV, named-series articles, and standalone blog posts published on fleetdm.com. Use for PR, social amplification, ABM campaigns, and brand awareness. Audience: content team, PMM, PR.
+Opinion, industry analysis, executive POV, named-series articles, and standalone blog posts published on fleetdm.com. Use for PR, social amplification, AB campaigns, and brand awareness. Audience: content team, PMM, PR.
 
 ### Executive POV & industry analysis
 
@@ -175,7 +175,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [What is Apple MDM? How Mobile Device Management Works in 2026](https://fleetdm.com/articles/what-is-apple-mdm) | How Apple MDM works across iOS, macOS, and iPadOS at scale. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [What is Apple's Device Enrollment Program (DEP)?](https://fleetdm.com/articles/apple-device-enrollment-program) | How ADE/DEP works, its benefits, and what organizations need to set it up. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [Managing Macs Globally: Enterprise Apple MDM Best Practices 2026](https://fleetdm.com/articles/managing-macs-globally-apple-ecosystem-deployment-security) | Scale Mac management across global teams with zero-touch deployment, automated compliance, and unified device visibility. | Brock Walters | <nobr>2026‑02‑26</nobr> |
-| [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [Mac Inventory Management: Device Tracking Guide](https://fleetdm.com/articles/mac-inventory-management) | How Mac inventory combines MDM and osquery to track hardware, software, and security configs. | Brock Walters | <nobr>2026‑02‑25</nobr> |
 | [Mac device security: Apple's native protections and third-party tools](https://fleetdm.com/articles/mac-device-security) | How Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools. | Brock Walters | <nobr>2026‑02‑25</nobr> |
 | [How to manage company laptops: a complete guide](https://fleetdm.com/articles/how-to-manage-company-laptops-a-complete-guide) | A complete guide to managing company laptops across macOS, Windows, and Linux at scale. | Brock Walters | <nobr>2026‑03‑07</nobr> |
@@ -183,7 +183,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [Why work laptops don't work on plane wifi](https://fleetdm.com/articles/why-work-laptops-dont-work-on-plane-wifi) | VPNs, DNS filters, and captive portals - and why IT teams should fix this by default. | Mike McNeil | <nobr>2026‑02‑13</nobr> |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | An introduction to GitOps concepts and components. | Brock Walters | <nobr>2026‑02‑04</nobr> |
 | [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | A complete guide to iPad MDM, covering deployment models, enrollment methods, and enterprise management at scale. | Brock Walters | <nobr>2026‑01‑13</nobr> |
-| [What is Apple Business Manager? A complete guide](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) | How ABM works with MDM for automated enrollment and app management. | Brock Walters | <nobr>2026‑01‑12</nobr> |
+| [What is Apple Business? A complete guide](https://fleetdm.com/articles/what-is-apple-business-a-complete-guide) | How AB works with MDM for automated enrollment and app management. | Brock Walters | <nobr>2026‑01‑12</nobr> |
 | [Declarative device management: a primer](https://fleetdm.com/articles/declarative-device-management-a-primer) | What DDM is, how it differs from legacy MDM, and why Apple built it. | Brock Walters | <nobr>2026‑01‑11</nobr> |
 | [6 business benefits of Apple MDM, explained](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | An overview of Apple MDM and the practical business benefits it delivers for security and IT ops. | Brock Walters | <nobr>2026‑01‑11</nobr> |
 | [What is application management?](https://fleetdm.com/articles/what-is-application-management) | What app management includes, why it matters, and how tools automate software deployment, updates, and compliance. | Brock Walters | <nobr>2026‑01‑11</nobr> |

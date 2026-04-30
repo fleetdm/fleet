@@ -430,6 +430,20 @@ Using [this github action](https://github.com/fleetdm/confidential/actions/workf
 <td>pass/fail</td>
 </tr>
 
+<tr>
+<td>Trivy scan</td>
+<td>Verify the latest Trivy scan of the RC image has no new high/critical vulnerabilities.</td>
+<td>
+
+1. Using [this GitHub Actions](https://github.com/fleetdm/fleet/actions/workflows/trivy-scan.yml).
+2. Review the scan results for any new high or critical severity vulnerabilities introduced by this RC.
+3. Attach a screenshot of the latest Trivy scan results to this issue as a comment.
+4. If new high/critical vulnerabilities are found, raise an alarm in the appropriate channels.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
 </table>
 
 ### Notes

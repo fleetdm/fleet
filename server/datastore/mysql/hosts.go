@@ -583,7 +583,6 @@ var hostRefs = []string{
 	"host_orbit_info",
 	"host_munki_issues",
 	"host_display_names",
-	"windows_updates",
 	"host_disks",
 	"host_updates",
 	"host_disk_encryption_keys",
@@ -4148,6 +4147,27 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 	})
 }
 
+// decimal2Equal reports whether two float64 values are close enough to treat as equal
+// for disk-space skip-if-unchanged checks. The tolerance is larger than the DECIMAL(10,2)
+// rounding step on purpose: sub-10 MB (0.01 GB) fluctuations are noise we do not want to
+// write to the primary on every host update interval.
+func decimal2Equal(a, b float64) bool {
+	const decimal2Tolerance = 0.01
+	diff := a - b
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff < decimal2Tolerance
+}
+
+// float64PtrDecimal2Equal is the nil-aware counterpart to decimal2Equal.
+func float64PtrDecimal2Equal(a, b *float64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return decimal2Equal(*a, *b)
+}
+
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := ds.writer(ctx).ExecContext(ctx, updateQuery, args...)
 	if err != nil {
@@ -4693,6 +4713,34 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+	// Skip the UPDATE entirely when stored values already match. At load-test scale these
+	// calls fire on every host update interval, and most carry the same disk-space values
+	// as the last ingest (used by Android, iPhones/iPads, and hosts where osquery runs).
+	// Read from the replica on purpose. The goal is to avoid writer load, and in the worst
+	// case (replica lag matching a stale value) the next ingest round will write through
+	// once the replica catches up. We compare with a small tolerance to absorb sub-10 MB
+	// fluctuations rather than using raw float64 equality.
+	var current struct {
+		GigsAvailable    float64  `db:"gigs_disk_space_available"`
+		PercentAvailable float64  `db:"percent_disk_space_available"`
+		GigsTotal        float64  `db:"gigs_total_disk_space"`
+		GigsAll          *float64 `db:"gigs_all_disk_space"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+		`SELECT gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space FROM host_disks WHERE host_id = ?`,
+		hostID,
+	)
+	switch {
+	case err == nil:
+		if decimal2Equal(current.GigsAvailable, gigsAvailable) &&
+			decimal2Equal(current.PercentAvailable, percentAvailable) &&
+			decimal2Equal(current.GigsTotal, gigsTotal) &&
+			float64PtrDecimal2Equal(current.GigsAll, gigsAll) {
+			return nil
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "select host_disks")
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
@@ -4727,6 +4775,29 @@ func (ds *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint,
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(
 	ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
 ) error {
+	// Skip the UPDATE when stored values already match. Orbit sends the same version/desktop_version/
+	// scripts_enabled until the agent is upgraded, so at load-test scale most of these writes are
+	// no-ops. Read from the replica on purpose — the goal is to avoid writer load, and if replica
+	// lag briefly hides a real change the next osquery ingest will write through.
+	var current struct {
+		Version        string         `db:"version"`
+		DesktopVersion sql.NullString `db:"desktop_version"`
+		ScriptsEnabled sql.NullBool   `db:"scripts_enabled"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &current,
+		`SELECT version, desktop_version, scripts_enabled FROM host_orbit_info WHERE host_id = ?`,
+		hostID,
+	)
+	switch {
+	case err == nil:
+		if current.Version == version &&
+			current.DesktopVersion == desktopVersion &&
+			current.ScriptsEnabled == scriptsEnabled {
+			return nil
+		}
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "select host_orbit_info")
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_orbit_info SET version = ?, desktop_version = ?, scripts_enabled = ? WHERE host_id = ?`,
@@ -5412,8 +5483,15 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 	return nil
 }
 
-// UpdateHost updates all columns of the `hosts` table.
-// It only updates `hosts` table, other additional host information is ignored.
+// UpdateHost updates most columns of the `hosts` table.
+// It also updates host display-name information in `host_display_names`;
+// other additional host information is ignored.
+//
+// UpdateHost deliberately does NOT write `team_id`. Team membership is an administrative
+// assignment managed by AddHostsToTeam / AddHostsToTeamByFilter / GitOps / the
+// enroll-secret path (EnrollOsquery / EnrollOrbit). Writing team_id here would
+// re-open a lost-update race where a stale in-memory host struct (loaded before a
+// concurrent transfer) silently clobbers the admin's assignment. See #44071.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
 		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
@@ -5452,7 +5530,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			distributed_interval = ?,
 			config_tls_refresh = ?,
 			logger_tls_period = ?,
-			team_id = ?,
 			primary_ip = ?,
 			primary_mac = ?,
 			public_ip = ?,
@@ -5500,7 +5577,6 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 				host.DistributedInterval,
 				host.ConfigTLSRefresh,
 				host.LoggerTLSPeriod,
-				host.TeamID,
 				host.PrimaryIP,
 				host.PrimaryMac,
 				host.PublicIP,

@@ -6,14 +6,14 @@ import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { getNextLocationPath } from "utilities/helpers";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { AutomationType } from "services/entities/team_policies";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import {
@@ -156,8 +156,7 @@ const PoliciesTable = ({
     );
   }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
 
-  const emptyState: IEmptyTableProps = {
-    graphicName: "empty-policies",
+  const emptyState: IEmptyStateProps = {
     header: "You don't have any policies",
     info:
       "Add policies to detect device health issues and trigger automations.",
@@ -179,7 +178,6 @@ const PoliciesTable = ({
   }
 
   if (searchQuery || combinedIsFiltered) {
-    delete emptyState.graphicName;
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
@@ -248,15 +246,14 @@ const PoliciesTable = ({
           variant: "inverse",
           onClick: onDeletePoliciesClick,
         }}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState.graphicName,
-            header: emptyState.header,
-            info: emptyState.info,
-            additionalInfo: emptyState.additionalInfo,
-            primaryButton: emptyState.primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            header={emptyState.header}
+            info={emptyState.info}
+            additionalInfo={emptyState.additionalInfo}
+            primaryButton={emptyState.primaryButton}
+          />
+        )}
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"

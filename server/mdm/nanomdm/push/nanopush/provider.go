@@ -72,7 +72,6 @@ func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
 
 	url := p.baseURL + "/3/device/" + pushInfo.Token.String()
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonPayload))
-
 	if err != nil {
 		return &push.Response{Err: err}
 	}
@@ -116,7 +115,7 @@ func (p *Provider) pushSerial(ctx context.Context, pushInfos []*mdm.Push) (map[s
 func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	// don't start more workers than we have pushes to send
 	workers := p.workers
-	if len(pushInfos) > workers {
+	if len(pushInfos) < workers {
 		workers = len(pushInfos)
 	}
 
@@ -147,6 +146,10 @@ func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (m
 	// start the "feeder" (queue source)
 	go func() {
 		for _, pushInfo := range pushInfos {
+			if pushInfo == nil {
+				continue
+			}
+
 			jobs <- pushInfo
 		}
 		close(jobs)

@@ -264,6 +264,17 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	return ac, nil
 }
 
+func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	// We skip auhtorization, as this is used where we don't have access to it, but that is why we return a subset of AppConfig fields.
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfigUrls(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ac, nil
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Modify AppConfig
 // //////////////////////////////////////////////////////////////////////////////
@@ -868,6 +879,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
+	newExceptions := appConfig.GitOpsConfig.Exceptions
+	exceptionChanges := []struct {
+		name       string
+		oldEnabled bool
+		newEnabled bool
+	}{
+		{"labels", oldExceptions.Labels, newExceptions.Labels},
+		{"software", oldExceptions.Software, newExceptions.Software},
+		{"secrets", oldExceptions.Secrets, newExceptions.Secrets},
+	}
+	for _, c := range exceptionChanges {
+		if c.oldEnabled == c.newEnabled {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if c.newEnabled {
+			act = fleet.ActivityTypeEnabledGitOpsException{Exception: c.name}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsException{Exception: c.name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	addedEntraTenantIDs := make([]string, 0)
 	removedEntraTenantIDs := make([]string, 0)
 	oldTenantIDSet := make(map[string]struct{})
@@ -1141,6 +1178,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+
+	if appleMDMUrlChanged && appConfig.MDM.AppleServerURL != "" {
+		parsedURL, err := url.Parse(appConfig.MDM.AppleServerURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
+		}
+		scheme := strings.ToLower(parsedURL.Scheme)
+		if scheme == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
+		}
+
+		if scheme != "http" && scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+		}
+
+		if parsedURL.Hostname() == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
+		}
+	}
+
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
