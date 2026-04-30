@@ -94,6 +94,12 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			wantErr: true,
 			errSub:  "invalid plist",
 		},
+		{
+			name:    "json null token",
+			input:   "null",
+			wantErr: true,
+			errSub:  "invalid plist",
+		},
 	}
 
 	for _, c := range cases {
