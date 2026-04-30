@@ -212,9 +212,7 @@ const SoftwareLibraryTable = ({
         resultsTitle="items"
         emptyComponent={() => {
           if (!isSoftwareEnabled) {
-            return (
-              <EmptySoftwareTable isSoftwareDisabled />
-            );
+            return <EmptySoftwareTable isSoftwareDisabled />;
           }
           if (query !== "" || selfServiceOnly) {
             return (
