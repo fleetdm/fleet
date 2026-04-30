@@ -2,9 +2,10 @@ package fleet
 
 import (
 	"fmt"
-	"regexp"
+	"slices"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"howett.net/plist"
 )
 
@@ -219,13 +220,11 @@ var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPFullname,
 }
 
-var fleetVarTokenRegexp = regexp.MustCompile(`\$(?:\{)?FLEET_VAR_([A-Z0-9_]+)(?:\})?`)
-
 // ValidateAppleAppConfiguration validates a managed app configuration payload
 // for an iOS or iPadOS InstallApplication command. The payload must be a plist
-// whose root element is a <dict>; string values may contain Fleet variable
-// tokens drawn from FleetVarsSupportedInAppleAppConfig. Empty input is allowed
-// — callers decide whether to store or clear.
+// whose root element is a <dict>, and any Fleet variable tokens in the raw
+// content must be drawn from FleetVarsSupportedInAppleAppConfig. Empty input
+// is allowed — callers decide whether to store or clear.
 func ValidateAppleAppConfiguration(config []byte) error {
 	if len(config) == 0 {
 		return nil
@@ -236,37 +235,9 @@ func ValidateAppleAppConfiguration(config []byte) error {
 		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
 	}
 
-	allowed := make(map[FleetVarName]struct{}, len(FleetVarsSupportedInAppleAppConfig))
-	for _, v := range FleetVarsSupportedInAppleAppConfig {
-		allowed[v] = struct{}{}
-	}
-
-	return walkAppleAppConfigStrings(root, func(s string) error {
-		for _, m := range fleetVarTokenRegexp.FindAllStringSubmatch(s, -1) {
-			name := FleetVarName(m[1])
-			if _, ok := allowed[name]; !ok {
-				return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
-			}
-		}
-		return nil
-	})
-}
-
-func walkAppleAppConfigStrings(v any, fn func(string) error) error {
-	switch val := v.(type) {
-	case string:
-		return fn(val)
-	case map[string]any:
-		for _, child := range val {
-			if err := walkAppleAppConfigStrings(child, fn); err != nil {
-				return err
-			}
-		}
-	case []any:
-		for _, child := range val {
-			if err := walkAppleAppConfigStrings(child, fn); err != nil {
-				return err
-			}
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
 		}
 	}
 	return nil
