@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -107,5 +108,136 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		Configuration: asJSONString(`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`),
 	}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "$FLEET_VAR_NDES_SCEP_CHALLENGE")
+
+	// Update iOS app with malformed XML → 422.
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{
+			TeamID:        &team.ID,
+			Configuration: asJSONString(`not actually a plist`),
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+
+	// Update iOS app with disallowed Fleet variable → 422.
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{
+			TeamID:        &team.ID,
+			Configuration: asJSONString(`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`),
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "$FLEET_VAR_NDES_SCEP_CHALLENGE")
+
+	// macOS adam ID — pre-registered as a macOS-only app in the mock VPP server.
+	const macosAdamID = "1"
+
+	requireNoStoredConfig := func(platform fleet.InstallableDevicePlatform, adamID string, teamID uint) {
+		_, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), platform, adamID, teamID)
+		require.True(t, fleet.IsNotFound(err), "expected not found, got %v", err)
+	}
+
+	// 6. Add macOS app with configuration → 200, configuration silently dropped.
+	var addMacResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    macosAdamID,
+		Platform:      fleet.MacOSPlatform,
+		Configuration: asJSONString(validPlist),
+	}, http.StatusOK, &addMacResp)
+	require.NotZero(t, addMacResp.TitleID)
+	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, team.ID)
+
+	// 7. Update macOS app with configuration → 200, configuration still not stored.
+	var updMacResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addMacResp.TitleID),
+		&updateAppStoreAppRequest{
+			TeamID:        &team.ID,
+			Configuration: asJSONString(validPlist),
+		}, http.StatusOK, &updMacResp)
+	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, team.ID)
+
+	// 8. Add macOS app with malformed XML → 200 (silent drop must come before
+	// validation, otherwise this would 422). adamID "2" supports macOS and is
+	// not yet associated to this team for that platform.
+	const macosAdamIDInvalid = "2"
+	var addMacInvalidResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:        &team.ID,
+		AppStoreID:    macosAdamIDInvalid,
+		Platform:      fleet.MacOSPlatform,
+		Configuration: asJSONString(`not actually a plist`),
+	}, http.StatusOK, &addMacInvalidResp)
+	require.NotZero(t, addMacInvalidResp.TitleID)
+	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamIDInvalid, team.ID)
+
+	// 9. Update macOS app with malformed XML → 200, still no row.
+	var updMacInvalidResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addMacResp.TitleID),
+		&updateAppStoreAppRequest{
+			TeamID:        &team.ID,
+			Configuration: asJSONString(`not actually a plist`),
+		}, http.StatusOK, &updMacInvalidResp)
+	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, team.ID)
+
+	t.Run("BatchAssociateVPPApps", func(t *testing.T) {
+		// Use a fresh team so the batch's "replace all" semantics don't clobber
+		// the state from the linear cases above.
+		batchTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-apple-config-batch-team"})
+		require.NoError(t, err)
+
+		var resPatchVPPBatch patchVPPTokensTeamsResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID),
+			patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, batchTeam.ID}}, http.StatusOK, &resPatchVPPBatch)
+
+		var batchResp batchAssociateAppStoreAppsResponse
+
+		// Add iOS + macOS via batch, both carrying configuration in the payload.
+		// Including iOS proves the batch path actually ran, so a missing macOS
+		// row can't be explained away as a no-op.
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{
+				Apps: []fleet.VPPBatchPayload{
+					{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Configuration: asJSONString(validPlist)},
+					{AppStoreID: macosAdamID, Platform: fleet.MacOSPlatform, Configuration: asJSONString(validPlist)},
+				},
+			}, http.StatusOK, &batchResp, "fleet_name", batchTeam.Name)
+
+		// iOS config IS stored — confirms the batch wrote configurations.
+		iosCfg, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, iosAdamID, batchTeam.ID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist), iosCfg)
+
+		// macOS config silently dropped.
+		requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, batchTeam.ID)
+
+		// Sanity: macOS app IS associated with the team — the silent drop
+		// applies to configuration only, not to the app association itself.
+		macMeta, err := s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, macosAdamID, fleet.MacOSPlatform, &batchTeam.ID)
+		require.NoError(t, err)
+		require.Equal(t, macosAdamID, macMeta.AdamID)
+
+		// Remove macOS via batch by omitting it from the payload.
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{
+				Apps: []fleet.VPPBatchPayload{
+					{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Configuration: asJSONString(validPlist)},
+				},
+			}, http.StatusOK, &batchResp, "fleet_name", batchTeam.Name)
+
+		_, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, macosAdamID, fleet.MacOSPlatform, &batchTeam.ID)
+		require.True(t, fleet.IsNotFound(err), "expected macOS app to be removed, got %v", err)
+
+		// Re-add macOS via batch with a malformed plist → 200, app re-associated,
+		// no config row. Locks the silent-drop ordering for the batch path.
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+			batchAssociateAppStoreAppsRequest{
+				Apps: []fleet.VPPBatchPayload{
+					{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Configuration: asJSONString(validPlist)},
+					{AppStoreID: macosAdamID, Platform: fleet.MacOSPlatform, Configuration: asJSONString(`not actually a plist`)},
+				},
+			}, http.StatusOK, &batchResp, "fleet_name", batchTeam.Name)
+
+		macMeta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, macosAdamID, fleet.MacOSPlatform, &batchTeam.ID)
+		require.NoError(t, err)
+		require.Equal(t, macosAdamID, macMeta.AdamID)
+		requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, batchTeam.ID)
+	})
 }
 
