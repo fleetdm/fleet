@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -229,9 +228,6 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if err := requireGlobalAdmin(ctx); err != nil {
-		return err
-	}
 	if !mode.IsValid() {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("invalid mode %q", mode)}
 	}
@@ -280,9 +276,6 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 
 func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-	if err := requireGlobalAdmin(ctx); err != nil {
 		return err
 	}
 	if !mode.IsValid() {
@@ -367,14 +360,6 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
 	}
 	return body, int64(len(body)), nil
-}
-
-func requireGlobalAdmin(ctx context.Context) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok || vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
-		return authz.ForbiddenWithInternal("org logo write requires global admin", nil, nil, nil)
-	}
-	return nil
 }
 
 // orgLogoServingURL builds the URL persisted in AppConfig after an upload. The `v` param is a cache-buster (ignored server-side; only `mode` is read).
