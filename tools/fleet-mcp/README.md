@@ -44,7 +44,7 @@ The server exposes 18 tools across three domains: **hosts**, **queries**, and **
 |------|-------------|
 | `get_queries` | List all saved Fleet queries (global + per-team) |
 | `prepare_live_query` | Step 1 of 2: validate targets and return the OSQuery schema needed to author a valid SQL statement |
-| `run_live_query` | Step 2 of 2: execute an OSQuery SQL statement against live Fleet devices. Targets resolved server-side via any combination of `hostnames`, `labels`, `platforms`, `fleets`. |
+| `run_live_query` | Step 2 of 2: execute an OSQuery SQL statement against live Fleet devices. Targets can be resolved server-side via direct selectors like `hostnames` / `host_ids` and by intersecting filters including `fleet`, `platform`, `label`, `status`, `query`, `policy_id`, `policy_response`, and `cve_id`. |
 | `create_saved_query` | Create a new saved query in Fleet (with platform-aware SQL pre-validation) |
 | `get_osquery_schema` | Get the hardcoded, accurate schema for the most important Fleet/Osquery tables, optionally filtered by platform |
 | `get_vetted_queries` | Get a library of 100% vetted, production-safe CIS-8.1 policy queries for macOS, Windows, and Linux |
