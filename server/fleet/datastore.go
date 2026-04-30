@@ -2749,15 +2749,15 @@ type Datastore interface {
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error

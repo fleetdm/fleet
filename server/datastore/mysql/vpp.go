@@ -114,7 +114,7 @@ WHERE
 			return nil, ctxerr.Wrap(ctx, err, "get android configuration for app store app")
 		}
 		if config != nil {
-			app.Configuration = *config
+			app.Configuration = config
 		}
 	case fleet.IOSPlatform, fleet.IPadOSPlatform:
 		config, err := ds.GetVPPAppConfiguration(ctx, app.Platform, app.AdamID, tmID)

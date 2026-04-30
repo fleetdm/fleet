@@ -145,10 +145,10 @@ func (v *SoftwareWorker) makeAndroidAppAvailable(ctx context.Context, applicatio
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
-	var configByAppID map[string]json.RawMessage
+	var configByAppID map[string][]byte
 	if config != nil {
-		configByAppID = map[string]json.RawMessage{
-			applicationID: *config,
+		configByAppID = map[string][]byte{
+			applicationID: config,
 		}
 	}
 
@@ -400,7 +400,7 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 }
 
 func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
-	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
+	configsByAppID map[string][]byte, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
 
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
