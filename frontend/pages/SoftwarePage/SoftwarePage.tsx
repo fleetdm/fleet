@@ -43,7 +43,7 @@ interface ISoftwareSubNavItem {
   pathname: string;
 }
 
-const softwareSubNav: ISoftwareSubNavItem[] = [
+export const softwareSubNav: ISoftwareSubNavItem[] = [
   {
     name: "Inventory",
     pathname: PATHS.SOFTWARE_INVENTORY,
@@ -58,7 +58,7 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
   },
 ];
 
-const premiumSoftwareSubNav: ISoftwareSubNavItem[] = [
+export const premiumSoftwareSubNav: ISoftwareSubNavItem[] = [
   ...softwareSubNav,
   {
     name: "Library",
@@ -66,7 +66,7 @@ const premiumSoftwareSubNav: ISoftwareSubNavItem[] = [
   },
 ];
 
-const getTabIndex = (path: string, navItems: ISoftwareSubNavItem[]): number => {
+export const getTabIndex = (path: string, navItems: ISoftwareSubNavItem[]): number => {
   return navItems.findIndex((navItem) => {
     // This check ensures that for software versions path we still
     // highlight the software tab.
