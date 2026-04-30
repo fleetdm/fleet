@@ -111,11 +111,7 @@ const OrgDetails = ({
         onFileUpload={onFileSelect}
         onDeleteFile={onDeleteFile}
         canEdit
-        fileDetails={
-          customLogo
-            ? { name: customLogo.file.name, description: "PNG" }
-            : undefined
-        }
+        fileDetails={customLogo ? { name: customLogo.file.name } : undefined}
         customPreview={
           customLogo ? (
             <img

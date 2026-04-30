@@ -204,16 +204,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
-	// Mirror deprecated logo URL fields to new mode-aware fields (and vice
-	// versa) so the response is consistent for both old and new clients.
-	// Conflicts are not possible at this point since the persisted config
-	// has already been normalized on write.
-	_ = appConfig.OrgInfo.NormalizeLogoFields()
-	// Rewrite Fleet-hosted relative logo URLs to fully-qualified URLs
-	// using the current ServerURL. The persisted form stays relative —
-	// this is purely a read-time view, so the URL stays valid if the
-	// customer changes their Fleet server URL after a logo upload.
-	appConfig.OrgInfo.AbsolutizeLogoURLs(appConfig.ServerSettings.ServerURL)
 
 	features := appConfig.Features
 	response := appConfigResponse{
@@ -268,6 +258,29 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	if err != nil {
 		return nil, err
 	}
+
+	// Mirror deprecated logo URL fields to the new mode-aware fields (and
+	// vice versa) so every read returns a consistent view to clients.
+	// NormalizeLogoFields only errors when both forms are set with
+	// conflicting values — that shouldn't happen via the normal write path
+	// (which 422s on conflict), so reaching this branch implies the row
+	// was edited out-of-band. Log it so the inconsistency is visible, then
+	// canonicalize by preferring the mode-aware fields.
+	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
+		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
+		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
+			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
+		}
+		if ac.OrgInfo.OrgLogoURLLightMode != "" {
+			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
+		}
+	}
+	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
+	// current ServerURL. Persisted form stays relative; this is purely a
+	// read-time view. Safe to do here because no SaveAppConfig caller
+	// consumes the result of AppConfigObfuscated — they all re-fetch via
+	// svc.ds.AppConfig directly.
+	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
 
 	ac.Obfuscate()
 

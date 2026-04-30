@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -134,7 +135,6 @@ type getOrgLogoRequest struct {
 type getOrgLogoResponse struct {
 	Err  error
 	Body []byte
-	Size int64
 }
 
 func (r getOrgLogoResponse) Error() error { return r.Err }
@@ -148,8 +148,8 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size))
-	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.Body)))
+	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write(r.Body)
 }
 
@@ -174,11 +174,11 @@ func (getOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any,
 
 func getOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(getOrgLogoRequest)
-	body, size, err := svc.GetOrgLogo(ctx, req.Mode)
+	body, _, err := svc.GetOrgLogo(ctx, req.Mode)
 	if err != nil {
 		return getOrgLogoResponse{Err: err}, nil
 	}
-	return getOrgLogoResponse{Body: body, Size: size}, nil
+	return getOrgLogoResponse{Body: body}, nil
 }
 
 // parseLogoModeQuery interprets the `mode` query string for the PUT and
@@ -214,6 +214,9 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	if err := requireGlobalAdmin(ctx); err != nil {
+		return err
+	}
 	if !mode.IsValid() {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("invalid mode %q", mode)}
 	}
@@ -246,6 +249,9 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 
 func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if err := requireGlobalAdmin(ctx); err != nil {
 		return err
 	}
 	if !mode.IsValid() {
@@ -283,16 +289,35 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if !mode.IsStorable() {
 		return nil, 0, &fleet.BadRequestError{Message: fmt.Sprintf("invalid mode %q: must be 'light' or 'dark'", mode)}
 	}
-	r, size, err := svc.orgLogoStore.Get(ctx, mode)
+	// Discard the metadata size: we cap reads at orgLogoMaxFileSize and
+	// derive the response size from the actual bytes read so an oversized
+	// or mid-flight-changed object can't desync Content-Length from body.
+	r, _, err := svc.orgLogoStore.Get(ctx, mode)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "fetching org logo")
 	}
 	defer r.Close()
+	// Read one byte over the limit so we can detect (and reject) anything
+	// larger than the upload validator should ever have allowed in.
 	body, err := io.ReadAll(io.LimitReader(r, orgLogoMaxFileSize+1))
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "reading org logo bytes")
 	}
-	return body, size, nil
+	if int64(len(body)) > orgLogoMaxFileSize {
+		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
+	}
+	if err := validateOrgLogoBytes(body); err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "validating stored org logo")
+	}
+	return body, int64(len(body)), nil
+}
+
+func requireGlobalAdmin(ctx context.Context) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok || vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
+		return authz.ForbiddenWithInternal("org logo write requires global admin", nil, nil, nil)
+	}
+	return nil
 }
 
 func orgLogoServingURL(mode fleet.OrgLogoMode) string {

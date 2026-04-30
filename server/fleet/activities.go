@@ -243,6 +243,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledManagedLocalAccount{},
 
 	ActivityTypeCanceledSetupExperience{},
+
+	ActivityTypeChangedOrgLogo{},
+	ActivityTypeDeletedOrgLogo{},
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.

@@ -52,7 +52,7 @@ func TestOrgLogoAuth(t *testing.T) {
 		{
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			false,
+			true,
 		},
 		{
 			"team admin",
