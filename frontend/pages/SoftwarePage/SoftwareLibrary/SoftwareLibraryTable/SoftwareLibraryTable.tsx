@@ -2,11 +2,12 @@
 software/library Library tab > Table
 */
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
@@ -61,6 +62,16 @@ const SoftwareLibraryTable = ({
   teamId,
   isLoading,
 }: ISoftwareLibraryTableProps) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+  } = useContext(AppContext);
+
+  const canAddSoftware =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -228,20 +239,26 @@ const SoftwareLibraryTable = ({
           return (
             <EmptyState
               header="No software available"
-              info="Add software to your library to get started."
+              info={
+                canAddSoftware
+                  ? "Add software to your library to get started."
+                  : "Software added to this fleet's library will appear here."
+              }
               primaryButton={
-                <Button
-                  onClick={() =>
-                    router.push(
-                      getPathWithQueryParams(
-                        PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
-                        { fleet_id: teamId }
+                canAddSoftware ? (
+                  <Button
+                    onClick={() =>
+                      router.push(
+                        getPathWithQueryParams(
+                          PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+                          { fleet_id: teamId }
+                        )
                       )
-                    )
-                  }
-                >
-                  Add software
-                </Button>
+                    }
+                  >
+                    Add software
+                  </Button>
+                ) : undefined
               }
             />
           );

@@ -118,4 +118,48 @@ describe("Software library table", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Self-service only")).toBeInTheDocument();
   });
+
+  it("Renders the empty state without Add software button for observers", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: false,
+          isGlobalMaintainer: false,
+          isTeamAdmin: false,
+          isTeamMaintainer: false,
+          currentUser: createMockUser({ global_role: "observer" }),
+        },
+      },
+    });
+
+    render(
+      <SoftwareLibraryTable
+        router={mockRouter}
+        isSoftwareEnabled
+        data={createMockSoftwareTitlesResponse({
+          count: 0,
+          counts_updated_at: null,
+          software_titles: [],
+        })}
+        query=""
+        perPage={50}
+        orderDirection="asc"
+        orderKey="hosts_count"
+        selfServiceOnly={false}
+        currentPage={0}
+        teamId={1}
+        isLoading={false}
+      />
+    );
+
+    expect(screen.getByText("No software available")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Software added to this fleet's library will appear here."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add software" })
+    ).not.toBeInTheDocument();
+  });
 });
