@@ -1884,6 +1884,43 @@ func TestExpandBaseItems(t *testing.T) {
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
+	// Filenames containing glob metacharacters should be accepted by "path:"
+	// when the literal file exists on disk. Common with Windows MDM CSP
+	// profile names like "[AllowSpotlightCollection].xml". Regression test for
+	// fleetdm/fleet#43598.
+	t.Run("path_with_literal_glob_meta_chars_existing_file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		filenames := []string{
+			"AllowRebootless -[Updates].xml",
+			"BlockMDM?Unenrollment.xml",
+			"profile{a,b}.xml",
+			"wild*card.xml",
+		}
+		for _, name := range filenames {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(""), 0o644))
+		}
+
+		items := make([]fleet.BaseItem, 0, len(filenames))
+		for _, name := range filenames {
+			items = append(items, fleet.BaseItem{Path: ptr.String(name)}) //nolint:modernize
+		}
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		require.Empty(t, errs)
+		require.Len(t, result, len(filenames))
+		for i, name := range filenames {
+			assert.Equal(t, filepath.Join(dir, name), *result[i].Path)
+		}
+	})
+
+	t.Run("path_with_glob_meta_chars_missing_file_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		items := []fleet.BaseItem{{Path: ptr.String("does-not-[exist].xml")}} //nolint:modernize
+		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		requireErrorContains(t, errs, `contains glob characters`)
+	})
+
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
 		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}} //nolint:modernize
