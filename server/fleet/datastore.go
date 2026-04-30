@@ -1954,6 +1954,11 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
+	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
+	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
+	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.

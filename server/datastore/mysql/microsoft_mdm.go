@@ -490,6 +490,25 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 	})
 }
 
+// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
+// (identified by host UUID or MDM device ID). All commands are inserted in one transaction: either every row
+// is committed or none. Used by the ESP finalize path so the dropped-response retry safety net can't end up
+// partially written on a transient DB error -- a partial write followed by a fresh-UUID retry would leave
+// orphan rows in the queue.
+func (ds *Datastore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+	if len(cmds) == 0 {
+		return nil
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, cmd := range cmds {
+			if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{hostUUIDOrDeviceID}, cmd); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 	// Resolve host UUIDs / device IDs to enrollment IDs using the general-purpose
 	// lookup (supports both host_uuid and mdm_device_id via subquery).

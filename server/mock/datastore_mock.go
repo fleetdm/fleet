@@ -1261,6 +1261,8 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
@@ -3760,6 +3762,9 @@ type DataStore struct {
 
 	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
 	MDMWindowsInsertCommandForHostsFuncInvoked bool
+
+	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
+	MDMWindowsInsertCommandsForHostFuncInvoked bool
 
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc        MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked bool
@@ -9058,6 +9063,13 @@ func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUI
 	s.MDMWindowsInsertCommandForHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
+}
+
+func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertCommandsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertCommandsForHostFunc(ctx, hostUUIDOrDeviceID, cmds)
 }
 
 func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {

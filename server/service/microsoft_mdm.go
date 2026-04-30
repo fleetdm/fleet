@@ -2096,17 +2096,10 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
 	}
 
-	// hasSoftwareFailure tracks setup-experience software failures only. Profile delivery failures intentionally do NOT
-	// set this: the setting `require_all_software_windows` is software-scoped (matching the macOS equivalent), and
-	// Windows profile failures often have benign causes (CSP not supported on the host's edition, conflicting policies).
-	// We still wait for profiles to reach a terminal state in Stage 2, but we don't propagate profile failures into the
-	// block decision.
+	// hasSoftwareFailure tracks setup-experience software failures only.
 	var hasSoftwareFailure bool
 
 	// loadTeamID lazily fetches the host's team_id (writer-routed) and memoizes the result for the rest of this checkin.
-	// Only the empty-results disambiguation in Stage 3 and the require_all_software_windows lookup at finalization need
-	// team_id; Stage 1/2 early-exit checkins skip this query entirely. Within a single checkin, at most one writer host
-	// lookup runs.
 	//
 	// Writer routing guards two replica-lag races: (1) spurious notFound during the brief gap between orbit's host
 	// registration and the next management session, and (2) stale team_id if a host transferred teams mid-enrollment,
@@ -2131,13 +2124,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	if !timedOut {
 		// Profile delivery has two stages, each covered by a different query:
 		//
-		// 1. Profiles configured for the host's team but not yet queued by the
-		//    profile reconciler (ListMDMWindowsProfilesToInstallForHost).
-		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet
-		//    delivered to a terminal state (GetHostMDMWindowsProfiles).
+		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler
+		//    (ListMDMWindowsProfilesToInstallForHost).
+		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet delivered to a terminal state
+		//    (GetHostMDMWindowsProfiles).
 		//
-		// We check both so we never release while profiles are pending at
-		// either stage. Each management checkin re-evaluates both queries.
+		// We check both so we never release while profiles are pending at either stage. Each management checkin
+		// re-evaluates both queries.
 
 		// Stage 1: profiles the reconciler hasn't picked up yet.
 		toInstall, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
@@ -2157,24 +2150,20 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			if p.OperationType != fleet.MDMOperationTypeInstall {
 				continue
 			}
-			// Wait for terminal state (verified or failed) before proceeding.
-			// Profile failures are NOT propagated to the block decision -- see
-			// hasSoftwareFailure comment above.
+			// Wait for terminal state (verified or failed) before proceeding. Profile failures are NOT propagated to
+			// the block decision -- see hasSoftwareFailure comment above.
 			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
 				return nil, nil
 			}
 		}
 
-		// Stage 3: setup experience software/scripts still running.
-		// Orbit initiates setup experience during startup when it is enabled
-		// for the current OS/flags, which enqueues items into
-		// setup_experience_status_results. Wait for all of them to reach a
-		// terminal state (success/failure/cancelled).
+		// Stage 3: setup experience software/scripts still running. Orbit initiates setup experience during startup when it
+		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results. Wait for all of
+		// them to reach a terminal state (success/failure/cancelled).
 		//
-		// We pass teamID=0 because that parameter is only used for icon and
-		// display-name enrichment in the datastore call, not for filtering
-		// (the query filters only by host_uuid). Skipping a host lookup also
-		// avoids replica-lag issues that could let the gate be bypassed.
+		// We pass teamID=0 because that parameter is only used for icon and display-name enrichment in the datastore call,
+		// not for filtering (the query filters only by host_uuid). Skipping a host lookup also avoids replica-lag issues
+		// that could let the gate be bypassed.
 		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, 0)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
@@ -2182,13 +2171,10 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		svc.logger.DebugContext(ctx, "ESP: setup experience check",
 			"host_uuid", device.HostUUID, "results_count", len(results))
 
-		// Empty results is ambiguous: it can mean "no setup experience is
-		// configured for this team" (safe to release) or "setup is configured
-		// but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit
-		// links the host UUID to the MDM enrollment independently of when it
-		// calls init, so on the first Active checkin after link we can hit
-		// this race. Disambiguate by checking whether items are configured
-		// for the host's team.
+		// Empty results is ambiguous: it can mean "no setup experience is configured for this team" (safe to release) or
+		// "setup is configured but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit links the host UUID to
+		// the MDM enrollment independently of when it calls init, so on the first Active checkin after link we can hit
+		// this race. Disambiguate by checking whether items are configured for the host's team.
 		if len(results) == 0 {
 			teamID, err := loadTeamID()
 			if err != nil {
@@ -2210,8 +2196,8 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 
 		for _, r := range results {
-			// IsTerminalStatus() returns true for success/failure. Cancelled
-			// is also a completed outcome and must not block ESP release.
+			// IsTerminalStatus() returns true for success/failure. Cancelled is also a completed outcome and must not
+			// block ESP release.
 			if r.Status == fleet.SetupExperienceStatusCancelled {
 				continue
 			}
@@ -2226,17 +2212,13 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up the team's
-	// require_all_software_windows setting to decide between block and
-	// release. Return the error on lookup failure so the device stays
-	// Active and retries on the next management session: failing open
-	// here would permanently bypass the policy after the Active->None
-	// transition below.
+	// We're past the wait gate or timed out. Look up the team's require_all_software_windows setting to decide between
+	// block and release. Return the error on lookup failure so the device stays Active and retries on the next management
+	// session: failing open here would permanently bypass the policy after the Active->None transition below.
 	//
-	// loadTeamID memoizes the writer-routed host lookup, so this reuses the
-	// fetch from the empty-results disambiguation if it already ran this
-	// checkin. The team-config read (TeamLite/AppConfig) uses the replica/cache
-	// because team settings are stable on the ESP timescale.
+	// loadTeamID memoizes the writer-routed host lookup, so this reuses the fetch from the empty-results disambiguation if
+	// it already ran this checkin. The team-config read (TeamLite/AppConfig) uses the replica/cache because team settings
+	// are stable on the ESP timescale.
 	teamID, err := loadTeamID()
 	if err != nil {
 		return nil, err
@@ -2256,8 +2238,46 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		requireAll = team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows
 	}
 
-	// CAS Active -> None first so only one concurrent checkin does the
-	// cancel/activity/persist work.
+	failed := timedOut || hasSoftwareFailure
+	shouldBlock := failed && requireAll
+
+	// Build commands for the response.
+	provID := syncml.DocProvisioningAppProviderID
+	var cmds []*mdm_types.SyncMLCmd
+	if shouldBlock {
+		// Pick the user-facing error text to surface on the failure UI. Software failure takes precedence over timeout
+		// because it's more actionable; pure timeout (no software failed) uses the timeout text so the user sees an
+		// accurate reason.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
+		}
+		cmds = buildESPBlockCommands(provID, errorText)
+	} else {
+		// Release path: device proceeds to login. We do not send CustomErrorText here because the failure UI never renders
+		// on a release (no BlockInStatusPage, no forced timeout), so any error text would be dead state on the DMClient
+		// node.
+		cmds = buildESPReleaseCommands(provID)
+	}
+
+	// Persist BEFORE the CAS. The persist is the dropped-response retry safety net; if it fails, we want to leave
+	// awaiting_configuration=Active so the next management session retries the whole finalize from scratch. If we
+	// persisted after the CAS (the prior order), a persist failure combined with a dropped inline response would leave
+	// the device on "Working on it..." forever -- the server would think finalize was done (awaiting_configuration=None)
+	// and never send ESP commands again. With this order, persist failure aborts the finalize cleanly.
+	//
+	// The persist is a single transactional batch (MDMWindowsInsertCommandsForHost) so a partial-fail-then-retry can't
+	// leave orphan rows in the queue.
+	//
+	// On concurrent-CAS races (two checkins both reach this point) both callers persist with fresh UUIDs and only one
+	// wins the CAS. The loser's rows are delivered later by the regular command queue, the device acks them as
+	// idempotent Replaces of post-ESP-irrelevant DMClient nodes, and the queue clears -- no permanent leak, just brief
+	// extra traffic.
+	if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
+	}
+
+	// CAS Active -> None: only one concurrent checkin does the cancel/activity work below.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
 	if err != nil {
@@ -2268,53 +2288,18 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, nil
 	}
 
-	failed := timedOut || hasSoftwareFailure
-	shouldBlock := failed && requireAll
-
-	// On timeout (regardless of require_all) and on software-failure+require_all=true,
-	// cancel any pending items. The canceled_setup_experience activity is
-	// already emitted by maybeCancelPendingSetupExperienceSteps in the
-	// software-install-result reporting path (see
-	// server/service/setup_experience.go) when require_all is true and a
-	// software install fails. We deliberately do not emit it again here to
-	// avoid duplicate activities when both paths fire for the same failure.
-	// The CancelPendingSetupExperienceSteps call below is idempotent and
-	// covers the timeout case where pending items were not already cancelled.
+	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. The
+	// canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
+	// software-install-result reporting path when require_all is true and a software install fails. We deliberately do
+	// not emit it again here to avoid duplicate activities when both paths fire for the same failure. The
+	// CancelPendingSetupExperienceSteps call below is idempotent and covers the timeout case where pending items were
+	// not already cancelled.
 	if timedOut || (hasSoftwareFailure && requireAll) {
 		if cancelErr := svc.ds.CancelPendingSetupExperienceSteps(ctx, device.HostUUID); cancelErr != nil {
 			svc.logger.WarnContext(ctx, "ESP: failed to cancel pending setup experience steps",
 				"err", cancelErr, "host_uuid", device.HostUUID)
 		}
 	}
-
-	// Build commands for the response.
-	provID := syncml.DocProvisioningAppProviderID
-	var cmds []*mdm_types.SyncMLCmd
-	if shouldBlock {
-		// Pick the user-facing error text to surface on the failure UI.
-		// Software failure takes precedence over timeout because it's more
-		// actionable; pure timeout (no software failed) uses the timeout
-		// text so the user sees an accurate reason.
-		errorText := microsoft_mdm.ESPTimeoutErrorText
-		if hasSoftwareFailure {
-			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
-		}
-		cmds = buildESPBlockCommands(provID, errorText)
-	} else {
-		// Release path: device proceeds to login. We do not send CustomErrorText
-		// here because the failure UI never renders on a release (no
-		// BlockInStatusPage, no forced timeout), so any error text would be
-		// dead state on the DMClient node.
-		cmds = buildESPReleaseCommands(provID)
-	}
-
-	// Persist all the finalization commands as a backup so they're resent
-	// on the next session if this response is dropped. The block path
-	// includes CustomErrorText / BlockInStatusPage / AllowCollectLogsButton;
-	// the release path is just the ServerHasFinishedProvisioning + InstallationState
-	// commands. Persisting the full payload ensures the user sees the
-	// configured outcome even if the inline response is lost.
-	svc.persistESPFinalCommands(ctx, device.HostUUID, cmds)
 
 	svc.logger.InfoContext(ctx, "ESP: finalizing",
 		"device_id", device.MDMDeviceID,
@@ -2327,45 +2312,43 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	return cmds, nil
 }
 
-// buildESPBlockCommands builds SyncML commands that put the device's ESP into
-// a failed state with a "Reset device" button and "Collect logs" button.
-// Used when require_all_software_windows is true and a software install
-// failed (or the ESP timed out).
+// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state with a "Reset device"
+// button and "Collect logs" button.
 func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
-		// CustomErrorText: shown in the ESP failure UI when the timeout below
-		// triggers ESP failure.
+		// CustomErrorText: shown in the ESP failure UI as the failure reason.
 		newSyncMLCmdText(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
 			errorText),
-		// BlockInStatusPage=1: show the "Reset PC" button (per Microsoft
-		// DMClient CSP docs). Reset triggers an Autopilot wipe and
-		// re-enrollment, which is the only reliable in-product recovery
-		// path for a failed ESP. Documented values: 1=Reset PC,
-		// 2=Try Again, 4=Continue Anyway.
+		// BlockInStatusPage=1: show the "Reset PC" button (per Microsoft DMClient CSP docs). Reset triggers an Autopilot
+		// wipe and re-enrollment, which is the only reliable in-product recovery path for a failed ESP. Documented values:
+		// 1=Reset PC, 2=Try Again, 4=Continue Anyway.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
 			"1"),
-		// AllowCollectLogsButton: show the "Collect logs" button so IT can
-		// gather diagnostics from the failure screen.
+		// AllowCollectLogsButton: show the "Collect logs" button so IT can gather diagnostics from the failure screen.
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
 			"true"),
-		// TimeOutUntilSyncFailure=1 (minute): force the ESP to time out and
-		// enter its failure state quickly. We deliberately do NOT send
-		// ServerHasFinishedProvisioning=true here because that would tell
-		// the ESP it succeeded (Windows treats "server done + no expected
-		// items missing" as success and proceeds past the ESP). Instead we
-		// rely on the timeout to trigger the failure UI, which then renders
-		// our BlockInStatusPage + CustomErrorText + AllowCollectLogsButton.
+		// TimeOutUntilSyncFailure=1 (minute): force the ESP to time out and enter its failure state quickly. We
+		// deliberately do NOT send ServerHasFinishedProvisioning=true here -- that would tell the ESP it succeeded
+		// (Windows treats "server done + no expected items missing" as success and proceeds past the ESP). Instead we
+		// rely on the timeout to trigger the failure UI, which then renders our BlockInStatusPage + CustomErrorText +
+		// AllowCollectLogsButton.
 		//
-		// NOTE: the documented range for this node is 60-1440 minutes. Below
-		// the documented minimum, behavior is technically undefined, but
-		// Windows builds we have tested honor the smaller value and time out
-		// in roughly the configured number of minutes. Tested empirically on
-		// Windows 11 23H2 / Autopilot. If a future Windows build clamps to
-		// 60, the failure UI will simply take ~1 hour to appear instead of
-		// ~1 minute -- the contract (eventual failure UI) still holds.
+		// NOTE: the documented range for this node is 60-1440 minutes. Below the documented minimum, behavior is
+		// technically undefined, but Windows builds we have tested honor the smaller value and time out in roughly the
+		// configured number of minutes (verified empirically on Windows 11 23H2 / Autopilot). If a future Windows build
+		// clamps to 60, the failure UI would take ~1 hour to appear instead of ~1 minute -- bad UX but the contract
+		// (eventual failure UI) still holds.
+		//
+		// TODO: replace this empirical hack with documented per-tracker InstallationState=4 once orbit reports
+		// setup-experience progress via the LocalMDM channel (subtask
+		// https://github.com/fleetdm/fleet/issues/43776). At that point each setup-experience software item becomes
+		// a TrackedResourceTypes/{tracker} on the device, a failed install reports InstallationError on its tracker,
+		// and the ESP renders the failure UI natively from per-tracker state -- no timeout trick required. Setting
+		// InstallationState=4 on the parent PolicyProviders node alone (as we tested) does NOT escalate the UI
+		// without trackers underneath, which is why we keep the timeout-based approach for now.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
@@ -2379,11 +2362,6 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 // buildESPReleaseCommands builds SyncML commands that release the device
 // from the ESP. The release path advances DevicePreparation to "complete" and
 // signals ServerHasFinishedProvisioning so Windows proceeds to login.
-//
-// We deliberately do not include CustomErrorText: that node is only rendered
-// on the ESP failure UI, which never appears on the release path (no
-// BlockInStatusPage, no forced timeout). Any error text written here would
-// be dead state on the DMClient node.
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
@@ -2407,30 +2385,38 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 // rows and clear them, so the backup is only resent if delivery actually
 // failed. All commands are idempotent Replaces, so even a duplicate delivery
 // is safe.
-func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) {
+func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) error {
+	persistCmds := make([]*fleet.MDMWindowsCommand, 0, len(cmds))
 	for _, cmd := range cmds {
-		// Skip commands without a target URI -- shouldn't happen for the
-		// commands we build, but guard against nil-deref.
+		// Skip commands without a target URI -- shouldn't happen for the commands we build, but guard against nil-deref.
 		targetURI := cmd.GetTargetURI()
 		if targetURI == "" || len(cmd.Items) == 0 {
 			continue
 		}
 		rawXML, err := xml.Marshal(cmd)
 		if err != nil {
-			svc.logger.WarnContext(ctx, "ESP: failed to marshal final command for persistence",
-				"err", err, "target_uri", targetURI)
+			// Marshal of a SyncMLCmd we just built is a deterministic code bug, not a transient failure. Returning an
+			// error here would just loop forever (every retry hits the same bug); log + Handle
+			wrapped := ctxerr.Wrap(ctx, err, "marshal ESP final command for persistence")
+			svc.logger.ErrorContext(ctx, "ESP: failed to marshal final command for persistence",
+				"err", wrapped, "target_uri", targetURI)
+			ctxerr.Handle(ctx, wrapped)
 			continue
 		}
-		persistCmd := &fleet.MDMWindowsCommand{
+		persistCmds = append(persistCmds, &fleet.MDMWindowsCommand{
 			CommandUUID:  cmd.CmdID.Value,
 			RawCommand:   rawXML,
 			TargetLocURI: targetURI,
-		}
-		if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, persistCmd); err != nil {
-			svc.logger.WarnContext(ctx, "ESP: failed to persist final command",
-				"err", err, "target_uri", targetURI)
-		}
+		})
 	}
+	if len(persistCmds) == 0 {
+		return nil
+	}
+	// Single transactional insert: either every backup row is committed or none.
+	if err := svc.ds.MDMWindowsInsertCommandsForHost(ctx, hostUUID, persistCmds); err != nil {
+		return ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
+	}
+	return nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled

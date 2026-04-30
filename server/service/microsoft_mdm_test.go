@@ -1434,7 +1434,7 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 		setRequireAll(ds, false)
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 	}
@@ -1457,7 +1457,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		setReleaseMocks(ds)
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1519,7 +1519,7 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 		setRequireAll(ds, false)
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1546,7 +1546,7 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, nil
 		}
 		setReleaseMocks(ds)
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1605,9 +1605,13 @@ func TestGetESPCommands(t *testing.T) {
 		}
 		var persistedURIs []string
 		var persistedCmdUUIDs []string
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
-			persistedURIs = append(persistedURIs, cmd.TargetLocURI)
-			persistedCmdUUIDs = append(persistedCmdUUIDs, cmd.CommandUUID)
+		var batchCalls int
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			batchCalls++
+			for _, c := range cmds {
+				persistedURIs = append(persistedURIs, c.TargetLocURI)
+				persistedCmdUUIDs = append(persistedCmdUUIDs, c.CommandUUID)
+			}
 			return nil
 		}
 
@@ -1616,8 +1620,10 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotEmpty(t, cmds, "should return block commands")
 		assert.True(t, cancelled, "should cancel pending setup experience steps")
 
-		// Block path must persist all three commands so the retry path
-		// preserves CustomErrorText / AllowCollectLogsButton on dropped responses.
+		// Block path must persist all three commands in a SINGLE batch call so the retry path preserves
+		// CustomErrorText / AllowCollectLogsButton on dropped responses, and so a partial DB failure can't leave
+		// orphan rows behind (the batch is one transaction).
+		assert.Equal(t, 1, batchCalls, "persist must be a single batched call, not a loop of single inserts")
 		joined := strings.Join(persistedURIs, ",")
 		assert.Contains(t, joined, "CustomErrorText", "must persist CustomErrorText")
 		assert.Contains(t, joined, "BlockInStatusPage", "must persist BlockInStatusPage")
@@ -1652,9 +1658,8 @@ func TestGetESPCommands(t *testing.T) {
 		logsCmd := findCmdByLocURI(cmds, "AllowCollectLogsButton")
 		require.NotNil(t, logsCmd, "block commands must include AllowCollectLogsButton")
 
-		// Block path forces a quick ESP timeout to trigger the failure UI.
-		// We deliberately do NOT send ServerHasFinishedProvisioning here:
-		// that would tell the ESP it succeeded and proceed past the failure
+		// Block path forces a quick ESP timeout to trigger the failure UI. We deliberately do NOT send
+		// ServerHasFinishedProvisioning here: that would tell the ESP it succeeded and proceed past the failure
 		// screen entirely.
 		timeoutCmd := findCmdByLocURI(cmds, "TimeOutUntilSyncFailure")
 		require.NotNil(t, timeoutCmd, "block commands must include TimeOutUntilSyncFailure to force failure")
@@ -1663,6 +1668,11 @@ func TestGetESPCommands(t *testing.T) {
 
 		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
 			"block commands must NOT include ServerHasFinishedProvisioning -- it would cause ESP success")
+		// VM testing confirmed setting InstallationState=4 on the parent PolicyProviders node alone does NOT
+		// escalate the ESP UI without per-tracker state from #43776. The timeout-based trigger remains the
+		// load-bearing mechanism until LocalMDM tracking lands.
+		assert.Nil(t, findCmdByLocURI(cmds, "InstallationState"),
+			"block path uses the timeout-based trigger, not InstallationState")
 	})
 
 	t.Run("software failure with require_all=false releases with error text", func(t *testing.T) {
@@ -1689,7 +1699,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1745,7 +1755,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
 			return true, nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1801,7 +1811,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
 			return nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1838,7 +1848,7 @@ func TestGetESPCommands(t *testing.T) {
 			cancelled = true
 			return nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1882,7 +1892,7 @@ func TestGetESPCommands(t *testing.T) {
 			cancelled = true
 			return nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -1996,7 +2006,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
 			return nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return nil
 		}
 
@@ -2006,6 +2016,52 @@ func TestGetESPCommands(t *testing.T) {
 		assert.True(t, teamLiteCalled, "TeamLite must be called on the team path")
 		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
 			"team config require_all_software_windows=true must drive the block path")
+	})
+
+	t.Run("persist failure aborts finalize without committing CAS", func(t *testing.T) {
+		// Safety property: if the persist (dropped-response retry safety net) fails, we must NOT commit the CAS
+		// transition Active -> None. Otherwise the device would be left without an inline send AND without the retry
+		// backup -- stuck on "Working on it..." forever, since awaiting_configuration=None means subsequent management
+		// sessions return no ESP commands. Persist runs before the CAS for exactly this reason.
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		setRequireAll(ds, true)
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return errors.New("transient db error")
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			t.Fatal("CAS Active->None must NOT run when persist fails")
+			return false, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			t.Fatal("cancel-pending must NOT run when persist fails")
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"CAS must NOT have been invoked when persist fails")
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"cancel-pending must NOT have been invoked when persist fails")
 	})
 
 	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {
