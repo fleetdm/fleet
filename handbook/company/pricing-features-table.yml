@@ -786,7 +786,7 @@
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
 #  ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩╩ ╩╝╚╝╚═╝╚═╝  ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
-- industryName: Query performance monitoring
+- industryName: Performance impact monitoring
   description: Monitor the performance impact of reports running on your hosts, including CPU usage and memory consumption, to ensure reports don't degrade endpoint performance.
   documentationUrl: https://fleetdm.com/docs/get-started/faq#will-fleet-slow-down-my-servers-what-about-my-employee-laptops
   tier: Free
