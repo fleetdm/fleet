@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -33,6 +35,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		SoftwareTitleID:          req.SoftwareTitleID,
 		ScriptID:                 req.ScriptID,
 		LabelsIncludeAny:         req.LabelsIncludeAny,
+		LabelsIncludeAll:         req.LabelsIncludeAll,
 		LabelsExcludeAny:         req.LabelsExcludeAny,
 		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
 		Type:                     req.Type,
@@ -69,7 +72,11 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, append(tp.LabelsIncludeAny, tp.LabelsExcludeAny...), vc.User); err != nil {
+	if len(tp.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, slices.Concat(tp.LabelsIncludeAny, tp.LabelsIncludeAll, tp.LabelsExcludeAny), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -210,6 +217,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		VPPAppsTeamsID:           vppAppsTeamsID,
 		ScriptID:                 p.ScriptID,
 		LabelsIncludeAny:         p.LabelsIncludeAny,
+		LabelsIncludeAll:         p.LabelsIncludeAll,
 		LabelsExcludeAny:         p.LabelsExcludeAny,
 		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
 		Type:                     policyType,
@@ -532,7 +540,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), authz.UserFromContext(ctx)); err != nil {
+	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -604,17 +616,14 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
-	if p.LabelsIncludeAny != nil {
-		policy.LabelsIncludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
-		for _, label := range p.LabelsIncludeAny {
-			policy.LabelsIncludeAny = append(policy.LabelsIncludeAny, fleet.LabelIdent{LabelName: label})
-		}
-	}
-	if p.LabelsExcludeAny != nil {
-		policy.LabelsExcludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsExcludeAny))
-		for _, label := range p.LabelsExcludeAny {
-			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
-		}
+	// If the client sent any of the three label scope fields, treat all three as authoritative
+	// for the policy's label state. The validator on ModifyPolicyPayload (Verify()) enforces that at most
+	// one is non-nil, so a single field switches scope and clears the others. Sending none of
+	// the three leaves labels untouched.
+	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil {
+		policy.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
+		policy.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
+		policy.LabelsExcludeAny = fleet.LabelNamesToIdents(p.LabelsExcludeAny)
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {

@@ -100,8 +100,8 @@ type DEPService struct {
 	logger     *slog.Logger
 }
 
-// getDefaultProfile returns a godep.Profile with default values set.
-func (d *DEPService) getDefaultProfile() *godep.Profile {
+// GetDefaultProfile returns a godep.Profile with default values set.
+func (d *DEPService) GetDefaultProfile() *godep.Profile {
 	return &godep.Profile{
 		ProfileName:      "Fleet default enrollment profile",
 		AllowPairing:     true,
@@ -142,7 +142,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 // profile in mdm_apple_enrollment_profiles but does not register it with
 // Apple. It also creates the authentication token to get enrollment profiles.
 func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
-	depProfile := d.getDefaultProfile()
+	depProfile := d.GetDefaultProfile()
 	token := uuid.New().String()
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {

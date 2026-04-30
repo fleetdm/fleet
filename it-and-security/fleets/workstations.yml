@@ -169,6 +169,12 @@ policies:
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/sip-enabled.yml
+  - path: ../lib/macos/policies/remote-login-disabled.yml
+  - path: ../lib/macos/policies/screen-lock-inactivity.yml
+  - path: ../lib/macos/policies/local-admin-count-reasonable.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -178,17 +184,27 @@ policies:
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  - path: ../lib/windows/policies/secure-boot-enabled.yml
+  - path: ../lib/windows/policies/remote-desktop-disabled.yml
+  - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
   - path: ../lib/linux/policies/removable-storage-read-only.yml
+  - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml
+  - path: ../lib/all/reports/collect-local-user-accounts.yml
+  - path: ../lib/all/reports/collect-usb-devices.yml
+  - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
+  - path: ../lib/all/reports/collect-safari-browser-extensions.yml
+  - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
+  - path: ../lib/all/reports/collect-listening-ports.yml
 software:
   packages:
     # macOS apps
@@ -472,6 +488,18 @@ software:
         - Macs with Cursor installed
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Reader installed
+      categories:
+        - Productivity
+    - slug: adobe-acrobat-pro/darwin # Adobe Acrobat Pro for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Pro installed
+      categories:
+        - Productivity
     # Windows apps
     - slug: 1password/windows # 1Password for Windows
       self_service: true
@@ -518,3 +546,9 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
+      self_service: true
+      labels_include_any:
+        - x86 Windows hosts with Adobe Acrobat Reader installed
+      categories:
+        - Productivity

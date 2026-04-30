@@ -17,7 +17,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -38,15 +38,12 @@ interface IEnableVppMessage {
 }
 
 const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
-  <div className={`${baseClass}__enable-vpp-message`}>
-    <p className={`${baseClass}__enable-vpp-title`}>
-      Volume Purchasing Program (VPP) isn&apos;t enabled
-    </p>
-    <p className={`${baseClass}__enable-vpp-description`}>
-      To add App Store apps, first enable VPP.
-    </p>
-    <Button onClick={onEnableVpp}>Enable VPP</Button>
-  </div>
+  <EmptyState
+    variant="list"
+    header="Volume Purchasing Program (VPP) isn't enabled"
+    info="To add App Store apps, first enable VPP."
+    primaryButton={<Button onClick={onEnableVpp}>Enable VPP</Button>}
+  />
 );
 
 interface IAddTeamToVppMessage {
@@ -54,29 +51,31 @@ interface IAddTeamToVppMessage {
 }
 
 const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <EmptyTable
+  <EmptyState
+    variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
     info="To add App Store apps, first add this fleet to VPP."
-    primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
+    primaryButton={<Button onClick={onEditVpp}>Edit VPP</Button>}
   />
 );
 
 const NoVppAppsMessage = () => (
-  <div className={`${baseClass}__no-vpp-message`}>
-    <p className={`${baseClass}__no-vpp-title`}>
-      You don&apos;t have any App Store apps
-    </p>
-    <p className={`${baseClass}__no-vpp-description`}>
-      You must purchase apps in{" "}
-      <CustomLink
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-        text="ABM"
-        newTab
-      />
-      .<br />
-      App Store apps that are already added to this fleet are not listed.
-    </p>
-  </div>
+  <EmptyState
+    variant="list"
+    header="You don't have any App Store apps"
+    info={
+      <>
+        You must purchase apps in{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
+          text="ABM"
+          newTab
+        />
+        .<br />
+        App Store apps that are already added to this fleet are not listed.
+      </>
+    }
+  />
 );
 
 interface ISoftwareAppStoreProps {
