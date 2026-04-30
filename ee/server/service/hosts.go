@@ -735,15 +735,27 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account status")
 	}
-	if acct.Status == nil || *acct.Status != string(fleet.MDMDeliveryVerified) {
+	// Behavior change vs #43381: gate on password_available rather than
+	// status == 'verified'. A row whose status is 'pending' due to a recent view
+	// (or a deferred rotation waiting on UUID capture) still has a valid password
+	// and should be viewable. Only 'failed' or a missing password block access.
+	if !acct.PasswordAvailable {
 		return nil, &fleet.BadRequestError{
-			Message: "Host's managed account password is not yet verified.",
+			Message: "Host's managed account password is not available.",
 		}
 	}
 
 	pwd, err := svc.ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
+	}
+
+	// Start the auto-rotation timer (no-op for views inside the existing window).
+	// notFound here means a rotation is currently in flight (pending_encrypted_password
+	// IS NOT NULL) — the password is still readable and the existing rotation will
+	// take care of refreshing it, so we deliberately swallow the error.
+	if _, err := svc.ds.MarkManagedLocalAccountPasswordViewed(ctx, host.UUID); err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "mark managed local account password viewed")
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{
@@ -754,4 +766,122 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	}
 
 	return pwd, nil
+}
+
+// RotateManagedLocalAccountPassword rotates the macOS managed local admin
+// (`_fleetadmin`) password. When account_uuid is captured we generate a new
+// password, stage it as a pending rotation, and enqueue SetAutoAdminPassword.
+// When account_uuid is missing we record a deferred rotation that the cron
+// will fulfill once the UUID arrives via osquery — the user-actor activity
+// is still logged immediately (the cron must NOT re-log it for these rows).
+//
+// Idempotency: if a rotation is already in flight (pending_encrypted_password
+// IS NOT NULL) we return success without enqueueing again. The pending rotation
+// will land via the device ack and the next user-initiated rotate (if needed)
+// can proceed afterwards.
+func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return &fleet.BadRequestError{Message: "Host is not a macOS device."}
+	}
+
+	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{Message: "Host does not have a managed account."}
+		}
+		return ctxerr.Wrap(ctx, err, "get host managed account status")
+	}
+	if !acct.PasswordAvailable {
+		return &fleet.BadRequestError{Message: "Couldn’t rotate managed local account password. Please try again."}
+	}
+	// Idempotent no-op when a rotation is already enqueued. Distinct from the
+	// view-initiated 'pending' window (no pending_encrypted_password yet) — that
+	// path does NOT short-circuit; it lets the user replace the cron-driven
+	// rotation with their own and reattributes the activity to them.
+	if acct.PendingRotation {
+		return nil
+	}
+
+	accountUUID, err := svc.ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get managed local account uuid")
+	}
+
+	// Defer if UUID isn't yet captured. The activity is logged with the calling
+	// user as actor at click time, and the cron will execute the rotation later
+	// without re-logging because initiated_by_fleet=0 on this row.
+	if accountUUID == nil || *accountUUID == "" {
+		if err := svc.logRotateManagedLocalAccountActivity(ctx, host, false); err != nil {
+			return err
+		}
+		if err := svc.ds.MarkManagedLocalAccountRotationDeferred(ctx, host.UUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark managed local account rotation deferred")
+		}
+		return nil
+	}
+
+	newPassword := apple_mdm.GenerateManagedAccountPassword()
+	hashPlist, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(newPassword)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generate managed local account password hash")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, newPassword, cmdUUID); err != nil {
+		// Race against the cron: a rotation snuck in between our
+		// PendingRotation check and now. Treat the same as the idempotent
+		// short-circuit above.
+		if errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "initiate managed local account rotation")
+	}
+
+	if err := svc.mdmAppleCommander.SetAutoAdminPassword(ctx, host.UUID, *accountUUID, hashPlist, cmdUUID); err != nil {
+		// APNs delivery error: the command is persisted in nano and will be
+		// delivered on the next checkin. Keep pending state and log the
+		// activity (consistent with the manual recovery-lock path).
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			if logErr := svc.logRotateManagedLocalAccountActivity(ctx, host, false); logErr != nil {
+				return logErr
+			}
+			return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
+		}
+		// Persistence failure: the command never landed. Roll back pending
+		// state and DON'T log the activity so the user can retry cleanly.
+		if clearErr := svc.ds.ClearManagedLocalAccountRotation(ctx, host.UUID); clearErr != nil {
+			svc.logger.ErrorContext(ctx, "failed to clear managed local account pending rotation after enqueue error",
+				"host_uuid", host.UUID, "err", clearErr)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
+	}
+
+	return svc.logRotateManagedLocalAccountActivity(ctx, host, false)
+}
+
+func (svc *Service) logRotateManagedLocalAccountActivity(ctx context.Context, host *fleet.Host, fleetInitiated bool) error {
+	vc, ok := viewer.FromContext(ctx)
+	var actor *fleet.User
+	if ok {
+		actor = vc.User
+	}
+	if err := svc.NewActivity(ctx, actor, fleet.ActivityTypeRotatedManagedLocalAccountPassword{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		FleetInitiated:  fleetInitiated,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create rotated managed local account activity")
+	}
+	return nil
 }

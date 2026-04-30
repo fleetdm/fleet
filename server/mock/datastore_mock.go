@@ -1101,6 +1101,22 @@ type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (
 
 type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
 
+type MarkManagedLocalAccountPasswordViewedFunc func(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+type InitiateManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error
+
+type MarkManagedLocalAccountRotationDeferredFunc func(ctx context.Context, hostUUID string) error
+
+type ClearManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string) error
+
+type CompleteManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string) error
+
+type FailManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error
+
+type GetManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error)
+
+type GetManagedLocalAccountByPendingCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -3516,6 +3532,30 @@ type DataStore struct {
 
 	SetManagedLocalAccountUUIDFunc        SetManagedLocalAccountUUIDFunc
 	SetManagedLocalAccountUUIDFuncInvoked bool
+
+	MarkManagedLocalAccountPasswordViewedFunc        MarkManagedLocalAccountPasswordViewedFunc
+	MarkManagedLocalAccountPasswordViewedFuncInvoked bool
+
+	InitiateManagedLocalAccountRotationFunc        InitiateManagedLocalAccountRotationFunc
+	InitiateManagedLocalAccountRotationFuncInvoked bool
+
+	MarkManagedLocalAccountRotationDeferredFunc        MarkManagedLocalAccountRotationDeferredFunc
+	MarkManagedLocalAccountRotationDeferredFuncInvoked bool
+
+	ClearManagedLocalAccountRotationFunc        ClearManagedLocalAccountRotationFunc
+	ClearManagedLocalAccountRotationFuncInvoked bool
+
+	CompleteManagedLocalAccountRotationFunc        CompleteManagedLocalAccountRotationFunc
+	CompleteManagedLocalAccountRotationFuncInvoked bool
+
+	FailManagedLocalAccountRotationFunc        FailManagedLocalAccountRotationFunc
+	FailManagedLocalAccountRotationFuncInvoked bool
+
+	GetManagedLocalAccountsForAutoRotationFunc        GetManagedLocalAccountsForAutoRotationFunc
+	GetManagedLocalAccountsForAutoRotationFuncInvoked bool
+
+	GetManagedLocalAccountByPendingCommandUUIDFunc        GetManagedLocalAccountByPendingCommandUUIDFunc
+	GetManagedLocalAccountByPendingCommandUUIDFuncInvoked bool
 
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
@@ -8488,6 +8528,62 @@ func (s *DataStore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID str
 	s.SetManagedLocalAccountUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetManagedLocalAccountUUIDFunc(ctx, hostUUID, accountUUID)
+}
+
+func (s *DataStore) MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error) {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error {
+	s.mu.Lock()
+	s.InitiateManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateManagedLocalAccountRotationFunc(ctx, hostUUID, pendingPlaintextPassword, cmdUUID)
+}
+
+func (s *DataStore) MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountRotationDeferredFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountRotationDeferredFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearManagedLocalAccountRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string) error {
+	s.mu.Lock()
+	s.CompleteManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CompleteManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID)
+}
+
+func (s *DataStore) FailManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error {
+	s.mu.Lock()
+	s.FailManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID, errorMessage)
+}
+
+func (s *DataStore) GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountsForAutoRotationFunc(ctx)
+}
+
+func (s *DataStore) GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountByPendingCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountByPendingCommandUUIDFunc(ctx, commandUUID)
 }
 
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {

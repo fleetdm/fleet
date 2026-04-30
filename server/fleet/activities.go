@@ -241,6 +241,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeViewedManagedLocalAccount{},
 	ActivityTypeEnabledManagedLocalAccount{},
 	ActivityTypeDisabledManagedLocalAccount{},
+	ActivityTypeRotatedManagedLocalAccountPassword{},
 
 	ActivityTypeCanceledSetupExperience{},
 }
@@ -1113,6 +1114,29 @@ func (a ActivityTypeRotatedHostRecoveryLockPassword) HostIDs() []uint {
 }
 
 func (a ActivityTypeRotatedHostRecoveryLockPassword) WasFromAutomation() bool {
+	return a.FleetInitiated
+}
+
+// ActivityTypeRotatedManagedLocalAccountPassword records a managed-local-account
+// password rotation. Manual rotations log with the calling user as actor;
+// auto-rotations log with no user and FleetInitiated=true. Rotations that were
+// deferred (UUID missing at click time) are logged once at click time with the
+// user as actor — never re-logged when the cron finally completes them.
+type ActivityTypeRotatedManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	FleetInitiated  bool   `json:"-"`
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) ActivityName() string {
+	return "rotated_managed_local_account_password"
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
 }
 

@@ -1767,8 +1767,17 @@ type DeletedHostDetails struct {
 
 // HostMDMManagedLocalAccount represents the managed local account status for a host.
 type HostMDMManagedLocalAccount struct {
-	Status            *string `json:"status" db:"-" csv:"-"`             // nil (no record), "pending", "verified", "failed"
-	PasswordAvailable bool    `json:"password_available" db:"-" csv:"-"` // true only when status is "verified"
+	Status *string `json:"status" db:"-" csv:"-"` // nil (no record), "pending", "verified", "failed"
+	// PasswordAvailable is true whenever the row holds a usable password — i.e.
+	// encrypted_password IS NOT NULL AND status != 'failed'. This decouples
+	// availability from the rotation lifecycle ("pending" is also viewable).
+	PasswordAvailable bool `json:"password_available" db:"-" csv:"-"`
+	// AutoRotateAt is the wall-clock time at which the rotation cron will pick
+	// this row up (set on first view; cleared on rotation complete).
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty" db:"-" csv:"-"`
+	// PendingRotation is true when a SetAutoAdminPassword command is in flight
+	// (pending_encrypted_password IS NOT NULL).
+	PendingRotation bool `json:"pending_rotation,omitempty" db:"-" csv:"-"`
 }
 
 // HostManagedLocalAccountPassword is the API response for the managed local account password.

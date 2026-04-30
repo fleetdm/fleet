@@ -2114,6 +2114,133 @@ func logAutoRotationActivity(
 	}
 }
 
+// ManagedLocalAccountRotationCommander is the narrow interface SendManagedLocalAccountRotationCommands
+// needs from the commander; lets tests inject a stand-in.
+type ManagedLocalAccountRotationCommander interface {
+	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
+}
+
+// SendManagedLocalAccountRotationCommands rotates the macOS managed local admin
+// (`_fleetadmin`) password for hosts whose auto_rotate_at has elapsed. It mirrors
+// SendRecoveryLockCommands: each row is generated/initiated/enqueued individually,
+// and a benign race (host gone, manual rotation snuck in, etc.) is debug-logged
+// and skipped rather than failing the cron iteration.
+//
+// Activity logging:
+//   - rows with initiated_by_fleet=1 (view-driven) → log with FleetInitiated=true
+//   - rows with initiated_by_fleet=0 (deferred manual rotation) → SKIP logging;
+//     the manual click already logged the activity at click time
+func SendManagedLocalAccountRotationCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	return sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, commander, logger, newActivityFn)
+}
+
+func sendManagedLocalAccountRotationCommandsWithCommander(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander ManagedLocalAccountRotationCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	hosts, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get managed local accounts for auto rotation")
+	}
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no managed local accounts due for rotation")
+		return nil
+	}
+	logger.InfoContext(ctx, "rotating managed local account passwords", "count", len(hosts))
+
+	var result *multierror.Error
+	for _, host := range hosts {
+		newPassword := GenerateManagedAccountPassword()
+		hashPlist, err := GenerateSaltedSHA512PBKDF2Hash(newPassword)
+		if err != nil {
+			logger.ErrorContext(ctx, "generate managed local account password hash",
+				"host_uuid", host.HostUUID, "err", err)
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		cmdUUID := uuid.NewString()
+		if err := ds.InitiateManagedLocalAccountRotation(ctx, host.HostUUID, newPassword, cmdUUID); err != nil {
+			// Benign races: the row's eligibility flipped between the SELECT and
+			// this UPDATE (manual rotation, host wipe, etc.). Skip silently.
+			if fleet.IsNotFound(err) ||
+				errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) ||
+				errors.Is(err, fleet.ErrManagedLocalAccountNotEligible) {
+				logger.DebugContext(ctx, "managed local account no longer eligible for rotation",
+					"host_uuid", host.HostUUID, "err", err)
+				continue
+			}
+			logger.ErrorContext(ctx, "initiate managed local account rotation",
+				"host_uuid", host.HostUUID, "err", err)
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		if err := commander.SetAutoAdminPassword(ctx, host.HostUUID, host.AccountUUID, hashPlist, cmdUUID); err != nil {
+			var apnsErr *APNSDeliveryError
+			if errors.As(err, &apnsErr) {
+				// Command persisted but push failed — keep pending state so the
+				// device picks it up on next checkin. Still log activity if the
+				// row was view-driven.
+				logManagedLocalAccountRotationActivity(ctx, logger, newActivityFn, host)
+				logger.WarnContext(ctx, "managed local account rotation enqueued but APNs push failed",
+					"host_uuid", host.HostUUID, "command_uuid", cmdUUID, "err", err)
+				continue
+			}
+			// Persistence failure: command never landed. Roll back pending state
+			// and skip activity logging so the next cron tick can retry cleanly.
+			if clearErr := ds.ClearManagedLocalAccountRotation(ctx, host.HostUUID); clearErr != nil {
+				logger.ErrorContext(ctx, "clear managed local account pending rotation after enqueue failure",
+					"host_uuid", host.HostUUID, "err", clearErr)
+				result = multierror.Append(result, clearErr)
+			}
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		logManagedLocalAccountRotationActivity(ctx, logger, newActivityFn, host)
+		logger.DebugContext(ctx, "sent managed local account rotation command",
+			"host_uuid", host.HostUUID, "command_uuid", cmdUUID)
+	}
+
+	return result.ErrorOrNil()
+}
+
+// logManagedLocalAccountRotationActivity logs the rotation activity ONLY when the
+// row was view-driven (initiated_by_fleet=1). Rows with initiated_by_fleet=0 are
+// deferred-manual rotations whose activity was logged by the EE service at click
+// time — re-logging here would double-count.
+func logManagedLocalAccountRotationActivity(
+	ctx context.Context,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+	host fleet.HostManagedLocalAccountAutoRotationInfo,
+) {
+	if !host.InitiatedByFleet {
+		return
+	}
+	if newActivityFn == nil {
+		return
+	}
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedManagedLocalAccountPassword{
+		HostID:          host.HostID,
+		HostDisplayName: host.DisplayName,
+		FleetInitiated:  true,
+	}); err != nil {
+		logger.WarnContext(ctx, "managed local account rotation: failed to create activity",
+			"host_uuid", host.HostUUID, "err", err)
+	}
+}
+
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)
 const RecoveryLockPasswordCharset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 
