@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { IOrgLogoStorableMode } from "interfaces/org_logo";
@@ -130,6 +131,7 @@ const Info = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IOrgInfoFormData>({
@@ -313,6 +315,12 @@ const Info = ({
         for (const op of logoOps) {
           // eslint-disable-next-line no-await-in-loop
           await op();
+        }
+
+        // Without this, deleting a logo or uploading the first one would show
+        // a stale URL after reset.
+        if (logoOps.length > 0) {
+          await queryClient.invalidateQueries(["config"]);
         }
 
         const reset = (prev: ILogoModeState) => {

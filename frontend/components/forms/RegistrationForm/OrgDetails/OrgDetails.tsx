@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import {
   ORG_LOGO_ACCEPT,
@@ -47,6 +47,20 @@ const OrgDetails = ({
     };
   });
   const [errors, setErrors] = useState<IOrgDetailsErrors>({});
+
+  // Revoke every live blob URL on unmount
+  const activePreviewUrlRef = useRef<string | null>(customLogo?.url ?? null);
+  useEffect(() => {
+    activePreviewUrlRef.current = customLogo?.url ?? null;
+  }, [customLogo]);
+  useEffect(
+    () => () => {
+      if (activePreviewUrlRef.current) {
+        URL.revokeObjectURL(activePreviewUrlRef.current);
+      }
+    },
+    []
+  );
 
   const onOrgNameChange = (value: string) => {
     setOrgName(value);
