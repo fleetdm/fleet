@@ -255,6 +255,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         true,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -265,6 +266,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: true,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -279,6 +281,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       ptr.RawMessage([]byte(`{"example": "query"}`)),
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 		}

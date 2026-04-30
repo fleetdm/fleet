@@ -972,7 +972,13 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Both sub-keys default to true on a fresh deployment.
+	// Ensure a known starting state — earlier tests in this suite may have
+	// PATCHed the AppConfig (the suite shares state), so an earlier no-op
+	// SaveAppConfig with a zero-value Features could have stamped
+	// historical_data={false,false} into the stored JSON.
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"historical_data": map[string]any{"uptime": true, "vulnerabilities": true}}},
+		http.StatusOK)
 	cfg := s.getConfig()
 	require.True(t, cfg.Features.HistoricalData.Uptime)
 	require.True(t, cfg.Features.HistoricalData.Vulnerabilities)

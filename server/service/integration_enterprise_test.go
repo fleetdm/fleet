@@ -263,6 +263,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -2004,7 +2005,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		return err
 	})
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	// Use a minimal payload — sending the full team struct would marshal a
+	// zero-value `features.historical_data`, which the modify-team endpoint
+	// now interprets as an explicit disable of historical data.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID),
+		json.RawMessage(`{"description":"`+team.Description+`"}`),
+		http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 
 	// modify a team with an empty config
@@ -2013,7 +2019,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		return err
 	})
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID),
+		json.RawMessage(`{"description":"`+team.Description+`"}`),
+		http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 	assert.False(t, tmResp.Team.Config.HostExpirySettings.HostExpiryEnabled)
 
