@@ -29,13 +29,12 @@ const SoftwareAppStoreAndroid = ({
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const goBackToSoftwareLibrary = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      fleet_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
-
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
   const onAddSoftware = async (formData: ISoftwareAndroidFormData) => {

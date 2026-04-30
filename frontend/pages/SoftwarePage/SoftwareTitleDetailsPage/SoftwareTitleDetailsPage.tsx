@@ -117,6 +117,7 @@ const SoftwareTitleDetailsPage = ({
 
   const onDeleteInstaller = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
+    queryClient.invalidateQueries({ queryKey: [{ scope: "software-library" }] });
 
     if (softwareTitle?.versions?.length) {
       refetchSoftwareTitle();

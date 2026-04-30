@@ -31,7 +31,7 @@ const EmptySoftwareTable = ({
   vulnFilters,
   tableName = "software",
   isSoftwareDisabled,
-  noSearchQuery,
+  noSearchQuery = true,
   installableSoftwareExists,
   platform,
 }: IEmptySoftwareTableProps): JSX.Element => {

@@ -149,6 +149,9 @@ const SoftwareCustomPackage = ({
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
       });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
 
       const newQueryParams: QueryParams = {
         fleet_id: currentTeamId,

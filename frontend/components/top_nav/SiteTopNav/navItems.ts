@@ -12,8 +12,8 @@ export interface INavItem {
   };
   exclude?: boolean;
   /** If `true`, this nav item will always navigate to the given `location.pathname`. This
-   * is useful when you want to always naviate to a specific path no matter
-   * which child page you are on (e.g. always navigate to /sofware/inventory/ when
+   * is useful when you want to always navigate to a specific path no matter
+   * which child page you are on (e.g. always navigate to /software/inventory/ when
    * clicking on the software nav item even if on /software/versions,
    * software/titles/:id, or /software/versions/:id). Defaults to `undefined`.
    */

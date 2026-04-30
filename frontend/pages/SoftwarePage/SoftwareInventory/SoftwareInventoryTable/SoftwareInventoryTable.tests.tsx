@@ -147,7 +147,7 @@ describe("Software inventory table", () => {
       screen.getByText("Expecting to see software? Check back later.")
     ).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Add filter")).toBeNull();
+    expect(screen.queryByText("Add filters")).toBeNull();
   });
 
   it("Renders the empty search state and vulnerability filtering when search query does not exist but vulnerability filter is applied", () => {

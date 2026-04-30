@@ -148,13 +148,12 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
-  const goBackToSoftwareLibrary = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      fleet_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
-
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
   const onClickPreviewEndUserExperience = (iosOrIpadosApp?: boolean) => {
@@ -184,6 +183,9 @@ const SoftwareAppStoreVpp = ({
 
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
       });
       queryClient.invalidateQueries({
         queryKey: ["vppSoftware", currentTeamId],

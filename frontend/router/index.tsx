@@ -355,8 +355,7 @@ const routes = (
             <IndexRedirect to="inventory" />
             {/* Legacy route redirect */}
             <Redirect from="titles" to="inventory" />
-            {/* we check the add route first otherwise a route like 'software/add' will be caught
-             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
+            {/* Check the add route first so 'software/add' isn't caught by title/version detail routes */}
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="add" component={SoftwareAddPage}>
                 <IndexRedirect to="fleet-maintained" />
@@ -381,11 +380,10 @@ const routes = (
                 component={SoftwareVulnerabilities}
               />
               <Route path="library" component={SoftwareLibrary} />
+              {/* Legacy redirect: keeps old /software/:id URLs working */}
+              <Redirect from=":id" to="versions/:id" />
             </Route>
-            <Route
-              path="titles/:id"
-              component={SoftwareTitleDetailsPage} // Used for both software title details and software version details pages
-            />
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />
             <Route

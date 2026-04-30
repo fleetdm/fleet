@@ -291,17 +291,19 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
-  // If user switches to "All fleets" while on the Library tab, bounce to Inventory
+  // Redirect away from Library tab if not allowed:
+  // - Free tier doesn't have Library
+  // - "All fleets" can't view Library
   const isOnLibraryTab = location.pathname.startsWith(PATHS.SOFTWARE_LIBRARY);
   useEffect(() => {
-    if (isAllTeamsSelected && isOnLibraryTab) {
+    if (isOnLibraryTab && (!isPremiumTier || isAllTeamsSelected)) {
       router.replace(
         getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
           fleet_id: currentTeamId,
         })
       );
     }
-  }, [isAllTeamsSelected, isOnLibraryTab, currentTeamId, router]);
+  }, [isPremiumTier, isAllTeamsSelected, isOnLibraryTab, currentTeamId, router]);
 
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {

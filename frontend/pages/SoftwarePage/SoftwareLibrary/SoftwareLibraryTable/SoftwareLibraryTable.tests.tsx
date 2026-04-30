@@ -81,7 +81,7 @@ describe("Software library table", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Only self-service")).toBeNull();
+    expect(screen.queryByText("Self-service only")).toBeNull();
   });
 
   it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {
@@ -116,6 +116,6 @@ describe("Software library table", () => {
     expect(
       screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
-    expect(screen.getByText("Only self-service")).toBeInTheDocument();
+    expect(screen.getByText("Self-service only")).toBeInTheDocument();
   });
 });

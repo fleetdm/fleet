@@ -78,7 +78,9 @@ const SoftwareLibrary = ({
       ...QUERY_OPTIONS,
       // Uses window.location (not a prop) — safe because this component
       // is only mounted at the /software/library route.
-      enabled: window.location.pathname === PATHS.SOFTWARE_LIBRARY,
+      enabled:
+        teamId !== undefined &&
+        window.location.pathname === PATHS.SOFTWARE_LIBRARY,
     }
   );
 

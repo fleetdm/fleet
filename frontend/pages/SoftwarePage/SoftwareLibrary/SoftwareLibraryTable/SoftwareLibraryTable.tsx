@@ -89,7 +89,10 @@ const SoftwareLibraryTable = ({
         fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
-        page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        page:
+          changedParam === "pageIndex" || changedParam === ""
+            ? newTableQuery.pageIndex
+            : 0,
       };
       if (selfServiceOnly) {
         newQueryParam.self_service = "true";
@@ -186,8 +189,8 @@ const SoftwareLibraryTable = ({
       <Slider
         value={selfServiceOnly}
         onChange={handleSelfServiceToggle}
-        inactiveText="Only self-service"
-        activeText="Only self-service"
+        inactiveText="Self-service only"
+        activeText="Self-service only"
       />
     );
   };
