@@ -4109,7 +4109,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID, requestType, succeeded); err != nil {
 				return nil, err
 			}
-			if requestType == "EraseDevice" && (succeeded || failed) {
+			// If succesful or only if failed on non user-enrollment, as those always fail but never wipe.
+			if requestType == "EraseDevice" && (succeeded || (failed && r.Type == mdm.Device)) {
 				host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
 				if err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "EraseDevice: get host by identifier")
