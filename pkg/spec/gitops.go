@@ -453,10 +453,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		// If the file is no-team.yml, the name must be "No team".
 		switch {
 		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
-			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'No Team'", filePath))
+			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
-			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'Unassigned'", filePath))
+			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
@@ -481,7 +481,16 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
 		}
 	default:
-		multiError = multierror.Append(multiError, errors.New("if `name` is not provided, 'org_settings' is required"))
+		switch filepath.Base(filePath) {
+		case "default.yml":
+			multiError = multierror.Append(multiError, errors.New("'org_settings' is required in default.yml"))
+		case "no-team.yml":
+			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+		case "unassigned.yml":
+			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
+		default:
+			multiError = multierror.Append(multiError, errors.New("`name` must be provided outside of default.yml, no-team.yml and unassigned.yml"))
+		}
 	}
 
 	for _, topKey := range topKeys {
