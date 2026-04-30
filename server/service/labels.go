@@ -745,7 +745,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
 
-	if err := svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID())); err != nil {
+	if err := svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, new(user.UserID())); err != nil {
 		return err
 	}
 

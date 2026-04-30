@@ -33,8 +33,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	mock_pkg "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	mock_pkg "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -3425,14 +3425,14 @@ labels:
 	apply()
 	got = flush()
 	require.Len(t, got, 2, "expected edited_label for both edits")
-	editedNames := map[string]bool{}
+	editedNames := map[string]struct{}{}
 	for _, a := range got {
 		e, ok := a.(fleet.ActivityTypeEditedLabel)
 		require.True(t, ok, "expected edited_label, got %T", a)
-		editedNames[e.Name] = true
+		editedNames[e.Name] = struct{}{}
 	}
-	require.True(t, editedNames["lbl-global"])
-	require.True(t, editedNames["lbl-team"])
+	require.Contains(t, editedNames, "lbl-global")
+	require.Contains(t, editedNames, "lbl-team")
 
 	// Phase 4: change lbl-global from dynamic to manual (membership_type swap)
 	// and assign one host. Should emit a single edited_label for lbl-global.
