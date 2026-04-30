@@ -1768,8 +1768,11 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	priorDisabledActivityID := s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
 	)
+	// Send the OPPOSITE of the current value so the PATCH would be observable
+	// if the endpoint accidentally accepted the unknown sub-field.
+	flippedEnableHostUsers := !priorFeatures.EnableHostUsers
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
-		json.RawMessage(`{"features": {"enable_host_users": false}}`),
+		json.RawMessage(fmt.Sprintf(`{"features": {"enable_host_users": %t}}`, flippedEnableHostUsers)),
 		http.StatusOK, &modResp)
 	require.Equal(t, priorFeatures.EnableHostUsers, modResp.Team.Config.Features.EnableHostUsers,
 		"unknown features sub-field is ignored")

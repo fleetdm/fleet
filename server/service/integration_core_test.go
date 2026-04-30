@@ -984,6 +984,9 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	require.True(t, cfg.Features.HistoricalData.Vulnerabilities)
 
 	// PATCH only the vulnerabilities sub-key — uptime SHALL remain true.
+	// Snapshot the most recent activity ID (any type) as a watermark so we can
+	// confirm a new disabled_historical_dataset row is actually emitted.
+	preDisableWatermark := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config",
 		map[string]any{"features": map[string]any{"historical_data": map[string]any{"vulnerabilities": false}}},
 		http.StatusOK)
@@ -991,12 +994,12 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	require.True(t, cfg.Features.HistoricalData.Uptime, "uptime preserved when omitted from PATCH")
 	require.False(t, cfg.Features.HistoricalData.Vulnerabilities)
 
-	// One disabled_historical_dataset activity for vulnerabilities, no fleet scope.
-	s.lastActivityOfTypeMatches(
+	// A new disabled_historical_dataset activity for vulnerabilities, no fleet scope.
+	require.Greater(t, s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
 		`{"dataset":"vulnerabilities","fleet_id":null,"fleet_name":null}`,
 		0,
-	)
+	), preDisableWatermark, "new disable activity emitted for PATCH")
 
 	// PATCH the same value back — no new activity should be emitted.
 	priorActivityID := s.lastActivityOfTypeMatches(
@@ -1010,22 +1013,25 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	), "no new activity for no-op PATCH")
 
 	// Flip both in one PATCH — re-enable vulnerabilities, disable uptime → 2 activities.
+	// Use the most recent activity ID (any type) as a watermark; the new
+	// enabled/disabled activities for this PATCH must have IDs greater than it.
+	preFlipWatermark := s.lastActivityMatches("", "", 0)
 	s.Do("PATCH", "/api/latest/fleet/config",
 		map[string]any{"features": map[string]any{"historical_data": map[string]any{"uptime": false, "vulnerabilities": true}}},
 		http.StatusOK)
 	cfg = s.getConfig()
 	require.False(t, cfg.Features.HistoricalData.Uptime)
 	require.True(t, cfg.Features.HistoricalData.Vulnerabilities)
-	s.lastActivityOfTypeMatches(
+	require.Greater(t, s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(),
 		`{"dataset":"vulnerabilities","fleet_id":null,"fleet_name":null}`,
 		0,
-	)
-	s.lastActivityOfTypeMatches(
+	), preFlipWatermark, "new enable activity emitted for vulnerabilities re-enable")
+	require.Greater(t, s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
 		`{"dataset":"uptime","fleet_id":null,"fleet_name":null}`,
 		0,
-	)
+	), preFlipWatermark, "new disable activity emitted for uptime")
 
 	// Existing rows whose stored JSON omits historical_data SHALL read back
 	// with both sub-keys true. Simulate a pre-change deployment by writing a

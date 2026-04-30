@@ -238,7 +238,24 @@ jobs:
       if: ${{ env.GENERATE_TEST_SCHEMA }}
       run: make test-schema
 
+    - name: Build Fleet server Docker image (for fleetctl preview test)
+      if: ${{ inputs.suite == 'fleetctl' }}
+      run: |
+        make fleet-static
+        cp ./build/fleet fleet
+        docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
+        rm fleet
+
+        # Prepare preview config with pull_policy: never to use locally built image
+        cp -a tools/osquery/in-a-box /tmp/preview-config
+        # Add pull_policy: never to fleet01 service
+        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
+        # Add pull_policy: never to fleet02 service
+        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
+
     - name: Run Go Tests
+      env:
+        FLEET_PREVIEW_TAG: ${{ inputs.suite == 'fleetctl' && 'dev' || 'main' }}
       run: |
         USE_GOTESTSUM=1 \
           GOTESTSUM_FORMAT=testdox \
@@ -257,6 +274,7 @@ jobs:
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           COVER_PKG="${{ inputs.cover_pkg || 'github.com/fleetdm/fleet/v4/...' }}" \
+          FLEET_PREVIEW_TAG="${{ env.FLEET_PREVIEW_TAG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Save coverage
