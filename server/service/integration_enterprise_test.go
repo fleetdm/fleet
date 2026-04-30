@@ -1899,14 +1899,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Contains(t, tmResp.Team.Description, "Alt ")
 
-	// modify team's disk encryption, impossible without mdm enabled
+	// modify team's disk encryption, impossible without either Apple or Windows MDM enabled
 	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`)
+	assert.Contains(t, errMsg, `Couldn't update mdm.enable_disk_encryption because neither Apple MDM nor Windows MDM is turned on in Fleet.`)
 
 	// modify a team with a NULL config
 	defaultFeatures := fleet.Features{}
