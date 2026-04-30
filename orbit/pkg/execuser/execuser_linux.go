@@ -175,7 +175,15 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
-	args = []string{"-n", "-i", "-u", user, "-H"}
+	// We intentionally avoid -i (login shell). With -i, sudo runs the target user's
+	// shell as a login shell and passes the rest of the command via `bash --login -c`,
+	// which sources /etc/profile and /etc/profile.d/* and shell-escapes the inline
+	// command. On some distributions (e.g. openSUSE Leap 16) that environment
+	// indirection causes our `env KEY=val ... fleet-desktop` invocation to lose env
+	// vars, so fleet-desktop exits with "missing URL environment ..." and Orbit
+	// respawns it in a tight loop. -H sets HOME to the target user; sudo's default
+	// env_reset already sets USER/LOGNAME/SHELL.
+	args = []string{"-n", "-u", user, "-H"}
 	env = make([]string, 0)
 
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
