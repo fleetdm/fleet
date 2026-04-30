@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -229,7 +230,19 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				appStoreApp.SelfService = true
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
-			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
+			case fleet.IOSPlatform, fleet.IPadOSPlatform:
+				if payload.Configuration != nil {
+					decoded, err := decodeAppleAppConfiguration(payload.Configuration)
+					if err != nil {
+						return nil, err
+					}
+					if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
+						return nil, err
+					}
+					appStoreApp.Configuration = decoded
+				}
+				incomingAppleApps = append(incomingAppleApps, appStoreApp)
+			case fleet.MacOSPlatform:
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
 
@@ -707,8 +720,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		assetMD := assetMetadata[asset.AdamID]
 
-		// Configuration is an Android only feature
-		appID.Configuration = nil
+		// macOS App Store apps don't support managed configuration.
+		if appID.Platform == fleet.MacOSPlatform {
+			appID.Configuration = nil
+		}
 
 		platforms := apple_apps.ToVPPApps(assetMD)
 		appFromApple, ok := platforms[appID.Platform]
@@ -765,12 +780,27 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	var androidConfigChanged bool
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
-	if appID.Configuration != nil && appID.Platform == fleet.AndroidPlatform {
-		changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "checking android app configuration change")
+	if appID.Configuration != nil {
+		switch appID.Platform {
+		case fleet.AndroidPlatform:
+			changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "checking android app configuration change")
+			}
+			androidConfigChanged = changed
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			decoded, err := decodeAppleAppConfiguration(appID.Configuration)
+			if err != nil {
+				return 0, err
+			}
+			if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
+				return 0, err
+			}
+			// Datastore receives the decoded raw plist bytes; appID.Configuration
+			// stays in its JSON-encoded form so the activity emission below
+			// produces valid JSON.
+			app.Configuration = decoded
 		}
-		androidConfigChanged = changed
 	}
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
@@ -797,7 +827,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAny: actLabelsInclAny,
 		LabelsExcludeAny: actLabelsExclAny,
 		LabelsIncludeAll: actLabelsInclAll,
-		Configuration:    app.Configuration,
+		Configuration:    appID.Configuration,
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -966,8 +996,27 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
-	if payload.Configuration != nil && meta.Platform != fleet.AndroidPlatform {
+	// macOS App Store apps don't support managed configuration; ignore any
+	// configuration sent for them.
+	if meta.Platform == fleet.MacOSPlatform {
 		payload.Configuration = nil
+	}
+
+	// datastoreConfig holds what gets persisted via InsertVPPAppWithTeam.
+	// For Android we store the JSON-encoded form; for iOS / iPadOS we decode
+	// the JSON-string wrapper and store the raw plist bytes.
+	// payload.Configuration stays in its original JSON-encoded form so the
+	// activity emission below produces valid JSON.
+	datastoreConfig := payload.Configuration
+	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		decoded, err := decodeAppleAppConfiguration(payload.Configuration)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
+			return nil, nil, err
+		}
+		datastoreConfig = decoded
 	}
 
 	appToWrite := &fleet.VPPApp{
@@ -978,7 +1027,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			SelfService:     selfServiceVal,
 			ValidatedLabels: validatedLabels,
 			DisplayName:     payload.DisplayName,
-			Configuration:   payload.Configuration,
+			Configuration:   datastoreConfig,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -1118,7 +1167,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: displayNameVal,
-		Configuration:       appToWrite.Configuration,
+		Configuration:       payload.Configuration,
 	}
 
 	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
@@ -1354,4 +1403,19 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	}
 
 	return packageName, nil
+}
+
+// decodeAppleAppConfiguration decodes an iOS/iPadOS managed app configuration
+// from a JSON request payload. Clients send the plist as a JSON string —
+// "configuration": "<dict>...</dict>" — and this returns the unwrapped XML
+// bytes ready for validation and storage.
+func decodeAppleAppConfiguration(raw []byte) ([]byte, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+	}
+	return []byte(s), nil
 }
