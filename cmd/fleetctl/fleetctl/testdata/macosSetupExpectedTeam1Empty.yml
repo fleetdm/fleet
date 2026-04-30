@@ -9,6 +9,9 @@ spec:
     features:
       enable_host_users: false
       enable_software_inventory: false
+      historical_data:
+        uptime: false
+        vulnerabilities: false
     integrations:
       google_calendar: null
       conditional_access_enabled: null
@@ -64,6 +67,9 @@ spec:
     features:
       enable_host_users: false
       enable_software_inventory: false
+      historical_data:
+        uptime: false
+        vulnerabilities: false
     integrations:
       google_calendar: null
       conditional_access_enabled: null
