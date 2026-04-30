@@ -1,4 +1,6 @@
-import { isValidNumber } from "./helpers";
+import numberUtils from "utilities/numbers";
+
+const { isValidNumber } = numberUtils;
 
 describe("isValidNumber", () => {
   // Test valid numbers

@@ -1,6 +1,9 @@
 import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
 import stringUtils from "utilities/strings/stringUtils";
 import { tooltipTextWithLineBreaks } from "utilities/helpers";
+import numberUtils from "utilities/numbers";
+
+const { isValidNumber } = numberUtils;
 
 export const CUSTOM_SEVERITY_OPTION = {
   disabled: false,
@@ -82,21 +85,6 @@ export type ISoftwareVulnFiltersParams = {
   exploit?: boolean;
   minCvssScore?: number;
   maxCvssScore?: number;
-};
-
-export const isValidNumber = (
-  value: any,
-  min?: number,
-  max?: number
-): value is number => {
-  // Check if the value is a number and not NaN
-  const isNumber = typeof value === "number" && !isNaN(value);
-
-  // If min or max is provided, check if the number is within the range
-  const withinRange =
-    (min === undefined || value >= min) && (max === undefined || value <= max);
-
-  return isNumber && withinRange;
 };
 
 export const buildSoftwareVulnFiltersQueryParams = (
