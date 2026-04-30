@@ -1,11 +1,24 @@
 .setup-script-status-cell {
   display: flex;
   align-items: center;
-  gap: $pad-xsmall;
+  gap: $pad-small;
+  font-size: $x-small; // Already applied but on component level for storybook
 
-  .loading-spinner {
-    margin: 0;
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: $pad-medium;
     height: $pad-medium;
+
+    .loading-spinner {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__label {
+    min-width: 14ch; // 14 characters — Prevents jitter, fits longest label ("Installing")
   }
 }
