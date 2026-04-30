@@ -287,6 +287,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__macos_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
+              position="bottom-start"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
@@ -311,6 +312,7 @@ const InstallSoftwareForm = ({
           <div className={`${baseClass}__windows_options`}>
             <GitOpsModeTooltipWrapper
               tipOffset={6}
+              position="bottom-start"
               entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
