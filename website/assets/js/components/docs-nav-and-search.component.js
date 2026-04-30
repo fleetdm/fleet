@@ -75,7 +75,7 @@ parasails.registerComponent('docsNavAndSearch', {
   mounted: async function() {
     let filterForSearch = {};
     if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'software'];
+      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'software', 'controls'];
       if(!searchIndexesThatExist.includes(this.searchFilter)){
         throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
       }
