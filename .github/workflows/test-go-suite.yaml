@@ -246,12 +246,10 @@ jobs:
         docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
         rm fleet
 
-        # Prepare preview config with pull_policy: never to use locally built image
-        cp -a tools/osquery/in-a-box /tmp/preview-config
-        # Add pull_policy: never to fleet01 service
-        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
-        # Add pull_policy: never to fleet02 service
-        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
+        # Update in-a-box docker-compose to add pull_policy: never for locally built image
+        # This prevents Docker from trying to pull the image from Docker Hub
+        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
+        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
 
     - name: Run Go Tests
       env:
