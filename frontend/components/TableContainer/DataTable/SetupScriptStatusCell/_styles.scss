@@ -1,7 +1,7 @@
 .setup-script-status-cell {
   display: flex;
   align-items: center;
-  gap: $pad-small;
+  gap: $gap-icon-text;
   font-size: $x-small; // Already applied but on component level for storybook
 
   &__icon {
