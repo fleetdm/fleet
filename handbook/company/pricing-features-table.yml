@@ -116,7 +116,7 @@
 #  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
 - industryName: Command line tool (CLI)
   friendlyName: fleetctl
-  description: Use fleetctl, Fleet's command-line interface, to manage Fleet from your terminal including running queries, applying configuration, and managing hosts.
+  description: Use fleetctl, Fleet's command-line interface, to manage Fleet from your terminal including running reports and managing hosts.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Configuration]
