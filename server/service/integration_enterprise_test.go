@@ -1694,6 +1694,80 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	require.Len(t, seenActivitiesIDs, 2)
 }
 
+func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a fleet — features.historical_data SHALL default to true/true.
+	teamName := t.Name() + "historicalDataFleet"
+	createPayload := &fleet.Team{
+		Name:        teamName,
+		Description: "historical data fleet",
+		Secrets:     []*fleet.EnrollSecret{{Secret: t.Name() + "secret"}},
+	}
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createPayload, http.StatusOK, &createResp)
+	require.True(t, createResp.Team.Config.Features.HistoricalData.Uptime, "new fleet defaults uptime=true")
+	require.True(t, createResp.Team.Config.Features.HistoricalData.Vulnerabilities, "new fleet defaults vulnerabilities=true")
+	teamID := createResp.Team.ID
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
+	})
+
+	// PATCH only `vulnerabilities=false` — uptime SHALL remain true.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"vulnerabilities": false}}}`),
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.Features.HistoricalData.Uptime, "uptime preserved when omitted")
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Vulnerabilities)
+
+	// One disabled_historical_dataset activity scoped to this fleet.
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"vulnerabilities","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+
+	// PATCH the same value back — no new activity.
+	priorActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"vulnerabilities": false}}}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, priorActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no new activity for no-op fleet PATCH")
+
+	// Flip both in one PATCH — re-enable vulnerabilities, disable uptime → 2 activities.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"uptime": false, "vulnerabilities": true}}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Uptime)
+	require.True(t, modResp.Team.Config.Features.HistoricalData.Vulnerabilities)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"vulnerabilities","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"uptime","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+
+	// Unknown features sub-fields (e.g. enable_host_users — settable per-fleet
+	// only via /spec/fleets) are silently ignored on the fleet PATCH endpoint;
+	// the stored fleet state SHALL be unchanged for the unknown field.
+	priorEnableHostUsers := modResp.Team.Config.Features.EnableHostUsers
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"enable_host_users": false}}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, priorEnableHostUsers, modResp.Team.Config.Features.EnableHostUsers,
+		"unknown features sub-field is ignored")
+}
+
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	t := s.T()
 
@@ -9800,6 +9874,47 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
 	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create the fleet via the team-spec apply path so it goes through the
+	// same plumbing GitOps uses.
+	teamName := t.Name() + "fleet"
+	initialSpec := fmt.Appendf(nil, `
+  name: %s
+`, teamName)
+	s.applyTeamSpec(initialSpec)
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.True(t, team.Config.Features.HistoricalData.Uptime, "new fleet defaults uptime=true")
+	require.True(t, team.Config.Features.HistoricalData.Vulnerabilities, "new fleet defaults vulnerabilities=true")
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	// Apply explicit historical_data values via team spec.
+	specWithHistoricalData := fmt.Appendf(nil, `
+  name: %s
+  features:
+    historical_data:
+      uptime: true
+      vulnerabilities: false
+`, teamName)
+	s.applyTeamSpec(specWithHistoricalData)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.True(t, team.Config.Features.HistoricalData.Uptime)
+	require.False(t, team.Config.Features.HistoricalData.Vulnerabilities)
+
+	// applyTeamSpec uses the spec/teams endpoint, not gitops, so the
+	// client-side default-injection only happens via fleetctl's gitops
+	// pathway (exercised in cmd/fleetctl/fleetctl/gitops_test.go's
+	// TestGitOpsBasicTeam-style flows). Here we just confirm explicit
+	// values round-trip via the spec/teams path; the gitops-specific
+	// default-injection contract is tested in fleetctl's test suite.
 }
 
 func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {

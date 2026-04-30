@@ -1981,6 +1981,10 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
+		// historical_data sub-keys default to true on every gitops apply so a
+		// deployment that doesn't pin them in YAML keeps dashboard collection
+		// enabled. Mirrors the enable_software_inventory carve-out above.
+		ensureHistoricalDataDefaults(features.(map[string]any))
 
 		// Integrations
 		var integrations interface{}
@@ -2232,6 +2236,9 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
+		// historical_data sub-keys default to true on every gitops apply.
+		// See ensureHistoricalDataDefaults for the rationale.
+		ensureHistoricalDataDefaults(features.(map[string]any))
 
 		// Integrations
 		var integrations interface{}
@@ -3462,4 +3469,24 @@ func (c *Client) GetGitOpsSecrets(
 		}
 	}
 	return nil
+}
+
+// ensureHistoricalDataDefaults injects default `true` values for any
+// `historical_data` sub-key not explicitly specified in the gitops payload.
+// Called for both global and team-spec gitops applies so a deployment that
+// doesn't pin `historical_data` in YAML keeps the upgrade-friendly default
+// of dashboard collection enabled. Mirrors the existing carve-out for
+// `enable_software_inventory`.
+func ensureHistoricalDataDefaults(features map[string]any) {
+	historicalData, ok := features["historical_data"].(map[string]any)
+	if !ok || features["historical_data"] == nil {
+		historicalData = map[string]any{}
+		features["historical_data"] = historicalData
+	}
+	if v, ok := historicalData["uptime"]; !ok || v == nil {
+		historicalData["uptime"] = true
+	}
+	if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
+		historicalData["vulnerabilities"] = true
+	}
 }

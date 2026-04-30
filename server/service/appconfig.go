@@ -942,6 +942,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// Emit one activity per historical_data sub-key whose value flipped.
+	// Dataset names are the public config sub-keys, not internal dataset names.
+	if err := fleet.EmitHistoricalDataActivities(
+		ctx,
+		svc,
+		authz.UserFromContext(ctx),
+		oldAppConfig.Features.HistoricalData,
+		appConfig.Features.HistoricalData,
+		nil, nil,
+	); err != nil {
+		return nil, err
+	}
+
 	addedEntraTenantIDs := make([]string, 0)
 	removedEntraTenantIDs := make([]string, 0)
 	oldTenantIDSet := make(map[string]struct{})
@@ -2352,3 +2365,4 @@ func isValidHostname(h string) bool {
 
 	return true
 }
+
