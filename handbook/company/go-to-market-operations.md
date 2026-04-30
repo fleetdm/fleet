@@ -275,6 +275,9 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 1. Navigate to the contact.
 2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
 
+<img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
+
+
 
 ## Signatures
 
