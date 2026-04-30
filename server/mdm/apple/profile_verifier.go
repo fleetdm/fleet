@@ -118,7 +118,7 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 		host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if fleet.IsNotFound(err) {
-			// Check if the cmdUUID is a enrollment renewal
+			// Check if the cmdUUID is an enrollment renewal
 			isEnrollmentRenewalCmd, enrollmentRenewalError := ds.IsAppleEnrollmentRenewalCommand(ctx, cmdUUID, hostUUID)
 			if enrollmentRenewalError != nil {
 				return ctxerr.Wrap(ctx, enrollmentRenewalError, "checking if command is Apple enrollment renewal command")
