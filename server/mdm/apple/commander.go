@@ -332,19 +332,66 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Command</key>
-    <dict>
+// SSOAccountConfig holds the SSO (end-user authentication) parameters for an
+// AccountConfiguration MDM command.
+type SSOAccountConfig struct {
+	FullName               string
+	UserName               string
+	LockPrimaryAccountInfo bool
+}
+
+// AdminAccountConfig holds the parameters for an AutoSetupAdminAccounts entry
+// in an AccountConfiguration MDM command.
+type AdminAccountConfig struct {
+	ShortName    string // e.g. "_fleetadmin"
+	FullName     string // e.g. "Fleet Admin"
+	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden       bool   // true → hidden from login window
+}
+
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
+	cmdUUID string,
+	ssoAccount *SSOAccountConfig,
+	adminAccount *AdminAccountConfig,
+) error {
+	var payload string
+
+	if ssoAccount != nil {
+		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
       <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
       <%t />
+`, ssoAccount.FullName, ssoAccount.UserName, ssoAccount.LockPrimaryAccountInfo)
+	}
+
+	if adminAccount != nil {
+		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
+		payload += fmt.Sprintf(`
+      <key>AutoSetupAdminAccounts</key>
+      <array>
+        <dict>
+          <key>hidden</key>
+          <%t />
+          <key>passwordHash</key>
+          <data>%s</data>
+          <key>shortName</key>
+          <string>%s</string>
+          <key>fullName</key>
+          <string>%s</string>
+        </dict>
+      </array>
+`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+	}
+
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>%s
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -352,8 +399,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
-
+</plist>`, payload, cmdUUID)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 

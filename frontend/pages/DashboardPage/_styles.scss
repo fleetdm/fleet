@@ -72,6 +72,16 @@
     flex-direction: column;
   }
 
+  &__charts-row {
+    display: grid;
+    row-gap: $gap-page-component;
+
+    @media screen and (min-width: $break-md) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: $gap-page-component;
+    }
+  }
+
   // >= 320px 12 pt gap
   @media (min-width: $break-mobile-xs) {
     .dashboard-page__host-sections {

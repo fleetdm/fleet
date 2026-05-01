@@ -1,0 +1,3 @@
+- Fixed an issue where the DDM reconciler would not self-heal for stuck remove/pending profiles due to resend with update.
+- Fixed an issue where a host DDM cleanup function was not executed for stale remove/pending profiles that weren't reported by the device.
+- Fixed an issue where batch processing many DDM profile changes would result in stuck remove/pending profiles.

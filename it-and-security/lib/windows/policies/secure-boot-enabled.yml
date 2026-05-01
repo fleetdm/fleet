@@ -1,0 +1,12 @@
+- name: Windows - Secure Boot enabled
+  query: |-
+    SELECT 1 FROM registry
+    WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\State'
+      AND name = 'UEFISecureBootEnabled'
+      AND data = '1';
+  critical: false
+  description: |-
+    Verifies UEFI Secure Boot is enabled.
+  resolution: |-
+    Enable Secure Boot in firmware (UEFI) settings. On managed PCs, please reach out in #help-it before changing firmware options.
+  platform: windows

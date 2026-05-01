@@ -456,6 +456,17 @@ This approach gives engineers uninterrupted access to Claude while keeping costs
 At Fleet, every functional manager is responsible for managing the flow of work for their team.  The best managers think about their department's output like a factory, taking direct responsibility over results instead of delegating that responsibility to a separate project management function.  This is inspired by Andy Grove's [High Output Management](https://www.audible.com/pd/High-Output-Management-Audiobook/B015WXKRIS), Eliyahu Goldratt's [The Goal](https://www.audible.com/pd/The-Goal-Audiobook/B00IFGGDA2) and [The Phoenix Project](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32), and Sid Sijbrandij's [writings on management](https://handbook.gitlab.com) during his time as CEO of GitLab.
 
 
+## Why no optional attendees?
+
+Fleet doesn't use the "optional attendees" feature in calendar invites for internal meetings.
+
+The problem with optional attendees is that it creates ambiguity.  Someone gets invited as optional, and then every week they're unsure what to do with the calendar event.  They either feel pressured to attend anyway, or they get into a habit of always declining or marking "maybe."  Over time, this muddies the core attendee list and creates confusion about who to actually expect in the meeting.
+
+Instead, the invited attendees on a calendar event are the people who are mandatory for the meeting.  Anyone else can join any internal meeting that doesn't say "[no shadows]" by adding themselves to a particular instance of the call if they're interested.
+
+Every internal meeting is inherently "optional" in the sense that if it's not a good use of time to [help the company](https://fleetdm.com/handbook/company#results), people should focus on results instead.
+
+
 #### Stubs
 
 The following stubs are included only so that old links continue to work (for backwards compatibility.)

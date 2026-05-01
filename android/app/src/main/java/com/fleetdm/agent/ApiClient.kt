@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -438,6 +439,9 @@ object ApiClient : CertificateApiClient {
     )
 }
 
+// @EncodeDefault is marked @ExperimentalSerializationApi, but it has shipped in kotlinx.serialization since 1.3 (2022)
+// and is widely used and reliable in production. The opt-in only acknowledges that the API shape could change in a future version.
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
 @Serializable
 data class EnrollRequest(
     @SerialName("enroll_secret")
@@ -446,6 +450,7 @@ data class EnrollRequest(
     val hardwareUUID: String,
     @SerialName("hardware_serial")
     val hardwareSerial: String,
+    @EncodeDefault(EncodeDefault.Mode.ALWAYS)
     @SerialName("platform")
     val platform: String = "android",
     @SerialName("computer_name")

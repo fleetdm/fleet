@@ -35,16 +35,34 @@
     position: relative;
     margin-bottom: 40px;
     width: 100%;
-    padding-bottom: 56%;
-    border-radius: 12px;
+    padding-bottom: 56.25%;
+    overflow: hidden;
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #FFF;
+      z-index: 1;
+      pointer-events: none;
+    }
+    &::before {
+      top: 0;
+    }
+    &::after {
+      bottom: 0;
+    }
     iframe {
       position: absolute;
-      top: 0;
+      top: 0px;
       left: 0;
       width: 100%;
-      height: 100%;
+      height: calc(~'100% + 2px');
       border: none;
-      // border-radius: 12px;
+      display: block;
+      background: transparent;
+      vertical-align: bottom;
     }
     [purpose='video-note'] {
       position: absolute;

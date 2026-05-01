@@ -50,12 +50,12 @@ Fleet stores up to 1,000 results per report. If the count stays below this limit
 
 If the results exceed 1,000, Fleet stops updating the report. To start collecting data again, clear the stored results from the report's page. Go to **Advanced options**, check **Discard data**, and select **Save**. Then uncheck **Discard data** and select **Save** again.
 
-> You can change the 1,000-result limit by setting [`server_settings.query_report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+> You can change the 1,000-result limit by setting [`server_settings.report_cap`](https://fleetdm.com/docs/rest-api/rest-api#server-settings).
 
 Persisting results within Fleet creates load on the database, so you'll want to monitor database load as you add queries. If needed, you can disable stored results either globally or per-report.
 
-* Globally via the UI: **Settings** > **Advanced options** > **Disable reports**
-* Globally via the API: set [`server_settings.query_reports_disabled`](https://fleetdm.com/docs/rest-api/rest-api#server-settings) via [the Modify configuration endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration)
+* Globally via the UI: **Settings** > **Advanced options** > **Disable stored results**
+* Globally via the API: set [`server_settings.discard_reports_data`](https://fleetdm.com/docs/rest-api/rest-api#server-settings)
 * Per-report via the UI: **Edit report** > **Show advanced options** > **Discard data**
 * Per-report via the API: Set the `discard_data` field when [creating](https://fleetdm.com/docs/rest-api/rest-api#create-query) or [modifying](https://fleetdm.com/docs/rest-api/rest-api#modify-query) the report
 

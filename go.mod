@@ -1,12 +1,12 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.26.1
+go 1.26.2
 
 require (
 	cloud.google.com/go/pubsub v1.50.1
 	fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d
 	github.com/AbGuthrie/goquery/v2 v2.0.1
-	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358
+	github.com/Azure/go-ntlmssp v0.1.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.3.1
@@ -61,7 +61,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.17.1
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-ini/ini v1.67.0
 	github.com/go-json-experiment/json v0.0.0-20250517221953-25912455fbc8
 	github.com/go-kit/kit v0.12.0
@@ -94,7 +94,7 @@ require (
 	github.com/klauspost/compress v1.18.4
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
-	github.com/macadmins/osquery-extension v1.4.0
+	github.com/macadmins/osquery-extension v1.4.1
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
@@ -183,6 +183,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	howett.net/plist v1.0.1
+	pgregory.net/rapid v1.2.0
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 

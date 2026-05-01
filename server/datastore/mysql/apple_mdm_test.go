@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
+		{"TestIOSManagedCertProfileStaysVerifying", testIOSManagedCertProfileStaysVerifying},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
@@ -113,6 +114,7 @@ func TestMDMApple(t *testing.T) {
 		{"DeviceLocation", testDeviceLocation},
 		{"TestGetDEPAssignProfileExpiredCooldowns", testGetDEPAssignProfileExpiredCooldowns},
 		{"DeleteMDMAppleDeclarationByNameCancelsInstalls", testDeleteMDMAppleDeclarationByNameCancelsInstalls},
+		{"BatchSetMDMAppleDeclarationsCaseChange", testBatchSetMDMAppleDeclarationsCaseChange},
 		{"RecoveryLockPasswordSetAndGet", testRecoveryLockPasswordSetAndGet},
 		{"RecoveryLockPasswordBulkSet", testRecoveryLockPasswordBulkSet},
 		{"RecoveryLockPasswordGetNotFound", testRecoveryLockPasswordGetNotFound},
@@ -126,6 +128,11 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupStaleNanoRefetchCommands", testCleanupStaleNanoRefetchCommands},
 		{"CleanupOrphanedNanoRefetchCommands", testCleanupOrphanedNanoRefetchCommands},
 		{"RecoveryLockAutoRotation", testRecoveryLockAutoRotation},
+		{"RecoveryLockResetOnMDMReEnrollment", testRecoveryLockResetOnMDMReEnrollment},
+		{"DeleteHostPreservesRecoveryLockPassword", testDeleteHostPreservesRecoveryLockPassword},
+		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
+		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
+		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 	}
 
 	for _, c := range cases {
@@ -7630,6 +7637,120 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 	}
 }
 
+// testIOSManagedCertProfileStaysVerifying covers the iOS/iPadOS race window in issue #44111.
+//
+// Non-cert iOS/iPadOS profiles short-circuit pending -> verified on MDM ack because there's
+// no osquery to drive the standard verifying -> verified transition. That short-circuit was
+// firing for managed-cert profiles too, which created a window where the renewal cron would
+// see status='verified' but the cert metadata in host_mdm_managed_certificates still
+// reflected the OLD cert — the renewal cron's renewal-window HAVING clause kept matching and
+// fired renewal redundantly each tick until CertificateList ingestion caught up.
+//
+// Fix: managed-cert profiles park at 'verifying' on ack and only flip to 'verified' when
+// updateHostMDMManagedCertDetailsDB ingests fresh cert metadata.
+func testIOSManagedCertProfileStaysVerifying(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	cp, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "scep-cert",
+		Identifier:   "com.example.scep",
+		Mobileconfig: []byte("scep-profile-bytes"),
+	}, nil)
+	require.NoError(t, err)
+
+	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ios-managed-cert-osquery-id"),
+		NodeKey:         ptr.String("ios-managed-cert-node-key"),
+		UUID:            "ios-managed-cert-uuid",
+		Hostname:        "ios-managed-cert",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+
+	const cmdUUID = "ios-managed-cert-cmd"
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_apple_profiles
+				(host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
+			VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)`,
+			iOSHost.UUID, cp.ProfileUUID, cmdUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall,
+			cp.Name, "com.test.profile."+cp.ProfileUUID, test.MakeTestChecksum(0),
+		)
+		return err
+	})
+
+	// Mark this profile as a managed-cert profile by inserting the matching row.
+	// At render time this only carries type/ca_name/challenge_retrieved_at; cert metadata
+	// arrives later via updateHostMDMManagedCertDetailsDB.
+	const caName = "test-ca"
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID:    iOSHost.UUID,
+			ProfileUUID: cp.ProfileUUID,
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      caName,
+		},
+	}))
+
+	// MDM ack lands as 'verifying'. Without the fix, this would be intercepted and short-
+	// circuited to 'verified'. With the fix, it must remain 'verifying' for managed-cert
+	// profiles so the renewal cron's IN ('verified', 'failed') filter excludes the row
+	// while cert metadata is being refreshed.
+	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      iOSHost.UUID,
+		CommandUUID:   cmdUUID,
+		ProfileUUID:   cp.ProfileUUID,
+		Status:        &fleet.MDMDeliveryVerifying,
+		OperationType: fleet.MDMOperationTypeInstall,
+	}))
+
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+	require.NotNil(t, gotProfs[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *gotProfs[0].Status,
+		"managed-cert profile must stay at 'verifying' on iOS until cert metadata refreshes")
+
+	// Simulate the device's CertificateList response landing in UpdateHostCertificates,
+	// which calls updateHostMDMManagedCertDetailsDB with fresh cert metadata. That path
+	// must flip the corresponding install row from 'verifying' to 'verified'.
+	notValidBefore := time.Now().Add(-1 * time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(30 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	serial := "abcdef0123456789"
+	require.NoError(t, ds.UpdateHostCertificates(ctx, iOSHost.ID, iOSHost.UUID, []*fleet.HostCertificateRecord{
+		{
+			HostID:                    iOSHost.ID,
+			SHA1Sum:                   []byte("0123456789abcdef0123"), // 20 bytes
+			NotValidBefore:            notValidBefore,
+			NotValidAfter:             notValidAfter,
+			CommonName:                "fleet-managed-cert",
+			Serial:                    serial,
+			SubjectCommonName:         "fleet-" + cp.ProfileUUID,
+			SubjectOrganizationalUnit: "fleet",
+			Source:                    fleet.SystemHostCertificate,
+		},
+	}))
+
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, gotProfs, 1)
+	require.NotNil(t, gotProfs[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status,
+		"updateHostMDMManagedCertDetailsDB must flip 'verifying' -> 'verified' once metadata refreshes")
+
+	// And cert metadata must reflect the new cert.
+	managedProf, err := ds.GetAppleHostMDMCertificateProfile(ctx, iOSHost.UUID, cp.ProfileUUID, caName)
+	require.NoError(t, err)
+	require.NotNil(t, managedProf)
+	require.NotNil(t, managedProf.Serial)
+	// Serials are stored zero-padded to 40 chars in the cert detail update path.
+	assert.Equal(t, fmt.Sprintf("%040s", serial), *managedProf.Serial)
+}
+
 func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
@@ -8803,6 +8924,199 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
+			})
+
+			// Regression test for issue #44111: renewal cron must not flip the status of a
+			// profile that's still being delivered ('pending' or 'verifying'). Otherwise an
+			// offline host that hasn't picked up the renewal yet would have its profile
+			// re-rendered with a fresh challenge every cron tick, generating orphan nano
+			// commands and challenge rows hourly.
+			t.Run("Renewal cron skips in-flight statuses (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+
+				for _, inFlightStatus := range []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying} {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, inFlightStatus, host.UUID, initialCP.ProfileUUID)
+						return err
+					})
+
+					err = ds.RenewMDMManagedCertificates(ctx)
+					require.NoError(t, err)
+					profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+					require.NoError(t, err)
+					require.NotNil(t, profile.Status)
+					assert.Equalf(t, inFlightStatus, *profile.Status,
+						"renewal cron must not flip status away from %q (in-flight delivery)", inFlightStatus)
+				}
+
+				// Sanity check: 'failed' must still be picked up so the cron can recover
+				// from a transient SCEP server outage on the next tick — but only after
+				// renewalFailedRetryBackoff has elapsed since the failure (gate against
+				// permanent-failure looping). Backdate updated_at to simulate the row
+				// having been in 'failed' long enough to be eligible for retry.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = ?
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryFailed, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status, "renewal cron must re-trigger 'failed' to recover from transient outages")
+			})
+
+			// Regression test for the permanent-failure loop. Pre-PR, BulkUpsert wiped cert
+			// metadata on every reconcile, which inadvertently kept permanent failures from
+			// looping. After the COALESCE fix that's gone, so we need an explicit backoff:
+			// 'failed' rows that were just marked failed (e.g., this cron tick's reconcile
+			// just rendered them as failed because the CA was deleted) must NOT be picked up
+			// on the very next tick. They become eligible only after renewalFailedRetryBackoff.
+			t.Run("Permanent-failure backoff (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+
+				// Mark failed with updated_at set to NOW — the typical path when reconcile
+				// just rendered the profile as failed (e.g. CA deleted, IDP missing).
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = NOW(6)
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryFailed, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+
+				// Cron must NOT pick this up — would loop hourly otherwise.
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.NotNil(t, profile.Status,
+					"renewal cron must NOT re-fire on a freshly-failed row (would loop on permanent failures)")
+				assert.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
+
+				// Once the backoff window has passed, the cron is allowed to retry once.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET updated_at = ?
+				WHERE host_uuid = ? AND profile_uuid = ?
+			`, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status,
+					"renewal cron must re-fire 'failed' once renewalFailedRetryBackoff has elapsed")
+			})
+
+			// Regression test for issue #44111: the reconcile re-render that fires after a
+			// renewal trigger calls BulkUpsertMDMManagedCertificates with a payload that has
+			// nil NotValidBefore/NotValidAfter/Serial (those fields aren't known at profile
+			// render time). That upsert must not clobber the populated cert metadata, otherwise
+			// RenewMDMManagedCertificates' `HAVING validity_period IS NOT NULL` clause excludes
+			// the row and the renewal cron silently stops re-trying.
+			t.Run("Reconcile re-render preserves cert metadata (issue #44111)", func(t *testing.T) {
+				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						NotValidBefore:       &notValidBefore,
+						NotValidAfter:        &notValidAfter,
+						Type:                 caType,
+						CAName:               caName,
+						Serial:               &serial,
+					},
+				})
+				require.NoError(t, err)
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+
+				// Renewal cron flips status to NULL since the cert is in the renewal window.
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status)
+
+				// Reconcile re-renders the profile and upserts with the render-time payload —
+				// type/ca_name/challenge_retrieved_at set, all cert fields nil. Mirrors the
+				// payload built by ReplaceCustomSCEPProxyURLVariable and the NDES handler.
+				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+					{
+						HostUUID:             host.UUID,
+						ProfileUUID:          initialCP.ProfileUUID,
+						ChallengeRetrievedAt: challengeRetrievedAt,
+						Type:                 caType,
+						CAName:               caName,
+					},
+				})
+				require.NoError(t, err)
+
+				// Cert metadata must survive the reconcile re-render.
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.NotNil(t, profile)
+				require.NotNil(t, profile.Serial, "serial must be preserved across reconcile re-render")
+				assert.Equal(t, serial, *profile.Serial)
+				require.NotNil(t, profile.NotValidBefore, "not_valid_before must be preserved across reconcile re-render")
+				assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+				require.NotNil(t, profile.NotValidAfter, "not_valid_after must be preserved across reconcile re-render")
+				assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+
+				// If the device's SCEP handshake never completes, the renewal cron must still
+				// pick up the row on a subsequent run. Re-mark verified, re-run renewal — must
+				// flip status to NULL again, proving validity_period is still queryable.
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `
+				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+					return err
+				})
+				err = ds.RenewMDMManagedCertificates(ctx)
+				require.NoError(t, err)
+				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
+				require.NoError(t, err)
+				require.Nil(t, profile.Status, "renewal cron must still detect cert with preserved metadata")
 			})
 		})
 	}
@@ -10112,6 +10426,96 @@ func testDeleteMDMAppleDeclarationByNameCancelsInstalls(t *testing.T, ds *Datast
 		// Deleting unexisting declaration should not fail.
 		err = ds.DeleteMDMAppleDeclarationByName(ctx, teamID, "D3")
 		require.NoError(t, err)
+	}
+
+	t.Run("No team", func(t *testing.T) {
+		runTest(t, nil)
+	})
+
+	t.Run("Team", func(t *testing.T) {
+		team, err := ds.NewTeam(t.Context(), &fleet.Team{
+			Name: t.Name(),
+		})
+		require.NoError(t, err)
+		runTest(t, &team.ID)
+	})
+}
+
+func testBatchSetMDMAppleDeclarationsCaseChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	runTest := func(t *testing.T, teamID *uint) {
+		// Create a declaration with mixed-case name.
+		appleDecls := []*fleet.MDMAppleDeclaration{
+			declForTest("Software Update Settings", "SUS", "{}"),
+		}
+		_, err := ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Read back and capture the declaration UUID.
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		origUUID := profs[0].ProfileUUID
+		require.Equal(t, "Software Update Settings", profs[0].Name)
+		origIdentifier := profs[0].Identifier
+
+		// Create two hosts and enroll them.
+		var opts []test.NewHostOption
+		if teamID != nil {
+			opts = append(opts, test.WithTeamID(*teamID))
+		}
+		host1 := test.NewHost(t, ds, "host1", "1"+t.Name(), "h1key"+t.Name(), "host1uuid"+t.Name(), time.Now(), opts...)
+		host2 := test.NewHost(t, ds, "host2", "2"+t.Name(), "h2key"+t.Name(), "host2uuid"+t.Name(), time.Now(), opts...)
+		nanoEnroll(t, ds, host1, false)
+		nanoEnroll(t, ds, host2, false)
+		for _, h := range []*fleet.Host{host1, host2} {
+			err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
+			require.NoError(t, err)
+		}
+
+		// Force host1 to have a verified install, host2 to have a pending install.
+		forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(profs[0]), fleet.MDMOperationTypeInstall, "")
+
+		// Batch-set again with only the name case changed (lowercase).
+		appleDecls = []*fleet.MDMAppleDeclaration{
+			declForTest("software update settings", "SUS", "{}"),
+		}
+		_, err = ds.BatchSetMDMProfiles(ctx, teamID, nil, nil, appleDecls, nil, nil)
+		require.NoError(t, err)
+
+		// Sub-test 1: case change preserves declaration UUID and updates name.
+		t.Run("preserves declaration UUID", func(t *testing.T) {
+			profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, profs, 1, "expected exactly 1 declaration, got %d (duplicate created)", len(profs))
+			require.Equal(t, origUUID, profs[0].ProfileUUID, "declaration UUID should not change on name case change")
+			require.Equal(t, "software update settings", profs[0].Name, "name should be updated to new case")
+			require.Equal(t, origIdentifier, profs[0].Identifier, "identifier should be unchanged")
+		})
+
+		// Sub-test 2: verified install is NOT turned into a remove+reinstall.
+		t.Run("verified install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host1.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 3: pending install is NOT turned into a remove.
+		t.Run("pending install not disrupted", func(t *testing.T) {
+			assertHostProfileOpStatus(t, ds, host2.UUID,
+				hostProfileOpStatus{origUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+		})
+
+		// Sub-test 4: host profile has updated name for the declaration.
+		t.Run("host profile reflects name change", func(t *testing.T) {
+			profs, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+			require.NoError(t, err)
+			require.Len(t, profs, 1)
+			require.Equal(t, "software update settings", profs[0].Name, "host profile should reflect declaration name change")
+		})
 	}
 
 	t.Run("No team", func(t *testing.T) {
@@ -11841,4 +12245,540 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		require.NotNil(t, pw.AutoRotateAt)
 		assert.WithinDuration(t, rotateAt, *pw.AutoRotateAt, 1*time.Second)
 	})
+}
+
+// recoveryLockRawRow is the full row shape used by testRecoveryLockResetOnMDMReEnrollment's
+// raw reader, which bypasses the deleted=0 filter applied by production readers.
+type recoveryLockRawRow struct {
+	Status            *string    `db:"status"`
+	OperationType     string     `db:"operation_type"`
+	HasPassword       bool       `db:"has_password"`
+	HasPendingPw      bool       `db:"has_pending_pw"`
+	ErrorMessage      *string    `db:"error_message"`
+	PendingErrMessage *string    `db:"pending_error_message"`
+	AutoRotateAt      *time.Time `db:"auto_rotate_at"`
+	Deleted           bool       `db:"deleted"`
+}
+
+// testRecoveryLockResetOnMDMReEnrollment verifies that MDMResetEnrollment soft-deletes
+// the host's host_recovery_key_passwords row and nulls out rotation/view state that would
+// otherwise leak into a future re-enrolled password. The row is kept (deleted=1) as a
+// troubleshooting safeguard; all live readers filter deleted=0 so it behaves as absent.
+func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// readRaw returns the full row bypassing the deleted=0 filter used by production readers.
+	readRaw := func(t *testing.T, hostUUID string) *recoveryLockRawRow {
+		t.Helper()
+		var row recoveryLockRawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				status,
+				operation_type,
+				encrypted_password IS NOT NULL AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				error_message,
+				pending_error_message,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.7."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	t.Run("soft-deletes verified install row", func(t *testing.T) {
+		host := setupHost(t, "reset-verified", "resetverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 for support diagnostics.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.True(t, row.HasPassword, "encrypted_password preserved for diagnostics")
+	})
+
+	t.Run("soft-deletes stuck-pending install row (ClearQueue scenario)", func(t *testing.T) {
+		host := setupHost(t, "reset-stuck-pending", "resetstuckuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		// status is 'pending' after SetHostsRecoveryLockPasswords — simulates the command
+		// that was abandoned by nanomdm's ClearQueue before being acked.
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+	})
+
+	t.Run("nulls pending rotation fields on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-pending-rotation", "resetrotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "some rotation error"))
+
+		// Sanity: pending_encrypted_password and pending_error_message are set.
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.True(t, before.HasPendingPw)
+		require.NotNil(t, before.PendingErrMessage)
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.False(t, after.HasPendingPw, "pending_encrypted_password must be nulled to prevent re-animation leak")
+		assert.Nil(t, after.PendingErrMessage, "pending_error_message must be nulled to prevent re-animation leak")
+	})
+
+	t.Run("nulls auto_rotate_at on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-auto-rotate", "resetautorotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.NotNil(t, before.AutoRotateAt, "auto_rotate_at set after MarkRecoveryLockPasswordViewed")
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.Nil(t, after.AutoRotateAt, "auto_rotate_at must be nulled so cron does not fire auto-rotation against a freshly re-set password")
+	})
+
+	t.Run("re-animation after soft-delete yields clean state", func(t *testing.T) {
+		host := setupHost(t, "reset-reanimate", "resetreanuuid"[:13])
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Re-enroll wipes the row.
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Simulate the next recovery-lock cron tick re-enqueuing a fresh SetRecoveryLock.
+		newPw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: newPw}}))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.False(t, after.Deleted, "row re-animated with deleted=0")
+		assert.True(t, after.HasPassword)
+		assert.False(t, after.HasPendingPw, "rotation state must not leak across re-enrollment")
+		assert.Nil(t, after.PendingErrMessage)
+		assert.Nil(t, after.AutoRotateAt, "view state must not leak across re-enrollment")
+		assert.Nil(t, after.ErrorMessage, "old error_message is cleared by ON DUPLICATE KEY UPDATE")
+		require.NotNil(t, after.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *after.Status, "re-animated row is pending awaiting the new command")
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), after.OperationType)
+
+		// Live reader now sees the re-animated row.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.True(t, status.PasswordAvailable)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("preserves row during SCEP renewal", func(t *testing.T) {
+		host := setupHost(t, "reset-scep", "resetscepuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, true /* scepRenewalInProgress */))
+
+		// Row untouched: still visible to live readers as verified.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.False(t, row.Deleted)
+		assert.True(t, row.HasPassword)
+	})
+}
+
+// testDeleteHostPreservesRecoveryLockPassword locks in the intentional non-cascade of
+// host_recovery_key_passwords across host deletion. The device may still be enrolled in MDM
+// with the password intact, and Orbit re-enrollment recreates the host row and reuses the
+// existing password record.
+func testDeleteHostPreservesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "delete-rlp", "1.2.7.200", "deleterlpkey", "deletelppuuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	type rawRow struct {
+		Encrypted []byte `db:"encrypted_password"`
+		Deleted   bool   `db:"deleted"`
+	}
+
+	// Capture the encrypted bytes so we can assert the row survives untouched.
+	var before rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &before,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	require.NotEmpty(t, before.Encrypted)
+	require.False(t, before.Deleted)
+
+	require.NoError(t, ds.DeleteHost(ctx, host.ID))
+
+	// Row still there (bypass deleted=0 filter), and the encrypted_password is byte-identical.
+	var after rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &after,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	assert.Equal(t, before.Encrypted, after.Encrypted, "encrypted_password must survive host deletion byte-for-byte")
+	assert.False(t, after.Deleted, "deleted flag must not be flipped by DeleteHost")
+}
+
+// testHostRecoveryLockStatusMatrix locks in the host-detail API contract for every
+// observable (status, operation_type, encrypted_password, pending_encrypted_password, deleted)
+// state. This protects the UI from silent regressions in GetHostRecoveryLockPasswordStatus or
+// PopulateStatus.
+func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type matrixCase struct {
+		name                    string
+		status                  *fleet.MDMDeliveryStatus // nil = SQL NULL
+		operationType           fleet.MDMOperationType
+		hasPassword             bool
+		hasPendingPw            bool
+		deleted                 bool
+		errorMessage            string
+		expectNilFromDatastore  bool
+		expectPopulatedStatus   *fleet.RecoveryLockStatus
+		expectPasswordAvailable bool
+		expectDetail            string
+	}
+
+	cases := []matrixCase{
+		{
+			name:                   "soft-deleted row is invisible to readers",
+			status:                 &fleet.MDMDeliveryVerified,
+			operationType:          fleet.MDMOperationTypeInstall,
+			hasPassword:            true,
+			deleted:                true,
+			expectNilFromDatastore: true,
+		},
+		{
+			name:                    "NULL status, install, password stored -> pending",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "pending install, no rotation -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified install -> verified",
+			status:                  &fleet.MDMDeliveryVerified,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusVerified),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install -> failed with detail",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			errorMessage:            "device rejected",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "device rejected",
+		},
+		{
+			name:                    "pending install + rotation in flight -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install + rotation in flight -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			errorMessage:            "set failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "set failed",
+		},
+		{
+			name:                    "pending remove -> removing_enforcement",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "NULL status remove -> removing_enforcement (clear retry)",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed remove -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			errorMessage:            "clear failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "clear failed",
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			uuid := fmt.Sprintf("matrixuuid%d", i)
+			host := test.NewHost(t, ds, fmt.Sprintf("matrix-host-%d", i), fmt.Sprintf("1.2.8.%d", i+1), fmt.Sprintf("matrixkey%d", i), uuid, time.Now())
+
+			var encryptedPw, pendingPw any
+			if tc.hasPassword {
+				var err error
+				encryptedPw, err = encrypt([]byte("password-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+			if tc.hasPendingPw {
+				var err error
+				pendingPw, err = encrypt([]byte("pending-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+
+			var statusArg any
+			if tc.status != nil {
+				statusArg = string(*tc.status)
+			}
+
+			var errMsgArg any
+			if tc.errorMessage != "" {
+				errMsgArg = tc.errorMessage
+			}
+
+			_, err := ds.writer(ctx).ExecContext(ctx, `
+				INSERT INTO host_recovery_key_passwords
+					(host_uuid, encrypted_password, pending_encrypted_password, status, operation_type, error_message, deleted)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, encryptedPw, pendingPw, statusArg, string(tc.operationType), errMsgArg, tc.deleted)
+			require.NoError(t, err)
+
+			got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+			require.NoError(t, err)
+
+			if tc.expectNilFromDatastore {
+				require.Nil(t, got, "readers must filter deleted=0 and return nil")
+				return
+			}
+
+			require.NotNil(t, got)
+			assert.Equal(t, tc.expectPasswordAvailable, got.PasswordAvailable)
+			assert.Equal(t, tc.expectDetail, got.Detail)
+
+			got.PopulateStatus()
+			if tc.expectPopulatedStatus == nil {
+				assert.Nil(t, got.Status)
+			} else {
+				require.NotNil(t, got.Status)
+				assert.Equal(t, *tc.expectPopulatedStatus, *got.Status)
+			}
+		})
+	}
+}
+
+// testMDMTurnOffSoftDeletesRecoveryLockPassword verifies that MDMTurnOff (the explicit
+// per-host MDM unenroll path used by both device CheckOut and the admin API) soft-deletes
+// the recovery-lock row. Apple removes the device-side lock when the MDM profile is
+// removed, so Fleet's stored copy is no longer valid.
+func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type rawRow struct {
+		Encrypted    []byte     `db:"encrypted_password"`
+		HasPendingPw bool       `db:"has_pending_pw"`
+		AutoRotateAt *time.Time `db:"auto_rotate_at"`
+		Deleted      bool       `db:"deleted"`
+	}
+	readRaw := func(t *testing.T, hostUUID string) *rawRow {
+		t.Helper()
+		var row rawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				encrypted_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupEnrolledHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.9."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+		return host
+	}
+
+	t.Run("soft-deletes verified recovery lock and clears volatile state", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-verified", "turnoffverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 and volatile state nulled.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.NotEmpty(t, row.Encrypted, "encrypted_password preserved for diagnostics")
+		assert.False(t, row.HasPendingPw, "pending rotation must be nulled")
+		assert.Nil(t, row.AutoRotateAt, "view state must be nulled")
+	})
+
+	t.Run("idempotent: second MDMTurnOff is a no-op on the already-soft-deleted row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-idempotent", "turnoffidempuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		first := readRaw(t, host.UUID)
+		require.NotNil(t, first)
+		require.True(t, first.Deleted)
+		firstBytes := first.Encrypted
+
+		// Without re-enrolling (just calling MDMTurnOff again), the deleted=0 guard in
+		// the helper makes the soft-delete a true no-op — the row is unchanged.
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		second := readRaw(t, host.UUID)
+		require.NotNil(t, second)
+		assert.True(t, second.Deleted)
+		assert.Equal(t, firstBytes, second.Encrypted, "second turn-off must not modify the encrypted_password kept for diagnostics")
+	})
+
+	t.Run("no-op when host has no recovery lock row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-no-row", "turnoffnorouuid")
+		// No SetHostsRecoveryLockPasswords call — row never existed.
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		row := readRaw(t, host.UUID)
+		assert.Nil(t, row, "no row should be created by MDMTurnOff")
+	})
+}
+
+// testRecoveryLockReadersReturnNotFoundForSoftDeleted verifies that view-password and
+// rotation-status readers surface notFound for soft-deleted rows. The EE rotate endpoint
+// depends on the notFound-from-GetRecoveryLockRotationStatus branch to return
+// "Host does not have a recovery lock password to rotate."
+func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "softdel-read", "1.2.8.250", "softdelreadkey", "softdelreaduuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	// Soft-delete directly (simulates MDMResetEnrollment without the full lifecycle setup).
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_recovery_key_passwords SET deleted = 1 WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	// GetHostRecoveryLockPassword (view password endpoint source) must surface notFound.
+	_, err = ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "view-password reader must surface notFound so the UI treats it as absent")
+
+	// GetRecoveryLockRotationStatus (rotation endpoint prerequisite) must surface notFound so
+	// the EE service returns BadRequest "Host does not have a recovery lock password to rotate."
+	_, err = ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "rotation-status reader must surface notFound")
+
+	// HasPendingRecoveryLockRotation returns (false, nil) for missing/deleted rows.
+	hasPending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, hasPending)
+
+	// GetHostRecoveryLockPasswordStatus (host detail API source) returns nil so the JSON
+	// field is omitted entirely.
+	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }

@@ -522,13 +522,15 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool `json:"lock_end_user_info"`
+	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
+	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account"`
+	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -922,6 +924,11 @@ type MDMAppleDDMDeclarationItem struct {
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// RawJSON is conditionally loaded only for declarations that use Fleet
+	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
+	// so that handleDeclarationItems can check variable resolution without an
+	// extra query.
+	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -1238,11 +1245,17 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName  = "DeviceLocation"
-	EnableLostModeCmdName  = "EnableLostMode"
-	DisableLostModeCmdName = "DisableLostMode"
-	SetRecoveryLockCmdName = "SetRecoveryLock"
+	DeviceLocationCmdName       = "DeviceLocation"
+	EnableLostModeCmdName       = "EnableLostMode"
+	DisableLostModeCmdName      = "DisableLostMode"
+	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	AccountConfigurationCmdName = "AccountConfiguration"
 )
+
+// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
+// via the AccountConfiguration MDM command when the managed local account
+// feature is enabled.
+const ManagedLocalAccountUsername = "_fleetadmin"
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`

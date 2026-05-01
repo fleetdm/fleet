@@ -794,12 +794,13 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 
 	orgSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
-		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
-		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
-		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
+		jsonFieldName(t, "ActivityExpirySettings"): cmd.AppConfig.ActivityExpirySettings,
+		jsonFieldName(t, "Features"):               cmd.AppConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):           cmd.AppConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"):     cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):                cmd.AppConfig.OrgInfo,
+		jsonFieldName(t, "ServerSettings"):         cmd.AppConfig.ServerSettings,
+		jsonFieldName(t, "WebhookSettings"):        webhookSettings,
 	}
 
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
@@ -1348,11 +1349,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
-			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
+			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
+				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
+					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
+					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
-					Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
 				})
 			}
 		}

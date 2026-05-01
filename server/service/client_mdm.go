@@ -442,7 +442,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 }
 
 func (c *Client) MDMLockHost(hostID uint) error {
-	var response lockHostResponse
+	var response fleet.LockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
 		return fmt.Errorf("lock host request: %w", err)
 	}
@@ -450,7 +450,7 @@ func (c *Client) MDMLockHost(hostID uint) error {
 }
 
 func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
-	var response unlockHostResponse
+	var response fleet.UnlockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
@@ -458,7 +458,7 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 }
 
 func (c *Client) MDMWipeHost(hostID uint) error {
-	var response wipeHostResponse
+	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
 	}

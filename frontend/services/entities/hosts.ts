@@ -671,6 +671,11 @@ export default {
     return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
   },
 
+  getManagedAccountPassword: (id: number) => {
+    const { HOST_MANAGED_ACCOUNT_PASSWORD } = endpoints;
+    return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
+  },
+
   lockHost: (id: number) => {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));

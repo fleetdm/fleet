@@ -44,7 +44,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#upload-to-youtube"
   dri: "irenareedy"
   autoIssue:
-    labels: [":help-marketing"]
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 - task: "Check ongoing events"
   startedOn: "2024-10-21"
@@ -65,7 +65,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes"
   dri: "irenareedy"
   autoIssue:
-    labels: [":help-marketing"]
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 - task: "Update content calendar"
   startedOn: "2025-08-04"
@@ -74,7 +74,7 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
   dri: "irenareedy"
   autoIssue:
-    labels: [":help-marketing"]
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 - task: "Update KPIs"
   startedOn: "2025-08-08"
@@ -83,7 +83,7 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
   dri: "irenareedy"
   autoIssue:
-    labels: [":help-marketing"]
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 - task: "Check new customers and add them to the Fleet Champions Community."
   startedOn: "2026-03-09"
@@ -111,7 +111,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/marketing-assets-new"
   dri: "irenareedy"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 -
   task: "Review CTRs of recently boosted posts"
@@ -121,7 +121,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ctrs-of-recently-boosted-posts"
   dri: "irenareedy"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ]  
     repo: "confidential"	
 - 
   task: "Check LinkedIn comments"
@@ -138,7 +138,7 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
   dri: "irenareedy"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 -
   task: "Add new customer closed/won logos to the website"
@@ -148,7 +148,7 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
   dri: "mike-j-thomas"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential" 
 -
   task: "Approval draft orders in Printful"
@@ -158,7 +158,7 @@
   moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
   dri: "irenareedy"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
 -
   task: "Momentumize all customer closed/won accounts from the previous quarter"
@@ -168,5 +168,5 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
   dri: "irenareedy"
   autoIssue:  
-    labels: [ ":help-marketing" ] 
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"

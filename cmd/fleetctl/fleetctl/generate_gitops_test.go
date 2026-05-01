@@ -1037,6 +1037,39 @@ func TestGenerateGitopsFree(t *testing.T) {
 	})
 }
 
+func TestGenerateGitopsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	// Verifies that fleetctl generate-gitops emits
+	// activity_expiry_settings.preserve_host_activities_on_reenrollment so
+	// existing customers can roundtrip the setting via GitOps.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	// Sanity-check the source config matches what the generated output should
+	// expose.
+	require.True(t, appConfig.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	aes, ok := orgSettings["activity_expiry_settings"].(map[string]any)
+	require.True(t, ok, "activity_expiry_settings should be present in generated org settings")
+	require.Equal(t, true, aes["preserve_host_activities_on_reenrollment"])
+}
+
 func TestGenerateOrgSettings(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}

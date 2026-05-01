@@ -10,7 +10,7 @@ module.exports = {
   inputs: {
     firstName: {type: 'string', required: true },
     lastName: {type: 'string', required: true },
-    emailAddress: {type: 'string', required: true },
+    emailAddress: {type: 'string', required: true, isEmail: true, },
     webinarName: {type: 'string', required: true },
   },
 
@@ -40,7 +40,7 @@ module.exports = {
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
-        contactSource: 'Website - Contact forms',
+        contactSource: 'Webinar',
         description: `Submitted a form to watch the ${webinarName} webinar.`,
         marketingAttributionCookie: attributionCookieOrUndefined
       }).intercept((err)=>{
