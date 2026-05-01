@@ -107,7 +107,6 @@ func (d *DEPService) GetDefaultProfile() *godep.Profile {
 		ProfileName:    "Fleet default enrollment profile",
 		IsSupervised:   true,
 		IsMDMRemovable: false,
-		SkipSetupItems: []string{},
 	}
 }
 
