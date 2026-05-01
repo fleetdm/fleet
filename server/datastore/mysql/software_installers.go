@@ -224,6 +224,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
 			SelfService:     payload.SelfService,
+			Configuration:   payload.Configuration,
 		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")

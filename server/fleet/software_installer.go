@@ -140,6 +140,9 @@ type SoftwareInstaller struct {
 	PatchPolicy *PatchPolicyData `json:"patch_policy"`
 	// PatchQuery is the query to use for creating a patch policy
 	PatchQuery string `json:"-" db:"patch_query"`
+
+	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
+	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -553,6 +556,8 @@ type UploadSoftwareInstallerPayload struct {
 	// conditional GET requests when AlwaysDownload is false.
 	HTTPETag   *string
 	PatchQuery string
+	// Configuration is the in-house app's managed app configuration as raw plist XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -635,13 +640,15 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Configuration is the in-house app's managed app configuration as raw plist XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
+	Configuration []byte
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.

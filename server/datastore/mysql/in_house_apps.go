@@ -66,6 +66,12 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 			return err
 		}
 
+		if len(payload.Configuration) > 0 {
+			if err := ds.updateInHouseAppConfigurationTx(ctx, tx, installerID, payload.Configuration); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+			}
+		}
+
 		return nil
 	})
 
@@ -264,6 +270,14 @@ WHERE
 		}
 	}
 
+	cfg, err := ds.GetInHouseAppConfiguration(ctx, dest.InstallerID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+	if cfg != nil {
+		dest.Configuration = cfg
+	}
+
 	return &dest, nil
 }
 
@@ -311,6 +325,19 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.DisplayName != nil {
 			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
 				return ctxerr.Wrap(ctx, err, "update in house app display name")
+			}
+		}
+
+		// nil = leave unchanged; empty = clear; non-empty = set.
+		if payload.Configuration != nil {
+			if len(payload.Configuration) == 0 {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, payload.InstallerID); err != nil {
+					return ctxerr.Wrap(ctx, err, "clearing in-house app configuration")
+				}
+			} else {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, payload.InstallerID, payload.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+				}
 			}
 		}
 

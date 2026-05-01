@@ -17,4 +17,6 @@ type InHouseAppPayload struct {
 	CategoryIDs     []uint
 	Version         string
 	SelfService     bool
+	// Configuration is the managed app configuration as raw plist XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
