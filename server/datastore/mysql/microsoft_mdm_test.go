@@ -4044,7 +4044,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 		var responseID *int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(t.Context(), q, &responseID,
-				"SELECT response_id FROM windows_mdm_command_results WHERE command_uuid = ?", cmdUUID)
+				"SELECT response_id FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?", enrolledDevice1.ID, cmdUUID)
 		})
 		require.NotNil(t, responseID, "response_id should be set when saveFullResponse=true")
 
@@ -4066,7 +4066,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 		var newResponseID *int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(t.Context(), q, &newResponseID,
-				"SELECT response_id FROM windows_mdm_command_results WHERE command_uuid = ?", cmdUUID)
+				"SELECT response_id FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?", enrolledDevice1.ID, cmdUUID)
 		})
 		require.NotNil(t, newResponseID)
 		assert.NotEqual(t, *responseID, *newResponseID, "response_id should update on duplicate when saveFullResponse=true")

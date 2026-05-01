@@ -2036,7 +2036,7 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 			continue
 		}
 
-		if r.Status == "101" || string(r.Result) == "" {
+		if r.Status == "101" {
 			// command is still pending
 			continue
 		}
