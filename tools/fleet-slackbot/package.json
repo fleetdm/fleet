@@ -4,7 +4,8 @@
   "description": "Fleet Slack bot that can query your fleet instance and submit GitOps Pull Requests",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -92,14 +92,36 @@ class ClaudeClient {
       console.log(`[claude] Agent loop round ${rounds}: ${toolUseBlocks.length} tool call(s), continuing...`);
     }
 
-    throw new Error(`Agent loop exceeded ${MAX_TOOL_ROUNDS} rounds without a final response.`);
+    // Tool-call budget exhausted. Don't throw — force one final no-tools call
+    // so Claude produces its best answer from the data already gathered. The
+    // user gets a graceful "here's what I found, here's what I couldn't
+    // verify" response instead of a hard error.
+    console.log(
+      `[claude] Agent loop hit ${MAX_TOOL_ROUNDS} rounds — forcing final response without tools.`
+    );
+    messages.push({
+      role: "user",
+      content: `You've reached the maximum number of tool calls (${MAX_TOOL_ROUNDS}). Provide your best answer now using the information you've already gathered — no further tool calls will be available. If any part of the answer is incomplete or unverified because of the tool limit, say so explicitly so the user knows what's missing.`,
+    });
+    const finalResponse = await this._streamMessage(messages, tools, onText, {
+      toolChoice: { type: "none" },
+    });
+    return finalResponse.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
   }
 
   /**
    * Stream a single Claude API call. Returns the full response message object.
    * Fires onText callback with partial text chunks as they arrive.
+   *
+   * @param {object} [options]
+   * @param {object} [options.toolChoice] - Optional Anthropic tool_choice
+   *   value (e.g. { type: "none" }) to constrain or disable tool use for
+   *   this single call.
    */
-  async _streamMessage(messages, tools, onText) {
+  async _streamMessage(messages, tools, onText, options = {}) {
     const params = {
       model: this.model,
       max_tokens: 16000,
@@ -114,6 +136,10 @@ class ClaudeClient {
     ];
     if (allTools.length > 0) {
       params.tools = allTools;
+    }
+
+    if (options.toolChoice) {
+      params.tool_choice = options.toolChoice;
     }
 
     // Use streaming to get partial text for live Slack updates
