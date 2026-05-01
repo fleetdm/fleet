@@ -1,1 +1,0 @@
-Fleet UI > Settings > Variables: Fixed access to not allow adding custom variable while in gitops mode both in the empty state and when a variable already exists
