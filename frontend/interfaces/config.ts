@@ -193,6 +193,7 @@ export interface IConfig {
   activity_expiry_settings: {
     activity_expiry_enabled: boolean;
     activity_expiry_window?: number;
+    preserve_host_activities_on_reenrollment: boolean;
   };
   features: IConfigFeatures;
   agent_options: unknown; // Can pass empty object
