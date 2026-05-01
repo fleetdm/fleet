@@ -48,7 +48,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	const validPlist = `<dict><key>ServerURL</key><string>https://example.com</string></dict>`
 	const validPlist2 = `<dict><key>ServerURL</key><string>https://other.example.com</string><key>HostUUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
 
-	// Helper: encode a plist XML string as a JSON string (the form clients send).
+	// Helper: encode an XML string as a JSON string (the form clients send).
 	asJSONString := func(s string) json.RawMessage {
 		b, err := json.Marshal(s)
 		require.NoError(t, err)

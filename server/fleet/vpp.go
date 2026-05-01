@@ -61,7 +61,7 @@ type VPPAppTeam struct {
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is the managed app configuration payload. JSON for Android,
-	// plist XML for iOS / iPadOS.
+	// XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool   `json:"-"`
 	AutoUpdateStartTime *string `json:"-"`
@@ -133,7 +133,7 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is the managed app configuration: a JSON object for Android, a JSON string of plist XML for iOS / iPadOS.
+	// Configuration is the managed app configuration: a JSON object for Android, a JSON string of XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 

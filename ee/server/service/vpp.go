@@ -234,7 +234,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
 					var plist string
 					if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
-						return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+						return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 					}
 					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 						return nil, err
@@ -788,7 +788,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
 			var plist string
 			if err := json.Unmarshal(appID.Configuration, &plist); err != nil {
-				return 0, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+				return 0, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 			}
 			if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 				return 0, err
@@ -999,7 +999,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
 		var plist string
 		if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
-			return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+			return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 		}
 		if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 			return nil, nil, err

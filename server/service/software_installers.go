@@ -37,7 +37,7 @@ type uploadSoftwareInstallerRequest struct {
 	LabelsExcludeAny  []string
 	LabelsIncludeAll  []string
 	AutomaticInstall  bool
-	// Configuration is the in-house app's managed app configuration as raw plist XML bytes (iOS / iPadOS only).
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
 }
 
@@ -55,7 +55,7 @@ type updateSoftwareInstallerRequest struct {
 	LabelsIncludeAll  []string
 	Categories        []string
 	DisplayName       *string
-	// Configuration is the in-house app's managed app configuration as raw plist XML bytes (iOS / iPadOS only). nil means leave unchanged.
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged.
 	Configuration []byte
 }
 
