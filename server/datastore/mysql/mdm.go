@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,16 +30,6 @@ import (
 // failures don't churn nano commands and profile renders hourly. See issue #44111.
 const renewalFailedRetryBackoff = 24 * time.Hour
 
-var mdmCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"command_uuid": "command_uuid",
-	"request_type": "request_type",
-	"status":       "status",
-	"updated_at":   "updated_at",
-	"hostname":     "hostname",
-	"host_uuid":    "host_uuid",
-	"name":         "name",
-}
-
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -60,8 +51,17 @@ END AS platform
 	return p, nil
 }
 
-func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
-	appleStmt := `
+// getMDMCommandsSubqueries returns the Apple and Windows command-list
+// sub-statements separately. The caller is responsible for wrapping each
+// branch with the per-branch pagination (team filter, request_type filter,
+// cursor predicate, ORDER BY, inner LIMIT) before merging them with
+// UNION ALL. Paginating inside each branch keeps work per branch at
+// O(page_size) instead of O(total commands).
+//
+// These subqueries are only used for the all-hosts listing; host-scoped
+// requests go through listMDMCommandsByHostIdentifier instead.
+func getMDMCommandsSubqueries() (appleStmt, windowsStmt string) {
+	appleStmt = `
 SELECT
     nvq.id as host_uuid,
     nvq.command_uuid,
@@ -81,38 +81,77 @@ WHERE
    nvq.active = 1
 `
 
-	windowsStmt := `
+	// The Windows sub-statement is itself a UNION ALL of two branches: one
+	// driven by windows_mdm_command_queue (any command pending or in
+	// flight), the other driven by windows_mdm_command_results (any
+	// command that produced a result). Branch B's NOT EXISTS clause
+	// excludes (command_uuid, enrollment_id) pairs already covered by
+	// branch A so the union does not double-count a single command/host
+	// pair.
+	windowsStmt = `
 SELECT
     mwe.host_uuid,
     wmc.command_uuid,
     COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
-    COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
+    COALESCE(wmcr.updated_at, wmc.updated_at, wmc.created_at) as updated_at,
     wmc.target_loc_uri as request_type,
     h.hostname,
     h.team_id,
     NULL as name
 FROM windows_mdm_commands wmc
-LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
-    AND NOT EXISTS (
-        SELECT 1 FROM windows_mdm_command_results r
-        WHERE r.enrollment_id = wmcq.enrollment_id AND r.command_uuid = wmcq.command_uuid
-    )
-LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
-INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
+INNER JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
+INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
+LEFT JOIN windows_mdm_command_results wmcr
+    ON wmcr.command_uuid = wmc.command_uuid AND wmcr.enrollment_id = mwe.id
 WHERE TRUE
+
+UNION ALL
+
+SELECT
+    mwe.host_uuid,
+    wmc.command_uuid,
+    COALESCE(NULLIF(wmcr.status_code, ''), '101') as status,
+    COALESCE(wmcr.updated_at, wmc.updated_at, wmc.created_at) as updated_at,
+    wmc.target_loc_uri as request_type,
+    h.hostname,
+    h.team_id,
+    NULL as name
+FROM windows_mdm_commands wmc
+INNER JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
+INNER JOIN mdm_windows_enrollments mwe ON wmcr.enrollment_id = mwe.id
+INNER JOIN hosts h ON h.uuid = mwe.host_uuid
+WHERE NOT EXISTS (
+    SELECT 1 FROM windows_mdm_command_queue wmcq2
+    WHERE wmcq2.command_uuid = wmc.command_uuid AND wmcq2.enrollment_id = mwe.id
+)
 `
 
-	var params []interface{}
-	appleStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
-	windowsStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, windowsStmt, params)
+	return appleStmt, windowsStmt
+}
 
-	stmt := fmt.Sprintf(
+// mdmCommandsOrderAllowlist is the closed set of order_key values accepted
+// by GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands.
+var mdmCommandsOrderAllowlist = common_mysql.OrderKeyAllowlist{
+	"host_uuid":    "host_uuid",
+	"command_uuid": "command_uuid",
+	"status":       "status",
+	"updated_at":   "updated_at",
+	"request_type": "request_type",
+	"hostname":     "hostname",
+	"name":         "name",
+}
+
+// getCombinedMDMCommandsQuery returns the legacy combined statement
+// (Apple UNION ALL Windows) ending in `WHERE `. Used by getMDMCommand for
+// single-command lookups; the list-commands path builds its own form
+// (see getMDMCommandsSubqueries).
+func getCombinedMDMCommandsQuery() string {
+	appleStmt, windowsStmt := getMDMCommandsSubqueries()
+	return fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
-		appleStmtWithFilter, windowsStmtWithFilter,
+		appleStmt, windowsStmt,
 	)
-
-	return stmt, params
 }
 
 func (ds *Datastore) ListMDMCommands(
@@ -120,20 +159,78 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, *int64, *fleet.PaginationMetadata, error) {
-	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
+	if listOpts == nil || listOpts.PerPage == 0 {
+		return nil, nil, nil, ctxerr.Wrap(ctx, errors.New("ListMDMCommands requires listOpts.PerPage > 0"))
+	}
+	if listOpts.Filters.HostIdentifier != "" {
 		// separate codepath for more performant query by host identifier
 		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
 	}
 
-	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
-	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "combined_commands")
-	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
-	jointStmt, params, err := appendListOptionsWithCursorToSQLSecure(jointStmt, params, &listOpts.ListOptions, mdmCommandsAllowedOrderKeys)
-	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+	if listOpts.OrderKey == "" {
+		listOpts.OrderKey = "updated_at"
+		listOpts.OrderDirection = fleet.OrderDescending
 	}
+
+	appleStmt, windowsStmt := getMDMCommandsSubqueries()
+
+	// Per-branch pagination: without this, the UNION ALL would materialize every command on
+	// both sides before pagination, which times out at scale (#44170).
+	innerOpts := listOpts.ListOptions
+	// For page-based pagination, inner LIMIT = page*per_page + per_page;
+	// the secure helper adds +1 because IncludeMetadata is true. For
+	// cursor-based pagination (After != ""), the helper ignores Page, so
+	// don't inflate the inner LIMIT (per_page+1 is sufficient). Inner
+	// Page=0 suppresses the inner OFFSET; the outer wrapper handles
+	// offset slicing.
+	if innerOpts.After == "" {
+		innerOpts.PerPage = innerOpts.PerPage*innerOpts.Page + innerOpts.PerPage
+	}
+	innerOpts.Page = 0
+	innerOpts.IncludeMetadata = true
+
+	paginateBranch := func(branch string, params []any) (string, []any, error) {
+		wrapped := fmt.Sprintf("SELECT * FROM (%s) AS branch WHERE ", branch)
+		wrapped += ds.whereFilterHostsByTeams(tmFilter, "branch")
+		wrapped, params = addRequestTypeFilter(wrapped, &listOpts.Filters, params)
+		return appendListOptionsWithCursorToSQLSecure(wrapped, params, &innerOpts, mdmCommandsOrderAllowlist)
+	}
+
+	// Each branch needs its own params slice; sqlx.SelectContext binds
+	// placeholders left-to-right across the merged statement.
+	var appleParams, windowsParams []any
+	var err error
+	if appleStmt, appleParams, err = paginateBranch(appleStmt, appleParams); err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate apple commands branch")
+	}
+	if windowsStmt, windowsParams, err = paginateBranch(windowsStmt, windowsParams); err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "paginate windows commands branch")
+	}
+
+	mergedStmt := fmt.Sprintf(
+		"SELECT * FROM ((%s) UNION ALL (%s)) AS combined_commands",
+		appleStmt, windowsStmt,
+	)
+	mergedParams := append([]any{}, appleParams...)
+	mergedParams = append(mergedParams, windowsParams...)
+
+	// Outer pagination: ORDER BY + LIMIT + OFFSET only. The cursor
+	// predicate is already applied inside each branch, so clear After
+	// here. If the original request used cursor pagination, also clear
+	// Page so the outer query does not apply an OFFSET on top of the
+	// per-branch cursor filtering.
+	outerOpts := listOpts.ListOptions
+	if outerOpts.After != "" {
+		outerOpts.After = ""
+		outerOpts.Page = 0
+	}
+	mergedStmt, mergedParams, err = appendListOptionsWithCursorToSQLSecure(mergedStmt, mergedParams, &outerOpts, mdmCommandsOrderAllowlist)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "merge mdm commands pagination")
+	}
+
 	var results []*fleet.MDMCommand
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, mergedStmt, mergedParams...); err != nil {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 
@@ -167,9 +264,9 @@ func (ds *Datastore) listMDMCommandsByHostIdentifier(
 
 	// First, search for host by identifier (hostname, uuid, or hardware_serial).
 	//
-	// NOTE: We're not using existing methods like ds.whereFilterHostsByIdentifier,
-	// ds.HostIDsByIdentifier, ds.HostLiteByIdentifier because those methods are poorly
-	// optimized for the indexes we currently have on the hosts table.
+	// NOTE: We're not using existing methods like ds.HostIDsByIdentifier or
+	// ds.HostLiteByIdentifier because those methods are poorly optimized for
+	// the indexes we currently have on the hosts table.
 	// They filter with disjunctive conditions like `hostname = ? OR uuid = ?` as well as
 	// `? IN(hostname, uuid)`. These existing queries aren't really suited for either composite
 	// indexes or indexes on individual columns, and the optimizer ends up with executions that
@@ -256,10 +353,12 @@ SELECT
         ELSE 'pending'
     END AS command_status,
 	request_type,
-	nc.name
+	nc.name,
+	h.hostname
 FROM
 	nano_enrollment_queue nq
 	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
+	JOIN hosts h ON h.uuid = nq.id
 	LEFT JOIN nano_command_results ncr ON nq.id = ncr.id
 		AND nc.command_uuid = ncr.command_uuid
 WHERE
@@ -283,11 +382,13 @@ WHERE
 		'101' AS status,
 		'pending' AS command_status,
 		wc.target_loc_uri AS request_type,
-		NULL AS name
+		NULL AS name,
+		h.hostname
 	FROM
 		windows_mdm_command_queue wq
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
 		JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+		JOIN hosts h ON h.uuid = mwe.host_uuid
 
 	WHERE
 		mwe.host_uuid IN (?)
@@ -324,11 +425,13 @@ WHERE
         ) >= 400 THEN 'failed'
     END AS command_status,
 		wc.target_loc_uri AS request_type,
-		NULL AS name
+		NULL AS name,
+		h.hostname
 	FROM
 		windows_mdm_command_results wcr
 		JOIN mdm_windows_enrollments mwe ON mwe.id = wcr.enrollment_id
 		JOIN windows_mdm_commands wc ON wc.command_uuid = wcr.command_uuid
+		JOIN hosts h ON h.uuid = mwe.host_uuid
 	WHERE
 		mwe.host_uuid IN (?)
 
@@ -354,19 +457,25 @@ WHERE
 
 	var listStmt, countStmt string
 	var params []any
+	// Wrap in `SELECT * FROM (...) u WHERE TRUE` so the cursor and ORDER BY
+	// predicates resolve against the unambiguous `u` projection — the inner
+	// branches join multiple tables that all expose `command_uuid` / `updated_at`.
+	// `WHERE TRUE` is required because the cursor helper picks AND vs WHERE by
+	// substring-matching "where", picks AND from the inner branches, and would
+	// otherwise emit a dangling `AND`. See https://github.com/fleetdm/fleet/issues/44422.
 	switch {
 	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
-		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u`,
+		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u WHERE TRUE`,
 			appleStmt, winStmt)
 		countStmt = fmt.Sprintf(`SELECT COUNT(1) FROM ((%s) UNION ALL (%s)) u`, appleStmt, winStmt)
 		params = append(params, appleParams...)
 		params = append(params, winParams...)
 	case len(appleUUIDs) > 0:
-		listStmt = appleStmt
+		listStmt = `SELECT * FROM (` + appleStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + appleStmt + `) u`
 		params = appleParams
 	case len(winUUIDs) > 0:
-		listStmt = winStmt
+		listStmt = `SELECT * FROM (` + winStmt + `) u WHERE TRUE`
 		countStmt = `SELECT COUNT(1) FROM (` + winStmt + `) u`
 		params = winParams
 	}
@@ -386,12 +495,15 @@ WHERE
 	// if listOpts.OrderDirection == "" {
 	// 	listOpts.OrderDirection = fleet.OrderDescending
 	// }
-	if listOpts.PerPage == 0 {
-		listOpts.PerPage = 10
-	}
-	listStmt, params, err = appendListOptionsWithCursorToSQLSecure(listStmt, params, &listOpts.ListOptions, mdmCommandsAllowedOrderKeys)
+	// Snapshot the params before the cursor helper appends to them. countStmt
+	// has no cursor placeholder, so it must run with the pre-cursor args.
+	countParams := slices.Clone(params)
+	// Validate order_key against the closed allowlist before it reaches
+	// ORDER BY (defense against SQL injection / information disclosure
+	// via arbitrary column references).
+	listStmt, params, err = appendListOptionsWithCursorToSQLSecure(listStmt, params, &listOpts.ListOptions, mdmCommandsOrderAllowlist)
 	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands")
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "list commands pagination")
 	}
 
 	var results []*fleet.MDMCommand
@@ -402,15 +514,15 @@ WHERE
 	var total *int64
 	if len(listOpts.Filters.CommandStatuses) == 1 && listOpts.Filters.CommandStatuses[0] == fleet.MDMCommandStatusFilterPending {
 		// Only get count if we only filter by pending
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, params...); err != nil {
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &total, countStmt, countParams...); err != nil {
 			return nil, nil, nil, ctxerr.Wrap(ctx, err, "count commands")
 		}
 	}
 
-	// Add hostname and team info to the results based on the host UUIDs.
+	// Hostname is now projected in SQL on both branches; only team_id
+	// still needs to be merged from the prefetched host lookup.
 	for i := range results {
 		if host, ok := byUUID[results[i].HostUUID]; ok {
-			results[i].Hostname = host.Hostname
 			results[i].TeamID = host.TeamID
 		}
 	}
@@ -459,8 +571,7 @@ func addAppleCommandStatusFilter(stmt string, filter *fleet.MDMCommandFilters, p
 }
 
 func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
-	stmt, _ := getCombinedMDMCommandsQuery(ds, "")
-	stmt += "command_uuid = ?"
+	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
 
 	var cmd fleet.MDMCommand
 	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {

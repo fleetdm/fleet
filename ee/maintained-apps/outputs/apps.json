@@ -633,6 +633,13 @@
     },
     {
       "name": "Druva inSync",
+      "slug": "druva-insync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync",
       "slug": "druva-insync/windows",
       "platform": "windows",
       "unique_identifier": "Druva inSync",
@@ -728,6 +735,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Fleet Desktop",
+      "slug": "fleet-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fleetdm.fleet-desktop",
+      "description": "Fleet Desktop is a native macOS application that provides end users with a self-service portal for Fleet."
     },
     {
       "name": "Fork",
@@ -1974,6 +1988,13 @@
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.ZoomPresence",
+      "description": "Zoom Rooms is conference room software for Zoom meetings."
     },
     {
       "name": "Zoom",

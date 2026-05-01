@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.118.0",
+      "version": "1.118.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation' AND version_compare(version, '1.118.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation' AND version_compare(version, '1.118.1') < 0);"
       },
-      "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/9b8ae15a8cf95b9bce1b590b42954530f440e816/VSCodeSetup-x64-1.118.0.exe",
+      "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/034f571df509819cc10b0c8129f66ef77a542f0e/VSCodeSetup-x64-1.118.1.exe",
       "install_script_ref": "49122823",
       "uninstall_script_ref": "e09509e2",
-      "sha256": "22e8526781f959b4a28f2c971044f056fd95f9efbd9bebb51cf7c5e826838353",
+      "sha256": "8545456274259c527be143d7fd8cb8c8f965b8933b49afbc373fb7f687da0448",
       "default_categories": [
         "Developer tools"
       ]
