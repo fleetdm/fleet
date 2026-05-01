@@ -43,10 +43,7 @@ func runChecks(ctx context.Context) []Check {
 	if isAppleSilicon() {
 		checks = append(checks, checkRosetta(ctx))
 	}
-	checks = append(checks,
-		checkNgrok(ctx),
-		checkNgrokAuth(ctx),
-	)
+	checks = append(checks, checkNgrok(ctx))
 	return checks
 }
 
@@ -161,18 +158,3 @@ func checkNgrok(ctx context.Context) Check {
 	return Check{Name: "ngrok", Status: CheckOK, Detail: version}
 }
 
-func checkNgrokAuth(_ context.Context) Check {
-	// `ngrok config check` exits 0 when the config file parses successfully,
-	// regardless of whether an authtoken is present. To actually detect a
-	// missing authtoken we'd need to parse ~/.config/ngrok/ngrok.yml or
-	// ~/Library/Application Support/ngrok/ngrok.yml.
-	//
-	// For PR 1 we keep it simple: shell out to a `grep authtoken` over the
-	// likely config paths. False negatives just push the user to the README.
-	out, err := runCmd(context.Background(), "sh", "-c",
-		`grep -lE '^authtoken[[:space:]]*[:=]' "$HOME/Library/Application Support/ngrok/ngrok.yml" "$HOME/.config/ngrok/ngrok.yml" 2>/dev/null`)
-	if err != nil || out == "" {
-		return Check{Name: "ngrok auth token", Status: CheckMissing, Detail: "not configured"}
-	}
-	return Check{Name: "ngrok auth token", Status: CheckOK, Detail: "configured"}
-}

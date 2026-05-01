@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -155,14 +156,16 @@ func (r *engine) Start(ctx context.Context) {
 
 func (r *engine) run(ctx context.Context) {
 	type stepFn func(context.Context) error
+	// Order matters: `make generate-dev` writes server/bindata/generated.go,
+	// which cmd/fleet imports — so build comes after generate-dev, not before.
 	steps := []struct {
 		kind stepKind
 		fn   stepFn
 	}{
 		{stepDockerUp, r.stepDockerUp},
 		{stepMakeDeps, r.stepMakeDeps},
-		{stepMakeBuild, r.stepMakeBuild},
 		{stepGenerateDev, r.stepGenerateDev},
+		{stepMakeBuild, r.stepMakeBuild},
 		{stepPrepareDB, r.stepPrepareDB},
 		{stepServe, r.stepServe},
 		{stepNgrok, r.stepNgrok},
@@ -269,31 +272,14 @@ func (r *engine) stepMakeBuild(ctx context.Context) error {
 }
 
 // stepGenerateDev launches `make generate-dev` in the background and waits
-// for webpack to print its first "compiled successfully" line — without
-// that, `fleet serve --dev` will fail with a "template not found" error.
+// for it to produce server/bindata/generated.go — that's the file cmd/fleet
+// imports, and webpack's "compiled successfully" output is a misleading
+// signal because it fires before go-bindata runs.
 func (r *engine) stepGenerateDev(ctx context.Context) error {
 	logPath := filepath.Join(r.opts.repoRoot, "tools", "ship", ".state", "logs", "webpack.log")
+	bindata := filepath.Join(r.opts.repoRoot, "server", "bindata", "generated.go")
 
-	// Use a parallel channel just for our readiness scan — the proc itself
-	// also forwards to the main sink, so the dashboard pane keeps streaming.
-	ready := make(chan struct{})
-	scanSink := make(chan logLine, 256)
-
-	go func() {
-		for line := range scanSink {
-			r.emit(logLineMsg(line))
-			if strings.Contains(line.Line, "compiled successfully") ||
-				strings.Contains(line.Line, "compiled with") {
-				select {
-				case <-ready:
-				default:
-					close(ready)
-				}
-			}
-		}
-	}()
-
-	p, err := startProc("webpack", r.opts.repoRoot, nil, logPath, scanSink, "make", "generate-dev")
+	p, err := startProc("webpack", r.opts.repoRoot, nil, logPath, r.logSink, "make", "generate-dev")
 	if err != nil {
 		return err
 	}
@@ -301,13 +287,22 @@ func (r *engine) stepGenerateDev(ctx context.Context) error {
 	r.genDev = p
 	r.mu.Unlock()
 
-	select {
-	case <-ready:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(3 * time.Minute):
-		return errors.New("webpack didn't compile within 3 minutes")
+	// Poll for the bindata file to appear with non-empty content. Webpack's
+	// initial build runs first, then go-bindata writes this file, then
+	// webpack switches to --watch. Once the file is here, `make` can build.
+	deadline := time.Now().Add(5 * time.Minute)
+	for {
+		if info, err := os.Stat(bindata); err == nil && info.Size() > 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+		if time.Now().After(deadline) {
+			return errors.New("make generate-dev didn't produce server/bindata/generated.go within 5 minutes")
+		}
 	}
 }
 
