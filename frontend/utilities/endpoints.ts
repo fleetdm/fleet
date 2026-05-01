@@ -234,7 +234,7 @@ export default {
 
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
