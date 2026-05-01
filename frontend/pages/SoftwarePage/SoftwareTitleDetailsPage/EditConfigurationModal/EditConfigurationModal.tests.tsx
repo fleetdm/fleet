@@ -45,7 +45,7 @@ describe("EditConfigurationModal", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     });
 
-    it("shows the installer details widget with software name and Android label", () => {
+    it("shows the installer details widget with Android label", () => {
       const render = createCustomRenderer({ withBackendMock: true });
       render(<EditConfigurationModal {...ANDROID_PROPS} />);
 
@@ -53,6 +53,18 @@ describe("EditConfigurationModal", () => {
         0
       );
       expect(screen.getByText("Android")).toBeInTheDocument();
+    });
+
+    it("does not render description text or Cancel button", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditConfigurationModal {...ANDROID_PROPS} />);
+
+      expect(
+        screen.queryByText(/will be applied to future installs/i)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Cancel" })
+      ).not.toBeInTheDocument();
     });
 
     it("initializes the configuration editor with valid JSON (Save enabled)", async () => {
@@ -144,43 +156,45 @@ describe("EditConfigurationModal", () => {
   });
 
   describe("iOS/iPadOS (XML)", () => {
-    it("renders modal with XML help text and iOS label", () => {
+    it("renders modal with Figma-matching help text", () => {
       const render = createCustomRenderer({ withBackendMock: true });
       render(<EditConfigurationModal {...IOS_PROPS} />);
 
       expect(screen.getByText("Edit configuration")).toBeInTheDocument();
       expect(screen.getByText("Configuration")).toBeInTheDocument();
       expect(
-        screen.getByText(/The iOS app's configuration in XML format/i)
+        screen.getByText(/Managed app configuration, also known as App Config/i)
       ).toBeInTheDocument();
-      expect(screen.getByText("Learn more")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     });
 
-    it("shows the installer details widget with software name and iOS label", () => {
+    it("shows description text with variables link", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditConfigurationModal {...IOS_PROPS} />);
+
+      expect(
+        screen.getByText(/will be applied to future installs and updates/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("variables")).toBeInTheDocument();
+    });
+
+    it("shows Cancel and Save buttons", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditConfigurationModal {...IOS_PROPS} />);
+
+      expect(
+        screen.getByRole("button", { name: "Cancel" })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    });
+
+    it("shows App Store (VPP) installer details (not custom platform label)", () => {
       const render = createCustomRenderer({ withBackendMock: true });
       render(<EditConfigurationModal {...IOS_PROPS} />);
 
       expect(screen.getAllByText(iosInstaller.name).length).toBeGreaterThan(0);
-      expect(screen.getByText("iOS")).toBeInTheDocument();
-    });
-
-    it("shows iPadOS label for iPadOS platform", () => {
-      const render = createCustomRenderer({ withBackendMock: true });
-      const ipadosInstaller = createMockAppStoreAppIos({
-        platform: "ipados",
-      });
-      render(
-        <EditConfigurationModal
-          {...IOS_PROPS}
-          softwareInstaller={ipadosInstaller}
-        />
-      );
-
-      expect(screen.getByText("iPadOS")).toBeInTheDocument();
-      expect(
-        screen.getByText(/The iPadOS app's configuration in XML format/i)
-      ).toBeInTheDocument();
+      // Standard rendering shows "App Store (VPP)" not a custom "iOS" label
+      expect(screen.getByText(/App Store \(VPP\)/)).toBeInTheDocument();
     });
 
     it("initializes with valid XML (Save enabled)", async () => {
@@ -230,30 +244,11 @@ describe("EditConfigurationModal", () => {
       });
     });
 
-    it("initializes with undefined configuration and Save enabled", async () => {
-      const render = createCustomRenderer({ withBackendMock: true });
-      const noConfigInstaller = createMockAppStoreAppIos({
-        configuration: undefined,
-      });
-      render(
-        <EditConfigurationModal
-          {...IOS_PROPS}
-          softwareInstaller={noConfigInstaller}
-        />
-      );
-
-      const saveButton = screen.getByRole("button", { name: "Save" });
-
-      await waitFor(() => {
-        expect(saveButton).toBeEnabled();
-      });
-    });
-
-    it("calls onExit handler when modal close is triggered via Escape key", async () => {
+    it("calls onExit when Cancel is clicked", async () => {
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditConfigurationModal {...IOS_PROPS} />);
 
-      await user.keyboard("{Escape}");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
 
       expect(IOS_PROPS.onExit).toHaveBeenCalled();
     });

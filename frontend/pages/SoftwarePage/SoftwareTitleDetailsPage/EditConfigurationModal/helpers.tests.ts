@@ -174,15 +174,12 @@ describe("validateXml", () => {
     expect(validateXml(xml)).toBeNull();
   });
 
-  it("returns error for malformed XML (unclosed tag)", () => {
-    const error = validateXml("<dict><unclosed");
-    expect(error).toBeTruthy();
-    expect(typeof error).toBe("string");
+  it("returns 'Invalid XML' for malformed XML (unclosed tag)", () => {
+    expect(validateXml("<dict><unclosed")).toBe("Invalid XML");
   });
 
-  it("returns error for malformed XML (mismatched tags)", () => {
-    const error = validateXml("<dict><key>k</string></dict>");
-    expect(error).toBeTruthy();
+  it("returns 'Invalid XML' for malformed XML (mismatched tags)", () => {
+    expect(validateXml("<dict><key>k</string></dict>")).toBe("Invalid XML");
   });
 
   it("returns error when root element is not <dict>", () => {

@@ -70,9 +70,7 @@ export const validateXml = (value: string): string | null => {
 
   const parseError = doc.querySelector("parsererror");
   if (parseError) {
-    // Extract the human-readable portion from the parser error
-    const errorText = parseError.textContent || "Invalid XML";
-    return errorText;
+    return "Invalid XML";
   }
 
   // Verify root element is <dict> (Apple plist requirement)

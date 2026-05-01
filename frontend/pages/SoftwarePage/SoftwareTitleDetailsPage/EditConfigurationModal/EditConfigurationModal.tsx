@@ -125,52 +125,108 @@ const EditConfigurationModal = ({
     setCanSaveForm(!error);
   };
 
-  const platformLabel = getPlatformLabel(platform);
   const editorMode = isApplePlatform ? "xml" : "json";
-  const formatLabel = isApplePlatform ? "XML" : "JSON";
-  const learnMoreSlug = isApplePlatform
-    ? "ios-ipados-software-managed-configuration"
-    : "android-software-managed-configuration";
 
   const renderHelpText = () => {
+    if (isApplePlatform) {
+      return (
+        <div className={`${baseClass}__help-text`}>
+          Managed app configuration, also known as App Config.{" "}
+          <CustomLink
+            newTab
+            text="Learn more"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/ios-ipados-software-managed-configuration`}
+          />
+        </div>
+      );
+    }
     return (
       <div className={`${baseClass}__help-text`}>
-        The {platformLabel} app&apos;s configuration in {formatLabel} format.{" "}
+        The Android app&apos;s configuration in JSON format.{" "}
         <CustomLink
           newTab
           text="Learn more"
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/${learnMoreSlug}`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-software-managed-configuration`}
         />
       </div>
     );
   };
 
+  const renderDescription = () => {
+    if (!isApplePlatform) {
+      return null;
+    }
+    return (
+      <p className={`${baseClass}__description`}>
+        Configuration and updated values of Fleet{" "}
+        <CustomLink
+          newTab
+          text="variables"
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-variables`}
+        />{" "}
+        will be applied to future installs and updates.
+      </p>
+    );
+  };
+
   const renderForm = () => (
-    <>
-      <Editor
-        mode={editorMode}
-        value={formData}
-        helpText={renderHelpText()}
-        onChange={onInputChange}
-        error={formError}
-        label="Configuration"
-      />
-    </>
+    <Editor
+      mode={editorMode}
+      value={formData}
+      helpText={renderHelpText()}
+      onChange={onInputChange}
+      error={formError}
+      label="Configuration"
+    />
   );
 
-  return (
-    <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
+  const renderInstallerDetails = () => {
+    if (isApplePlatform) {
+      return (
+        <InstallerDetailsWidget
+          softwareName={softwareInstaller.name}
+          installerType="app-store"
+          version={softwareInstaller.latest_version}
+          isFma={false}
+          isScriptPackage={false}
+        />
+      );
+    }
+    return (
       <InstallerDetailsWidget
         softwareName={softwareInstaller.name}
-        androidPlayStoreId={
-          isApplePlatform ? undefined : softwareInstaller.app_store_id
-        }
-        customDetails={platformLabel}
+        androidPlayStoreId={softwareInstaller.app_store_id}
+        customDetails={getPlatformLabel(platform)}
         installerType="app-store"
         isFma={false}
         isScriptPackage={false}
       />
-      {renderForm()}
+    );
+  };
+
+  const renderFooter = () => {
+    if (isApplePlatform) {
+      return (
+        <ModalFooter
+          primaryButtons={
+            <>
+              <Button onClick={onExit} variant="inverse">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={onEditConfiguration}
+                isLoading={isUpdatingConfiguration}
+                disabled={!canSaveForm || isUpdatingConfiguration}
+              >
+                Save
+              </Button>
+            </>
+          }
+        />
+      );
+    }
+    return (
       <ModalFooter
         primaryButtons={
           <Button
@@ -183,6 +239,15 @@ const EditConfigurationModal = ({
           </Button>
         }
       />
+    );
+  };
+
+  return (
+    <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
+      {renderInstallerDetails()}
+      {renderDescription()}
+      {renderForm()}
+      {renderFooter()}
     </Modal>
   );
 };
