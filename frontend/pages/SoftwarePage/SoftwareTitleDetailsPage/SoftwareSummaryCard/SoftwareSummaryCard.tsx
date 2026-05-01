@@ -10,7 +10,6 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
   NO_VERSION_OR_HOST_DATA_SOURCES,
-  IAppStoreApp,
 } from "interfaces/software";
 
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -235,9 +234,10 @@ const SoftwareSummaryCard = ({
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
-          softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareInstaller={softwareInstaller}
           softwareId={softwareId}
           teamId={teamId}
+          isApplePlatform={isIosOrIpadosApp}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
         />

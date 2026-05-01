@@ -1,7 +1,10 @@
 import React, { useCallback, useContext, useState } from "react";
 import { Ace } from "ace-builds";
-import { IAppStoreApp } from "interfaces/software";
-import { isIPadOrIPhone } from "interfaces/platform";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  isSoftwarePackage,
+} from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 
@@ -32,7 +35,9 @@ export interface ISoftwareConfigurationFormData {
 interface IEditConfigurationModalProps {
   softwareId: number;
   teamId: number;
-  softwareInstaller: IAppStoreApp;
+  softwareInstaller: IAppStoreApp | ISoftwarePackage;
+  /** Whether this is an iOS/iPadOS app (VPP or in-house .ipa) */
+  isApplePlatform: boolean;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
 }
@@ -41,13 +46,13 @@ const EditConfigurationModal = ({
   softwareInstaller,
   softwareId,
   teamId,
+  isApplePlatform,
   refetchSoftwareTitle,
   onExit,
 }: IEditConfigurationModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const platform = softwareInstaller.platform;
-  const isApplePlatform = isIPadOrIPhone(platform);
+  const isInHouseApp = isSoftwarePackage(softwareInstaller);
 
   const XML_EMPTY = "<dict>\n  \n</dict>";
 
@@ -109,11 +114,21 @@ const EditConfigurationModal = ({
     evt.preventDefault();
 
     try {
-      await softwareAPI.editAppStoreApp(
-        softwareId,
-        teamId,
-        buildSubmitPayload()
-      );
+      if (isInHouseApp) {
+        // In-house .ipa: multipart PATCH via editSoftwarePackage
+        await softwareAPI.editSoftwarePackage({
+          data: buildSubmitPayload(),
+          softwareId,
+          teamId,
+        });
+      } else {
+        // VPP / Android: JSON PATCH via editAppStoreApp
+        await softwareAPI.editAppStoreApp(
+          softwareId,
+          teamId,
+          buildSubmitPayload()
+        );
+      }
 
       renderFlash(
         "success",
@@ -202,21 +217,25 @@ const EditConfigurationModal = ({
 
   const renderInstallerDetails = () => {
     if (isApplePlatform) {
+      const version = isInHouseApp
+        ? softwareInstaller.version
+        : (softwareInstaller as IAppStoreApp).latest_version;
       return (
         <InstallerDetailsWidget
           softwareName={softwareInstaller.name}
-          installerType="app-store"
-          version={softwareInstaller.latest_version}
+          installerType={isInHouseApp ? "package" : "app-store"}
+          version={version}
           isFma={false}
           isScriptPackage={false}
         />
       );
     }
+    const appStoreApp = softwareInstaller as IAppStoreApp;
     return (
       <InstallerDetailsWidget
-        softwareName={softwareInstaller.name}
-        androidPlayStoreId={softwareInstaller.app_store_id}
-        customDetails={getPlatformLabel(platform)}
+        softwareName={appStoreApp.name}
+        androidPlayStoreId={appStoreApp.app_store_id}
+        customDetails={getPlatformLabel(appStoreApp.platform)}
         installerType="app-store"
         isFma={false}
         isScriptPackage={false}

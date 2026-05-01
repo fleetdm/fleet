@@ -3,6 +3,7 @@ import React from "react";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
   createMockAppStoreApp,
   createMockAppStoreAppAndroid,
   createMockAppStoreAppIos,
@@ -178,6 +179,52 @@ describe("Software Summary Card", () => {
       expect(options).not.toContain("Edit software");
       expect(options).not.toContain("Edit configuration");
       expect(options).not.toContain("Schedule auto updates");
+    });
+
+    it("displays Edit configuration for iOS/iPadOS in-house (.ipa) apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "ios_apps",
+            software_package: createMockSoftwarePackageIos(),
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit software");
+      expect(options).toContain("Edit configuration");
+    });
+
+    it("does not display Edit configuration for macOS in-house (.pkg) apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            software_package: createMockSoftwarePackage(),
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onToggleViewYaml={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit software");
+      expect(options).not.toContain("Edit configuration");
     });
 
     it("does not display Edit configuration for macOS VPP apps", async () => {

@@ -148,6 +148,7 @@ export interface ISoftwarePackage {
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
+  configuration?: string;
 }
 
 export interface IAppStoreApp {
