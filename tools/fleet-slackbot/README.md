@@ -82,6 +82,7 @@ GITOPS_BASE_PATH=it-and-security                # path within the repo to the Gi
 
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
+MAX_TOOL_CALLS=100                               # safety cap on tool calls per response (default: 100)
 
 FLEET_MCP_URL=http://localhost:8181/sse
 PORT=3000                                        # port for the GitHub webhook listener
