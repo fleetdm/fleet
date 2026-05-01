@@ -1977,9 +1977,9 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 		logger.InfoContext(ctx, "using S3 org logo store", "bucket", s3Config.SoftwareInstallersBucket)
 		return store
 	}
-	logoDir := os.TempDir()
-	if dir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR"); dir != "" {
-		logoDir = dir
+	logoDir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR")
+	if logoDir == "" {
+		logoDir = os.TempDir()
 	}
 	store, err := filesystem.NewOrgLogoStore(logoDir)
 	if err != nil {

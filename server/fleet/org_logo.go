@@ -5,6 +5,8 @@ import (
 	"io"
 )
 
+const OrgLogoMaxFileSize = 100 * 1024
+
 type OrgLogoMode string
 
 const (

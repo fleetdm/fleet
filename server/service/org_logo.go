@@ -5,6 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 
@@ -15,9 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/gorilla/mux"
+	_ "golang.org/x/image/webp"
 )
 
-const orgLogoMaxFileSize = 100 * 1024
+const orgLogoMaxFileSize = fleet.OrgLogoMaxFileSize
 
 // Magic-byte signatures used to identify accepted image formats. We compare
 // against raw upload bytes rather than trusting the multipart Content-Type
@@ -204,7 +208,15 @@ func validateOrgLogoBytes(b []byte) error {
 	if int64(len(b)) > orgLogoMaxFileSize {
 		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
 	}
-	if contentTypeForBytes(b) != "" {
+	_, format, err := image.DecodeConfig(bytes.NewReader(b))
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     "logo must be a valid PNG, JPEG, or WebP image",
+			InternalErr: err,
+		}
+	}
+	switch format {
+	case "png", "jpeg", "webp":
 		return nil
 	}
 	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, or WebP file"}
@@ -279,14 +291,31 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
+	// Filter to modes that actually have something to delete.
+	// (The S3 store's Delete is silent on missing keys, so without this check
+	// we'd persist a "logo deleted" activity.)
+	modes := mode.Modes()
+	toDelete := modes[:0:0]
+	for _, m := range modes {
+		exists, err := svc.orgLogoStore.Exists(ctx, m)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "checking org logo exists (%s)", m)
+		}
+		if exists {
+			toDelete = append(toDelete, m)
+		}
+	}
+	if len(toDelete) == 0 {
+		return &fleet.BadRequestError{Message: "no org logo to delete for the given mode"}
+	}
+
 	// Try every requested mode even if one fails so a partial in-store
 	// state isn't left where one blob is gone but another lingers under a
 	// URL we already cleared. URLs are only cleared if all deletes
 	// succeeded — on a partial failure the caller retries and Delete is
 	// idempotent.
-	modes := mode.Modes()
 	var errs []error
-	for _, m := range modes {
+	for _, m := range toDelete {
 		if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting org logo (%s)", m))
 		}
@@ -294,7 +323,7 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-	if err := svc.updateOrgLogoURLs(ctx, modes, false); err != nil {
+	if err := svc.updateOrgLogoURLs(ctx, toDelete, false); err != nil {
 		return err
 	}
 
@@ -333,8 +362,8 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if int64(len(body)) > orgLogoMaxFileSize {
 		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
 	}
-	if err := validateOrgLogoBytes(body); err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "validating stored org logo")
+	if contentTypeForBytes(body) == "" {
+		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
 	}
 	return body, int64(len(body)), nil
 }

@@ -619,6 +619,17 @@ func TestOrgInfoNormalizeLogoFields(t *testing.T) {
 			},
 		},
 		{
+			name: "matching light old + new -> kept",
+			in: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
 			name: "conflicting dark old + new -> error",
 			in: OrgInfo{
 				OrgLogoURL:         "https://example.com/d1.png",

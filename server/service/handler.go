@@ -299,7 +299,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/config/certificate", getCertificateEndpoint, nil)
 	ue.GET("/api/_version_/fleet/config", getAppConfigEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/config", modifyAppConfigEndpoint, modifyAppConfigRequest{})
-	ue.WithRequestBodySizeLimit(100*units.KiB).PUT("/api/_version_/fleet/logo", putOrgLogoEndpoint, putOrgLogoRequest{})
+	ue.WithRequestBodySizeLimit(fleet.OrgLogoMaxFileSize).PUT("/api/_version_/fleet/logo", putOrgLogoEndpoint, putOrgLogoRequest{})
 	ue.DELETE("/api/_version_/fleet/logo", deleteOrgLogoEndpoint, deleteOrgLogoRequest{})
 	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
 	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)

@@ -37,16 +37,17 @@ func (s *OrgLogoStore) pathFor(mode fleet.OrgLogoMode) string {
 
 func (s *OrgLogoStore) Get(ctx context.Context, mode fleet.OrgLogoMode) (io.ReadCloser, int64, error) {
 	p := s.pathFor(mode)
-	st, err := os.Stat(p)
+	f, err := os.Open(p)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, 0, orgLogoNotFoundError{}
 		}
-		return nil, 0, ctxerr.Wrap(ctx, err, "stat org logo")
-	}
-	f, err := os.Open(p)
-	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "open org logo")
+	}
+	st, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, ctxerr.Wrap(ctx, err, "stat org logo")
 	}
 	return f, st.Size(), nil
 }

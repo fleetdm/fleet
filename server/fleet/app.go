@@ -1265,26 +1265,26 @@ func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
 // ServerURL prepended on read.
 const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
 
-// AbsolutizeLogoURLs rewrites any Fleet-hosted relative logo URL into a
+// AbsolutizeLogoURL rewrites a Fleet-hosted relative logo URL into a
 // fully-qualified URL using the supplied serverURL. URLs that don't
 // match the Fleet-hosted serving path (i.e. external URLs set by
-// customers) are left unchanged. Empty values are left empty.
-func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
-	if serverURL == "" {
-		return
-	}
-	serverURL = strings.TrimRight(serverURL, "/")
-
-	abs := func(u string) string {
-		if strings.HasPrefix(u, orgLogoServingPathPrefix) {
-			return serverURL + u
-		}
+// customers) and empty strings are returned unchanged. Use this when
+// you only need to absolutize one field — see AbsolutizeLogoURLs for
+// the OrgInfo-wide variant.
+func AbsolutizeLogoURL(u, serverURL string) string {
+	if serverURL == "" || !strings.HasPrefix(u, orgLogoServingPathPrefix) {
 		return u
 	}
-	o.OrgLogoURL = abs(o.OrgLogoURL)
-	o.OrgLogoURLLightBackground = abs(o.OrgLogoURLLightBackground)
-	o.OrgLogoURLDarkMode = abs(o.OrgLogoURLDarkMode)
-	o.OrgLogoURLLightMode = abs(o.OrgLogoURLLightMode)
+	return strings.TrimRight(serverURL, "/") + u
+}
+
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
+// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
+	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
+	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
+	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
