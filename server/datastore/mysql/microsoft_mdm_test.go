@@ -5222,17 +5222,6 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 	require.Equal(t, 2, profileCount)
 }
 
-// testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every
-// possible (status, operation_type, reserved) shape a host_mdm_windows_profiles
-// row can take and exercises every 0-, 1-, and 2-profile host configuration
-// through GetMDMWindowsProfilesSummary.
-//
-// The input universe is finite and small: status is FK-constrained to
-// {NULL, failed, pending, verifying, verified} (5 values) and operation_type
-// is FK-constrained to {NULL, install, remove} (3 values); a profile is either
-// reserved or non-reserved (2). Per row that is 30 shapes; for 2-profile hosts
-// we enumerate all 30x30 = 900 ordered pairs, plus 30 single-profile cases,
-// plus one zero-profile case.
 func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -5249,17 +5238,24 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
 		TargetLocURI: "./Device/Test2",
 	}
+	cmd3 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test3",
+	}
 	err := ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd1)
 	require.NoError(t, err)
 	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd2)
 	require.NoError(t, err)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd3)
+	require.NoError(t, err)
 
-	// Both should be in the queue.
+	// All three should be in the queue.
 	var count int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ?", dev.ID)
 	})
-	require.Equal(t, 2, count)
+	require.Equal(t, 3, count)
 
 	// Insert a response row (required FK for command results).
 	var responseID int64
@@ -5312,8 +5308,27 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 			dev.ID, cmd2.CommandUUID)
 	})
 	assert.Equal(t, 1, cmd2Count, "Queue row for cmd2 should remain (result <1 hour old)")
+
+	// cmd3's queue row should still exist (no result at all — still pending).
+	var cmd3Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd3Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd3.CommandUUID)
+	})
+	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
+// testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every
+// possible (status, operation_type, reserved) shape a host_mdm_windows_profiles
+// row can take and exercises every 0-, 1-, and 2-profile host configuration
+// through GetMDMWindowsProfilesSummary.
+//
+// The input universe is finite and small: status is FK-constrained to
+// {NULL, failed, pending, verifying, verified} (5 values) and operation_type
+// is FK-constrained to {NULL, install, remove} (3 values); a profile is either
+// reserved or non-reserved (2). Per row that is 30 shapes; for 2-profile hosts
+// we enumerate all 30x30 = 900 ordered pairs, plus 30 single-profile cases,
+// plus one zero-profile case.
 func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 

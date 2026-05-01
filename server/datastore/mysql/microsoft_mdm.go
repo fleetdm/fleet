@@ -3447,9 +3447,6 @@ INNER JOIN (
 	var totalDeleted int64
 	exhausted := true
 	for range maxBatches {
-		if err := ctx.Err(); err != nil {
-			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue canceled")
-		}
 		res, err := ds.writer(ctx).ExecContext(ctx, stmt, batchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
