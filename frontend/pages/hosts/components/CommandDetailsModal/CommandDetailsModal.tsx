@@ -173,13 +173,15 @@ const ModalContent = ({
   );
 };
 
-export type ICommandResultsModalCommand = {
+type ICommandResultsModalCommand = {
   host_uuid?: string;
   command_uuid: string;
 };
 
 interface ICommandResultsModalProps {
   command: ICommandResultsModalCommand;
+  // contentBody if provided will be used to render content above the request and response payloads.
+  // if not defined, a default contentBody will be used to display a status message and icon based on profile status
   contentBody?: (baseClass: string, result: ICommandResult) => React.ReactNode;
   title?: string;
   onDone: () => void;

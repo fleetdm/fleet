@@ -1,7 +1,6 @@
 import React from "react";
 import { ICommandResult } from "interfaces/command";
 import CommandResultsModal, {
-  ICommandResultsModalCommand,
   GetIconName,
 } from "pages/hosts/components/CommandDetailsModal";
 import { formatDistanceToNow } from "date-fns";
@@ -9,7 +8,7 @@ import IconStatusMessage from "components/IconStatusMessage";
 import CustomLink from "components/CustomLink";
 
 export interface IFailedEnrollmentProfileModalProps {
-  command: Pick<ICommandResultsModalCommand, "command_uuid">;
+  command: { command_uuid: string };
   onDone: () => void;
 }
 
