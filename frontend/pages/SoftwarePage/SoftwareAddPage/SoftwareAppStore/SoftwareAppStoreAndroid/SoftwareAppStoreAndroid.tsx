@@ -19,16 +19,26 @@ const baseClass = "software-app-store-android";
 
 interface IEnableAndroidMdmMessageProps {
   onEnableMdm: () => void;
+  isAdmin: boolean;
 }
 
 const EnableAndroidMdmMessage = ({
   onEnableMdm,
+  isAdmin,
 }: IEnableAndroidMdmMessageProps) => (
   <EmptyState
     variant="form"
     header="Android MDM isn't enabled"
-    info="To add Android apps, first enable Android MDM."
-    primaryButton={<Button onClick={onEnableMdm}>Enable Android MDM</Button>}
+    info={
+      isAdmin
+        ? "To add Android apps, first enable Android MDM."
+        : "To add Android apps, ask your admin to enable Android MDM."
+    }
+    primaryButton={
+      isAdmin ? (
+        <Button onClick={onEnableMdm}>Enable Android MDM</Button>
+      ) : undefined
+    }
   />
 );
 
@@ -42,9 +52,13 @@ const SoftwareAppStoreAndroid = ({
   router,
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier, isAndroidMdmEnabledAndConfigured } = useContext(
-    AppContext
-  );
+  const {
+    isPremiumTier,
+    isAndroidMdmEnabledAndConfigured,
+    isGlobalAdmin,
+    isAnyTeamAdmin,
+  } = useContext(AppContext);
+  const isAdmin = !!(isGlobalAdmin || isAnyTeamAdmin);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -103,7 +117,12 @@ const SoftwareAppStoreAndroid = ({
     }
 
     if (!isAndroidMdmEnabledAndConfigured) {
-      return <EnableAndroidMdmMessage onEnableMdm={onEnableAndroidMdm} />;
+      return (
+        <EnableAndroidMdmMessage
+          onEnableMdm={onEnableAndroidMdm}
+          isAdmin={isAdmin}
+        />
+      );
     }
 
     return (

@@ -35,27 +35,41 @@ const baseClass = "software-app-store-vpp";
 
 interface IEnableVppMessage {
   onEnableVpp: () => void;
+  isAdmin: boolean;
 }
 
-const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
+const EnableVppMessage = ({ onEnableVpp, isAdmin }: IEnableVppMessage) => (
   <EmptyState
     variant="list"
     header="Volume Purchasing Program (VPP) isn't enabled"
-    info="To add App Store apps, first enable VPP."
-    primaryButton={<Button onClick={onEnableVpp}>Enable VPP</Button>}
+    info={
+      isAdmin
+        ? "To add App Store apps, first enable VPP."
+        : "To add App Store apps, ask your admin to enable VPP."
+    }
+    primaryButton={
+      isAdmin ? <Button onClick={onEnableVpp}>Enable VPP</Button> : undefined
+    }
   />
 );
 
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
+  isAdmin: boolean;
 }
 
-const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
+const AddTeamToVppMessage = ({ onEditVpp, isAdmin }: IAddTeamToVppMessage) => (
   <EmptyState
     variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this fleet to VPP."
-    primaryButton={<Button onClick={onEditVpp}>Edit VPP</Button>}
+    info={
+      isAdmin
+        ? "To add App Store apps, first add this fleet to VPP."
+        : "To add App Store apps, ask your admin to add this fleet to VPP."
+    }
+    primaryButton={
+      isAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+    }
   />
 );
 
@@ -88,7 +102,10 @@ const SoftwareAppStoreVpp = ({
   router,
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isGlobalAdmin, isAnyTeamAdmin } = useContext(
+    AppContext
+  );
+  const isAdmin = !!(isGlobalAdmin || isAnyTeamAdmin);
   const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -223,6 +240,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isAdmin={isAdmin}
         />
       );
     }
@@ -231,6 +249,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isAdmin={isAdmin}
         />
       );
     }
