@@ -126,10 +126,14 @@ func clientIP(r *http.Request) string {
 		// are appended by intermediate proxies. Trim because RFC 7230 allows
 		// optional whitespace after the comma (and before it, in the wild) —
 		// without trimming "1.2.3.4" and " 1.2.3.4" become distinct map keys
-		// and weaken per-IP throttling.
+		// and weaken per-IP throttling. Validate as an IP and canonicalize so
+		// non-IP tokens (e.g. "obfuscated", "unknown") cannot become limiter
+		// keys.
 		first, _, _ := strings.Cut(xff, ",")
 		if first = strings.TrimSpace(first); first != "" {
-			return first
+			if ip := net.ParseIP(first); ip != nil {
+				return ip.String()
+			}
 		}
 	}
 	return host

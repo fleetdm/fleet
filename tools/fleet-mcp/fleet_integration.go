@@ -875,15 +875,22 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 		if decErr != nil {
 			return nil, fmt.Errorf("failed to decode hosts response: %w", decErr)
 		}
+		// Hard cap enforcement — truncate the incoming page so out never
+		// exceeds hardCap. Truncation is rare; when it happens the operator
+		// should either tighten filters or raise the cap.
+		remaining := hardCap - len(out)
+		if remaining <= 0 {
+			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			break
+		}
+		if len(result.Hosts) > remaining {
+			out = append(out, result.Hosts[:remaining]...)
+			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			break
+		}
 		out = append(out, result.Hosts...)
 		// Last page — Fleet returned fewer than the requested page size.
 		if len(result.Hosts) < perPage {
-			break
-		}
-		// Hard cap hit — log and stop. Truncation here is rare; when it
-		// happens the operator should either tighten filters or raise the cap.
-		if len(out) >= hardCap {
-			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
 			break
 		}
 	}
@@ -1613,18 +1620,24 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 		// Query-first to detect hostname collisions before silently picking.
 		candidates, qErr := fc.GetEndpointsWithFilters(ctx, "", "", "", name, "", "", "", 50)
 		var resolved *Endpoint
-		switch {
-		case qErr == nil && len(candidates) == 1:
-			full, fErr := fc.GetHostByID(ctx, candidates[0].ID)
-			if fErr == nil {
-				resolved = full
-			} else {
-				cand := candidates[0]
+		// Fleet's query parameter is a substring match across hostname,
+		// computer_name, hardware_serial, primary_ip, etc. Only accept a
+		// singleton when it actually matches on a hostname-like field —
+		// otherwise serial/IP/user substring hits would be silently treated
+		// as hostname matches.
+		if qErr == nil && len(candidates) == 1 {
+			cand := candidates[0]
+			if full, fErr := fc.GetHostByID(ctx, cand.ID); fErr == nil {
+				cand = *full
+			}
+			if strings.EqualFold(cand.Name, name) || strings.EqualFold(cand.ComputerName, name) || strings.EqualFold(cand.DisplayName, name) {
 				resolved = &cand
 			}
-		case qErr == nil && len(candidates) > 1:
-			return nil, fmt.Errorf("hostname %q matches %d hosts — disambiguate with host_ids (Fleet's substring search does not cover display_name; pass numeric IDs to be unambiguous)", name, len(candidates))
-		default:
+		}
+		if resolved == nil {
+			if qErr == nil && len(candidates) > 1 {
+				return nil, fmt.Errorf("hostname %q matches %d hosts — disambiguate with host_ids (Fleet's substring search does not cover display_name; pass numeric IDs to be unambiguous)", name, len(candidates))
+			}
 			// Fall back to /hosts/identifier/:id for UUID and computer_name matches.
 			h, idErr := fc.GetHostByIdentifier(ctx, name)
 			if idErr != nil {
@@ -1886,7 +1899,15 @@ func (fc *FleetClient) SweepLeftoverTempQueries(ctx context.Context) {
 	}
 	swept := 0
 	for _, q := range queries {
-		if !strings.HasPrefix(q.Name, tempQueryNamePrefix) {
+		// GetQueries rewrites team-scoped names as "[<team>] <name>" — strip
+		// that bracket so team-scoped temp queries are also detected.
+		name := q.Name
+		if strings.HasPrefix(name, "[") {
+			if idx := strings.Index(name, "] "); idx > 0 {
+				name = name[idx+2:]
+			}
+		}
+		if !strings.HasPrefix(name, tempQueryNamePrefix) {
 			continue
 		}
 		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", q.ID)
