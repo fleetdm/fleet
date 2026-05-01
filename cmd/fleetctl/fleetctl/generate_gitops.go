@@ -2040,21 +2040,39 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			config := softwareTitle.AppStoreApp.Configuration
 			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
 				// all per-team software-related artifacts are generated in lib/{team}/software
-				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["configuration"] = map[string]any{
-					"path": path,
-				}
+				platform := softwareTitle.AppStoreApp.Platform
+				switch platform {
+				case fleet.IOSPlatform, fleet.IPadOSPlatform:
+					// iOS/iPadOS configuration is returned as a JSON-encoded
+					// string of XML; unwrap and write the raw XML.
+					var xmlStr string
+					if err := json.Unmarshal(config, &xmlStr); err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
+						return nil, err
+					}
+					if xmlStr == "" {
+						break
+					}
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
+					cmd.FilesToWrite[fileName] = []byte(xmlStr)
+				default:
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
 
-				// format config because it is received with incorrect indentation
-				var buf bytes.Buffer
-				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
-				if err != nil {
-					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-					return nil, err
-				}
+					// format config because it is received with incorrect indentation
+					var buf bytes.Buffer
+					if err := json.Indent(&buf, config, "", "  "); err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+						return nil, err
+					}
 
-				cmd.FilesToWrite[fileName] = buf.Bytes()
+					cmd.FilesToWrite[fileName] = buf.Bytes()
+				}
 			}
 
 			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
