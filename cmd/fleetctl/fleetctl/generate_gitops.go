@@ -2004,6 +2004,24 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
 			}
+
+			// Emit managed app configuration for iOS / iPadOS in-house apps. The
+			// API returns it as a JSON-encoded string of XML; unwrap and write
+			// the raw XML alongside the package's other artifacts.
+			if len(softwareTitle.SoftwarePackage.Configuration) > 0 {
+				var xmlStr string
+				if err := json.Unmarshal(softwareTitle.SoftwarePackage.Configuration, &xmlStr); err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding in-house app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+				if xmlStr != "" {
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
+					cmd.FilesToWrite[fileName] = []byte(xmlStr)
+				}
+			}
 		}
 
 		if softwareTitle.AppStoreApp != nil {

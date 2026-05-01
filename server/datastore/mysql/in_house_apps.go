@@ -1329,6 +1329,18 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 
+			// Apply managed app configuration declaratively: an explicit
+			// non-empty value sets it, anything else (nil or empty) clears it.
+			if len(installer.Configuration) > 0 {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, installerID, installer.Configuration); err != nil {
+					return ctxerr.Wrapf(ctx, err, "set in-house app configuration for %q", installer.Filename)
+				}
+			} else {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clear in-house app configuration for %q", installer.Filename)
+				}
+			}
+
 			// process the labels associated with that in-house installer
 			if len(installer.ValidatedLabels.ByName) == 0 {
 				// no label to apply, so just delete all existing labels if any

@@ -820,6 +820,8 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
+	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
 	// FMA
 	Slug    *string `json:"slug"`
@@ -850,6 +852,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }

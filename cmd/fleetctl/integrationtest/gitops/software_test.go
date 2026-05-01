@@ -1312,3 +1312,89 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 		})
 	}
 }
+
+// TestGitOpsTeamInHouseAppleConfiguration covers the iOS / iPadOS in-house app
+// (.ipa) managed configuration path through gitops apply: a configuration.path
+// file is read from disk, validated, and reaches BatchSetInHouseAppsInstallers
+// as raw XML bytes; invalid XML or unsupported Fleet variables are rejected;
+// and an absent configuration block clears any previously stored configuration.
+func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
+	testing_utils.StartSoftwareInstallerServer(t)
+	testing_utils.StartAndServeVPPServer(t)
+
+	xmlPath := "../../fleetctl/testdata/gitops/team_in_house_config.xml"
+	wantXML, err := os.ReadFile(xmlPath)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name         string
+		yaml         string
+		wantErr      string
+		expectConfig []byte
+	}{
+		{
+			name:         "valid configuration is read, validated, and stored as raw XML",
+			yaml:         "../../fleetctl/testdata/gitops/team_in_house_with_config.yml",
+			expectConfig: wantXML,
+		},
+		{
+			name:    "invalid Fleet variable is rejected",
+			yaml:    "../../fleetctl/testdata/gitops/team_in_house_with_invalid_config.yml",
+			wantErr: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name: "missing configuration produces no configuration on the payload",
+			yaml: "../../fleetctl/testdata/gitops/team_software_installer_valid_ipa.yml",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+			var capturedInstallers []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				capturedInstallers = append(capturedInstallers, installers...)
+				return nil
+			}
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
+			ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+				return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+			}
+			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+				return nil, nil
+			}
+			ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+				return nil
+			}
+			ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
+				return nil
+			}
+
+			_, err := fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
+
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.NotEmpty(t, capturedInstallers, "expected BatchSetInHouseAppsInstallers to be called")
+			// .ipa generates two installers (iOS + iPadOS). All of them should
+			// carry the same Configuration value.
+			for _, inst := range capturedInstallers {
+				require.Equal(t, c.expectConfig, []byte(inst.Configuration))
+			}
+		})
+	}
+}

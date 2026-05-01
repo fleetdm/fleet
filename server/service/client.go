@@ -1289,6 +1289,17 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		var cfg []byte
+		if si.Configuration.Path != "" {
+			cfg, err = os.ReadFile(si.Configuration.Path)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Reading configuration %s: %w", si.URL, si.Configuration.Path, err)
+			}
+			if err := fleet.ValidateAppleAppConfiguration(cfg); err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Configuration %s: %w", si.URL, si.Configuration.Path, err)
+			}
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                urlValue,
 			SelfService:        si.SelfService,
@@ -1306,6 +1317,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 			AlwaysDownload:     si.AlwaysDownload,
+			Configuration:      cfg,
 		}
 
 		if si.Slug != nil {

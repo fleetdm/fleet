@@ -2524,6 +2524,7 @@ func (svc *Service) softwareBatchUpload(
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
 				AlwaysDownload:     p.AlwaysDownload,
+				Configuration:      p.Configuration,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2868,6 +2869,11 @@ func (svc *Service) softwareBatchUpload(
 					// this isn't the specified installer, so return an error
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
+			}
+
+			// Managed app configuration is only supported for iOS / iPadOS in-house apps.
+			if installer.Extension != "ipa" {
+				installer.Configuration = nil
 			}
 
 			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
