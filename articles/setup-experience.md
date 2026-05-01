@@ -40,7 +40,7 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 
 Fleet can create a hidden admin account (`_fleetadmin`) with a unique password on each macOS host during Setup Assistant. IT admins can use this account as a break-glass login for troubleshooting.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business Manager (ABM). Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB). Manually enrolled hosts are not supported.
 
 To enable managed local accounts:
 
