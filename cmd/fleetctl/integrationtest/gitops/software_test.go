@@ -142,7 +142,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 			}
-			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 				return nil, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
@@ -194,7 +194,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
-	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
@@ -210,6 +210,28 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	}
 
 	_, err := fleetctl.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_env_query.yml"})
+	require.NoError(t, err)
+}
+
+// gitops --dry-run with software.packages: [] must short-circuit on the server
+// and not exercise any of the batch-set or installer-validation datastore paths.
+// See ee/server/service/software_installers.go::BatchSetSoftwareInstallers.
+func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		t.Errorf("BatchSetSoftwareInstallers must not be called for dry-run with empty packages")
+		return nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		t.Errorf("GetTeamsWithInstallerByHash must not be called for dry-run with empty packages")
+		return nil, nil
+	}
+
+	_, err := fleetctl.RunAppNoChecks([]string{
+		"gitops", "--dry-run",
+		"-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_empty_packages.yml",
+	})
 	require.NoError(t, err)
 }
 
@@ -449,7 +471,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 			}
-			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 				return nil, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {

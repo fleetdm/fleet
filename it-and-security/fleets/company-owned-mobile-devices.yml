@@ -17,13 +17,13 @@ controls:
   ipados_updates:
     deadline: "2025-06-01"
     minimum_version: "18.5"
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
-  macos_setup:
+  setup_experience:
     enable_end_user_authentication: true
   scripts:
 policies:

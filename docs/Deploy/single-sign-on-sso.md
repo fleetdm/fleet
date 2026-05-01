@@ -269,6 +269,18 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fle
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
+
+## Automatically deprovision Fleet users
+
+When SCIM is configured with your IdP, Fleet automatically deletes a user's Fleet account when the user is deleted or deactivated in the IdP.
+
+Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
+
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+
+No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
+
 ## Email two-factor authentication (2FA)
 
 If you have a "break glass" Fleet user account that's used to login to Fleet when your identify provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).

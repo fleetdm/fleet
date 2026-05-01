@@ -101,3 +101,11 @@ func (db Database) Eval(ctx context.Context, software []fleet.Software, logger *
 
 	return vulnerabilities
 }
+
+// Close releases the underlying sqlite database connection pool.
+func (db Database) Close() error {
+	if db.sqlite == nil {
+		return nil
+	}
+	return db.sqlite.Close()
+}

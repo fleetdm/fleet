@@ -304,6 +304,8 @@ LEFT JOIN
 WHERE
 	si.global_or_team_id = ?
 AND
+	si.is_active = TRUE
+AND
 	st.id IN (%s)
 `, titleIDQuestionMarks)
 

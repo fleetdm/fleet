@@ -25,6 +25,8 @@ var _ fleet.Datastore = (*DataStore)(nil)
 
 type AppConfigFunc func(ctx context.Context) (*fleet.AppConfig, error)
 
+type AppConfigUrlsFunc func(ctx context.Context) (*fleet.AppConfigUrls, error)
+
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
 type InsertOrReplaceMDMConfigAssetFunc func(ctx context.Context, asset fleet.MDMConfigAsset) error
@@ -186,6 +188,8 @@ type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFil
 type LabelByNameFunc func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error)
 
 type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
+
+type LabelMembershipHostIDsFunc func(ctx context.Context, labelID uint) ([]uint, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error)
 
@@ -466,6 +470,8 @@ type DeleteTeamFunc func(ctx context.Context, tid uint) error
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
 type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
+
+type TeamConflictsWithNameFunc func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error)
 
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
@@ -885,10 +891,6 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
-type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
-
-type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
-
 type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 
 type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint, maxVulnerabilities *int) (fleet.OSVulnerabilitiesWithCount, error)
@@ -1085,6 +1087,22 @@ type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID strin
 
 type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error)
 
+type SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
+
+type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
+
+type GetHostManagedLocalAccountPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error)
+
+type GetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error)
+
+type SetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus) error
+
+type GetManagedLocalAccountByCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
+
+type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (accountUUID *string, err error)
+
+type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -1247,13 +1265,15 @@ type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []s
 
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
-type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error)
+type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
-type MDMWindowsSaveResponseFunc func(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error
+type MDMWindowsSaveResponseFunc func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error)
 
 type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
 
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+
+type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -1287,11 +1307,25 @@ type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*
 
 type ListMDMWindowsProfilesToInstallFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
 
+type ListMDMWindowsProfilesToInstallForHostFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error)
+
 type ListMDMWindowsProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error)
+
+type ListMDMWindowsProfilesToInstallForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
+
+type ListMDMWindowsProfilesToRemoveForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error)
+
+type ListNextPendingMDMWindowsHostUUIDsFunc func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+
+type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
+
+type SetMDMWindowsReconcileCursorFunc func(ctx context.Context, cursor string) error
 
 type BulkUpsertMDMWindowsHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error)
+
+type GetExistingMDMWindowsProfileUUIDsFunc func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error)
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
@@ -1535,7 +1569,7 @@ type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string)
 
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
-type GetInstallerByTeamAndURLFunc func(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error)
+type GetInstallerByTeamAndURLFunc func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error)
 
 type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
@@ -1867,9 +1901,14 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
+type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
+
+	AppConfigUrlsFunc        AppConfigUrlsFunc
+	AppConfigUrlsFuncInvoked bool
 
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
@@ -2113,6 +2152,9 @@ type DataStore struct {
 
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
+
+	LabelMembershipHostIDsFunc        LabelMembershipHostIDsFunc
+	LabelMembershipHostIDsFuncInvoked bool
 
 	ListLabelsFunc        ListLabelsFunc
 	ListLabelsFuncInvoked bool
@@ -2533,6 +2575,9 @@ type DataStore struct {
 
 	TeamByFilenameFunc        TeamByFilenameFunc
 	TeamByFilenameFuncInvoked bool
+
+	TeamConflictsWithNameFunc        TeamConflictsWithNameFunc
+	TeamConflictsWithNameFuncInvoked bool
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
@@ -3161,12 +3206,6 @@ type DataStore struct {
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
 
-	ListWindowsUpdatesByHostIDFunc        ListWindowsUpdatesByHostIDFunc
-	ListWindowsUpdatesByHostIDFuncInvoked bool
-
-	InsertWindowsUpdatesFunc        InsertWindowsUpdatesFunc
-	InsertWindowsUpdatesFuncInvoked bool
-
 	ListOSVulnerabilitiesByOSFunc        ListOSVulnerabilitiesByOSFunc
 	ListOSVulnerabilitiesByOSFuncInvoked bool
 
@@ -3461,6 +3500,30 @@ type DataStore struct {
 	GetHostsForAutoRotationFunc        GetHostsForAutoRotationFunc
 	GetHostsForAutoRotationFuncInvoked bool
 
+	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc        SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc
+	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked bool
+
+	SaveHostManagedLocalAccountFunc        SaveHostManagedLocalAccountFunc
+	SaveHostManagedLocalAccountFuncInvoked bool
+
+	GetHostManagedLocalAccountPasswordFunc        GetHostManagedLocalAccountPasswordFunc
+	GetHostManagedLocalAccountPasswordFuncInvoked bool
+
+	GetHostManagedLocalAccountStatusFunc        GetHostManagedLocalAccountStatusFunc
+	GetHostManagedLocalAccountStatusFuncInvoked bool
+
+	SetHostManagedLocalAccountStatusFunc        SetHostManagedLocalAccountStatusFunc
+	SetHostManagedLocalAccountStatusFuncInvoked bool
+
+	GetManagedLocalAccountByCommandUUIDFunc        GetManagedLocalAccountByCommandUUIDFunc
+	GetManagedLocalAccountByCommandUUIDFuncInvoked bool
+
+	GetManagedLocalAccountUUIDFunc        GetManagedLocalAccountUUIDFunc
+	GetManagedLocalAccountUUIDFuncInvoked bool
+
+	SetManagedLocalAccountUUIDFunc        SetManagedLocalAccountUUIDFunc
+	SetManagedLocalAccountUUIDFuncInvoked bool
+
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
 
@@ -3716,6 +3779,9 @@ type DataStore struct {
 	UpdateMDMWindowsEnrollmentsHostUUIDFunc        UpdateMDMWindowsEnrollmentsHostUUIDFunc
 	UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 
+	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
+	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
+
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
 
@@ -3764,14 +3830,35 @@ type DataStore struct {
 	ListMDMWindowsProfilesToInstallFunc        ListMDMWindowsProfilesToInstallFunc
 	ListMDMWindowsProfilesToInstallFuncInvoked bool
 
+	ListMDMWindowsProfilesToInstallForHostFunc        ListMDMWindowsProfilesToInstallForHostFunc
+	ListMDMWindowsProfilesToInstallForHostFuncInvoked bool
+
 	ListMDMWindowsProfilesToRemoveFunc        ListMDMWindowsProfilesToRemoveFunc
 	ListMDMWindowsProfilesToRemoveFuncInvoked bool
+
+	ListMDMWindowsProfilesToInstallForHostsFunc        ListMDMWindowsProfilesToInstallForHostsFunc
+	ListMDMWindowsProfilesToInstallForHostsFuncInvoked bool
+
+	ListMDMWindowsProfilesToRemoveForHostsFunc        ListMDMWindowsProfilesToRemoveForHostsFunc
+	ListMDMWindowsProfilesToRemoveForHostsFuncInvoked bool
+
+	ListNextPendingMDMWindowsHostUUIDsFunc        ListNextPendingMDMWindowsHostUUIDsFunc
+	ListNextPendingMDMWindowsHostUUIDsFuncInvoked bool
+
+	GetMDMWindowsReconcileCursorFunc        GetMDMWindowsReconcileCursorFunc
+	GetMDMWindowsReconcileCursorFuncInvoked bool
+
+	SetMDMWindowsReconcileCursorFunc        SetMDMWindowsReconcileCursorFunc
+	SetMDMWindowsReconcileCursorFuncInvoked bool
 
 	BulkUpsertMDMWindowsHostProfilesFunc        BulkUpsertMDMWindowsHostProfilesFunc
 	BulkUpsertMDMWindowsHostProfilesFuncInvoked bool
 
 	GetMDMWindowsProfilesContentsFunc        GetMDMWindowsProfilesContentsFunc
 	GetMDMWindowsProfilesContentsFuncInvoked bool
+
+	GetExistingMDMWindowsProfileUUIDsFunc        GetExistingMDMWindowsProfileUUIDsFunc
+	GetExistingMDMWindowsProfileUUIDsFuncInvoked bool
 
 	BulkDeleteMDMWindowsHostsConfigProfilesFunc        BulkDeleteMDMWindowsHostsConfigProfilesFunc
 	BulkDeleteMDMWindowsHostsConfigProfilesFuncInvoked bool
@@ -4634,6 +4721,9 @@ type DataStore struct {
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc        MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked bool
 
+	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
+	IsAppleEnrollmentRenewalCommandFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -4642,6 +4732,13 @@ func (s *DataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	s.AppConfigFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigFunc(ctx)
+}
+
+func (s *DataStore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	s.mu.Lock()
+	s.AppConfigUrlsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigUrlsFunc(ctx)
 }
 
 func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
@@ -5209,6 +5306,13 @@ func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFi
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.LabelFunc(ctx, lid, teamFilter)
+}
+
+func (s *DataStore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.LabelMembershipHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LabelMembershipHostIDsFunc(ctx, labelID)
 }
 
 func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
@@ -6189,6 +6293,13 @@ func (s *DataStore) TeamByFilename(ctx context.Context, filename string) (*fleet
 	s.TeamByFilenameFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamByFilenameFunc(ctx, filename)
+}
+
+func (s *DataStore) TeamConflictsWithName(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamConflictsWithNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamConflictsWithNameFunc(ctx, name, excludeID)
 }
 
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -7654,20 +7765,6 @@ func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, erro
 	return s.ProcessListFunc(ctx)
 }
 
-func (s *DataStore) ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
-	s.mu.Lock()
-	s.ListWindowsUpdatesByHostIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListWindowsUpdatesByHostIDFunc(ctx, hostID)
-}
-
-func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
-	s.mu.Lock()
-	s.InsertWindowsUpdatesFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
-}
-
 func (s *DataStore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error) {
 	s.mu.Lock()
 	s.ListOSVulnerabilitiesByOSFuncInvoked = true
@@ -8354,6 +8451,62 @@ func (s *DataStore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostAu
 	return s.GetHostsForAutoRotationFunc(ctx)
 }
 
+func (s *DataStore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error {
+	s.mu.Lock()
+	s.SaveHostManagedLocalAccountFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveHostManagedLocalAccountFunc(ctx, hostUUID, plaintextPassword, commandUUID)
+}
+
+func (s *DataStore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
+	s.mu.Lock()
+	s.GetHostManagedLocalAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedLocalAccountPasswordFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostManagedLocalAccountStatus(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+	s.mu.Lock()
+	s.GetHostManagedLocalAccountStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedLocalAccountStatusFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetHostManagedLocalAccountStatus(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus) error {
+	s.mu.Lock()
+	s.SetHostManagedLocalAccountStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostManagedLocalAccountStatusFunc(ctx, hostUUID, status)
+}
+
+func (s *DataStore) GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountByCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountByCommandUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID string, accountUUID string) error {
+	s.mu.Lock()
+	s.SetManagedLocalAccountUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetManagedLocalAccountUUIDFunc(ctx, hostUUID, accountUUID)
+}
+
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
@@ -8921,18 +9074,18 @@ func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx con
 	return s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc(ctx, hostUUIDs, cmd, profilePayloads)
 }
 
-func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 	s.mu.Lock()
 	s.MDMWindowsGetPendingCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsGetPendingCommandsFunc(ctx, deviceID)
+	return s.MDMWindowsGetPendingCommandsFunc(ctx, enrollmentID)
 }
 
-func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) error {
+func (s *DataStore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
 	s.mu.Lock()
 	s.MDMWindowsSaveResponseFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsSaveResponseFunc(ctx, deviceID, enrichedSyncML, commandIDsBeingResent)
+	return s.MDMWindowsSaveResponseFunc(ctx, enrolledDevice, enrichedSyncML, commandIDsBeingResent)
 }
 
 func (s *DataStore) GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
@@ -8947,6 +9100,13 @@ func (s *DataStore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hos
 	s.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMWindowsEnrollmentsHostUUIDFunc(ctx, hostUUID, mdmDeviceID)
+}
+
+func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+	s.mu.Lock()
+	s.SetMDMWindowsAwaitingConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsAwaitingConfigurationFunc(ctx, mdmDeviceID, expectFrom, to)
 }
 
 func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
@@ -9061,11 +9221,53 @@ func (s *DataStore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fle
 	return s.ListMDMWindowsProfilesToInstallFunc(ctx)
 }
 
+func (s *DataStore) ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsProfilesToInstallForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsProfilesToInstallForHostFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	s.mu.Lock()
 	s.ListMDMWindowsProfilesToRemoveFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMWindowsProfilesToRemoveFunc(ctx)
+}
+
+func (s *DataStore) ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsProfilesToInstallForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsProfilesToInstallForHostsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMWindowsProfilesToRemoveForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMWindowsProfilesToRemoveForHostsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	s.mu.Lock()
+	s.ListNextPendingMDMWindowsHostUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListNextPendingMDMWindowsHostUUIDsFunc(ctx, afterHostUUID, batchSize)
+}
+
+func (s *DataStore) GetMDMWindowsReconcileCursor(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsReconcileCursorFunc(ctx)
+}
+
+func (s *DataStore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error {
+	s.mu.Lock()
+	s.SetMDMWindowsReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsReconcileCursorFunc(ctx, cursor)
 }
 
 func (s *DataStore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
@@ -9080,6 +9282,13 @@ func (s *DataStore) GetMDMWindowsProfilesContents(ctx context.Context, profileUU
 	s.GetMDMWindowsProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsProfilesContentsFunc(ctx, profileUUIDs)
+}
+
+func (s *DataStore) GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetExistingMDMWindowsProfileUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetExistingMDMWindowsProfileUUIDsFunc(ctx, profileUUIDs)
 }
 
 func (s *DataStore) BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error {
@@ -9929,7 +10138,7 @@ func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 stri
 	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256, url)
 }
 
-func (s *DataStore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+func (s *DataStore) GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 	s.mu.Lock()
 	s.GetInstallerByTeamAndURLFuncInvoked = true
 	s.mu.Unlock()
@@ -11089,4 +11298,11 @@ func (s *DataStore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.C
 	s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc(ctx, deviceId)
+}
+
+func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID string, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
 }

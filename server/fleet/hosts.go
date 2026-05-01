@@ -603,6 +603,7 @@ type MDMHostData struct {
 type HostMDMOSSettings struct {
 	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
 	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
+	ManagedLocalAccount  HostMDMManagedLocalAccount  `json:"managed_local_account" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
@@ -943,6 +944,10 @@ func HostDisplayName(computerName string, hostname string, hardwareModel string,
 }
 
 func (h *Host) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+}
+
+func (h *HostLite) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
@@ -1589,10 +1594,12 @@ type HostMacOSProfile struct {
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
+	ComputerName        string    `db:"computer_name"`
 	Hostname            string    `db:"hostname"`
 	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
+	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
@@ -1762,4 +1769,17 @@ type DeletedHostDetails struct {
 	DisplayName      string
 	Serial           string
 	HostExpiryWindow int
+}
+
+// HostMDMManagedLocalAccount represents the managed local account status for a host.
+type HostMDMManagedLocalAccount struct {
+	Status            *string `json:"status" db:"-" csv:"-"`             // nil (no record), "pending", "verified", "failed"
+	PasswordAvailable bool    `json:"password_available" db:"-" csv:"-"` // true only when status is "verified"
+}
+
+// HostManagedLocalAccountPassword is the API response for the managed local account password.
+type HostManagedLocalAccountPassword struct {
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

@@ -9,12 +9,11 @@ import { ISoftwareTitle } from "interfaces/software";
 import { INotification } from "interfaces/notification";
 
 import { NotificationContext } from "context/notification";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
@@ -75,6 +74,8 @@ interface IInstallSoftwareFormProps {
   softwareTitles: ISoftwareTitle[] | null;
   platform: SetupExperiencePlatform;
   savedRequireAllSoftwareMacOS?: boolean | null;
+  savedRequireAllSoftwareWindows?: boolean | null;
+  isWindowsMdmEnabled?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitles: () => void;
 }
@@ -85,14 +86,18 @@ const InstallSoftwareForm = ({
   softwareTitles,
   platform,
   savedRequireAllSoftwareMacOS,
+  savedRequireAllSoftwareWindows,
+  isWindowsMdmEnabled = false,
   router,
   refetchSoftwareTitles,
 }: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
+  );
+  const [requireAllSoftwareWindows, setRequireAllSoftwareWindows] = useState(
+    savedRequireAllSoftwareWindows ?? false
   );
   const [isSaving, setIsSaving] = useState(false);
 
@@ -101,12 +106,17 @@ const InstallSoftwareForm = ({
     [softwareTitles]
   );
 
-  // Track if the user changed the macOS checkbox since the last save.
+  // Track if the user changed the require-all checkbox since the last save.
   // We don't compare against props here to avoid races with parent refetch timing.
   const [touchedRequireAll, setTouchedRequireAll] = useState(false);
 
-  const handleChangeRequireAll = (value: boolean) => {
+  const handleChangeRequireAllMacOS = (value: boolean) => {
     setRequireAllSoftwareMacOS(value);
+    setTouchedRequireAll(true);
+  };
+
+  const handleChangeRequireAllWindows = (value: boolean) => {
+    setRequireAllSoftwareWindows(value);
     setTouchedRequireAll(true);
   };
 
@@ -136,7 +146,8 @@ const InstallSoftwareForm = ({
   );
 
   const shouldUpdateSoftware = isSoftwareSelectionDirty;
-  const shouldUpdateRequireAll = platform === "macos" && touchedRequireAll;
+  const shouldUpdateRequireAll =
+    (platform === "macos" || platform === "windows") && touchedRequireAll;
 
   const onClickSave = async (evt: React.FormEvent) => {
     evt.preventDefault();
@@ -170,13 +181,20 @@ const InstallSoftwareForm = ({
       }
     }
 
-    // 2. macOS “require all software” update
+    // 2. "require all software" update (macOS or Windows)
     if (shouldUpdateRequireAll) {
       try {
-        await mdmAPI.updateRequireAllSoftwareMacOS(
-          currentTeamId,
-          requireAllSoftwareMacOS
-        );
+        if (platform === "windows") {
+          await mdmAPI.updateRequireAllSoftwareWindows(
+            currentTeamId,
+            requireAllSoftwareWindows
+          );
+        } else {
+          await mdmAPI.updateRequireAllSoftwareMacOS(
+            currentTeamId,
+            requireAllSoftwareMacOS
+          );
+        }
         hadSuccess = true;
         setTouchedRequireAll(false);
       } catch (e) {
@@ -185,7 +203,7 @@ const InstallSoftwareForm = ({
           alertType: "error",
           isVisible: true,
           message:
-            "Couldn't update 'Cancel setup if software install fails'. Please try again.",
+            "Couldn't update 'Cancel setup if software fails'. Please try again.",
           persistOnPageChange: false,
         });
       }
@@ -234,7 +252,7 @@ const InstallSoftwareForm = ({
 
   const renderEmptyState = () => {
     return (
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__empty-table`}
         header="No software available to install"
         primaryButton={
@@ -267,15 +285,54 @@ const InstallSoftwareForm = ({
         />
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
-            <Checkbox
-              disabled={gitOpsModeEnabled || manualAgentInstallBlockingSoftware}
-              value={requireAllSoftwareMacOS}
-              onChange={handleChangeRequireAll}
-            >
-              <TooltipWrapper tipContent="If any software fails, the end user won't be let through, and will see a prompt to contact their IT admin. Remaining software installs will be canceled.">
-                Cancel setup if software install fails
-              </TooltipWrapper>
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              position="bottom-start"
+              entityType="software"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={
+                    disableChildren || manualAgentInstallBlockingSoftware
+                  }
+                  value={requireAllSoftwareMacOS}
+                  onChange={handleChangeRequireAllMacOS}
+                >
+                  <TooltipWrapper
+                    tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
+          </div>
+        )}
+        {platform === "windows" && (
+          <div className={`${baseClass}__windows_options`}>
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              position="bottom-start"
+              entityType="software"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren || !isWindowsMdmEnabled}
+                  value={requireAllSoftwareWindows}
+                  onChange={handleChangeRequireAllWindows}
+                >
+                  <TooltipWrapper
+                    tipContent={
+                      isWindowsMdmEnabled
+                        ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                        : "Turn on Windows MDM to use this option."
+                    }
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
           </div>
         )}
         <GitOpsModeTooltipWrapper

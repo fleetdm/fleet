@@ -27,7 +27,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | <nobr>Feb‑14‑2022</nobr> |
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
 | [Fleet for Security Product Brochure](https://docs.google.com/document/d/18ocTpuQlwd8RwZA-KsqzEmQkAEvKvV8LngeFbkJdFj4/edit) | Security | Marketing overview for security teams in early sales cycles. | <nobr>Oct‑20‑2021</nobr> |
-| [Safe Enough to Switch](https://docs.google.com/document/d/1JsHEzUru2KKs6h7SKYEI6OjunwrRWmeUDTOtl57Shv4/edit) | All | Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
+| [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | <nobr>Sep‑15‑2025</nobr> |
 |[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |<nobr>Apr-15-2026</nobr> |
 
 ### 📄 Whitepapers
@@ -76,7 +76,7 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 ## 🔵 Editorial & thought leadership
 
-Opinion, industry analysis, executive POV, named-series articles, and standalone blog posts published on fleetdm.com. Use for PR, social amplification, ABM campaigns, and brand awareness. Audience: content team, PMM, PR.
+Opinion, industry analysis, executive POV, named-series articles, and standalone blog posts published on fleetdm.com. Use for PR, social amplification, AB campaigns, and brand awareness. Audience: content team, PMM, PR.
 
 ### Executive POV & industry analysis
 
@@ -119,7 +119,7 @@ Executive series by Ashish Kuthiala (CMO) on why legacy endpoint management is f
 | --- | --- | --- | --- |
 | <nobr>1 of 3</nobr> | [The confidence gap: why IT leaders are abandoning legacy endpoint management](https://fleetdm.com/articles/the-confidence-gap) | Ashish Kuthiala | <nobr>2026‑02‑25</nobr> |
 | <nobr>2 of 3</nobr> | [Rethinking endpoint management: Fleet, osquery and Infrastructure as Code](https://fleetdm.com/articles/rethinking-endpoint-management) | Ashish Kuthiala | <nobr>2026‑02‑26</nobr> |
-| <nobr>3 of 3</nobr> | [Coming soon]| Ashish Kuthiala | <nobr>March 2026</nobr> |
+| <nobr>3 of 3</nobr> | [Supercharging endpoint management with AI assistants and event-driven automation](https://fleetdm.com/articles/supercharging-endpoint-management)| Ashish Kuthiala | <nobr>2026‑04‑22</nobr> |
 
 #### 📚 Protecting Linux Endpoints (6-part series)
 
@@ -175,7 +175,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [What is Apple MDM? How Mobile Device Management Works in 2026](https://fleetdm.com/articles/what-is-apple-mdm) | How Apple MDM works across iOS, macOS, and iPadOS at scale. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [What is Apple's Device Enrollment Program (DEP)?](https://fleetdm.com/articles/apple-device-enrollment-program) | How ADE/DEP works, its benefits, and what organizations need to set it up. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [Managing Macs Globally: Enterprise Apple MDM Best Practices 2026](https://fleetdm.com/articles/managing-macs-globally-apple-ecosystem-deployment-security) | Scale Mac management across global teams with zero-touch deployment, automated compliance, and unified device visibility. | Brock Walters | <nobr>2026‑02‑26</nobr> |
-| [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business Manager and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
+| [Mac Zero-Touch Deployment: Complete Enterprise Guide 2026](https://fleetdm.com/articles/mac-zero-touch-deployment-guide) | Complete guide to Mac zero-touch deployment using Apple Business and MDM. | Brock Walters | <nobr>2026‑02‑26</nobr> |
 | [Mac Inventory Management: Device Tracking Guide](https://fleetdm.com/articles/mac-inventory-management) | How Mac inventory combines MDM and osquery to track hardware, software, and security configs. | Brock Walters | <nobr>2026‑02‑25</nobr> |
 | [Mac device security: Apple's native protections and third-party tools](https://fleetdm.com/articles/mac-device-security) | How Mac endpoint security works, from Apple's protections (SIP, XProtect, TCC) to third-party tools. | Brock Walters | <nobr>2026‑02‑25</nobr> |
 | [How to manage company laptops: a complete guide](https://fleetdm.com/articles/how-to-manage-company-laptops-a-complete-guide) | A complete guide to managing company laptops across macOS, Windows, and Linux at scale. | Brock Walters | <nobr>2026‑03‑07</nobr> |
@@ -183,7 +183,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [Why work laptops don't work on plane wifi](https://fleetdm.com/articles/why-work-laptops-dont-work-on-plane-wifi) | VPNs, DNS filters, and captive portals - and why IT teams should fix this by default. | Mike McNeil | <nobr>2026‑02‑13</nobr> |
 | [The GitOps idea](https://fleetdm.com/articles/the-gitops-idea) | An introduction to GitOps concepts and components. | Brock Walters | <nobr>2026‑02‑04</nobr> |
 | [iPad MDM: a complete guide](https://fleetdm.com/articles/ipad-mdm-a-complete-guide) | A complete guide to iPad MDM, covering deployment models, enrollment methods, and enterprise management at scale. | Brock Walters | <nobr>2026‑01‑13</nobr> |
-| [What is Apple Business Manager? A complete guide](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) | How ABM works with MDM for automated enrollment and app management. | Brock Walters | <nobr>2026‑01‑12</nobr> |
+| [What is Apple Business? A complete guide](https://fleetdm.com/articles/what-is-apple-business-a-complete-guide) | How AB works with MDM for automated enrollment and app management. | Brock Walters | <nobr>2026‑01‑12</nobr> |
 | [Declarative device management: a primer](https://fleetdm.com/articles/declarative-device-management-a-primer) | What DDM is, how it differs from legacy MDM, and why Apple built it. | Brock Walters | <nobr>2026‑01‑11</nobr> |
 | [6 business benefits of Apple MDM, explained](https://fleetdm.com/articles/6-business-benefits-of-apple-mdm-explained) | An overview of Apple MDM and the practical business benefits it delivers for security and IT ops. | Brock Walters | <nobr>2026‑01‑11</nobr> |
 | [What is application management?](https://fleetdm.com/articles/what-is-application-management) | What app management includes, why it matters, and how tools automate software deployment, updates, and compliance. | Brock Walters | <nobr>2026‑01‑11</nobr> |

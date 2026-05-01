@@ -312,6 +312,8 @@ type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.App
 
 type SandboxEnabledFunc func() bool
 
+type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
+
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
 
 type GetEnrollSecretSpecFunc func(ctx context.Context) (*fleet.EnrollSecretSpec, error)
@@ -686,6 +688,8 @@ type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
+type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
+
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
 type HasCustomSetupAssistantConfigurationWebURLFunc func(ctx context.Context, teamID *uint) (bool, error)
@@ -817,6 +821,8 @@ type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipe
 type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error)
 
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
+
+type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
 
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
@@ -1350,6 +1356,9 @@ type Service struct {
 
 	SandboxEnabledFunc        SandboxEnabledFunc
 	SandboxEnabledFuncInvoked bool
+
+	AppConfigUrlsFunc        AppConfigUrlsFunc
+	AppConfigUrlsFuncInvoked bool
 
 	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
 	ApplyEnrollSecretSpecFuncInvoked bool
@@ -1912,6 +1921,9 @@ type Service struct {
 	GetMDMAppleSetupAssistantFunc        GetMDMAppleSetupAssistantFunc
 	GetMDMAppleSetupAssistantFuncInvoked bool
 
+	GetDefaultMDMAppleSetupAssistantProfileFunc        GetDefaultMDMAppleSetupAssistantProfileFunc
+	GetDefaultMDMAppleSetupAssistantProfileFuncInvoked bool
+
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
 
@@ -2109,6 +2121,9 @@ type Service struct {
 
 	RotateRecoveryLockPasswordFunc        RotateRecoveryLockPasswordFunc
 	RotateRecoveryLockPasswordFuncInvoked bool
+
+	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
+	GetHostManagedAccountPasswordFuncInvoked bool
 
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
@@ -3274,6 +3289,13 @@ func (s *Service) SandboxEnabled() bool {
 	s.SandboxEnabledFuncInvoked = true
 	s.mu.Unlock()
 	return s.SandboxEnabledFunc()
+}
+
+func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {
+	s.mu.Lock()
+	s.AppConfigUrlsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigUrlsFunc(ctx)
 }
 
 func (s *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
@@ -4585,6 +4607,13 @@ func (s *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (
 	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
 }
 
+func (s *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error) {
+	s.mu.Lock()
+	s.GetDefaultMDMAppleSetupAssistantProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDefaultMDMAppleSetupAssistantProfileFunc(ctx)
+}
+
 func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
@@ -5045,6 +5074,13 @@ func (s *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) e
 	s.RotateRecoveryLockPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.RotateRecoveryLockPasswordFunc(ctx, hostID)
+}
+
+func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	s.mu.Lock()
+	s.GetHostManagedAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAccountPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

@@ -16,7 +16,8 @@ import SectionHeader from "components/SectionHeader";
 import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import Pagination from "components/Pagination";
 
@@ -243,12 +244,15 @@ const ConfigurationProfiles = ({
         }
       />
       {!mdmEnabled ? (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="header-list"
           header="Additional configuration required"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
           info="MDM must be turned on to add configuration profiles."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       ) : (
         renderProfileList()

@@ -660,6 +660,101 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
+	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		team := fleet.Team{ID: 1}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return teamAgentOpts, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		appCfg := &fleet.AppConfig{AgentOptions: globalAgentOpts}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(team.ID),
+		})
+		return svc, ctx, ds
+	}
+
+	t.Run("team timeout set wins over global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 600}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 600, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout unset falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1200, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout zero falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 0}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 900}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 900, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team and global both unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("nil global agent options, team unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		svc, ctx, _ := setupCtx(team, nil)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+}
+
 func TestGetSoftwareInstallDetails(t *testing.T) {
 	t.Run("hosts can't get each others installers", func(t *testing.T) {
 		ds := new(mock.Store)

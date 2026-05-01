@@ -1778,6 +1778,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						rlpStatus.PopulateStatus()
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
+
+					acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+					if err != nil && !fleet.IsNotFound(err) {
+						return nil, ctxerr.Wrap(ctx, err, "get host local managed account status")
+					}
+					if acct != nil {
+						host.MDM.OSSettings.ManagedLocalAccount = *acct
+					}
 				}
 
 				for _, p := range profs {
@@ -3561,6 +3569,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		tmID = *host.TeamID
 	}
 
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 	labelIDs, err := svc.validateLabelNames(ctx, "add", labelNames, tmID)
 	if err != nil {
 		return err
@@ -3573,7 +3582,7 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err, "add labels to host")
 	}
 
-	return nil
+	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
 }
 
 func removeLabelsFromHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -3600,6 +3609,7 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		tmID = *host.TeamID
 	}
 
+	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 	labelIDs, err := svc.validateLabelNames(ctx, "remove", labelNames, tmID)
 	if err != nil {
 		return err
@@ -3612,6 +3622,57 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 		return ctxerr.Wrap(ctx, err, "remove labels from host")
 	}
 
+	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
+}
+
+// emitEditedLabelActivities emits an edited_label activity per label affected
+// by an add/remove-labels-on-host call. labelNames are assumed already
+// validated against the host's team scope.
+func (svc *Service) emitEditedLabelActivities(ctx context.Context, labelNames []string, hostTeamID uint) error {
+	if len(labelNames) == 0 {
+		return nil
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	labels, err := svc.ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{
+		User:   authz.UserFromContext(ctx),
+		TeamID: &hostTeamID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up labels for edited_label activity")
+	}
+	// Validated labels are either global or on hostTeamID, so at most one
+	// distinct non-nil team_id is involved — resolve its name once.
+	var teamName *string
+	for _, l := range labels {
+		if l.TeamID != nil {
+			teamName, err = svc.lookupTeamName(ctx, l.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "lookup team name for label activity")
+			}
+			break
+		}
+	}
+	for _, name := range labelNames {
+		l, ok := labels[name]
+		if !ok {
+			continue
+		}
+		fleetName := teamName
+		if l.TeamID == nil {
+			fleetName = nil
+		}
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedLabel{
+			ID:        l.ID,
+			Name:      l.Name,
+			FleetID:   l.TeamID,
+			FleetName: fleetName,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for edited label")
+		}
+	}
 	return nil
 }
 
@@ -3619,8 +3680,6 @@ func (svc *Service) validateLabelNames(ctx context.Context, action string, label
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
-
-	labelNames = server.RemoveDuplicatesFromSlice(labelNames)
 
 	// Filter out empty label string.
 	for i, labelName := range labelNames {
@@ -4038,4 +4097,37 @@ func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint)
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+// //////////////////////////////////////////////////////////////////////////////
+// Get Host Managed Account Password
+// //////////////////////////////////////////////////////////////////////////////
+
+type getHostManagedAccountPasswordRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostManagedAccountPasswordResponse struct {
+	HostID              uint                                   `json:"host_id"`
+	ManagedLocalAccount *fleet.HostManagedLocalAccountPassword `json:"managed_account_password"`
+	Err                 error                                  `json:"error,omitempty"`
+}
+
+func (r getHostManagedAccountPasswordResponse) Error() error { return r.Err }
+
+func getHostManagedAccountPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostManagedAccountPasswordRequest)
+	pwd, err := svc.GetHostManagedAccountPassword(ctx, req.ID)
+	if err != nil {
+		return getHostManagedAccountPasswordResponse{Err: err}, nil
+	}
+	return getHostManagedAccountPasswordResponse{HostID: req.ID, ManagedLocalAccount: pwd}, nil
+}
+
+func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

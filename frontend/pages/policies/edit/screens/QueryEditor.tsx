@@ -169,7 +169,7 @@ const QueryEditor = ({
       );
       setIsUpdatingPolicy(false);
       router.push(
-        getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
+        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
           fleet_id: policy.team_id,
         })
       );

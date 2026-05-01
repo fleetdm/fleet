@@ -27,8 +27,10 @@ import {
 } from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import { validateQuery } from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -403,6 +405,17 @@ const PolicyForm = ({
       return;
     }
 
+    // Synchronously block empty queries. The button-level `disableSaveFormErrors`
+    // relies on the debounced `errors.query`, so a fast click before the debounce
+    // fires could otherwise submit an empty query. Mirrors the guard in
+    // EditQueryForm's handleSaveQuery (see #38348).
+    if (!lastEditedQueryBody?.trim()) {
+      return setErrors({
+        ...errors,
+        query: EMPTY_QUERY_ERR,
+      });
+    }
+
     let selectedPlatforms = getSelectedPlatforms();
     if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
       // If no platforms are selected, default to all compatible platforms
@@ -587,7 +600,8 @@ const PolicyForm = ({
   };
 
   const renderPolicyForm = () => {
-    // Save disabled for no platforms selected, query name blank on existing query, or sql errors
+    // Save disabled for no platforms selected, policy name blank on existing policy,
+    // invalid target selection, or empty query. Syntax errors do not disable Save.
     const disableSaveFormErrors =
       isAddingAutomation ||
       (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
@@ -596,7 +610,7 @@ const PolicyForm = ({
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
         })) ||
-      !!size(errors);
+      errors.query === EMPTY_QUERY_ERR;
 
     return (
       <>

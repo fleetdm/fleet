@@ -512,6 +512,54 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  enabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enabled managed local accounts for{" "}
+        {activity.details?.team_name ? (
+          <>
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "unassigned hosts."
+        )}
+      </>
+    );
+  },
+  disabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled managed local accounts for{" "}
+        {activity.details?.team_name ? (
+          <>
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "unassigned hosts."
+        )}
+      </>
+    );
+  },
+  viewedManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the managed local account on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        created a managed local account for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -910,6 +958,14 @@ const TAGGED_TEMPLATES = {
   },
   enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
   disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
+  enabledGitOpsException: (activity: IActivity) => {
+    const exception = activity.details?.exception ?? "";
+    return `enabled the ${exception} exception for GitOps.`;
+  },
+  disabledGitOpsException: (activity: IActivity) => {
+    const exception = activity.details?.exception ?? "";
+    return `disabled the ${exception} exception for GitOps.`;
+  },
   enabledWindowsMdmMigration: () => {
     return (
       <>
@@ -1155,6 +1211,13 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedWipe: (activity: IActivity) => {
+    return (
+      <>
+        Wipe failed on <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -1699,6 +1762,57 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        created a label <b>{activity.details?.label_name}</b>
+        {fleetText}.
+      </>
+    );
+  },
+  editedLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        edited the label <b>{activity.details?.label_name}</b>
+        {fleetText}.
+      </>
+    );
+  },
+  deletedLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        deleted the label <b>{activity.details?.label_name}</b>
+        {fleetText}.
+      </>
+    );
+  },
 
   createdCustomVariable: (activity: IActivity) => {
     const { custom_variable_name } = activity.details || {};
@@ -1916,6 +2030,18 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
     }
+    case ActivityType.EnabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.enabledManagedLocalAccount(activity);
+    }
+    case ActivityType.DisabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.disabledManagedLocalAccount(activity);
+    }
+    case ActivityType.ViewedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
+    }
+    case ActivityType.CreatedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
+    }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
@@ -2030,6 +2156,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledGitOpsMode: {
       return TAGGED_TEMPLATES.disabledGitOpsMode();
     }
+    case ActivityType.EnabledGitOpsException: {
+      return TAGGED_TEMPLATES.enabledGitOpsException(activity);
+    }
+    case ActivityType.DisabledGitOpsException: {
+      return TAGGED_TEMPLATES.disabledGitOpsException(activity);
+    }
     case ActivityType.EnabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.enabledWindowsMdmMigration();
     }
@@ -2074,6 +2206,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.FailedWipe: {
+      return TAGGED_TEMPLATES.failedWipe(activity);
     }
     case ActivityType.CreatedDeclarationProfile: {
       return TAGGED_TEMPLATES.createdDeclarationProfile(
@@ -2198,6 +2333,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
+    }
+    case ActivityType.CreatedLabel: {
+      return TAGGED_TEMPLATES.createdLabel(activity);
+    }
+    case ActivityType.EditedLabel: {
+      return TAGGED_TEMPLATES.editedLabel(activity);
+    }
+    case ActivityType.DeletedLabel: {
+      return TAGGED_TEMPLATES.deletedLabel(activity);
     }
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);

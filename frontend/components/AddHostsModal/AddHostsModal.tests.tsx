@@ -23,7 +23,8 @@ describe("AddHostsModal", () => {
     render(
       <AddHostsModal isAnyTeamSelected={false} isLoading onCancel={noop} />
     );
-    const loadingSpinner = screen.getByTestId("spinner");
+    // Spinner has a built-in anti-flash delay, so wait for it to appear.
+    const loadingSpinner = await screen.findByTestId("spinner");
     expect(loadingSpinner).toBeVisible();
   });
 

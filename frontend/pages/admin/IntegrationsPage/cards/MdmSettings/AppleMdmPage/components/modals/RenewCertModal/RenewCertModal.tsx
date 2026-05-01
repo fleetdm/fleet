@@ -60,11 +60,9 @@ const RenewCertModal = ({
   }, [certFile, renderFlash, onCancel, onRenew]);
 
   const onDownloadError = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: unknown) => {
       const msg = getErrorReason(e);
-
-      if (msg.toLowerCase().includes("email address is not valid")) {
+      if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");

@@ -145,7 +145,7 @@
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.veertu.ankaview",
+      "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
@@ -633,6 +633,13 @@
     },
     {
       "name": "Druva inSync",
+      "slug": "druva-insync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync",
       "slug": "druva-insync/windows",
       "platform": "windows",
       "unique_identifier": "Druva inSync",
@@ -728,6 +735,13 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Fleet Desktop",
+      "slug": "fleet-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fleetdm.fleet-desktop",
+      "description": "Fleet Desktop is a native macOS application that provides end users with a self-service portal for Fleet."
     },
     {
       "name": "Fork",
@@ -826,6 +840,13 @@
       "platform": "windows",
       "unique_identifier": "Google Drive",
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
+    },
+    {
+      "name": "Gemini",
+      "slug": "google-gemini/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.GeminiMacOS",
+      "description": "Gemini is a native desktop AI assistant from Google."
     },
     {
       "name": "GPG Suite",
@@ -1018,7 +1039,7 @@
     },
     {
       "name": "Linear",
-      "slug": "linear-linear/darwin",
+      "slug": "linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
       "description": "Linear is an app to manage software development and track bugs."
@@ -1955,11 +1976,25 @@
       "description": "Zed is a multiplayer code editor."
     },
     {
+      "name": "Zen Browser",
+      "slug": "zen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.zen-browser.zen",
+      "description": "Zen Browser is a Gecko based web browser."
+    },
+    {
       "name": "Zeplin",
       "slug": "zeplin/darwin",
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.ZoomPresence",
+      "description": "Zoom Rooms is conference room software for Zoom meetings."
     },
     {
       "name": "Zoom",

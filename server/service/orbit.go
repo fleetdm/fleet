@@ -496,6 +496,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
+		// Fall back to the global app config's script execution timeout when the
+		// team has no explicit override. Other agent-options fields are intentionally
+		// not inherited from the global config.
+		if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
+			var globalOpts fleet.AgentOptions
+			if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+			}
+			opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
+		}
+
 		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
@@ -676,6 +687,8 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
 		acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			// PerPage 1: only acctCmds[0] is read below.
+			ListOptions: fleet.ListOptions{PerPage: 1},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: host.UUID,
 				RequestType:    "AccountConfiguration",

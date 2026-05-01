@@ -1,7 +1,9 @@
 <div id="homepage" v-cloak>
+  <%/* Banner hidden — re-enable when there's a new announcement
   <div purpose="announcement-banner">
     <animated-arrow-button arrow-color="white" text-color="white" href="/replace-jamf">We are experiencing a high volume of Jamf replacement inquiries.  Click here to compare Fleet vs. Jamf</animated-arrow-button>
   </div>
+  */%>
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="hero-background-image">
@@ -9,10 +11,10 @@
         <div class="d-flex flex-row justify-content-start justify-content-sm-center justify-content-md-start align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
-            <h4>High-agency device management</h4>
             <h1>
-              Configure, update and secure all your devices like it's 2026
+              Manage, update, and secure all your devices like it's 2026
             </h1>
+            <p purpose="hero-subtitle">Open MDM + patching + vuln management for every OS.</p>
             <div purpose="hero-quote-author" class="d-flex flex-row align-items-center">
               <div purpose="hero-quote-profile-image">
                 <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
@@ -25,7 +27,7 @@
             </div>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<span>3 mins</span></a>
+              <a purpose="video-button" href="https://fleetdm.com/gitops-workshop"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<%/* <span>3 mins</span> */%></a>
             </div>
           </div>
         </div>
@@ -75,7 +77,7 @@
       </div>
       <div purpose="feature-with-image">
         <div purpose="feature-image">
-          <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
+          <img alt="Modern change management" src="/images/mdm-modern-change-management-600x435@2x.png">
         </div>
         <div purpose="feature-text">
           <div purpose="feature-list-block">

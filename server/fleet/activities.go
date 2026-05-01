@@ -60,183 +60,6 @@ type UpcomingActivityMeta struct {
 	WellKnownAction WellKnownActionType `db:"well_known_action"`
 }
 
-// ActivityDetailsList is used to generate documentation.
-var ActivityDetailsList = []ActivityDetails{
-	ActivityTypeCreatedPack{},
-	ActivityTypeEditedPack{},
-	ActivityTypeDeletedPack{},
-	ActivityTypeAppliedSpecPack{},
-
-	ActivityTypeCreatedPolicy{},
-	ActivityTypeEditedPolicy{},
-	ActivityTypeDeletedPolicy{},
-	ActivityTypeAppliedSpecPolicy{},
-	ActivityTypeCreatedSavedQuery{},
-	ActivityTypeEditedSavedQuery{},
-	ActivityTypeDeletedSavedQuery{},
-	ActivityTypeDeletedMultipleSavedQuery{},
-	ActivityTypeAppliedSpecSavedQuery{},
-
-	ActivityTypeCreatedTeam{},
-	ActivityTypeDeletedTeam{},
-	ActivityTypeAppliedSpecTeam{},
-	ActivityTypeTransferredHostsToTeam{},
-
-	ActivityTypeEditedAgentOptions{},
-
-	ActivityTypeLiveQuery{},
-
-	ActivityTypeUserAddedBySSO{},
-
-	ActivityTypeUserLoggedIn{},
-	ActivityTypeUserFailedLogin{},
-
-	ActivityTypeCreatedUser{},
-	ActivityTypeDeletedUser{},
-	ActivityTypeDeletedHost{},
-	ActivityTypeChangedUserGlobalRole{},
-	ActivityTypeDeletedUserGlobalRole{},
-	ActivityTypeChangedUserTeamRole{},
-	ActivityTypeDeletedUserTeamRole{},
-
-	ActivityTypeFleetEnrolled{},
-	ActivityTypeMDMEnrolled{},
-	ActivityTypeMDMUnenrolled{},
-
-	ActivityTypeEditedMacOSMinVersion{},
-	ActivityTypeEditedIOSMinVersion{},
-	ActivityTypeEditedIPadOSMinVersion{},
-	ActivityTypeEditedWindowsUpdates{},
-	ActivityTypeEnabledMacosUpdateNewHosts{},
-	ActivityTypeDisabledMacosUpdateNewHosts{},
-
-	ActivityTypeReadHostDiskEncryptionKey{},
-	ActivityTypeViewedHostRecoveryLockPassword{},
-
-	ActivityTypeCreatedMacosProfile{},
-	ActivityTypeDeletedMacosProfile{},
-	ActivityTypeEditedMacosProfile{},
-
-	ActivityTypeChangedMacosSetupAssistant{},
-	ActivityTypeDeletedMacosSetupAssistant{},
-
-	ActivityTypeEnabledMacosDiskEncryption{},
-	ActivityTypeDisabledMacosDiskEncryption{},
-
-	ActivityTypeSetHostRecoveryLockPassword{},
-	ActivityTypeEnabledRecoveryLockPasswords{},
-	ActivityTypeDisabledRecoveryLockPasswords{},
-
-	ActivityTypeEnabledGitOpsMode{},
-	ActivityTypeDisabledGitOpsMode{},
-
-	ActivityTypeAddedBootstrapPackage{},
-	ActivityTypeDeletedBootstrapPackage{},
-
-	ActivityTypeEnabledMacosSetupEndUserAuth{},
-	ActivityTypeDisabledMacosSetupEndUserAuth{},
-
-	ActivityTypeEnabledWindowsMDM{},
-	ActivityTypeDisabledWindowsMDM{},
-	ActivityTypeEnabledAndroidMDM{},
-	ActivityTypeDisabledAndroidMDM{},
-	ActivityTypeEnabledWindowsMDMMigration{},
-	ActivityTypeDisabledWindowsMDMMigration{},
-
-	ActivityTypeRanScript{},
-	ActivityTypeAddedScript{},
-	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},  // via GitOps
-	ActivityTypeUpdatedScript{}, // via individual script update endpoint
-
-	ActivityTypeCreatedWindowsProfile{},
-	ActivityTypeDeletedWindowsProfile{},
-	ActivityTypeEditedWindowsProfile{},
-
-	ActivityTypeLockedHost{},
-	ActivityTypeUnlockedHost{},
-	ActivityTypeWipedHost{},
-	ActivityTypeRotatedHostRecoveryLockPassword{},
-
-	ActivityTypeCreatedDeclarationProfile{},
-	ActivityTypeDeletedDeclarationProfile{},
-	ActivityTypeEditedDeclarationProfile{},
-
-	ActivityTypeCreatedAndroidProfile{},
-	ActivityTypeDeletedAndroidProfile{},
-	ActivityTypeEditedAndroidProfile{},
-	ActivityTypeEditedAndroidCertificate{},
-	ActivityTypeResentCertificate{},
-	ActivityTypeInstalledCertificate{},
-
-	ActivityTypeResentConfigurationProfile{},
-	ActivityTypeResentConfigurationProfileBatch{},
-
-	ActivityTypeInstalledSoftware{},
-	ActivityTypeUninstalledSoftware{},
-	ActivityTypeAddedSoftware{},
-	ActivityTypeEditedSoftware{},
-	ActivityTypeDeletedSoftware{},
-	ActivityEnabledVPP{},
-	ActivityDisabledVPP{},
-	ActivityAddedAppStoreApp{},
-	ActivityDeletedAppStoreApp{},
-	ActivityInstalledAppStoreApp{},
-	ActivityEditedAppStoreApp{},
-
-	ActivityAddedNDESSCEPProxy{},
-	ActivityDeletedNDESSCEPProxy{},
-	ActivityEditedNDESSCEPProxy{},
-	ActivityAddedCustomSCEPProxy{},
-	ActivityDeletedCustomSCEPProxy{},
-	ActivityEditedCustomSCEPProxy{},
-	ActivityAddedDigiCert{},
-	ActivityDeletedDigiCert{},
-	ActivityEditedDigiCert{},
-	ActivityAddedHydrant{},
-	ActivityDeletedHydrant{},
-	ActivityEditedHydrant{},
-	ActivityAddedCustomESTProxy{},
-	ActivityDeletedCustomESTProxy{},
-	ActivityEditedCustomESTProxy{},
-	ActivityAddedSmallstep{},
-	ActivityDeletedSmallstep{},
-	ActivityEditedSmallstep{},
-
-	ActivityTypeEnabledActivityAutomations{},
-	ActivityTypeEditedActivityAutomations{},
-	ActivityTypeDisabledActivityAutomations{},
-
-	ActivityTypeCanceledRunScript{},
-	ActivityTypeCanceledInstallSoftware{},
-	ActivityTypeCanceledUninstallSoftware{},
-	ActivityTypeCanceledInstallAppStoreApp{},
-
-	ActivityTypeRanScriptBatch{},
-	ActivityTypeBatchScriptScheduled{},
-	ActivityTypeBatchScriptCanceled{},
-
-	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
-	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
-	ActivityTypeAddedConditionalAccessOkta{},
-	ActivityTypeDeletedConditionalAccessOkta{},
-	ActivityTypeEnabledConditionalAccessAutomations{},
-	ActivityTypeDisabledConditionalAccessAutomations{},
-
-	ActivityTypeEscrowedDiskEncryptionKey{},
-
-	ActivityCreatedCustomVariable{},
-	ActivityDeletedCustomVariable{},
-
-	ActivityEditedSetupExperienceSoftware{},
-
-	ActivityTypeEditedHostIdpData{},
-
-	ActivityTypeEditedEnrollSecrets{},
-
-	ActivityTypeCanceledSetupExperience{},
-}
-
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
 type ActivityDetails = api.ActivityDetails
 
@@ -796,6 +619,54 @@ func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
 	return "disabled_recovery_lock_passwords"
 }
 
+type ActivityTypeCreatedManagedLocalAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) ActivityName() string {
+	return "created_managed_local_account"
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCreatedManagedLocalAccount) WasFromAutomation() bool {
+	return true
+}
+
+type ActivityTypeViewedManagedLocalAccount struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeViewedManagedLocalAccount) ActivityName() string {
+	return "read_managed_local_account"
+}
+
+func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeEnabledManagedLocalAccount struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
+	return "enabled_managed_local_account"
+}
+
+type ActivityTypeDisabledManagedLocalAccount struct {
+	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDisabledManagedLocalAccount) ActivityName() string {
+	return "disabled_managed_local_account"
+}
+
 type ActivityTypeEnabledGitOpsMode struct{}
 
 func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
@@ -806,6 +677,22 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeEnabledGitOpsException) ActivityName() string {
+	return "enabled_gitops_exception"
+}
+
+type ActivityTypeDisabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeDisabledGitOpsException) ActivityName() string {
+	return "disabled_gitops_exception"
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
@@ -1005,6 +892,23 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 
 func (a ActivityTypeWipedHost) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+type ActivityTypeWipeFailedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipeFailedHost) ActivityName() string {
+	return "failed_wipe"
+}
+
+func (a ActivityTypeWipeFailedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeWipeFailedHost) WasFromAutomation() bool {
+	return true
 }
 
 // ActivityTypeRotatedHostRecoveryLockPassword is for password rotation.
@@ -1894,4 +1798,55 @@ func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
 
 func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
 	return true
+}
+
+type ActivityTypeFailedEnrollmentProfileRenewal struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	CommandUUID     string `json:"command_uuid"`
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) ActivityName() string {
+	return "failed_enrollment_profile_renewal"
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type ActivityTypeCreatedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeCreatedLabel) ActivityName() string {
+	return "created_label"
+}
+
+type ActivityTypeEditedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeEditedLabel) ActivityName() string {
+	return "edited_label"
+}
+
+type ActivityTypeDeletedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeDeletedLabel) ActivityName() string {
+	return "deleted_label"
 }

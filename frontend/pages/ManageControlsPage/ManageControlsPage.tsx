@@ -186,11 +186,15 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabNav>
-        {React.cloneElement(children, {
-          teamIdForApi,
-          currentPage: page,
-          queryParams: parseOSUpdatesCurrentVersionsQueryParams(location.query),
-        })}
+        <div key={location?.pathname} className="tab-nav-routed-content">
+          {React.cloneElement(children, {
+            teamIdForApi,
+            currentPage: page,
+            queryParams: parseOSUpdatesCurrentVersionsQueryParams(
+              location.query
+            ),
+          })}
+        </div>
       </div>
     );
   };
