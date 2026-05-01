@@ -207,7 +207,7 @@ Size mapping (low-high):
   XL:  75-100
 
 Usage:
-  gm releases forecast --milestone "Fleet 4.84.0"`,
+  gm releases forecast --milestone "Fleet 4.84.1"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		releasesProjectID := 87 // fleet Releases project
 		milestoneTitle, _ := cmd.Flags().GetString("milestone")
@@ -319,5 +319,5 @@ func init() {
 	releasesSyncEstimatesCmd.Flags().BoolP("overwrite", "o", false, "Overwrite existing Releases estimates (by default, issues with estimates are skipped)")
 	releasesSyncEstimatesCmd.Flags().StringP("milestone", "m", "", "Only process issues in this milestone, e.g., Fleet 4.77.0")
 
-	releasesForecastCmd.Flags().StringP("milestone", "m", "", "Milestone to forecast, e.g., Fleet 4.84.0 (required)")
+	releasesForecastCmd.Flags().StringP("milestone", "m", "", "Milestone to forecast, e.g., Fleet 4.84.1 (required)")
 }
