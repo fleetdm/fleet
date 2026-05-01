@@ -329,7 +329,14 @@ func (r *engine) stepServe(ctx context.Context) error {
 	logPath := filepath.Join(r.opts.repoRoot, "tools", "ship", ".state", "logs", "fleet.log")
 	binary := filepath.Join(r.opts.repoRoot, "build", "fleet")
 
-	args := []string{"serve", "--dev"}
+	args := []string{
+		"serve", "--dev",
+		// Don't refuse to start when the shared dev DB has migration
+		// rows from a different worktree's branch. Cross-worktree
+		// migration drift is the expected price of the shared-DB
+		// design — Fleet logs a warning and serves anyway.
+		"--upgrades_allow_missing_migrations",
+	}
 	if r.opts.cfg.Fleet.Premium {
 		args = append(args, "--dev_license")
 	}
