@@ -1,3 +1,0 @@
-- Added automatic retry (up to 3 times) when the Android agent reports a certificate install failure.
-- Added activity logging when a certificate is installed or fails to install on an Android host.
-- Enabled the host activity card on the Android host details page.

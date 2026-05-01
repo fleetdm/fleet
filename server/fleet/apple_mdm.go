@@ -522,13 +522,15 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool `json:"lock_end_user_info"`
+	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
+	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account"`
+	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -720,9 +722,25 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
-	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
-	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
-	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+}
+
+// EffectiveDDMToken computes the per-declaration token that incorporates both
+// the static content hash and the host-specific variables_updated_at timestamp.
+// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
+// effective token equals the static token unchanged.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil {
+		return staticToken
+	}
+	// Must match MySQL's DATETIME(6) string representation used in
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	hasher := md5.New() // nolint:gosec // used for declarative management token
+	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 type MDMAppleRawDeclaration struct {
@@ -815,11 +833,16 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// VariablesUpdatedAt tracks when the Fleet variable values for this host
+	// were last computed. Non-null only for declarations that use Fleet variables.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -828,7 +851,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
-		secretsEqual
+		secretsEqual &&
+		varsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -896,6 +920,15 @@ type MDMAppleDDMDeclarationItem struct {
 	Status          *string   `db:"status"`
 	OperationType   *string   `db:"operation_type"`
 	UploadedAt      time.Time `db:"uploaded_at"`
+	// VariablesUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the variables'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// RawJSON is conditionally loaded only for declarations that use Fleet
+	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
+	// so that handleDeclarationItems can check variable resolution without an
+	// extra query.
+	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -1212,11 +1245,17 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName  = "DeviceLocation"
-	EnableLostModeCmdName  = "EnableLostMode"
-	DisableLostModeCmdName = "DisableLostMode"
-	SetRecoveryLockCmdName = "SetRecoveryLock"
+	DeviceLocationCmdName       = "DeviceLocation"
+	EnableLostModeCmdName       = "EnableLostMode"
+	DisableLostModeCmdName      = "DisableLostMode"
+	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	AccountConfigurationCmdName = "AccountConfiguration"
 )
+
+// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
+// via the AccountConfiguration MDM command when the managed local account
+// feature is enabled.
+const ManagedLocalAccountUsername = "_fleetadmin"
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`

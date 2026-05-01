@@ -130,6 +130,7 @@ const (
 	GovalDictionarySource
 	WinOfficeSource
 	UbuntuOSVSource
+	RHELOSVSource
 )
 
 type VulnerabilityWithMetadata struct {

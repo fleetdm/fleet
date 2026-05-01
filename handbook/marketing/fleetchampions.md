@@ -75,7 +75,7 @@ Follow this process to publish a case study without identifying the customer. An
 
 4. **Review the responses**
 
-   Confirm which questions Momentum answered, and document any questions that were not answered. 
+   [Review](https://docs.google.com/document/d/1sKFQltFrxbw3PRxHvuG1w3G4kIYvneqbFczFmRYSw8M/edit?tab=t.81qbvd8vaocm) which questions Momentum answered, and document any questions that were not answered. 
 
 5. **Draft the case study**
 

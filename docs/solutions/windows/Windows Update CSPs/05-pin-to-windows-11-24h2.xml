@@ -1,0 +1,14 @@
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ProductVersion</LocURI></Target>
+    <Data>Windows 11</Data>
+  </Item>
+</Replace>
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/TargetReleaseVersion</LocURI></Target>
+    <Data>24H2</Data>
+  </Item>
+</Replace>

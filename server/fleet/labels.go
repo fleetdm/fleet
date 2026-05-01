@@ -298,6 +298,19 @@ type LabelIdent struct {
 	LabelName string `json:"name"`
 }
 
+// LabelNamesToIdents wraps each label name in a bare LabelIdent (with LabelID
+// left zero). Returns nil for empty input.
+func LabelNamesToIdents(names []string) []LabelIdent {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]LabelIdent, len(names))
+	for i, name := range names {
+		out[i] = LabelIdent{LabelName: name}
+	}
+	return out
+}
+
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
 // profiles and software installers, to subsets of hosts.
 type LabelScope string

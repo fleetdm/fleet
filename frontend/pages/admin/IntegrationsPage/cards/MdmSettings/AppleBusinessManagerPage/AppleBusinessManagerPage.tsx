@@ -19,7 +19,7 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import { getEarliestExpiry } from "components/App/App";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
@@ -36,14 +36,11 @@ interface IAddAbmMessageProps {
 
 const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
-    <div className={`${baseClass}__add-adm-message`}>
-      <h2>Add your AB</h2>
-      <p>
-        Automatically enroll newly purchased Apple hosts when they&apos;re first
-        unboxed and set up by your end users.
-      </p>
-      <Button onClick={onAddAbm}>Add AB</Button>
-    </div>
+    <EmptyState
+      header="Add your AB"
+      info="Automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users."
+      primaryButton={<Button onClick={onAddAbm}>Add AB</Button>}
+    />
   );
 };
 
@@ -157,13 +154,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <GenericMsgWithNavButton
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          buttonText="Turn on"
-          router={router}
+        <EmptyState
           header="Turn on Apple MDM"
-          info="To add your ABM and enable automatic enrollment for macOS, iOS, and
-        iPadOS hosts, first turn on Apple MDM."
+          info="To add your ABM and enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -233,7 +231,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       {showRenewModal && selectedToken.current && (
         <RenewAbmModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

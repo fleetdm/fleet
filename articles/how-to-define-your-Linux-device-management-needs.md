@@ -10,7 +10,7 @@ To do this, you will need sophisticated and flexible tools. But first, you need 
 
 In this article, we will discuss key questions to ask as you define your organizational goals for Linux device management. We will also discuss how these goals can be mapped to a maturity model of Linux MDM adoption. Formally defining your Linux needs and understanding your target location on this maturity model will help you adopt robust technical solutions for Linux MDM.
 
-## Questions to Consider
+## Questions to consider
 
 Every business is different, and every team has its own needs based on team dynamics, regulatory requirements, and other factors. However, you can set yourself up for success by asking a few common questions to understand your Linux device goals:
 
@@ -92,13 +92,13 @@ IT teams are not monolithic. A helpdesk technician needs different access than a
 
 Define your access control requirements before evaluating platforms. A tool that offers only administrator versus read-only access will create friction as your team grows or your compliance requirements become more specific. This is easy to overlook during a demo and painful to work around in production.
 
-## The Linux MDM Maturity Model
+## The Linux MDM maturity model
 
 Not every organization needs the same level of Linux device management. This model defines four levels, from basic monitoring to full zero-touch provisioning. Your requirements determine which level is right for you, and not every team needs to reach level 4\.
 
 When planning, consider both short and long-term goals. A short-term goal might be to understand which software your Linux users are running. A long-term goal might be automatically provisioning the tools every engineer needs to do their job. Either way, start by knowing where you want to land before deciding how far to climb.
 
-### Level 1 \- Monitoring and Auditing
+### Level 1 \- Monitoring and auditing
 
 Providing device monitoring, reporting, and insight is the first level in the Linux device management maturity model. All teams need some level of device monitoring to ensure compliance with internal and external policies. You must understand your environment before you can manage it. Robust monitoring provides individual and aggregate metrics to drive intelligent decisions.
 
@@ -110,7 +110,7 @@ Monitoring lets you answer questions like:
 
 For some organizations, especially small teams with limited Linux footprints, this may be the final level on their journey. If you only have a handful of Linux workstations, then you may not need further device management features. However, everyone can benefit from understanding the state of their environment.
 
-### Level 2 \- Security and System Baselines
+### Level 2 \- Security and system baselines
 
 Equipped with a solid understanding of your Linux devices, you can begin providing baseline configurations that meet organizational and security policies.
 
@@ -118,13 +118,13 @@ Start with something simple, like implementing a specific security policy. For e
 
 Basic system management might be the final stop on your maturity journey. Many organizations are quite happy to provide baseline system management and leave the rest to their highly-skilled end users.
 
-### Level 3 \- Self-Service Configuration and Software
+### Level 3 \- Self-service configuration and software
 
 Linux users are technically skilled, and most are comfortable installing and managing their own software. But even advanced users who’ve been using Linux on their desktop for years still sigh when they have to install a complex package with custom configuration. This is toil, and Linux users often face the brunt of it due to a lack of robust MDM tooling.
 
 This level in the maturity journey is all about providing your Linux users with access to the tools and software to do their job. Consider the complexity of even a simple package installation in a modern organization. A user may have to add an internal company repository, determine the correct version that matches production, install the software itself, and then configure it to match the organization’s preferred configs. Providing a self-service portal, such as [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop), saves hours.
 
-### Level 4 \- Zero-Touch Provisioning and Drift Management
+### Level 4 \- Zero-touch provisioning and drift management
 
 Level 4 is full zero-touch provisioning and automated, continuous management of devices. A new Linux device can be powered on and immediately put into service by an end-user without any IT involvement (discussed in the next article). Organizations can onboard new Linux employees just as they do Windows and Mac users.
 

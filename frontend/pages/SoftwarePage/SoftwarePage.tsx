@@ -407,24 +407,26 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             </TabList>
           </Tabs>
         </TabNav>
-        {React.cloneElement(children, {
-          router,
-          isSoftwareEnabled: Boolean(
-            softwareConfig?.features?.enable_software_inventory
-          ),
-          perPage: DEFAULT_PAGE_SIZE,
-          orderDirection: sortDirection,
-          orderKey: sortHeader,
-          currentPage: page,
-          teamId: teamIdForApi,
-          // TODO: move down into the Software Titles component
-          platform,
-          query,
-          showExploitedVulnerabilitiesOnly,
-          softwareFilter,
-          vulnFilters: softwareVulnFilters,
-          onAddFiltersClick: toggleSoftwareFiltersModal,
-        })}
+        <div key={location?.pathname} className="tab-nav-routed-content">
+          {React.cloneElement(children, {
+            router,
+            isSoftwareEnabled: Boolean(
+              softwareConfig?.features?.enable_software_inventory
+            ),
+            perPage: DEFAULT_PAGE_SIZE,
+            orderDirection: sortDirection,
+            orderKey: sortHeader,
+            currentPage: page,
+            teamId: teamIdForApi,
+            // TODO: move down into the Software Titles component
+            platform,
+            query,
+            showExploitedVulnerabilitiesOnly,
+            softwareFilter,
+            vulnFilters: softwareVulnFilters,
+            onAddFiltersClick: toggleSoftwareFiltersModal,
+          })}
+        </div>
       </div>
     );
   };

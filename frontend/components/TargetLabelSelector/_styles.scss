@@ -6,6 +6,16 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
+
+    // Hardcoded to fit all 3 custom target options (Exclude any, Include all,
+    // Include any) without scrolling
+    .Select-menu-outer {
+      max-height: 260px;
+    }
+
+    .Select-menu {
+      max-height: 244px;
+    }
   }
 
   &__checkboxes {

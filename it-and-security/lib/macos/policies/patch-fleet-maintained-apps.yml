@@ -6,6 +6,15 @@
   install_software: false
   labels_include_any:
     - Macs with Google Chrome installed
+- name: macOS - 1Password up to date
+  description: This device may have an outdated version of 1Password, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  type: patch
+  fleet_maintained_app_slug: 1password/darwin
+  install_software: false
+  calendar_events_enabled: true
+  labels_include_any:
+    - Macs with 1Password installed
 - name: macOS - Brave Browser up to date
   description: The host may have an outdated version of Brave Browser, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Brave Browser's built-in update functionality. You can also delete Brave Browser if you are no longer using it."
@@ -24,7 +33,7 @@
     - Macs with Docker Desktop installed
 - name: macOS - Firefox up to date
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-  resolution: Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
   type: patch
   fleet_maintained_app_slug: firefox/darwin
   install_software: false
@@ -39,14 +48,6 @@
   install_software: false
   labels_include_any:
     - Macs with Visual Studio Code installed
-- name: macOS - Microsoft Teams up to date
-  description: The host may have an outdated version of Microsoft Teams, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Microsoft Teams's built-in update functionality. You can also delete Microsoft Teams if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: microsoft-teams/darwin
-  install_software: false
-  labels_include_any:
-    - Macs with Microsoft Teams installed
 - name: macOS - Slack up to date
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
@@ -71,6 +72,14 @@
   install_software: false
   labels_include_any:
     - Macs with Okta Verify installed
+- name: macOS - Santa up to date
+  description: The host may have an outdated version of Santa, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Santa is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: santa/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Santa installed
 - name: macOS - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
@@ -231,3 +240,29 @@
   install_software: false
   labels_include_any:
     - Macs with Cursor installed
+- name: macOS - Nudge up to date
+  description: The host may have an outdated version of Nudge, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Nudge is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: nudge/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Nudge installed
+- name: macOS - Adobe Acrobat Reader up to date
+  description: This device may have an outdated version of Adobe Acrobat Reader, posing a critical security risk. Adobe Reader is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Reader is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-reader/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Reader installed
+- name: macOS - Adobe Acrobat Pro up to date
+  description: This device may have an outdated version of Adobe Acrobat Pro, posing a critical security risk. Adobe Acrobat is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Pro is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-pro/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Pro installed

@@ -236,9 +236,9 @@ create_fleetd_release_pr () {
 
 release_osqueryd_to_edge () {
     echo "Releasing osqueryd to edge..."
-    prompt "A branch and PR for bumping the osquery version will be created."
     BRANCH_NAME=release-osqueryd-v$VERSION
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
+        prompt "A branch and PR for bumping the osquery version will be created."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         # Update the version used to build osqueryd targets.
