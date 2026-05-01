@@ -77,4 +77,5 @@ module.exports.policies = {
   'deliver-whitepaper-download-request': true,
   'deliver-partner-registration-submission': true,
   'view-partners': true,
+  'deliver-webinar-access-request': true,
 };

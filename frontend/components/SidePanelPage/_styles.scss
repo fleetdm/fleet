@@ -23,7 +23,7 @@ $main-max-width-including-padding: 1280px + 32px + 32px; // Cannot use variables
     top: 0;
     right: 0;
     width: $side-panel-width;
-    height: auto;
+    height: 100%;
     z-index: 2;
   }
 

@@ -121,6 +121,10 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 	return s.SoftwareInstallerID != nil
 }
 
+func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
+	return s.VPPAppTeamID != nil
+}
+
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
 	// convert api style iconURL to device token URL
 	if s.IconURL != "" && s.SoftwareTitleID != nil {

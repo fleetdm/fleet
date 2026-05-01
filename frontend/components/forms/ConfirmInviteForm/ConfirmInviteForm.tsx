@@ -3,7 +3,6 @@ import React, { useCallback, useState } from "react";
 import validateEquality from "components/forms/validators/validate_equality";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
@@ -111,7 +110,7 @@ const ConfirmInviteForm = ({
         value={name}
         error={formErrors.name}
         parseTarget
-        maxLength={80}
+        inputOptions={{ maxLength: 80 }}
       />
       <InputField
         label="Password"

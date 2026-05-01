@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -958,6 +959,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1011,6 +1014,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1046,6 +1051,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1088,6 +1095,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1130,6 +1139,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1172,6 +1183,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1239,6 +1252,8 @@ func TestMDMConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
 					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
@@ -1330,6 +1345,38 @@ func TestMDMConfig(t *testing.T) {
 				}},
 			},
 			expectedError: `"enable_end_user_authentication" must be set to "true"`,
+		},
+		{
+			name:        "apple MDM server URL no protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL must include a URL scheme",
+		},
+		{
+			name:        "apple MDM server URL invalid protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "ftp://bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL URL scheme must be http or https",
+		},
+		{
+			name:        "apple MDM server invalid URL",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http://[::1]:namedport",
+			},
+			expectedError: "mdmAppleServerURL must be a valid URL",
+		},
+		{
+			name:        "apple MDM server no host",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http:///path-only",
+			},
+			expectedError: "mdmAppleServerURL must include a host",
 		},
 	}
 
@@ -1998,5 +2045,137 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 
 		// Returned config should be obfuscated (masked)
 		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+}
+
+func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	type exceptionActivity struct {
+		name      string // activity name: "enabled_gitops_exception" or "disabled_gitops_exception"
+		exception string
+	}
+
+	testCases := []struct {
+		name        string
+		initial     fleet.GitOpsExceptions
+		patch       string
+		expectFired []exceptionActivity
+	}{
+		{
+			name:        "no change fires no activity",
+			initial:     fleet.GitOpsExceptions{Labels: true, Software: false, Secrets: true},
+			patch:       `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: nil,
+		},
+		{
+			name:    "single field flip fires one activity",
+			initial: fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: true},
+			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: []exceptionActivity{
+				{name: "enabled_gitops_exception", exception: "labels"},
+			},
+		},
+		{
+			name:    "multiple field flips fire one activity each, in order",
+			initial: fleet.GitOpsExceptions{Labels: false, Software: true, Secrets: false},
+			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: []exceptionActivity{
+				{name: "enabled_gitops_exception", exception: "labels"},
+				{name: "disabled_gitops_exception", exception: "software"},
+				{name: "enabled_gitops_exception", exception: "secrets"},
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				GitOpsConfig: fleet.GitOpsConfig{
+					GitopsModeEnabled: true,
+					RepositoryURL:     "https://example.com/repo",
+					Exceptions:        tt.initial,
+				},
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+
+			var fired []exceptionActivity
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch ex := act.(type) {
+				case fleet.ActivityTypeEnabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+				case fleet.ActivityTypeDisabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tt.expectFired, fired)
+		})
+	}
+
+	t.Run("no activity is emitted when SaveAppConfig fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://example.com/repo",
+				Exceptions:        fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: false},
+			},
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			return errors.New("save failed")
+		}
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		var fired []exceptionActivity
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			switch ex := act.(type) {
+			case fleet.ActivityTypeEnabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			case fleet.ActivityTypeDisabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			}
+			return nil
+		}
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"gitops": {"exceptions": {"labels": true, "software": true, "secrets": true}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Empty(t, fired, "no exception activity should be emitted when SaveAppConfig fails")
 	})
 }

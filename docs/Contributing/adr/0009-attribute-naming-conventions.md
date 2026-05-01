@@ -122,6 +122,7 @@ Attributes with more than ~100 distinct values (e.g., `host.id`, `user.id`, `que
 
 ## References
 
+- [Telemetry attribute naming guide](../guides/telemetry-attribute-naming.md) - Fleet's practical conventions for day-to-day use
 - [OTEL semantic conventions: naming](https://opentelemetry.io/docs/specs/semconv/general/naming/)
 - [How to name your span attributes (OTEL blog, 2025)](https://opentelemetry.io/blog/2025/how-to-name-your-span-attributes/)
 - [OTEL general attributes](https://opentelemetry.io/docs/specs/semconv/general/attributes/)

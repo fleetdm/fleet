@@ -1,5 +1,5 @@
 $shadow-width: 40px;
-$shadow-transition-width: 10px;
+$shadow-transition-width: 16px;
 
 .data-table-block {
   position: relative;
@@ -18,17 +18,25 @@ $shadow-transition-width: 10px;
       background-image:
       /* Shadows */ linear-gradient(
           to right,
-          white,
+          $core-fleet-white,
           $transparent
         ),
-        linear-gradient(to left, white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+          linear-gradient(
+            to right,
+            $ui-shadow,
+            $core-fleet-white $shadow-transition-width
+          ),
+        linear-gradient(
+          to left,
+          $ui-shadow,
+          $core-fleet-white $shadow-transition-width
+        );
 
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
-      background-color: white;
+      background-color: $core-fleet-white;
       background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
         50% 100%;
 
@@ -120,9 +128,7 @@ $shadow-transition-width: 10px;
           border-top-right-radius: 6px;
         }
 
-        &.actions__header,
-        &.id__header // Same as actions__header on some pages
-        {
+        &.actions__header {
           border-left: none;
           width: 99px;
         }
@@ -277,9 +283,7 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
-        &.actions__cell,
-        &.id__cell // Same as actions__cell on some pages
-        {
+        &.actions__cell {
           display: flex;
           justify-content: end; // Aligns actions dropdown to right of table
           max-width: 99px;
@@ -435,7 +439,7 @@ $shadow-transition-width: 10px;
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: $loading-overlay;
     z-index: 1;
   }
 

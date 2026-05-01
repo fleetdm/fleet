@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "140.9.0",
+      "version": "140.10.1",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox 140.7.1 ESR (x64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox 140.7.1 ESR (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '140.9.0') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '140.10.1') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.9.0esr/win64/en-US/Firefox%20Setup%20140.9.0esr.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.10.1esr/win64/en-US/Firefox%20Setup%20140.10.1esr.exe",
       "install_script_ref": "36995f4f",
       "uninstall_script_ref": "5dc712f7",
-      "sha256": "cf734896cbacc7bf2ab81eba6cb934bb11fb3d26b818e9917eafd14f80cae056",
+      "sha256": "ef9b237e30a0c6d0e32ad92704875b49972ec734fff2e8cbba146d3c2e468184",
       "default_categories": [
         "Browsers"
       ]

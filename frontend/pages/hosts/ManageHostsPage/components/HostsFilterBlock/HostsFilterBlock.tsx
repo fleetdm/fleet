@@ -63,9 +63,9 @@ interface IHostsFilterBlockProps {
   params: {
     munkiIssueDetails: IMunkiIssuesAggregate | null;
     policyResponse: PolicyResponse;
-    policyId?: any;
+    policyId?: string | number;
     policy?: IPolicy;
-    macSettingsStatus?: any;
+    macSettingsStatus?: MacSettingsStatusQueryParam;
     softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
@@ -429,7 +429,7 @@ const HostsFilterBlock = ({
       pending: (
         <span>
           Hosts ordered using Apple <br />
-          Business Manager (ABM). <br />
+          Business (AB). <br />
           They will automatically enroll <br />
           to Fleet and turn on MDM <br />
           when they&apos;re unboxed.
@@ -626,7 +626,7 @@ const HostsFilterBlock = ({
     return (
       <FilterPill
         className={`${baseClass}__abm-issue-filter-pill`}
-        label="Apple Business Manager (ABM) issues"
+        label="Apple Business (AB) issues"
         tooltipDescription={abmIssueTooltip()}
         onClear={() => handleClearFilter(["dep_profile_error"])}
       />
@@ -637,22 +637,22 @@ const HostsFilterBlock = ({
     const renderLabel = () => {
       switch (depAssignProfileResponse) {
         case "SUCCESS":
-          return "Apple Business Manager (ABM) profile assignment successful";
+          return "Apple Business (AB) profile assignment successful";
         case "FAILED":
-          return "Apple Business Manager (ABM) issue: Failed";
+          return "Apple Business (AB) issue: Failed";
         case "THROTTLED":
-          return "Apple Business Manager (ABM) issue: Throttled";
+          return "Apple Business (AB) issue: Throttled";
         case "NOT_ACCESSIBLE":
-          return "Apple Business Manager (ABM) issue: Not accessible";
+          return "Apple Business (AB) issue: Not accessible";
         default:
-          return "Apple Business Manager (ABM) issues";
+          return "Apple Business (AB) issues";
       }
     };
 
     const renderTooltip = () => {
       switch (depAssignProfileResponse) {
         case "SUCCESS":
-          return "Hosts that had a successful response from Apple Business Manager (ABM) for profile assignment.";
+          return "Hosts that had a successful response from Apple Business (AB) for profile assignment.";
         case "FAILED":
           return (
             <>
@@ -666,15 +666,16 @@ const HostsFilterBlock = ({
             <>
               Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
               API rate limit when preparing the macOS Setup Assistant for these
-              hosts. Fleet will try again every hour.
+              hosts. Fleet will try again within 24 hours of each host&apos;s
+              last throttled response.
             </>
           );
         case "NOT_ACCESSIBLE":
           return (
             <>
               Migration or new Mac setup won&apos;t work. Details are not
-              accessible from Apple Business Manager (ABM). Verify these hosts
-              are assigned to your MDM server and Fleet has access permissions.
+              accessible from Apple Business (AB). Verify these hosts are
+              assigned to your MDM server and Fleet has access permissions.
             </>
           );
         default:

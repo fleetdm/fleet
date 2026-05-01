@@ -59,7 +59,7 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -82,7 +82,7 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -105,7 +105,7 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Enforcing (pending)");
+    const statusText = screen.getByText("Enforcing");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -128,7 +128,7 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);
@@ -151,7 +151,7 @@ describe("OS setting status cell", () => {
       />
     );
 
-    const statusText = screen.getByText("Removing enforcement (pending)");
+    const statusText = screen.getByText("Removing enforcement");
     expect(statusText).toBeInTheDocument();
 
     await user.hover(statusText);

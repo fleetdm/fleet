@@ -7,7 +7,7 @@ import {
   RenderResult,
   waitFor,
 } from "@testing-library/react";
-import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
+import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 

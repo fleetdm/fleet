@@ -12,7 +12,7 @@ module.exports = {
     submittersLastName: { type: 'string', required: true },
     submittersEmailAddress: { type: 'string', required: true, isEmail: true },
     submittersOrganization: { type: 'string', required: true },
-    partnerType: { type: 'string', required: true },
+    partnerType: { type: 'string', required: true, isIn: ['reseller', 'integrations'] },
     partnerWebsite: { type: 'string', required: true },
     partnerCountry: { type: 'string', required: true },
     notes: {type: 'string', required: true },
@@ -20,16 +20,31 @@ module.exports = {
     servicesOffered: {type: {}},
     numberOfHosts: {type: 'string'},
     servicesCategory: {type: 'string'},
+
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
+    },
   },
 
 
   exits: {
     success: {description: 'A partner registration email was successfully sent.'},
     missingInput: {description: 'The form submission is missing a required input', responseType: 'badRequest'},
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
   },
 
 
   fn: async function (inputs) {
+    if (inputs.websiteUrl) { return; }// Honeypot input provided — return a success response
+
+    let emailDomain = inputs.submittersEmailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
     if(!sails.config.custom.dealRegistrationContactEmailAddress){
       throw new Error('Missing config variable! Please set sails.config.custom.dealRegistrationContactEmailAddress to be the email address of the person who receives deal registration submissions.');
     }
@@ -53,6 +68,7 @@ module.exports = {
       'integrations': 'Build integrations with Fleet'
     };
     emailTemplateData.goal = partnerTypeFriendlyNameValuesByFormValue[inputs.partnerType];
+
     // Default to sending these to the configured fromEmailAddress
     let toEmail = sails.config.custom.fromEmailAddress;
     if(inputs.partnerType === 'reseller') {

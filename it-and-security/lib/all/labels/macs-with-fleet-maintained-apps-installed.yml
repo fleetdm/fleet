@@ -13,24 +13,19 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Microsoft Edge installed
-  description: macOS hosts with Microsoft Edge installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Visual Studio Code installed
   description: macOS hosts with Visual Studio Code installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Microsoft Teams installed
-  description: macOS hosts with Microsoft Teams installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Slack installed
   description: macOS hosts with Slack installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Zoom installed
+  description: macOS hosts with Zoom installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';
   label_membership_type: dynamic
   platform: darwin
 - name: Macs with Okta Verify installed
@@ -46,5 +41,125 @@
 - name: Macs with Firefox installed
   description: macOS hosts with Firefox installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with AWS VPN Client installed
+  description: macOS hosts with AWS VPN Client installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazonaws.acvc.osx';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with GitHub Desktop installed
+  description: macOS hosts with GitHub Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with UTM installed
+  description: macOS hosts with UTM installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with iMazing Profile Editor installed
+  description: macOS hosts with iMazing Profile Editor installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.DigiDNA.iMazingProfileEditorMac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Postman installed
+  description: macOS hosts with Postman installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.postmanlabs.mac';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Grammarly Desktop installed
+  description: macOS hosts with Grammarly Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with iTerm2 installed
+  description: macOS hosts with iTerm2 installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Sublime Text installed
+  description: macOS hosts with Sublime Text installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.sublimetext.4';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Parallels Desktop installed
+  description: macOS hosts with Parallels Desktop installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Loom installed
+  description: macOS hosts with Loom installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Spotify installed
+  description: macOS hosts with Spotify installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Santa installed
+  description: macOS hosts with Santa installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Rectangle installed
+  description: macOS hosts with Rectangle installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Logi Options+ installed
+  description: macOS hosts with Logi Options+ installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Figma installed
+  description: macOS hosts with Figma installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.figma.Desktop';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with WhatsApp installed
+  description: macOS hosts with WhatsApp installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'net.whatsapp.WhatsApp';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Android Studio installed
+  description: macOS hosts with Android Studio installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Zed installed
+  description: macOS hosts with Zed installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Obsidian installed
+  description: macOS hosts with Obsidian installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'md.obsidian';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Google Drive installed
+  description: macOS hosts with Google Drive installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.drivefs';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Cursor installed
+  description: macOS hosts with Cursor installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Nudge installed
+  description: macOS hosts with Nudge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Adobe Acrobat Reader installed
+  description: macOS hosts with Adobe Acrobat Reader installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Adobe Acrobat Pro installed
+  description: macOS hosts with Adobe Acrobat Pro installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';
   label_membership_type: dynamic
   platform: darwin

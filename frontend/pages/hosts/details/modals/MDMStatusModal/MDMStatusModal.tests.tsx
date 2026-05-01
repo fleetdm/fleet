@@ -156,7 +156,7 @@ describe("MDMStatusModal - component", () => {
     expect(screen.queryByText("Assigned")).not.toBeInTheDocument();
   });
 
-  it("shows spinner while DEP assignment is loading", () => {
+  it("shows spinner while DEP assignment is loading", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
         // never resolve
@@ -174,7 +174,8 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a built-in anti-flash delay, so wait for it to appear.
+    expect(await screen.findByTestId("spinner")).toBeVisible();
   });
 
   it("shows DataError if DEP assignment fails", async () => {
@@ -291,6 +292,34 @@ describe("MDMStatusModal - component", () => {
       expect(firstCall).toContain(paths.MANAGE_HOSTS);
       expect(firstCall).toContain("mdm_enrollment_status=");
     });
+  });
+
+  it("renders 'Never' for zero-value profile timestamps", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      dep_device: {
+        ...mockDepAssignmentResponse.dep_device,
+        profile_assign_time: "0001-01-01T00:00:00Z",
+        profile_push_time: "0001-01-01T00:00:00Z",
+      },
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    await screen.findByText("Profile assigned");
+
+    const neverTexts = screen.getAllByText("Never");
+    // Both profile_assign_time and profile_push_time should show "Never"
+    expect(neverTexts.length).toBeGreaterThanOrEqual(2);
   });
 
   it("calls onExit when Close is clicked", async () => {

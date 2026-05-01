@@ -122,7 +122,7 @@ const ScriptDetailsModal = ({
     data: scriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
-  } = useQuery<any, Error>(
+  } = useQuery<string, Error>(
     ["scriptContent", scriptId],
     () =>
       scriptId
@@ -144,7 +144,7 @@ const ScriptDetailsModal = ({
 
   const getScriptContent = async () => {
     try {
-      const content = selectedScriptContent || scriptContent;
+      const content = selectedScriptContent || scriptContent || "";
       const formatDate = format(new Date(), "yyyy-MM-dd");
       const filename = `${formatDate} ${
         selectedScriptDetails?.name || "Script details"

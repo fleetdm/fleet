@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -41,6 +43,17 @@ func (r createUserResponse) Error() error { return r.Err }
 
 func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createUserRequest)
+
+	if req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, sessionKey, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -53,6 +66,67 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
 
+func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef) error {
+	if refs == nil {
+		// Absent (nil pointer): no change.
+		return nil
+	}
+	if *refs == nil {
+		// Null (non-nil pointer to nil slice): clear all entries — full access.
+		return nil
+	}
+	if len(*refs) == 0 {
+		// Explicit empty array: not valid; send null to grant full access.
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"at least one API endpoint must be specified",
+			),
+		)
+	}
+
+	allEndpoints := apiendpoints.GetAPIEndpoints()
+	entries := *refs
+
+	if len(entries) > len(allEndpoints) {
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError("api_endpoints", "maximum number of API endpoints reached"),
+		)
+	}
+
+	fpMap := make(map[string]struct{}, len(allEndpoints))
+	for _, ep := range allEndpoints {
+		fpMap[ep.Fingerprint()] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(entries))
+	hasDuplicates := false
+	var unknownFps []string
+	for _, ref := range entries {
+		fp := fleet.NewAPIEndpointFromTpl(ref.Method, ref.Path).Fingerprint()
+		if _, dup := seen[fp]; dup {
+			hasDuplicates = true
+			continue
+		}
+		seen[fp] = struct{}{}
+		if _, ok := fpMap[fp]; !ok {
+			unknownFps = append(unknownFps, fp)
+		}
+	}
+	invalid := &fleet.InvalidArgumentError{}
+	if hasDuplicates {
+		invalid.Append("api_endpoints", "one or more api_endpoints entries are duplicated")
+	}
+	if len(unknownFps) > 0 {
+		invalid.Append("api_endpoints", fmt.Sprintf("one or more api_endpoints entries are invalid: %s", strings.Join(unknownFps, ", ")))
+	}
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid, "validate api_endpoints")
+	}
+	return nil
+}
+
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
 	if p.Teams != nil {
@@ -64,6 +138,23 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 
 	if err := p.VerifyAdminCreate(); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	// Do not allow creating a user with any Premium-only features on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
+			return nil, nil, fleet.ErrMissingLicense
+		}
 	}
 
 	if teams != nil {
@@ -112,14 +203,12 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
-	// Do not allow creating a user with a Premium-only role on Fleet Free.
-	if !license.IsPremium(ctx) {
-		var teamRoles []fleet.UserTeam
-		if p.Teams != nil {
-			teamRoles = *p.Teams
-		}
-		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
-			return nil, nil, fleet.ErrMissingLicense
+	if p.APIEndpoints != nil && (p.APIOnly == nil || !*p.APIOnly) {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
+	}
+	if p.APIOnly != nil && *p.APIOnly {
+		if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
+			return nil, nil, err
 		}
 	}
 
@@ -133,7 +222,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if user.APIOnly && !user.SSOEnabled {
 		if p.Password == nil {
 			// Should not happen but let's log just in case.
-			svc.logger.ErrorContext(ctx, "password not set during admin user creation", "err", err)
+			svc.logger.ErrorContext(ctx, "password not set during admin user creation")
 		} else {
 			// Create a session for the API-only user by logging in.
 			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
@@ -148,11 +237,169 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Create API-Only user
+////////////////////////////////////////////////////////////////////////////////
+
+type fleetsPayload struct {
+	ID   uint   `json:"id" db:"id"`
+	Role string `json:"role" db:"role"`
+}
+
+type createAPIOnlyUserRequest struct {
+	Name         *string                 `json:"name,omitempty"`
+	GlobalRole   *string                 `json:"global_role,omitempty"`
+	Fleets       *[]fleetsPayload        `json:"fleets,omitempty"`
+	APIEndpoints *[]fleet.APIEndpointRef `json:"api_endpoints,omitempty"`
+}
+
+func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createAPIOnlyUserRequest)
+
+	pwd, err := server.GenerateRandomPwd()
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.Wrap(ctx, err, "generate user password"),
+		}, nil
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.New(ctx, "failed to get logged user"),
+		}, nil
+	}
+	email, err := server.GenerateRandomEmail(vc.Email())
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.Wrap(ctx, err, "generate user email"),
+		}, nil
+	}
+
+	var fleets []fleet.UserTeam
+	if req.Fleets != nil {
+		for _, t := range *req.Fleets {
+			val := fleet.UserTeam{}
+			val.ID = t.ID
+			val.Role = t.Role
+			fleets = append(fleets, val)
+		}
+	}
+
+	user, token, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:                     req.Name,
+		Email:                    &email,
+		Password:                 &pwd,
+		APIOnly:                  new(true),
+		AdminForcedPasswordReset: new(false),
+		GlobalRole:               req.GlobalRole,
+		Teams:                    &fleets,
+		APIEndpoints:             req.APIEndpoints,
+	})
+	if err != nil {
+		return createUserResponse{Err: err}, nil
+	}
+
+	return createUserResponse{
+		User:  user,
+		Token: token,
+	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Patch API-Only User
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyAPIOnlyUserRequest struct {
+	ID           uint                       `json:"-" url:"id"`
+	Name         *string                    `json:"name,omitempty"`
+	GlobalRole   *string                    `json:"global_role,omitempty"`
+	Teams        *[]fleet.UserTeam          `json:"teams,omitempty" renameto:"fleets"`
+	APIEndpoints fleet.OptionalAPIEndpoints `json:"api_endpoints"`
+}
+
+type modifyAPIOnlyUserResponse struct {
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r modifyAPIOnlyUserResponse) Error() error { return r.Err }
+
+func modifyAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*modifyAPIOnlyUserRequest)
+
+	payload := fleet.UserPayload{
+		Name:       req.Name,
+		GlobalRole: req.GlobalRole,
+		Teams:      req.Teams,
+	}
+	if req.APIEndpoints.Present {
+		if req.APIEndpoints.Value == nil {
+			// null → clear all entries; signal via non-nil pointer to nil slice.
+			var emptyEndpoints []fleet.APIEndpointRef
+			payload.APIEndpoints = &emptyEndpoints
+		} else {
+			payload.APIEndpoints = &req.APIEndpoints.Value
+		}
+	}
+
+	user, err := svc.ModifyAPIOnlyUser(ctx, req.ID, payload)
+	if err != nil {
+		return modifyAPIOnlyUserResponse{Err: err}, nil
+	}
+	return modifyAPIOnlyUserResponse{User: user}, nil
+}
+
+func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
+	target, err := svc.ds.UserByID(ctx, userID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, target, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if !target.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "target user is not an API-only user"))
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "viewer not present")
+	}
+	if vc.UserID() == userID {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "cannot modify your own API-only user"))
+	}
+
+	return svc.ModifyUser(ctx, userID, fleet.UserPayload{
+		Name:         p.Name,
+		GlobalRole:   p.GlobalRole,
+		Teams:        p.Teams,
+		APIOnly:      new(true),
+		APIEndpoints: p.APIEndpoints,
+	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Create User From Invite
 ////////////////////////////////////////////////////////////////////////////////
 
 func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createUserRequest)
+
+	if req.APIOnly != nil || req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -389,6 +636,17 @@ func (r modifyUserResponse) Error() error { return r.Err }
 
 func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyUserRequest)
+
+	if req.APIOnly != nil || req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return modifyUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
 		return modifyUserResponse{Err: err}, nil
@@ -411,13 +669,19 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
-	// Do not allow setting a Premium-only role on Fleet Free.
+	// Do not allow setting any Premium-only features on Fleet Free.
 	if !license.IsPremium(ctx) {
 		var teamRoles []fleet.UserTeam
 		if p.Teams != nil {
 			teamRoles = *p.Teams
 		}
 		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, fleet.ErrMissingLicense
+		}
+		if user.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
+			return nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
 			return nil, fleet.ErrMissingLicense
 		}
 	}
@@ -429,6 +693,23 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	ownUser := vc.UserID() == userID
 	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	if p.APIOnly != nil && *p.APIOnly != user.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_only", "cannot change api_only status of a user"))
+	}
+	if p.APIEndpoints != nil && !user.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
+	}
+	if p.APIEndpoints != nil {
+		// Changing endpoint permissions is a privileged operation — same level as
+		// changing roles. This prevents an API-only user from expanding their own access.
+		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
+		return nil, err
 	}
 
 	if p.MFAEnabled != nil {
@@ -528,6 +809,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.Settings != nil {
 		user.Settings = p.Settings
+	}
+
+	if p.APIEndpoints != nil {
+		user.APIEndpoints = *p.APIEndpoints
 	}
 
 	currentUser := authz.UserFromContext(ctx)

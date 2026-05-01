@@ -820,27 +820,66 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// MDMWindowsEnrolledDevice type
 /// Contains the information of the enrolled Windows host
 
+// WindowsMDMEnrollType represents how a Windows device enrolled in MDM.
+type WindowsMDMEnrollType int
+
+const (
+	// WindowsMDMEnrollTypeProgrammatic is enrollment via fleetd/orbit using an orbit node key.
+	WindowsMDMEnrollTypeProgrammatic WindowsMDMEnrollType = iota
+	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT or WSTEP STS auth token (Autopilot, Entra join,
+	// Settings app).
+	WindowsMDMEnrollTypeAutomatic
+)
+
+// WindowsMDMAwaitingConfiguration represents the state of a Windows device's setup experience.
+type WindowsMDMAwaitingConfiguration uint
+
+const (
+	// WindowsMDMAwaitingConfigurationNone means the device is not awaiting configuration (default, or setup complete/failed).
+	WindowsMDMAwaitingConfigurationNone WindowsMDMAwaitingConfiguration = 0
+	// WindowsMDMAwaitingConfigurationPending means the device enrolled via autopilot in OOBE and is waiting for orbit
+	// to register and setup experience items to be enqueued.
+	WindowsMDMAwaitingConfigurationPending WindowsMDMAwaitingConfiguration = 1
+	// WindowsMDMAwaitingConfigurationActive means ESP commands have been enqueued and setup progress is being tracked.
+	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
+)
+
 type MDMWindowsEnrolledDevice struct {
-	ID                      uint      `db:"id"`
-	HostUUID                string    `db:"host_uuid"`
-	MDMDeviceID             string    `db:"mdm_device_id"`
-	MDMHardwareID           string    `db:"mdm_hardware_id"`
-	MDMDeviceState          string    `db:"device_state"`
-	MDMDeviceType           string    `db:"device_type"`
-	MDMDeviceName           string    `db:"device_name"`
-	MDMEnrollType           string    `db:"enroll_type"`
-	MDMEnrollUserID         string    `db:"enroll_user_id"`
-	MDMEnrollProtoVersion   string    `db:"enroll_proto_version"`
-	MDMEnrollClientVersion  string    `db:"enroll_client_version"`
-	MDMNotInOOBE            bool      `db:"not_in_oobe"`
-	CredentialsHash         *[]byte   `db:"credentials_hash"`
-	CredentialsAcknowledged bool      `db:"credentials_acknowledged"`
-	CreatedAt               time.Time `db:"created_at"`
-	UpdatedAt               time.Time `db:"updated_at"`
+	ID                      uint                            `db:"id"`
+	HostUUID                string                          `db:"host_uuid"`
+	MDMDeviceID             string                          `db:"mdm_device_id"`
+	MDMHardwareID           string                          `db:"mdm_hardware_id"`
+	MDMDeviceState          string                          `db:"device_state"`
+	MDMDeviceType           string                          `db:"device_type"`
+	MDMDeviceName           string                          `db:"device_name"`
+	MDMEnrollType           string                          `db:"enroll_type"`
+	MDMEnrollUserID         string                          `db:"enroll_user_id"`
+	MDMEnrollProtoVersion   string                          `db:"enroll_proto_version"`
+	MDMEnrollClientVersion  string                          `db:"enroll_client_version"`
+	MDMNotInOOBE            bool                            `db:"not_in_oobe"`
+	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
+	CredentialsHash         *[]byte                         `db:"credentials_hash"`
+	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
+	CreatedAt               time.Time                       `db:"created_at"`
+	UpdatedAt               time.Time                       `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
+}
+
+// MDMWindowsSaveResponseResult contains information about significant events
+// detected while processing a Windows MDM response. The service layer uses
+// this to create activities and fire webhooks.
+type MDMWindowsSaveResponseResult struct {
+	// WipeFailed is non-nil when a wipe command was processed and the status
+	// code indicates failure (not 2xx).
+	WipeFailed *MDMWindowsWipeResult
+}
+
+type MDMWindowsWipeResult struct {
+	HostUUID string
 }
 
 ///////////////////////////////////////////////////////////////

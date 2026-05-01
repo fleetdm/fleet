@@ -15,6 +15,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -35,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -497,7 +500,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 	}
 
-	// Add activity routes if DBConns is provided
+	// Activity routes. If DBConns is provided, wire the real bounded context into
+	// the main handler. Otherwise, build a path-only stub from the same registration
+	// code and surface it to apiendpoints.Init for catalog validation only.
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -514,6 +520,18 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			return auth.AuthenticatedUser(svc, next)
 		}
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+	} else {
+		// DBConns is not available (e.g. mock-backed tests). The activity bounded context
+		// only dereferences its dependencies when an endpoint is actually served, so we
+		// can pass empty conns + nil deps just to extract the route declarations.
+		_, activityRoutesFn := activity_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -626,6 +644,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	if err := apiendpoints.Init(apiHandler, extraInitFeatureRoutes...); err != nil {
+		t.Fatalf("error initializing API endpoints: %v", err)
+	}
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -1494,12 +1515,25 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		_, _ = w.Write(state.installerBytes)
 	}))
 
-	// call Refresh directly (instead of SyncApps) since we're using the server above and not the file server
-	// created in SyncApps
-	err := maintained_apps.Refresh(t.Context(), ds, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
+	// Locate the repo's apps.json so the manifest server can serve it.
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("could not locate myself to serve apps.json file")
+	}
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
+	appsJSONPath := filepath.Join(repoRoot, "ee", "maintained-apps", "outputs", "apps.json")
 
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/apps.json" {
+			b, err := os.ReadFile(appsJSONPath)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			_, _ = w.Write(b)
+			return
+		}
+
 		var state *fmaTestState
 		state, found := states[r.URL.Path]
 		if !found {
@@ -1532,6 +1566,9 @@ func startFMAServers(t *testing.T, ds fleet.Datastore, states map[string]*fmaTes
 		installerServer.Close()
 	})
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
+
+	require.NoError(t, maintained_apps.SyncAppsList(t.Context(), ds))
 }
 
 // acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.

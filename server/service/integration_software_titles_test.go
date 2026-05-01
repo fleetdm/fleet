@@ -249,8 +249,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}
 
 	// Create a label
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:    "foo",
 			HostIDs: []uint{mdmHost.ID},
@@ -259,8 +259,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	lbl1Name := clr.Label.Name
 
-	clr = createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name: "bar",
 		},

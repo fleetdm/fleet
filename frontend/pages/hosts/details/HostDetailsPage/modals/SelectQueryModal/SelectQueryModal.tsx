@@ -17,6 +17,7 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 
 import {
   IListQueriesResponse,
@@ -145,7 +146,7 @@ const SelectQueryModal = ({
           <>
             {" "}
             or{" "}
-            <Button variant="text-link" onClick={onQueryHostCustom}>
+            <Button variant="link" onClick={onQueryHostCustom}>
               create your own report
             </Button>
           </>
@@ -162,13 +163,11 @@ const SelectQueryModal = ({
 
     if (!queriesFilter && queriesCount === 0) {
       return (
-        <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">You have no saved reports.</span>
-          <span className="info__data">
-            Expecting to see reports? Try again in a few seconds as the system
-            catches up.
-          </span>
-        </div>
+        <EmptyState
+          variant="list"
+          header="You have no saved reports"
+          info="Expecting to see reports? Try again in a few seconds as the system catches up."
+        />
       );
     }
 
@@ -201,7 +200,6 @@ const SelectQueryModal = ({
             value={queriesFilter}
             autofocus
             iconSvg="search"
-            iconPosition="start"
           />
           <div className={`${baseClass}__query-selection`}>{queryList}</div>
         </>
@@ -219,18 +217,13 @@ const SelectQueryModal = ({
               value={queriesFilter}
               autofocus
               iconSvg="search"
-              iconPosition="start"
             />
           </div>
-          <div className={`${baseClass}__no-queries`}>
-            <span className="info__header">
-              No reports match the current search criteria.
-            </span>
-            <span className="info__data">
-              Expecting to see reports? Try again in a few seconds as the system
-              catches up.
-            </span>
-          </div>
+          <EmptyState
+            variant="list"
+            header="No reports match the current search criteria"
+            info="Expecting to see reports? Try again in a few seconds as the system catches up."
+          />
         </>
       );
     }

@@ -1,11 +1,20 @@
 - name: macOS - Google Chrome up to date
   description: The host may have an outdated version of Google Chrome, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality. You can also delete Google Chrome if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Google Chrome's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: google-chrome/darwin
   install_software: false
   labels_include_any:
     - Macs with Google Chrome installed
+- name: macOS - 1Password up to date
+  description: This device may have an outdated version of 1Password, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  type: patch
+  fleet_maintained_app_slug: 1password/darwin
+  install_software: false
+  calendar_events_enabled: true
+  labels_include_any:
+    - Macs with 1Password installed
 - name: macOS - Brave Browser up to date
   description: The host may have an outdated version of Brave Browser, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Brave Browser's built-in update functionality. You can also delete Brave Browser if you are no longer using it."
@@ -22,17 +31,9 @@
   install_software: false
   labels_include_any:
     - Macs with Docker Desktop installed
-- name: macOS - Microsoft Edge up to date
-  description: The host may have an outdated version of Microsoft Edge, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Microsoft Edge's built-in update functionality. You can also delete Microsoft Edge if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: microsoft-edge/darwin
-  install_software: false
-  labels_include_any:
-    - Macs with Microsoft Edge installed
 - name: macOS - Firefox up to date
   description: The host may have an outdated version of Firefox, potentially risking security vulnerabilities or compatibility issues.
-  resolution: Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details.
+  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
   type: patch
   fleet_maintained_app_slug: firefox/darwin
   install_software: false
@@ -47,30 +48,38 @@
   install_software: false
   labels_include_any:
     - Macs with Visual Studio Code installed
-- name: macOS - Microsoft Teams up to date
-  description: The host may have an outdated version of Microsoft Teams, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Microsoft Teams's built-in update functionality. You can also delete Microsoft Teams if you are no longer using it."
-  type: patch
-  fleet_maintained_app_slug: microsoft-teams/darwin
-  install_software: false
-  labels_include_any:
-    - Macs with Microsoft Teams installed
 - name: macOS - Slack up to date
   description: The host may have an outdated version of Slack, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality. You can also delete Slack if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Slack's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: slack/darwin
   install_software: false
   labels_include_any:
     - Macs with Slack installed
+- name: macOS - Zoom up to date
+  description: The host may have an outdated version of Zoom, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Zoom's built-in update functionality."
+  type: patch
+  fleet_maintained_app_slug: zoom/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Zoom installed
 - name: macOS - Okta Verify up to date
   description: The host may have an outdated version of Okta Verify, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality. You can also delete Okta Verify if you are no longer using it."
+  resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality."
   type: patch
   fleet_maintained_app_slug: okta-verify/darwin
   install_software: false
   labels_include_any:
     - Macs with Okta Verify installed
+- name: macOS - Santa up to date
+  description: The host may have an outdated version of Santa, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Santa is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: santa/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Santa installed
 - name: macOS - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
@@ -79,3 +88,181 @@
   install_software: false
   labels_include_any:
     - Macs with Claude installed
+- name: macOS - AWS VPN Client up to date
+  description: The host may have an outdated version of AWS VPN Client, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using AWS VPN Client's built-in update functionality. You can also delete AWS VPN Client if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: aws-vpn-client/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with AWS VPN Client installed
+- name: macOS - GitHub Desktop up to date
+  description: The host may have an outdated version of GitHub Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using GitHub Desktop's built-in update functionality. You can also delete GitHub Desktop if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: github/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with GitHub Desktop installed
+- name: macOS - UTM up to date
+  description: The host may have an outdated version of UTM, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using UTM's built-in update functionality. You can also delete UTM if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: utm/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with UTM installed
+- name: macOS - Postman up to date
+  description: The host may have an outdated version of Postman, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Postman's built-in update functionality. You can also delete Postman if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: postman/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Postman installed
+- name: macOS - Grammarly Desktop up to date
+  description: The host may have an outdated version of Grammarly Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Grammarly Desktop's built-in update functionality. You can also delete Grammarly Desktop if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: grammarly-desktop/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Grammarly Desktop installed
+- name: macOS - iTerm2 up to date
+  description: The host may have an outdated version of iTerm2, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using iTerm2's built-in update functionality. You can also delete iTerm2 if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: iterm2/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with iTerm2 installed
+- name: macOS - Sublime Text up to date
+  description: The host may have an outdated version of Sublime Text, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Sublime Text's built-in update functionality. You can also delete Sublime Text if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: sublime-text/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Sublime Text installed
+- name: macOS - Parallels Desktop up to date
+  description: The host may have an outdated version of Parallels Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Parallels Desktop's built-in update functionality. You can also delete Parallels Desktop if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: parallels/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Parallels Desktop installed
+- name: macOS - Loom up to date
+  description: The host may have an outdated version of Loom, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Loom's built-in update functionality. You can also delete Loom if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: loom/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Loom installed
+- name: macOS - Spotify up to date
+  description: The host may have an outdated version of Spotify, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Spotify's built-in update functionality. You can also delete Spotify if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: spotify/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Spotify installed
+- name: macOS - Rectangle up to date
+  description: The host may have an outdated version of Rectangle, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Rectangle's built-in update functionality. You can also delete Rectangle if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: rectangle/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Rectangle installed
+- name: macOS - Logi Options+ up to date
+  description: The host may have an outdated version of Logi Options+, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Logi Options+'s built-in update functionality. You can also delete Logi Options+ if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: logi-options+/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Logi Options+ installed
+- name: macOS - Figma up to date
+  description: The host may have an outdated version of Figma, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Figma's built-in update functionality. You can also delete Figma if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: figma/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Figma installed
+- name: macOS - WhatsApp up to date
+  description: The host may have an outdated version of WhatsApp, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using WhatsApp's built-in update functionality. You can also delete WhatsApp if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: whatsapp/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with WhatsApp installed
+- name: macOS - Android Studio up to date
+  description: The host may have an outdated version of Android Studio, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Android Studio's built-in update functionality. You can also delete Android Studio if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: android-studio/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Android Studio installed
+- name: macOS - Zed up to date
+  description: The host may have an outdated version of Zed, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Zed's built-in update functionality. You can also delete Zed if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: zed/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Zed installed
+- name: macOS - Obsidian up to date
+  description: The host may have an outdated version of Obsidian, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Obsidian's built-in update functionality. You can also delete Obsidian if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: obsidian/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Obsidian installed
+- name: macOS - Google Drive up to date
+  description: The host may have an outdated version of Google Drive, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Google Drive's built-in update functionality. You can also delete Google Drive if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: google-drive/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Google Drive installed
+- name: macOS - Cursor up to date
+  description: The host may have an outdated version of Cursor, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Download the latest version from Self-service or check for updates using Cursor's built-in update functionality. You can also delete Cursor if you are no longer using it."
+  type: patch
+  fleet_maintained_app_slug: cursor/darwin
+  install_software: false
+  labels_include_any:
+    - Macs with Cursor installed
+- name: macOS - Nudge up to date
+  description: The host may have an outdated version of Nudge, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Nudge is an app managed by IT and should be kept up to date automatically. If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: nudge/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Nudge installed
+- name: macOS - Adobe Acrobat Reader up to date
+  description: This device may have an outdated version of Adobe Acrobat Reader, posing a critical security risk. Adobe Reader is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Reader is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-reader/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Reader installed
+- name: macOS - Adobe Acrobat Pro up to date
+  description: This device may have an outdated version of Adobe Acrobat Pro, posing a critical security risk. Adobe Acrobat is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Pro is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-pro/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Pro installed

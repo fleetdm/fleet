@@ -86,13 +86,9 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  EnabledDiskEncryption = "enabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  DisabledDiskEncryption = "disabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
@@ -105,6 +101,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledGitOpsException = "enabled_gitops_exception",
+  DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
@@ -119,6 +117,7 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  FailedWipe = "failed_wipe",
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
@@ -142,6 +141,7 @@ export enum ActivityType {
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
+  CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
@@ -164,6 +164,14 @@ export enum ActivityType {
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  ClearedPasscode = "cleared_passcode",
+  EnabledManagedLocalAccount = "enabled_managed_local_account",
+  DisabledManagedLocalAccount = "disabled_managed_local_account",
+  ViewedManagedLocalAccount = "read_managed_local_account",
+  CreatedManagedLocalAccount = "created_managed_local_account",
+  CreatedLabel = "created_label",
+  EditedLabel = "edited_label",
+  DeletedLabel = "deleted_label",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -171,6 +179,7 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.FailedWipe
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
@@ -183,8 +192,12 @@ export type IHostPastActivityType =
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
   | ActivityType.CanceledUninstallSoftware
+  | ActivityType.CanceledSetupExperience
   | ActivityType.InstalledCertificate
-  | ActivityType.ResentCertificate;
+  | ActivityType.ResentCertificate
+  | ActivityType.ClearedPasscode
+  | ActivityType.ViewedManagedLocalAccount
+  | ActivityType.CreatedManagedLocalAccount;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -283,6 +296,7 @@ export interface IActivityDetails {
   team_name?: string | null;
   teams?: ITeamSummary[];
   triggered_by?: string;
+  from_setup_experience?: boolean;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -293,6 +307,11 @@ export interface IActivityDetails {
   certificate_name?: string;
   certificate_template_id?: number;
   detail?: string;
+  exception?: string;
+  label_id?: number;
+  label_name?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -316,6 +335,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
   canceled_uninstall_software: "Canceled activity: uninstall software",
+  canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",
@@ -352,8 +372,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_android_mdm: "Turned off Android MDM",
   disabled_conditional_access_automations:
     "Disabled conditional access automations",
+  disabled_gitops_exception: "Disabled GitOps exception",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_disk_encryption: "Turned off disk encryption",
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
@@ -384,8 +404,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_android_mdm: "Turned on Android MDM",
   enabled_conditional_access_automations:
     "Enabled conditional access automations",
+  enabled_gitops_exception: "Enabled GitOps exception",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_disk_encryption: "Turned on disk encryption",
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
@@ -421,6 +441,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_failed_login: "User login: failed",
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
+  failed_wipe: "Failed wipe",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
@@ -465,4 +486,13 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.DeletedCertificate]: "Deleted certificate",
   [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
+  [ActivityType.ClearedPasscode]: "Cleared passcode",
+  [ActivityType.EnabledManagedLocalAccount]: "Turned on managed local account",
+  [ActivityType.DisabledManagedLocalAccount]:
+    "Turned off managed local account",
+  [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
+  [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.CreatedLabel]: "Created label",
+  [ActivityType.EditedLabel]: "Edited label",
+  [ActivityType.DeletedLabel]: "Deleted label",
 };

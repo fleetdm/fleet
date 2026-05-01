@@ -7,6 +7,7 @@ import { addHours, differenceInMinutes } from "date-fns";
 import { internationalTimeFormat } from "utilities/helpers";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
+  INITIAL_FLEET_DATE,
   LEARN_MORE_ABOUT_BASE_LINK,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
@@ -96,7 +97,7 @@ const getProfileStatusUI = (raw?: string | null) => {
   return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
 };
 
-const getThrottleCopy = (responseUpdatedAt?: string | null) => {
+export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   if (!responseUpdatedAt) {
     return "when available.";
   }
@@ -305,9 +306,12 @@ const MDMStatusModal = ({
     }
 
     if (
+      // Only show the error if there is a DEP assignment error OR if the data contains the host_dep_assignment(meaning we
+      // expect the host to be in DEP) but there's no dep_device(meaning Apple returned nothing). If host_dep_assignment is
+      // not present the device isn't expected to be in DEP
       isDepAssignmentError ||
-      !depAssignmentData?.host_dep_assignment ||
-      !depAssignmentData?.dep_device
+      !depAssignmentData ||
+      (depAssignmentData?.host_dep_assignment && !depAssignmentData?.dep_device)
     ) {
       return (
         <DataError
@@ -349,8 +353,8 @@ const MDMStatusModal = ({
         tooltip: (
           <>
             Migration or new Mac setup won&apos;t work. Details are not
-            accessible from Apple Business Manager (ABM). Verify the host is
-            assigned to your MDM server and Fleet has access permissions.
+            accessible from Apple Business (AB). Verify the host is assigned to
+            your MDM server and Fleet has access permissions.
           </>
         ),
       },
@@ -367,13 +371,17 @@ const MDMStatusModal = ({
           <>
             The last time Apple reported a profile was assigned
             <br />
-            to this host in Apple Business Manager.
+            to this host in Apple Business.
           </>
         ),
         // Follow current pattern of international time format for dates in UI
-        status: internationalTimeFormat(
-          new Date(depAssignmentData.dep_device?.profile_assign_time)
-        ),
+        status:
+          !depAssignmentData.dep_device?.profile_assign_time ||
+          depAssignmentData.dep_device.profile_assign_time < INITIAL_FLEET_DATE
+            ? "Never"
+            : internationalTimeFormat(
+                new Date(depAssignmentData.dep_device.profile_assign_time)
+              ),
       },
       {
         id: "profile-pushed",
@@ -387,8 +395,9 @@ const MDMStatusModal = ({
         ),
         // Follow current pattern of international time format for dates in UI
         status:
-          depAssignmentData.dep_device.profile_push_time === ""
-            ? DEFAULT_EMPTY_CELL_VALUE
+          !depAssignmentData.dep_device.profile_push_time ||
+          depAssignmentData.dep_device.profile_push_time < INITIAL_FLEET_DATE
+            ? "Never"
             : internationalTimeFormat(
                 new Date(depAssignmentData.dep_device.profile_push_time)
               ),
@@ -440,8 +449,7 @@ const MDMStatusModal = ({
           <b>Profile assignment</b>
         </p>
         <p>
-          Details about automatic enrollment profile from Apple Business
-          Manager.{" "}
+          Details about automatic enrollment profile from Apple Business.{" "}
           <CustomLink
             text="Learn more"
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-issues`}
@@ -466,7 +474,16 @@ const MDMStatusModal = ({
   return (
     <Modal title="MDM status" className={baseClass} onExit={onExit}>
       {renderMDMStatus()}
-      {isPremiumTier && isAppleDevice && renderProfileAssignment()}
+      {isPremiumTier &&
+        isAppleDevice &&
+        // Only render the profile assignment section if this host has an actual
+        // host_dep_assignment entry, in which case we expect there to be data to
+        // render. While loading or on query error, keep the section visible so
+        // renderProfileAssignmentList can show its spinner or DataError.
+        (isLoadingDepAssignment ||
+          isDepAssignmentError ||
+          depAssignmentData?.host_dep_assignment) &&
+        renderProfileAssignment()}
       {renderFooter()}
     </Modal>
   );

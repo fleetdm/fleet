@@ -55,7 +55,7 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		OsqueryIdentifier: req.OsqueryIdentifier,
 		ComputerName:      req.ComputerName,
 		HardwareModel:     req.HardwareModel,
-	}, req.EnrollSecret)
+	}, req.EnrollSecret, req.EUAToken)
 	if err != nil {
 		return enrollOrbitResponse{fleet.EnrollOrbitResponse{Err: err}}, nil
 	}
@@ -89,8 +89,66 @@ func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey stri
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
 }
 
+// processWindowsEUAToken validates a Fleet-signed EUA token from the Windows MSI
+// installer, links the user's IdP account to the host, and returns the UPN and
+// device ID for use in post-enrollment steps.
+func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string, euaToken string) (upn string, deviceID string, err error) {
+	if svc.wstepCertManager == nil {
+		// Windows MDM is not configured on this server so the token cannot be validated.
+		// Fall back to prompting the user for authentication.
+		return "", "", fleet.NewOrbitIDPAuthRequiredError()
+	}
+
+	claims, tokenErr := svc.wstepCertManager.GetEUATokenClaims(euaToken)
+	if tokenErr != nil {
+		svc.logger.WarnContext(ctx, "EUA token validation failed, falling back to end user auth prompt",
+			"err", tokenErr, "host_uuid", hostUUID)
+		return "", "", fleet.NewOrbitIDPAuthRequiredError()
+	}
+	upn = claims.UPN
+	deviceID = claims.DeviceID
+
+	_, err = svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			svc.logger.WarnContext(ctx, "EUA token device_id not found in windows mdm enrollments, falling back to end user auth prompt",
+				"device_id", deviceID, "host_uuid", hostUUID)
+			return "", "", fleet.NewOrbitIDPAuthRequiredError()
+		}
+		return "", "", ctxerr.Wrap(ctx, err, "getting windows mdm enrollment for EUA token")
+	}
+
+	// Fetch or create the mdm_idp_accounts row for this email.
+	// Fetch first so we do not overwrite existing first/last names
+	// that may have been populated by SCIM provisioning.
+	acct, err := svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", "", ctxerr.Wrap(ctx, err, "getting mdm idp account by email for EUA token")
+	}
+	if fleet.IsNotFound(err) {
+		if err := svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{Email: upn, Username: upn}); err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
+		}
+		// Re-fetch to get the UUID assigned by the DB.
+		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctxdb.RequirePrimary(ctx, true), upn)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
+		}
+	}
+	if acct == nil {
+		return "", "", ctxerr.New(ctx, "mdm idp account not found for EUA token")
+	}
+
+	// Link the IdP account to this host UUID in host_mdm_idp_accounts.
+	if err := svc.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, acct.UUID); err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "associating host with mdm idp account for EUA token")
+	}
+
+	return upn, deviceID, nil
+}
+
 // EnrollOrbit enrolls an Orbit instance to Fleet and returns the orbit node key.
-func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string) (string, error) {
+func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -162,6 +220,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		isEndUserAuthRequired = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	}
 
+	var euaDeviceID, euaUPN string
+
 	if isEndUserAuthRequired {
 		if hostInfo.HardwareUUID == "" {
 			return "", fleet.OrbitError{Message: "failed to get IdP account: hardware uuid is empty"}
@@ -183,12 +243,22 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			if platform == "linux" || platform == "windows" {
 				// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
 				mp, ok := capabilities.FromContext(ctx)
-				//nolint:gocritic // ignore ifElseChain
-				if !ok {
-					svc.logger.ErrorContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but fleet could not determine whether orbit supports end-user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-				} else if !mp.Has(fleet.CapabilityEndUserAuth) {
-					svc.logger.WarnContext(ctx, "!!! ERR_ALLOWING_UNAUTHENTICATED: host is not authenticated, but connected with an orbit version that does not support end user authentication. proceeding with enrollment. !!! ", "host_uuid", hostInfo.HardwareUUID)
-				} else {
+				switch {
+				case !ok:
+					svc.logger.ErrorContext(ctx, "allowing unauthenticated enrollment: could not determine orbit end-user auth capability", "host_uuid", hostInfo.HardwareUUID)
+				case !mp.Has(fleet.CapabilityEndUserAuth):
+					svc.logger.WarnContext(ctx, "allowing unauthenticated enrollment: orbit version does not support end-user authentication", "host_uuid", hostInfo.HardwareUUID)
+				case platform == "windows" && euaToken != "":
+					// A Windows host already authenticated during MDM enrollment and the
+					// EUA token was passed by the MSI installer.
+					upn, deviceID, err := svc.processWindowsEUAToken(ctx, hostInfo.HardwareUUID, euaToken)
+					if err != nil {
+						return "", err
+					}
+					euaUPN = upn
+					euaDeviceID = deviceID
+					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+				default:
 					// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
 					return "", fleet.NewOrbitIDPAuthRequiredError()
 				}
@@ -219,6 +289,33 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
+	}
+
+	if euaDeviceID != "" {
+		updated, err := svc.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, euaDeviceID)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
+				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
+		}
+
+		if updated {
+			scimUser, err := svc.ds.ScimUserByUserNameOrEmail(ctx, euaUPN, euaUPN)
+			//nolint:gocritic // ignore ifElseChain
+			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+				svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
+					"err", err, "host_id", host.ID)
+			} else if err == nil && scimUser != nil {
+				if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+					svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
+						"err", err, "host_id", host.ID)
+				}
+			} else {
+				if err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+					svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
+						"err", err, "host_id", host.ID)
+				}
+			}
+		}
 	}
 
 	// Associate the newly-enrolled host with a SCIM user if applicable.
@@ -397,6 +494,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
 				return fleet.OrbitConfig{}, err
 			}
+		}
+
+		// Fall back to the global app config's script execution timeout when the
+		// team has no explicit override. Other agent-options fields are intentionally
+		// not inherited from the global config.
+		if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
+			var globalOpts fleet.AgentOptions
+			if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+			}
+			opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
 		}
 
 		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
@@ -579,6 +687,8 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
 		acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			// PerPage 1: only acctCmds[0] is read below.
+			ListOptions: fleet.ListOptions{PerPage: 1},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: host.UUID,
 				RequestType:    "AccountConfiguration",
@@ -855,7 +965,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			HostUUID:    host.UUID,
 			ExecutionID: result.ExecutionID,
 			ExitCode:    result.ExitCode,
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx, "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
@@ -1318,7 +1428,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,
 			InstallerStatus: result.Status(),
-		}, true); err != nil {
+		}, svc.NewActivity); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
 			svc.logger.DebugContext(ctx,

@@ -1017,9 +1017,11 @@ func (c *TestAppleMDMClient) Authenticate() error {
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 	pushMagic := "pushmagic" + c.SerialNumber
 	token := []byte("token" + c.SerialNumber)
+	unlockToken := []byte("unlocktoken" + c.SerialNumber)
 	if c.SerialNumber == "" {
 		pushMagic = "pushmagic" + c.Identifier()
 		token = []byte("token" + c.Identifier())
+		unlockToken = []byte("unlocktoken" + c.Identifier())
 	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
@@ -1028,6 +1030,7 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 		"NotOnConsole": "false",
 		"PushMagic":    pushMagic,
 		"Token":        token,
+		"UnlockToken":  unlockToken,
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

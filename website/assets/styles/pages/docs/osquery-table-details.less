@@ -2,12 +2,10 @@
 
 
   [purpose='page-container'] {
-    padding: 48px;
+    padding: @page-padding-sm;
   }
   [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1104px;
+    .page-content-docs();
   }
   [purpose='page-headline'] {
     // max-width: 662px;
@@ -327,7 +325,7 @@
       margin-bottom: 0px;
       code {
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #AE6DDF;
+          color: #515774;
           white-space: pre;
         }
         [purpose='line-break']:not(:first-of-type)::before {
@@ -351,6 +349,9 @@
         }
         .hljs-number {
           color: #f5871f;
+        }
+        .hljs-operator {
+          color: #3e999f;
         }
         .hljs-string { // For words wrapped in quotation marks
           color: #4fd061;
@@ -610,7 +611,7 @@
   }
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='table-container'] {
       max-width: unset;
@@ -668,7 +669,7 @@
 
   @media (max-width: 576px) {
     [purpose='page-container'] {
-      padding: 32px 24px;
+      padding: @page-padding-tablet-mobile;
     }
     [purpose='mobile-nav'] {
       padding-left: 24px;

@@ -49,7 +49,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 			TeamID:          nil,
 			RawJSON:         []byte(fmt.Sprintf(`{"Type":"com.apple.test.declaration","Identifier":"%s"}`, identifier)),
 		}
-		declaration, err := ds.NewMDMAppleDeclaration(context.Background(), declaration)
+		declaration, err := ds.NewMDMAppleDeclaration(context.Background(), declaration, nil)
 		require.NoError(t, err)
 		return declaration
 	}

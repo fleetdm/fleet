@@ -1,3 +1,4 @@
+// lesshint-disable spaceAroundComma
 #app-details {
 
     h3 {
@@ -17,12 +18,10 @@
     }
 
     [purpose='page-container'] {
-      padding: 48px;
+      padding: @page-padding-sm;
     }
     [purpose='page-content'] {
-      margin-left: auto;
-      margin-right: auto;
-      max-width: 1072px;
+      .page-content();
     }
 
     [purpose='breadcrumbs'] {
@@ -242,12 +241,47 @@
       padding: 16px 44px 16px 24px;
       border: 1px solid #E2E4EA;
       background: #F9FAFC;
+      background-color: @ui-off-white;
       border-radius: 4px;
       margin-top: 32px;
       margin-bottom: 24px;
       white-space: nowrap;
       word-wrap: break-word;
       overflow: auto;
+      .ps, .bash {
+        .hljs-keyword,
+        .hljs-selector-tag,
+        .hljs-name {
+          color: #515774;
+        }
+        .hljs-built_in {
+          color: #4271ae;
+        }
+        .hljs-variable {
+          color: #c82829;
+        }
+        .hljs-symbol,
+        .hljs-attribute,
+        .hljs-function-keyword,
+        .hljs-attr,
+        .hljs-class,
+        .hljs-title,
+        .hljs-string,
+        .hljs-type,
+        .hljs-builtin-name,
+        .hljs-selector-id,
+        .hljs-selector-attr,
+        .hljs-selector-pseudo,
+        .hljs-addition,
+        .hljs-template-variable {
+          color: #4fd061;
+        }
+        .hljs-comment,
+        .hljs-deletion,
+        .hljs-meta {
+          color: @core-fleet-black-50;
+        }
+      }
       code {
         color: #515774;
         font-family: 'Source Code Pro';
@@ -257,8 +291,41 @@
         background-color: @ui-off-white;
         border: none;
         padding: 0;
-        dispaly: block;
+
+
+        .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
+          color: #515774;
+        }
+        .hljs-operator {
+          color: #3e999f;
+        }
+        .hljs-attr { // For table and column names
+          .hljs-keyword {
+            color: #FFF;
+          }
+          .hljs-string { // For words wrapped in quotation marks
+            color: #FFF;
+          }
+          color: #FFF;
+          background-color: #AE6DDF;
+          border-radius: 3px;
+          white-space: pre;
+          vertical-align: baseline;
+          span {
+            padding: 0;
+          }
+        }
+        .hljs-number {
+          color: #f5871f;
+        }
+        .hljs-string { // For words wrapped in quotation marks
+          color: #4fd061;
+          .hljs-keyword {
+            color: #4fd061;
+          }
+        }
       }
+
     }
 
     @media (max-width: 1200px) {
@@ -267,7 +334,7 @@
     }
     @media (max-width: 991px) {
       [purpose='page-container'] {
-        padding: 32px;
+        padding: @page-padding-tablet;
       }
       [purpose='app-details'] {
         padding-right: 0px;
@@ -290,7 +357,7 @@
 
     @media (max-width: 575px) {
       [purpose='page-container'] {
-        padding: 32px 24px;
+        padding: @page-padding-tablet-mobile;
       }
 
     }

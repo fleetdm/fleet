@@ -11,12 +11,12 @@ import commandApi, {
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 
+import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import IconStatusMessage from "components/IconStatusMessage";
 import { IconNames } from "components/icons";
-import Textarea from "components/Textarea";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 
@@ -50,12 +50,19 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
       })})`
     : null;
 
+  const namePart = result.name ? (
+    <>
+      {" "}
+      for <b>{result.name}</b>
+    </>
+  ) : null;
+
   switch (result.status) {
     case "CommandFormatError":
     case "Error":
       return (
         <span>
-          The <b>{result.request_type}</b> command failed on{" "}
+          The <b>{result.request_type}</b> command{namePart} failed on{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -64,7 +71,7 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Acknowledged":
       return (
         <span>
-          The <b>{result.request_type}</b> command ran on{" "}
+          The <b>{result.request_type}</b> command{namePart} was acknowledged by{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -73,15 +80,15 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Pending":
       return (
         <span>
-          The <b>{result.request_type}</b> command is running or will run on{" "}
-          <b>{result.hostname}</b> when it comes online.
+          The <b>{result.request_type}</b> command{namePart} is pending on{" "}
+          <b>{result.hostname}</b>.
         </span>
       );
 
     case "NotNow":
       return (
         <span>
-          The <b>{result.request_type}</b> command didn&apos;t run on{" "}
+          The <b>{result.request_type}</b> command{namePart} is deferred on{" "}
           <b>{result.hostname}</b> because the host was locked or was running on
           battery power while in Power Nap. Fleet will try again.
         </span>
@@ -135,21 +142,26 @@ const ModalContent = ({
         message={getStatusMessage(result)}
       />
       {!!result.payload && (
-        <Textarea label="Request payload:" variant="code">
-          {result.payload}
-        </Textarea>
+        <InputField
+          type="textarea"
+          label="Request payload:"
+          value={result.payload}
+          readOnly
+          enableCopy
+        />
       )}
       {!!result.result && (
-        <Textarea
+        <InputField
+          type="textarea"
           label={
             <>
               Response from <b>{result.hostname}</b>:
             </>
           }
-          variant="code"
-        >
-          {result.result}
-        </Textarea>
+          value={result.result}
+          readOnly
+          enableCopy
+        />
       )}
     </div>
   );

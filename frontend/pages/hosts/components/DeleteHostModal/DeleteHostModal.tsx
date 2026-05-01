@@ -48,7 +48,7 @@ const DeleteHostModal = ({
     hostsCount >= 500;
 
   return (
-    <Modal title="Delete hosts" onExit={onCancel} className={baseClass}>
+    <Modal title="Delete" onExit={onCancel} className={baseClass}>
       <p>
         This will remove <b>{hostText()}</b> and associated data such as unlock
         PINs and disk encryption keys.

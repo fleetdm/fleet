@@ -6,6 +6,10 @@ When a host fails a policy in Fleet, IT and Security teams can block access to t
 
 ## Prerequisites
 
+> This section is only for self-hosted instances of Fleet. If you are on a cloud-managed instance, skip down to [Step 1](#step-1-download-idp-signature-certificate-from-fleet).
+
+Okta's [Adaptive MFA](https://www.okta.com/learn/adaptive-mfa/) SKU is required to use this feature.
+
 Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL. If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
 
 If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/okta-conditional-access-testing.md).
@@ -69,7 +73,11 @@ Replace:
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, find the read-only **User scope profile**.
 3. Copy the profile to a new `.mobileconfig` file and save.
-4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+
+Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days. Automatic renewal for this certificate is [coming soon](https://github.com/fleetdm/fleet/issues/40639). When the certificate is renewed, the old certificate isn't removed. To clean up the old certificate, you can run [this script](https://github.com/fleetdm/fleet/blob/31ec68e325801bfd2199191f70d021383a45161f/assets/scripts/delete-duplicate-scep-certificates.sh).
+
+> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
 
 ## Step 3: Create IdP in Okta
 

@@ -1,33 +1,14 @@
 #customers {
 
   h4 {
-    color: #515774;
-    font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
-    font-family: 'Roboto Mono';
-    font-size: 16px;
-    font-style: normal;
-    font-weight: 400;
-    line-height: 150%;
-    text-transform: uppercase;
+    .kicker-title();
   }
   h1 {
-    color: #192147;
-    font-family: Inter;
-    font-size: 48px;
-    font-style: normal;
-    font-weight: 800;
-    line-height: 120%;
+    .title-xl();
   }
 
   h2 {
-    color: #192147;
-
-    /* Heading/H2 */
-    font-family: Inter;
-    font-size: 32px;
-    font-style: normal;
-    font-weight: 800;
-    line-height: 120%;
+    .title-l();
     margin-bottom: 0px;
   }
   [purpose='page-container'] {
@@ -361,42 +342,13 @@
       text-decoration: none;
     }
     [purpose='cta-button'] {
-      display: flex;
+      .cta-button();
       height: 36px;
       padding: 16px;
-      justify-content: center;
-      align-items: center;
-      gap: 4px;
-      border-radius: 8px;
-      background: @core-vibrant-green;
-      color: #FFF;
-      text-align: center;
       width: 140px;
-      /* Body MD (bold) */
-      font-family: Inter;
       font-size: 16px;
-      font-style: normal;
-      font-weight: 700;
       line-height: 150%;
       margin-right: 24px;
-      position: relative;
-      cursor: pointer;
-    }
-    [purpose='cta-button']::before {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
-      opacity: 1;
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -5px;
-      width: 50%;
-      height: 100%;
-      transform: skew(-10deg);
-      transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
-    }
-    [purpose='cta-button']:hover:before {
-      left: 160px;
-      width: 110%;
     }
     [parasails-component='animated-arrow-button'] {
       width: fit-content;

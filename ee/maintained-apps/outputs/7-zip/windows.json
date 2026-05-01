@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.00",
+      "version": "26.01",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '7-Zip 25.01 (x64)' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.00') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.01') < 0);"
       },
-      "installer_url": "https://7-zip.org/a/7z2600-x64.msi",
+      "installer_url": "https://7-zip.org/a/7z2601-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "a94a6acc",
-      "sha256": "c388d0444871ca11b21237001af158cfddad7e137851795e5b65cee69b518495",
+      "sha256": "a47ea8dcf8bc08e6de474cae77c828e031fa22cb528f6095defffebf11cd02f2",
       "default_categories": [
         "Productivity"
       ],

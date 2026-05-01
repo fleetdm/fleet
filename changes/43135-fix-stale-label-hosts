@@ -1,0 +1,2 @@
+* Fixed stale "Selected hosts" on the edit label page after a previous edit by invalidating the related query caches on success.
+* Fixed stale "Selected hosts" on the edit label page when navigating between manual labels by scoping the hosts cache per label and keying the form on the actual host set.

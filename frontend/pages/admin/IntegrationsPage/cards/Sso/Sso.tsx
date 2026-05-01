@@ -7,7 +7,6 @@ import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -23,8 +22,6 @@ import {
   IFormDataIdp,
   newFormDataIdp,
 } from "../IdentityProviders/components/EndUserAuthSection/helpers";
-
-const baseClass = "app-config-form";
 
 interface ISsoFormData {
   idpName: string;
@@ -319,7 +316,6 @@ const Sso = ({
           )}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "8.12.8",
+      "version": "8.12.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password' AND version_compare(bundle_short_version, '8.12.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password' AND version_compare(bundle_short_version, '8.12.12') < 0);"
       },
       "installer_url": "https://downloads.1password.com/mac/1Password.pkg",
       "install_script_ref": "90335256",

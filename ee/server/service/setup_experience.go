@@ -276,6 +276,24 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
 				sw.Status = fleet.SetupExperienceStatusFailure
 				sw.Error = ptr.String(err.Error())
+				// Persist the failure before cancelling other steps, so that
+				// maybeCancelPendingSetupExperienceSteps can find the failed
+				// item from its loaded statuses.
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
+				}
+				failActivity := fleet.ActivityInstalledAppStoreApp{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       sw.Name,
+					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
+					Status:              string(fleet.SoftwareInstallFailed),
+					HostPlatform:        host.Platform,
+					FromSetupExperience: true,
+				}
+				if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
+					svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+				}
 				// At this point we need to check whether the "cancel if software install fails" setting is active,
 				// in which case we'll cancel the remaining pending items.
 				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
@@ -291,9 +309,9 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			} else {
 				sw.NanoCommandUUID = &cmdUUID
 				sw.Status = fleet.SetupExperienceStatusRunning
-			}
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+				}
 			}
 		}
 	case softwareRunning == 0 && len(scriptsPending) > 0:

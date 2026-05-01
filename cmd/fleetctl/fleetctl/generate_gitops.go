@@ -118,50 +118,32 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
-// aliasRules maps deprecated JSON key names (from `json` struct tags) to their
-// new canonical names (from `renameto` struct tags). Used by replaceAliasKeys
-// and yamlMarshalRenamed to rename keys in serialized output.
-var aliasRules = map[string]string{
-	"available_teams":        "available_fleets",
-	"default_team":           "default_fleet",
-	"host_team_id":           "host_fleet_id",
-	"inherited_query_count":  "inherited_report_count",
-	"ios_team_id":            "ios_fleet_id",
-	"ios_team":               "ios_fleet",
-	"ipados_team_id":         "ipados_fleet_id",
-	"ipados_team":            "ipados_fleet",
-	"live_query_disabled":    "live_reporting_disabled",
-	"live_query_results":     "discard_reports_data",
-	"macos_team_id":          "macos_fleet_id",
-	"macos_team":             "macos_fleet",
-	"queries":                "reports",
-	"query_count":            "report_count",
-	"query_id":               "report_id",
-	"query_ids":              "report_ids",
-	"query_name":             "report_name",
-	"query_report_cap":       "report_cap",
-	"query_reports_disabled": "discard_reports_data",
-	"query_stats":            "report_stats",
-	// Deliberately not aliasing "query" as it is used exclusively to refer to SQL in GitOps.
-	// "query":                          "report",
-	"scheduled_query_id":   "scheduled_report_id",
-	"scheduled_query_name": "scheduled_report_name",
-	"team":                 "fleet",
-	"team_id":              "fleet_id",
-	"team_ids_by_name":     "fleet_ids_by_name",
-	"team_ids":             "fleet_ids",
-	"team_name":            "fleet_name",
-	"teams":                "fleets",
+// aliasRules maps deprecated JSON key names to their new canonical names.
+// Used by replaceAliasKeys and yamlMarshalRenamed to rename keys in serialized output
+// for generate_gitops, fleetctl get (via printSpec), and fleetctl apply.
+// Derived entirely from spec.DeprecatedGitOpsKeyMappings using leaf key segments.
+var aliasRules = buildAliasRules()
 
-	// MDM settings renames
-	"bootstrap_package":              "macos_bootstrap_package",
-	"custom_settings":                "configuration_profiles",
-	"enable_release_device_manually": "apple_enable_release_device_manually",
-	"macos_settings":                 "apple_settings",
-	"macos_setup":                    "setup_experience",
-	"macos_setup_assistant":          "apple_setup_assistant",
-	"manual_agent_install":           "macos_manual_agent_install",
-	"script":                         "macos_script",
+func buildAliasRules() map[string]string {
+	rules := make(map[string]string)
+	for _, m := range spec.DeprecatedGitOpsKeyMappings {
+		// Take the last segment of the old and new paths as the leaf key names.
+		// Remove any array indicators (e.g. "[]") in case an array key is renamed.
+		oldLeaf := m.OldPath
+		if i := strings.LastIndex(oldLeaf, "."); i >= 0 {
+			oldLeaf = oldLeaf[i+1:]
+		}
+		oldLeaf = strings.TrimSuffix(oldLeaf, "[]")
+
+		newLeaf := m.NewPath
+		if i := strings.LastIndex(newLeaf, "."); i >= 0 {
+			newLeaf = newLeaf[i+1:]
+		}
+		newLeaf = strings.TrimSuffix(newLeaf, "[]")
+
+		rules[oldLeaf] = newLeaf
+	}
+	return rules
 }
 
 // Replace deprecated keys with their new canonical names.
@@ -811,12 +793,13 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 
 	orgSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
-		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
-		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
-		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
+		jsonFieldName(t, "ActivityExpirySettings"): cmd.AppConfig.ActivityExpirySettings,
+		jsonFieldName(t, "Features"):               cmd.AppConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):           cmd.AppConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"):     cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):                cmd.AppConfig.OrgInfo,
+		jsonFieldName(t, "ServerSettings"):         cmd.AppConfig.ServerSettings,
+		jsonFieldName(t, "WebhookSettings"):        webhookSettings,
 	}
 
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
@@ -1356,11 +1339,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
-			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
+			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
+				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
+					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
+					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
-					Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
 				})
 			}
 		}

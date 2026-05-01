@@ -15,6 +15,7 @@ import (
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -205,6 +206,11 @@ func scanVulnerabilities(
 	if config.OSVForVulnerabilities {
 		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, osvVulns...)
+	}
+
+	if config.OSVForVulnerabilities {
+		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, rhelOSVVulns...)
 	}
 
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
@@ -417,14 +423,16 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
-	// If OSV feature flag is enabled, filter out platforms supported by OSV (OVAL will skip them)
+	// If OSV feature flag is enabled, filter out platforms handled by OSV (OVAL will skip them)
 	processVersions := versions
 	if config.OSVForVulnerabilities {
 		var nonOSVPlatforms []fleet.OSVersion
 		for _, v := range versions.OSVersions {
-			if !osv.IsPlatformSupported(v.Platform) {
-				nonOSVPlatforms = append(nonOSVPlatforms, v)
+			// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in OVAL
+			if osv.IsPlatformSupported(v.Platform) && !strings.Contains(v.Name, "Fedora") {
+				continue
 			}
+			nonOSVPlatforms = append(nonOSVPlatforms, v)
 		}
 
 		processVersions = &fleet.OSVersions{
@@ -471,6 +479,7 @@ func checkOvalVulnerabilities(
 	analyzeSpan.End()
 
 	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
 
 	return results
 }
@@ -496,7 +505,7 @@ func checkOSVVulnerabilities(
 
 	var now time.Time
 	if !config.DisableDataSync {
-		now = time.Now()
+		now = time.Now().UTC()
 	}
 
 	if !config.DisableDataSync {
@@ -567,6 +576,89 @@ func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, lo
 	}
 }
 
+func checkRHELOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_rhel_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for RHEL OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now().UTC()
+	}
+
+	if !config.DisableDataSync {
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.rhel_osv.refresh")
+		downloaded, err := osv.RefreshRHEL(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating RHEL OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "rhel-osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.rhel_osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.AnalyzeRHEL(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "rhel-osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "rhel-osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing RHEL OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleRHELOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+// cleanupStaleRHELOSVVulnerabilities removes RHEL OSV vulnerabilities when the flag is disabled.
+func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up RHEL OSV vulnerabilities because RHEL OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleRHELOVALVulnerabilities removes RHEL OVAL vulnerabilities when RHEL OSV is enabled.
+func cleanupStaleRHELOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up RHEL OVAL vulnerabilities because RHEL OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OVAL vulnerabilities", err)
+	}
+}
+
 func checkGovalDictionaryVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -604,6 +696,11 @@ func checkGovalDictionaryVulnerabilities(
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
 		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
+		// Skip OSV-supported Linux platforms (for example, Ubuntu and RHEL) when OSV is enabled.
+		// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in goval-dictionary.
+		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) && !strings.Contains(version.Name, "Fedora") {
+			continue
+		}
 		start := time.Now()
 		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
@@ -1070,6 +1167,7 @@ func newAppleMDMWorkerSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name             = string(fleet.CronAppleMDMWorker)
@@ -1087,6 +1185,7 @@ func newAppleMDMWorkerSchedule(
 		Commander:             commander,
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
+		NewActivityFn:         newActivityFn,
 	}
 
 	w.Register(appleMDM)
@@ -1124,6 +1223,7 @@ func newCleanupsAndAggregationSchedule(
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	acmeSvc acme_api.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1375,6 +1475,31 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
+			return chartSvc.CleanupData(ctx, 30)
+		}),
+	)
+
+	return s, nil
+}
+
+func newChartDataCollectionSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	chartSvc chart_api.Service,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronChartDataCollection)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
+			return chartSvc.CollectDatasets(ctx, time.Now())
+		}),
 	)
 
 	return s, nil
@@ -1562,7 +1687,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 // newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
-// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// The DEP syncer+assigner fetches devices from Apple Business (aka AB) and applies
 // the current configured DEP profile to them.
 func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
@@ -2005,7 +2130,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.SyncAppsList(ctx, ds)
 		}),
 	)
 
@@ -2209,7 +2334,7 @@ func newRecoveryLockPasswordSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronSendRecoveryLockCommands)
-		defaultInterval = 5 * time.Minute
+		defaultInterval = 30 * time.Second
 	)
 
 	logger = logger.With("cron", name)

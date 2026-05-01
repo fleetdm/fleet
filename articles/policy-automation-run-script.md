@@ -27,7 +27,7 @@ If the script fails, you can reset a script automation and trigger the script to
 
 > When script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had previously failed the policy.
 
-* Scripts are run once regardless of exit code.
+* Policy automation scripts are automatically attempted up to 3 total times. Each time the script exits with a non-zero exit code (i.e., it fails), Fleet triggers the script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 * When used in policy automation, Fleet does not run shell scripts on Windows hosts or PowerShell scripts on non-Windows hosts.
 
 ## Via the API

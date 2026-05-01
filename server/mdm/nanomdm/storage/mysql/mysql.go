@@ -142,6 +142,10 @@ func (s *MySQLStorage) StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) 
 	if r.Certificate != nil {
 		pemCert = cryptoutil.PEMCertificate(r.Certificate.Raw)
 	}
+	// When a device undergoes SCEP certificate renewal, it sends a new
+	// Authenticate message. We must preserve the existing bootstrap token
+	// during renewal; clearing it causes commands that depend on it (e.g.
+	// EraseDevice) to fail. See https://github.com/fleetdm/fleet/issues/41167
 	_, err := s.db.ExecContext(
 		r.Context, `
 INSERT INTO nano_devices
@@ -152,11 +156,19 @@ ON DUPLICATE KEY
 UPDATE
     identity_cert = VALUES(identity_cert),
     serial_number = VALUES(serial_number),
-    bootstrap_token_b64 = NULL,
-    bootstrap_token_at = NULL,
+    bootstrap_token_b64 = IF(
+        EXISTS(SELECT 1 FROM nano_cert_auth_associations nca WHERE nca.id = ? AND nca.renew_command_uuid IS NOT NULL),
+        bootstrap_token_b64,
+        NULL
+    ),
+    bootstrap_token_at = IF(
+        EXISTS(SELECT 1 FROM nano_cert_auth_associations nca WHERE nca.id = ? AND nca.renew_command_uuid IS NOT NULL),
+        bootstrap_token_at,
+        NULL
+    ),
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP;`,
-		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,
+		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw, r.ID, r.ID,
 	)
 
 	return err

@@ -66,7 +66,7 @@ const DeviceUserBanners = ({
       variant="banner-link"
     />
   ) : (
-    <Button variant="text-link-dark" onClick={onClickTurnOnMdm}>
+    <Button variant="link" onClick={onClickTurnOnMdm}>
       Turn on MDM
     </Button>
   );
@@ -153,7 +153,7 @@ const DeviceUserBanners = ({
         <InfoBanner
           color="yellow"
           cta={
-            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
+            <Button variant="link" onClick={onClickCreatePIN}>
               Create PIN
             </Button>
           }

@@ -671,6 +671,11 @@ export default {
     return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
   },
 
+  getManagedAccountPassword: (id: number) => {
+    const { HOST_MANAGED_ACCOUNT_PASSWORD } = endpoints;
+    return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
+  },
+
   lockHost: (id: number) => {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));
@@ -684,6 +689,11 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  clearPasscode: (id: number) => {
+    const { HOST_CLEAR_PASSCODE } = endpoints;
+    return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
   },
 
   resendProfile: (hostId: number, profileUUID: string): Promise<void> => {

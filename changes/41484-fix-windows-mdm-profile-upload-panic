@@ -1,1 +1,0 @@
-- Fixed a server panic when uploading a Windows MDM profile to a fleet on a free license.

@@ -20,12 +20,10 @@
 
 
   [purpose='page-container'] {
-    padding: 48px;
+    padding: @page-padding-sm;
   }
   [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1104px;
+    .page-content-docs();
   }
 
   [purpose='breadcrumbs'] {
@@ -397,9 +395,14 @@
         .hljs-keyword,
         .hljs-selector-tag,
         .hljs-name {
-          color: #AE6DDF;
+          color: #515774;
         }
-
+        .hljs-tag {
+          color: #4271ae;
+          .hljs-name {
+            color: #c82829;
+          }
+        }
         .hljs-symbol,
         .hljs-attribute,
         .hljs-function-keyword,
@@ -459,7 +462,7 @@
   }
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='command-details'] {
       padding-right: 0px;
@@ -489,7 +492,7 @@
 
   @media (max-width: 575px) {
     [purpose='page-container'] {
-      padding: 32px 24px;
+      padding: @page-padding-tablet-mobile;
     }
     [purpose='supported-platforms'] {
       flex-direction: column;

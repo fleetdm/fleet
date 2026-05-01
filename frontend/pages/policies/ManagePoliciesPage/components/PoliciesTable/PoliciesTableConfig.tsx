@@ -131,7 +131,7 @@ const generateTableHeaders = (
                 )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
+            path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
               fleet_id: team_id,
             })}
           />

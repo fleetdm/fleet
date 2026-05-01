@@ -286,7 +286,7 @@ const EditTeamsVppModal = ({
                 </>
               )
             }
-            helpText="App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets."
+            helpText="App Store apps in this VPP token's Apple Business (AB) will only be available to install on hosts in these fleets."
             disabled={isDropdownDisabled}
           />
         </TooltipWrapper>

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "149.0",
+      "version": "150.0.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '149.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '150.0.1') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/149.0/win64/en-US/Firefox%20Setup%20149.0.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/150.0.1/win64/en-US/Firefox%20Setup%20150.0.1.exe",
       "install_script_ref": "80fb9175",
       "uninstall_script_ref": "8b5e20e4",
-      "sha256": "78d0328c3d1cfecdb6b978f69d833b66fbe3c297e2e10491f5d87811a0a4a7fa",
+      "sha256": "21936d1c7c9667c85c4637cb832259c0e70942f4b928ed9436699f0ccfad53bd",
       "default_categories": [
         "Browsers"
       ]

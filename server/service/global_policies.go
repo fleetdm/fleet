@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Platform:         req.Platform,
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		Type:             fleet.PolicyTypeDynamic,
 	})
@@ -59,7 +61,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), vc.User); err != nil {
+	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -472,6 +478,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Type == "" {
+			policy.Type = fleet.PolicyTypeDynamic
+		}
+
 		if policy.Team == "" && policy.ConditionalAccessEnabled {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
@@ -485,8 +495,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		}
 
 		// Make sure any applied labels exist.
-		labels := policy.LabelsIncludeAny
-		labels = append(labels, policy.LabelsExcludeAny...)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsExcludeAny)
 		if len(labels) > 0 {
 			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
 			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine

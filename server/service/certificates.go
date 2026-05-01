@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -778,6 +779,15 @@ func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID ui
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	template, err := svc.ds.GetCertificateTemplateByIdForHost(ctx, templateID, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking host certificate template")
+	}
+
+	if template.Status == fleet.CertificateTemplatePending {
+		return fleet.NewUserMessageError(errors.New("Couldn't resend pending certificate template."), http.StatusBadRequest)
 	}
 
 	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {

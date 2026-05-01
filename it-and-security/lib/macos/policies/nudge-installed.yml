@@ -1,0 +1,8 @@
+- name: macOS - Nudge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = "com.github.macadmins.Nudge";
+  critical: true
+  description: This policy ensures Nudge is installed.
+  resolution: "If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  install_software:
+    fleet_maintained_app_slug: nudge/darwin
+  platform: darwin

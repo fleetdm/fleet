@@ -1,0 +1,90 @@
+{
+  "token": "zoom-rooms",
+  "old_tokens": [],
+  "name": [
+    "Zoom Rooms"
+  ],
+  "desc": "Conference room software for Zoom meetings",
+  "homepage": "https://www.zoom.com/en/products/zoom-rooms/",
+  "url": "https://cdn.zoom.us/prod/7.0.0.12322/ZoomRooms.pkg",
+  "url_specs": {},
+  "version": "7.0.0.12322",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": true,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "sha256": "c35229e6066732aec7f26b762d0f2d43ab7b8270e512fbabe5bbb77a9c714bbc",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "launchctl": [
+            "us.zoom.rooms.daemon",
+            "us.zoom.rooms.tool"
+          ],
+          "quit": "us.zoom.ZoomPresence",
+          "pkgutil": "us.zoom.pkg.zp",
+          "delete": [
+            "/Applications/ZoomPresence.app",
+            "/Library/LaunchDaemons/us.zoom.rooms.daemon.plist",
+            "/Library/LaunchDaemons/us.zoom.rooms.tool.plist",
+            "/Library/PrivilegedHelperTools/us.zoom.ZoomRoomsDaemon",
+            "/Library/Logs/us.zoom.ZoomRoomUpdateRecord",
+            "/Library/Logs/zpinstall.log"
+          ]
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "ZoomRooms.pkg"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Application Support/ZoomPresence",
+            "~/Library/Caches/us.zoom.ZoomPresence",
+            "~/Library/HTTPStorages/us.zoom.ZoomPresence",
+            "~/Library/HTTPStorages/us.zoom.ZoomPresence.binarycookies",
+            "~/Library/Preferences/us.zoom.ZoomPresence.plist",
+            "~/Library/Saved Application State/us.zoom.ZoomPresence.savedState",
+            "~/Library/WebKit/us.zoom.ZoomPresence"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "10.15"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/zoom-rooms.rb",
+  "ruby_source_checksum": {
+    "sha256": "5a428ab919a9c0da0d54f4868ef4ce49693f83a778de7cdd508f063ef770514f"
+  }
+}

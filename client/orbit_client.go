@@ -61,15 +61,20 @@ type OrbitClient struct {
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
 	receiverUpdateCancelFunc context.CancelFunc
 
+	// euaToken is a one-time Fleet-signed JWT from Windows MDM enrollment,
+	// sent during orbit enrollment to link the IdP account without prompting.
+	euaToken string
+
 	// hostIdentityCertPath is the file path to the host identity certificate issued using SCEP.
 	//
 	// If set then it will be deleted on HTTP 401 errors from Fleet and it will cause ExecuteConfigReceivers
 	// to terminate to trigger a restart.
 	hostIdentityCertPath string
 
-	// initiatedIdpAuth is a flag indicating whether a window has been opened
-	// to the sign-on page for the organization's Identity Provider.
-	initiatedIdpAuth bool
+	// lastSSOWindowOpen tracks when the SSO browser window was last opened.
+	// If zero, no window has been opened yet. Used to periodically re-open
+	// the SSO window if the user closes it before completing authentication.
+	lastSSOWindowOpen time.Time
 
 	// openSSOWindow is a function that opens a browser window to the SSO URL.
 	openSSOWindow func() error
@@ -77,6 +82,11 @@ type OrbitClient struct {
 
 // time-to-live for config cache
 const configCacheTTL = 3 * time.Second
+
+// ssoWindowReopenInterval is the minimum time between SSO window open attempts.
+// If the user closes the SSO browser window before completing authentication,
+// the window will be re-opened after this interval.
+const ssoWindowReopenInterval = 5 * time.Minute
 
 type configCache struct {
 	mu          sync.Mutex
@@ -209,6 +219,11 @@ func NewOrbitClient(
 		receiverUpdateCancelFunc:   cancelFunc,
 		hostIdentityCertPath:       hostIdentityCertPath,
 	}, nil
+}
+
+// SetEUAToken sets a one-time EUA token to include in the enrollment request.
+func (oc *OrbitClient) SetEUAToken(token string) {
+	oc.euaToken = token
 }
 
 // TriggerOrbitRestart triggers a orbit process restart.
@@ -512,6 +527,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,
+		EUAToken:          oc.euaToken,
 	}
 	var resp fleet.EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)
@@ -569,7 +585,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				// Open a browser window to the sign-on page and
 				// then keep retrying until they authenticate.
 				log.Debug().Msg("enroll unauthenticated, waiting for end-user to authenticate via SSO")
-				if !oc.initiatedIdpAuth {
+				if oc.lastSSOWindowOpen.IsZero() || time.Since(oc.lastSSOWindowOpen) >= ssoWindowReopenInterval {
 					if oc.openSSOWindow == nil {
 						log.Error().Msg("SSO window open function not set")
 						return retry.ErrorOutcomeNormalRetry
@@ -580,7 +596,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 						log.Error().Err(openWindowErr).Msg("opening SSO window")
 						return retry.ErrorOutcomeNormalRetry
 					}
-					oc.initiatedIdpAuth = true
+					oc.lastSSOWindowOpen = time.Now()
 				}
 				// Sleep for 20 seconds, making the total retry interval 30 seconds
 				time.Sleep(20 * time.Second)

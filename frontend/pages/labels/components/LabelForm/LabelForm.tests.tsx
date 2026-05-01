@@ -3,7 +3,6 @@ import { renderWithSetup } from "test/test-utils";
 import { screen, render } from "@testing-library/react";
 import { noop } from "lodash";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 import LabelForm from "./LabelForm";
@@ -37,7 +36,9 @@ describe("LabelForm", () => {
         onCancel={noop}
         teamName={null}
         immutableFields={[]}
-        additionalFields={<InputField name="test field" label="test field" />}
+        additionalFields={
+          <InputField name="test field" label="test field" value="" />
+        }
       />
     );
 

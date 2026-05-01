@@ -48,8 +48,8 @@ org_settings:
   server_settings:
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    discard_reports_data: false
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
@@ -111,5 +111,7 @@ labels:
   - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
+  - path: ./lib/all/labels/macs-with-fleet-desktop-installed.yml
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
+  - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml

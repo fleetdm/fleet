@@ -79,7 +79,7 @@ const RecoveryLockPasswordModal = ({
     if (canRotatePassword) {
       return (
         <Button
-          variant="text-link"
+          variant="inverse"
           onClick={onRotatePassword}
           disabled={isRotating}
           className={`${baseClass}__rotate-button`}

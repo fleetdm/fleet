@@ -69,6 +69,9 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 	}
 
 	if tlsSkipVerify {
+		if !isLoopbackURL(baseURL) {
+			logrus.Errorf("FLEET_TLS_SKIP_VERIFY is set but FLEET_BASE_URL (%s) does not point at localhost — this is unsafe for non-local deployments", baseURL)
+		}
 		logrus.Warn("TLS certificate verification is disabled — do not use in production")
 		tlsCfg.InsecureSkipVerify = true //nolint:gosec
 	} else if caFile != "" {
@@ -93,6 +96,18 @@ func NewFleetClient(baseURL, apiKey string, tlsSkipVerify bool, caFile string) *
 			Transport: transport,
 		},
 	}
+}
+
+// isLoopbackURL parses a URL and returns true only if the hostname is exactly
+// "localhost", "127.0.0.1", or "::1". This avoids prefix-matching pitfalls
+// like "localhost.evil.com".
+func isLoopbackURL(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname() // strips port if present
+	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 // HostLabel represents a label attached to a host (Fleet returns objects, not plain strings)
