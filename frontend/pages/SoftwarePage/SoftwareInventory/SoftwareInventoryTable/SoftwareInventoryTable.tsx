@@ -10,12 +10,8 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import {
-  convertParamsToSnakeCase,
-  getPathWithQueryParams,
-} from "utilities/url";
-import {
-  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
@@ -30,19 +26,13 @@ import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
-import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
+import generateInventoryTableConfig from "./SoftwareInventoryTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
-  ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
-  SOFTWARE_TITLES_DROPDOWN_OPTIONS,
-  buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
 } from "./helpers";
@@ -72,7 +62,6 @@ interface ISoftwareTableProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  softwareFilter: ISoftwareDropdownFilterVal;
   vulnFilters: ISoftwareVulnFiltersParams;
   currentPage: number;
   teamId?: number;
@@ -80,7 +69,7 @@ interface ISoftwareTableProps {
   onAddFiltersClick: () => void;
 }
 
-const baseClass = "software-table";
+const baseClass = "software-inventory-table";
 
 const SoftwareTable = ({
   router,
@@ -92,7 +81,6 @@ const SoftwareTable = ({
   perPage,
   orderDirection,
   orderKey,
-  softwareFilter,
   vulnFilters,
   currentPage,
   teamId,
@@ -101,7 +89,7 @@ const SoftwareTable = ({
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
-    : PATHS.SOFTWARE_TITLES;
+    : PATHS.SOFTWARE_INVENTORY;
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -137,19 +125,10 @@ const SoftwareTable = ({
             : 0,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
-      // Only include these filters when not on “All teams”
-      if (teamId !== undefined) {
-        if (softwareFilter === "installableSoftware") {
-          newQueryParam.available_for_install = "true";
-        }
-        if (softwareFilter === "selfServiceSoftware") {
-          newQueryParam.self_service = "true";
-        }
-      }
 
       return newQueryParam;
     },
-    [softwareFilter, teamId, vulnFilters]
+    [teamId, vulnFilters]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -181,7 +160,7 @@ const SoftwareTable = ({
     generateTableConfig = () => [];
   } else if (isSoftwareTitles(data)) {
     tableData = data.software_titles;
-    generateTableConfig = generateTitlesTableConfig;
+    generateTableConfig = generateInventoryTableConfig;
   } else {
     tableData = data.software;
     generateTableConfig = generateVersionsTableConfig;
@@ -195,13 +174,11 @@ const SoftwareTable = ({
   // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
-  const hasSoftwareFilter = softwareFilter !== "allSoftware";
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
-    isSoftwareEnabled &&
-    (hasData || hasQuery || hasSoftwareFilter || hasVulnFilters);
+    isSoftwareEnabled && (hasData || hasQuery || hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -210,41 +187,16 @@ const SoftwareTable = ({
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams("allSoftware"), // Reset to all software
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
     router.replace(
       getNextLocationPath({
         pathPrefix: showVersions
-          ? PATHS.SOFTWARE_TITLES
+          ? PATHS.SOFTWARE_INVENTORY
           : PATHS.SOFTWARE_VERSIONS,
         routeTemplate: "",
         queryParams,
-      })
-    );
-  };
-
-  const handleCustomFilterDropdownChange = (
-    value: ISoftwareDropdownFilterVal
-  ) => {
-    const queryParams: ISoftwareApiParams = {
-      query,
-      teamId,
-      orderDirection,
-      orderKey,
-      // Do not reset page as it creates a race condition with TableContainer's useDeepEffect
-      // Rely on TableContainer's prevPageIndex to reset to 0 when it detects additionalQueries changed
-      page: currentPage,
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
-      ...buildSoftwareFilterQueryParams(value),
-    };
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: currentPath,
-        routeTemplate: "",
-        queryParams: convertParamsToSnakeCase(queryParams),
       })
     );
   };
@@ -282,32 +234,6 @@ const SoftwareTable = ({
           activeText="Show versions"
         />
       </>
-    );
-  };
-
-  const renderCustomControls = () => {
-    // Hidden when viewing versions table or viewing "All teams"
-    // or Fleet Free
-    if (showVersions || teamId === undefined) {
-      return null;
-    }
-
-    return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="software-filter"
-          value={softwareFilter}
-          className={`${baseClass}__software-filter`}
-          options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as ISoftwareDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-        />
-      </div>
     );
   };
 
@@ -350,7 +276,6 @@ const SoftwareTable = ({
         resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
-            softwareFilter={softwareFilter}
             vulnFilters={vulnFilters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
@@ -369,13 +294,7 @@ const SoftwareTable = ({
         searchable={showFilterHeaders}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        // additionalQueries serves as a trigger for the useDeepEffect hook
-        // to fire onQueryChange for events happening outside of
-        // the TableContainer.
-        // This is necessary to remove unwanted query params from the URL
-        additionalQueries={softwareFilter}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
-        customFiltersButton={
+        customControl={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
         stackControls
