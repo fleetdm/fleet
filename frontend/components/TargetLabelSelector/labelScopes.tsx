@@ -20,8 +20,7 @@ interface IGetCustomTargetOptionsArgs {
 }
 
 // getCustomTargetOptions returns the label-scope options for the "Custom"
-// target dropdown. The "Include all" option is premium-only. The
-// "Exclude any" option is policy-only — reports do not support it.
+// target dropdown.
 export const getCustomTargetOptions = ({
   entity,
   isPremiumTier,
