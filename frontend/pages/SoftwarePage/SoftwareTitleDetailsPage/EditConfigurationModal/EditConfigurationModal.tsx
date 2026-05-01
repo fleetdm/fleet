@@ -263,7 +263,12 @@ const EditConfigurationModal = ({
   };
 
   return (
-    <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
+    <Modal
+      className={baseClass}
+      title="Edit configuration"
+      onExit={onExit}
+      width="large"
+    >
       {renderInstallerDetails()}
       {renderDescription()}
       {renderForm()}
