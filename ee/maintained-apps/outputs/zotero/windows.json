@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.0.1",
+      "version": "9.0.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship' AND version_compare(version, '9.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zotero' AND publisher = 'Corporation for Digital Scholarship' AND version_compare(version, '9.0.2') < 0);"
       },
-      "installer_url": "https://download.zotero.org/client/release/9.0.1/Zotero-9.0.1_x64_setup.exe",
+      "installer_url": "https://download.zotero.org/client/release/9.0.2/Zotero-9.0.2_x64_setup.exe",
       "install_script_ref": "d29b62d2",
       "uninstall_script_ref": "599566de",
-      "sha256": "531ce0b3ebdb4e25266d149bd88b835ce1bc0c801fc58385845c29c13a4d9314",
+      "sha256": "cf311861ff1af3b42e0750b48090492c034a8ee614a77f9e9f12bf05e0de51a9",
       "default_categories": [
         "Productivity"
       ]
