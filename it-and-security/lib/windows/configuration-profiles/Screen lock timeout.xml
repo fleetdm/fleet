@@ -1,0 +1,17 @@
+<Replace>
+  <!--
+    Maps to "Interactive logon: Machine inactivity limit" (GPO).
+    Writes HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs.
+    Satisfies the "Windows - Interactive logon screen lock timeout configured" Fleet policy
+    (requires 1-900 seconds). 900 = 15 minutes.
+  -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit</LocURI>
+    </Target>
+    <Data>900</Data>
+  </Item>
+</Replace>

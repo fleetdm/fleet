@@ -100,6 +100,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/screen-lock-inactivity.mobileconfig
+        labels_exclude_any:
+          - macOS screen lock exclusions
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
@@ -133,6 +136,9 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock timeout.xml
+        labels_exclude_any:
+          - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
