@@ -190,6 +190,16 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
 
+		// Also populate host_seen_times so that seen_time matches detail_updated_at
+		// (issue #43195 — Android last seen and last fetched should match).
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+			host.Host.ID, host.DetailUpdatedAt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host seen time")
+		}
+
 		// insert storage data into host_disks table for API consumption
 		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
 		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
@@ -270,6 +280,16 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		// Keep seen_time in sync with detail_updated_at for Android hosts
+		// (issue #43195 — Android last seen and last fetched should match).
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			 ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+			host.Host.ID, host.DetailUpdatedAt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
 		}
 
 		if fromEnroll {

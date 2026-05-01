@@ -30,6 +30,7 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHost", testNewAndroidHost},
 		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
+		{"AndroidLastSeenMatchesLastFetched", testAndroidLastSeenMatchesLastFetched},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
@@ -376,6 +377,50 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, regressionESID, resultAfterFix.Host.UUID, "UUID should be restored after fix")
 	})
+}
+
+// testAndroidLastSeenMatchesLastFetched verifies that host_seen_times.seen_time
+// is written on both NewAndroidHost and UpdateAndroidHost so that the "Last seen"
+// tooltip matches "Last fetched" on the host details page (issue #43195).
+func testAndroidLastSeenMatchesLastFetched(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	const esid = "last_seen_test"
+	host := createAndroidHost(esid)
+
+	// Use a deterministic timestamp so we can assert exact equality.
+	fixedTime := time.Date(2026, 4, 27, 12, 0, 0, 0, time.UTC)
+	host.Host.DetailUpdatedAt = fixedTime
+	host.Host.LabelUpdatedAt = fixedTime
+
+	// --- NewAndroidHost ---
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
+	require.NoError(t, err)
+	require.NotZero(t, result.Host.ID)
+
+	var seenTime time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &seenTime,
+			`SELECT seen_time FROM host_seen_times WHERE host_id = ?`, result.Host.ID)
+	})
+	assert.Equal(t, fixedTime.Truncate(time.Second), seenTime.Truncate(time.Second),
+		"seen_time should match detail_updated_at after NewAndroidHost")
+
+	// --- UpdateAndroidHost ---
+	newTime := fixedTime.Add(30 * time.Minute)
+	result.Host.DetailUpdatedAt = newTime
+	result.Host.LabelUpdatedAt = newTime
+
+	err = ds.UpdateAndroidHost(testCtx(), result, false, false)
+	require.NoError(t, err)
+
+	var seenTimeAfterUpdate time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &seenTimeAfterUpdate,
+			`SELECT seen_time FROM host_seen_times WHERE host_id = ?`, result.Host.ID)
+	})
+	assert.Equal(t, newTime.Truncate(time.Second), seenTimeAfterUpdate.Truncate(time.Second),
+		"seen_time should be updated to match detail_updated_at after UpdateAndroidHost")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
