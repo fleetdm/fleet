@@ -10,29 +10,14 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Any settings not defined in your YAML files will be reset to the default values or deleted (e.g. software packages).
 
-Paths in YAML files are always relative to the file you’re editing.
-
-For example:
-```yaml
-# If the file is in the same directory:
-package_path: package_name.yml
-
-# If the file is in a different directory:
-package_path: ../software/package_name.yml
-```
-
-### `path:` vs `paths:` (glob patterns)
-
-Several sections support both `path:` (singular) and `paths:` (plural), including `scripts`, `configuration_profiles`, `labels`, `policies`, and `reports`:
-
-- **`path:`** references a single, literal file path. Must not contain the characters `*`, `?`, `[`, or `{`.
-- **`paths:`** accepts a glob pattern to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
-
-You cannot specify both `path:` and `paths:` on the same entry.
-
-> **Important:** Filenames containing `*`, `?`, `[`, or `{` cannot be referenced using `path:`. If your filenames contain these characters (e.g. Windows profiles named `[AllowSpotlightCollection].xml`), either rename the files to remove them, or use `paths:` with a wildcard pattern like `*.xml`.
-
 For the GitOps API token, create a dedicated API-only user with `fleetctl user create --api-only`. These users can modify configurations via GitOps but can’t access the Fleet UI. Assign the GitOps role and set the appropriate global or fleet scope in the UI.
+
+`scripts`, `configuration_profiles`, `labels`, `policies`, and `reports` support both `path` (singular) and `paths` (plural).
+
+- `path` references a single file path.
+- `paths` accepts a wildcard ([glob pattern](https://code.visualstudio.com/docs/editor/glob-patterns)) to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
+
+Paths are always relative to the file you’re editing. You can't specify both `path` and `paths` on the same entry. Filenames containing `*`, `?`, `[`, or `{` can't be referenced using `path`. If your filenames contain these characters (e.g. a Windows configuration profile named `[AllowSpotlightCollection].xml`), either rename the files, or use `paths` with a wildcard pattern like `*.xml`.
 
 ## labels
 
