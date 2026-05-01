@@ -5,12 +5,14 @@ import { getErrorReason } from "interfaces/errors";
 const DEFAULT_ERROR_MESSAGE =
   "Couldn't update configuration. Please try again.";
 
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   const reason = getErrorReason(err);
 
+  // Android-specific: backend rejects top-level keys other than these two
   if (
-    reason.includes("managedConfiguration") ||
-    reason.includes("workProfileWidgets")
+    !isApplePlatform &&
+    (reason.includes("managedConfiguration") ||
+      reason.includes("workProfileWidgets"))
   ) {
     return (
       <>

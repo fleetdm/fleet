@@ -112,7 +112,7 @@ const EditConfigurationModal = ({
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      renderFlash("error", getErrorMessage(e, isApplePlatform));
     }
     setIsUpdatingConfiguration(false);
   };

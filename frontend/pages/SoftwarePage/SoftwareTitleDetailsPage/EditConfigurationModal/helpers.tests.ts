@@ -33,35 +33,45 @@ describe("isErrorWithMessage", () => {
 });
 
 describe("getErrorMessage", () => {
-  it("returns Android managed-config error for managedConfiguration reason", () => {
-    // Simulate an Axios-shaped error whose reason includes the keyword
-    const err = {
-      response: {
-        data: {
-          errors: [
-            { name: "base", reason: "invalid managedConfiguration key" },
-          ],
-        },
+  const managedConfigErr = {
+    response: {
+      data: {
+        errors: [{ name: "base", reason: "invalid managedConfiguration key" }],
       },
-    };
-    const result = getErrorMessage(err);
-    // The JSX is rendered; extract its text by converting to string via
-    // the React element's children or checking type
+    },
+  };
+
+  const workProfileErr = {
+    response: {
+      data: {
+        errors: [
+          { name: "base", reason: "workProfileWidgets is not supported" },
+        ],
+      },
+    },
+  };
+
+  it("returns Android-specific error for managedConfiguration on Android", () => {
+    const result = getErrorMessage(managedConfigErr, false);
     expect(result).toBeTruthy();
+    // Result is JSX, not a plain string
+    expect(typeof result).not.toBe("string");
   });
 
-  it("returns Android managed-config error for workProfileWidgets reason", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            { name: "base", reason: "workProfileWidgets is not supported" },
-          ],
-        },
-      },
-    };
-    const result = getErrorMessage(err);
+  it("returns Android-specific error for workProfileWidgets on Android", () => {
+    const result = getErrorMessage(workProfileErr, false);
     expect(result).toBeTruthy();
+    expect(typeof result).not.toBe("string");
+  });
+
+  it("returns raw reason for managedConfiguration on iOS/iPadOS (not Android-specific message)", () => {
+    const result = getErrorMessage(managedConfigErr, true);
+    expect(result).toBe("invalid managedConfiguration key");
+  });
+
+  it("returns raw reason for workProfileWidgets on iOS/iPadOS", () => {
+    const result = getErrorMessage(workProfileErr, true);
+    expect(result).toBe("workProfileWidgets is not supported");
   });
 
   it("returns the reason string for a generic API error", () => {
@@ -72,17 +82,18 @@ describe("getErrorMessage", () => {
         },
       },
     };
-    expect(getErrorMessage(err)).toBe("something went wrong");
+    expect(getErrorMessage(err, false)).toBe("something went wrong");
+    expect(getErrorMessage(err, true)).toBe("something went wrong");
   });
 
   it("returns default message when no reason can be extracted", () => {
-    expect(getErrorMessage({})).toBe(
+    expect(getErrorMessage({}, false)).toBe(
       "Couldn't update configuration. Please try again."
     );
   });
 
   it("returns default message for null input", () => {
-    expect(getErrorMessage(null)).toBe(
+    expect(getErrorMessage(null, false)).toBe(
       "Couldn't update configuration. Please try again."
     );
   });
