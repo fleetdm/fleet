@@ -26,6 +26,16 @@ Most day-to-day work does not need it:
 
 If the change fits in a single PR description, write the PR description.
 
+## Install
+
+The slash commands shell out to the `openspec` CLI, so it must be on `$PATH`:
+
+```
+brew install openspec
+```
+
+Reading the Markdown artifacts under `openspec/` does not require the CLI.
+
 ## Flow
 
 ```
