@@ -1673,8 +1673,12 @@ func TestGetESPCommands(t *testing.T) {
 	})
 
 	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {
+		// Failing AppConfig (not HostLite) ensures the test exercises the require_all chain itself rather than
+		// erroring out earlier at setupExperienceHostUUID. With HostLite returning a valid host (default),
+		// loadRequireAll proceeds to AppConfig and gets the error injected here. Property under test is the
+		// same regardless of which lookup fails: any error in the finalize path must keep the device Active.
 		ds, svc := newSvc(t)
-		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return nil, errors.New("transient db error")
 		}
 
