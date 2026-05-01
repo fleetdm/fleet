@@ -437,6 +437,10 @@ func TestRequestCertificate(t *testing.T) {
 		require.Equal(t, "CERTIFICATE", block.Type)
 		require.Equal(t, issuedDER, block.Bytes)
 		require.Empty(t, rest)
+
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		require.Equal(t, "fleetie@example.com", parsed.Subject.CommonName)
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true with whitespace in EST response", func(t *testing.T) {
@@ -467,6 +471,10 @@ func TestRequestCertificate(t *testing.T) {
 		require.NotNil(t, block)
 		require.Equal(t, "CERTIFICATE", block.Type)
 		require.Equal(t, issuedDER, block.Bytes)
+
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		require.Equal(t, "fleetie@example.com", parsed.Subject.CommonName)
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true, malformed PKCS7 returns error", func(t *testing.T) {
