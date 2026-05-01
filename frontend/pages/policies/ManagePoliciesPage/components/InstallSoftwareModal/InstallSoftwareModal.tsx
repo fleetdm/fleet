@@ -277,9 +277,12 @@ const InstallSoftwareModal = ({
             <>
               Go to{" "}
               <CustomLink
-                url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-                  fleet_id: teamId,
-                })}
+                url={getPathWithQueryParams(
+                  paths.SOFTWARE_ADD_FLEET_MAINTAINED,
+                  {
+                    fleet_id: teamId,
+                  }
+                )}
                 text="Software"
               />{" "}
               to add software to this fleet.

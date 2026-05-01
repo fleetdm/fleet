@@ -246,6 +246,10 @@ type Datastore interface {
 	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	// LabelMembershipHostIDs returns every host_id row in label_membership for
+	// the given label ID, with no team-based filtering. Intended for internal
+	// activity tracking where the unfiltered membership is needed.
+	LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, error)
 	LabelsSummary(ctx context.Context, filter TeamFilter) ([]*LabelSummary, error)
 
