@@ -170,6 +170,7 @@ export enum ActivityType {
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
+  FailedEnrollmentProfileRenewal = "failed_enrollment_profile_renewal",
   CreatedLabel = "created_label",
   EditedLabel = "edited_label",
   DeletedLabel = "deleted_label",
@@ -200,7 +201,8 @@ export type IHostPastActivityType =
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
-  | ActivityType.CreatedManagedLocalAccount;
+  | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.FailedEnrollmentProfileRenewal;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -498,6 +500,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.FailedEnrollmentProfileRenewal]:
+    "Enrollment profile renewal failed",
   [ActivityType.CreatedLabel]: "Created label",
   [ActivityType.EditedLabel]: "Edited label",
   [ActivityType.DeletedLabel]: "Deleted label",
