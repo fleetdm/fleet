@@ -35,6 +35,7 @@ const (
 	stepPrepareDB
 	stepServe
 	stepNgrok
+	stepStopFleet // restart-only: stop the running fleet binary before rebuilding
 )
 
 func (k stepKind) String() string {
@@ -53,6 +54,8 @@ func (k stepKind) String() string {
 		return "start fleet server"
 	case stepNgrok:
 		return "open public tunnel"
+	case stepStopFleet:
+		return "stop running fleet"
 	}
 	return "?"
 }
@@ -84,6 +87,19 @@ type runtimeReadyMsg struct{ NgrokURL string }
 // runtimeFailedMsg fires if any step in the start sequence fails fatally.
 type runtimeFailedMsg struct{ Err error }
 
+// rebuildStartedMsg fires when a rebuild kicks off (auto from watcher OR
+// manual via `r`). The dashboard uses Reason as the "trigger:" row above
+// the step list.
+type rebuildStartedMsg struct{ Reason string }
+
+// pauseChangedMsg fires when the user toggles `p`. Queued counts the
+// number of changed files captured while paused (zero when resuming
+// without pending changes).
+type pauseChangedMsg struct {
+	Paused bool
+	Queued int
+}
+
 // -----------------------------------------------------------------------------
 // Runtime — owns the supervised processes and runs the start/stop sequences.
 // -----------------------------------------------------------------------------
@@ -109,6 +125,21 @@ type engine struct {
 	genDev  *proc
 	ngrok   *proc
 	started time.Time
+
+	// File watcher started after the first runtimeReadyMsg. Auto-rebuild
+	// triggers flow through HandleTrigger.
+	watch *watcher
+
+	// restartMu serializes Start vs Restart vs another Restart. Acquired
+	// for the duration of any sequence run so two rebuilds can't race
+	// over the fleet binary or the prepare-db step.
+	restartMu sync.Mutex
+
+	// pause state. paused gates auto-rebuild; while true, watcher events
+	// accumulate in queued and the dashboard header shows ⏸ paused.
+	pauseMu sync.Mutex
+	paused  bool
+	queued  map[string]struct{} // files seen while paused, deduplicated
 }
 
 func newEngine(opts runtimeOpts) *engine {
@@ -116,6 +147,7 @@ func newEngine(opts runtimeOpts) *engine {
 		opts:    opts,
 		sink:    make(chan tea.Msg, 256),
 		logSink: make(chan logLine, 256),
+		queued:  map[string]struct{}{},
 	}
 	// Pump raw log lines from supervised processes into the TUI message
 	// stream. This is done in a single goroutine so we get a stable
@@ -154,29 +186,20 @@ func (r *engine) Start(ctx context.Context) {
 	go r.run(ctx)
 }
 
-func (r *engine) run(ctx context.Context) {
-	type stepFn func(context.Context) error
-	// Order matters: `make generate-dev` writes server/bindata/generated.go,
-	// which cmd/fleet imports — so build comes after generate-dev, not before.
-	steps := []struct {
-		kind stepKind
-		fn   stepFn
-	}{
-		{stepDockerUp, r.stepDockerUp},
-		{stepMakeDeps, r.stepMakeDeps},
-		{stepGenerateDev, r.stepGenerateDev},
-		{stepMakeBuild, r.stepMakeBuild},
-		{stepPrepareDB, r.stepPrepareDB},
-		{stepServe, r.stepServe},
-		{stepNgrok, r.stepNgrok},
-	}
+// seqStep is one element of a stepped sequence.
+type seqStep struct {
+	kind stepKind
+	fn   func(context.Context) error
+}
 
-	// Mark every step pending up front so the dashboard can render the full
-	// list with "·" placeholders.
+// runSequence runs a list of steps in order, emitting per-step pending /
+// running / done / failed messages, and finishes by writing active.json
+// and emitting runtimeReadyMsg. Used by both initial Start and Restart.
+// The caller is expected to hold restartMu.
+func (r *engine) runSequence(ctx context.Context, steps []seqStep) {
 	for _, s := range steps {
 		r.emit(stepUpdateMsg{Kind: s.kind, Status: stepPending})
 	}
-
 	for _, s := range steps {
 		t0 := time.Now()
 		r.emit(stepUpdateMsg{Kind: s.kind, Status: stepRunning})
@@ -198,8 +221,139 @@ func (r *engine) run(ctx context.Context) {
 	r.mu.Unlock()
 
 	r.writeActiveSession()
-
+	r.startWatcherOnce()
 	r.emit(runtimeReadyMsg{NgrokURL: r.opts.cfg.Ngrok.StaticDomain})
+}
+
+// startWatcherOnce spins up the file watcher the first time the engine
+// reaches running state. Subsequent rebuilds also call this; the function
+// is a no-op when a watcher is already running.
+func (r *engine) startWatcherOnce() {
+	r.mu.Lock()
+	already := r.watch != nil
+	r.mu.Unlock()
+	if already {
+		return
+	}
+	w, err := newWatcher(r.opts.repoRoot)
+	if err != nil {
+		// Watcher failure shouldn't block bring-up. Surface it as a
+		// log line so the user knows auto-rebuild won't kick in.
+		r.emit(logLineMsg{Source: "start", Line: "watcher failed: " + err.Error()})
+		return
+	}
+	r.mu.Lock()
+	r.watch = w
+	r.mu.Unlock()
+
+	out := w.Start(context.Background())
+	go func() {
+		for trig := range out {
+			r.HandleTrigger(trig.Reason, trig.Files)
+		}
+	}()
+}
+
+// run is the initial bring-up sequence.
+//
+// Order matters: `make generate-dev` writes server/bindata/generated.go,
+// which cmd/fleet imports — so build comes after generate-dev, not before.
+func (r *engine) run(ctx context.Context) {
+	r.restartMu.Lock()
+	defer r.restartMu.Unlock()
+
+	r.runSequence(ctx, []seqStep{
+		{stepDockerUp, r.stepDockerUp},
+		{stepMakeDeps, r.stepMakeDeps},
+		{stepGenerateDev, r.stepGenerateDev},
+		{stepMakeBuild, r.stepMakeBuild},
+		{stepPrepareDB, r.stepPrepareDB},
+		{stepServe, r.stepServe},
+		{stepNgrok, r.stepNgrok},
+	})
+}
+
+// HandleTrigger is called by the TUI when an auto-rebuild trigger arrives
+// (file watcher event or `r` keypress). reason is what the dashboard shows
+// on the "trigger:" row. files is the deduplicated list of paths (empty
+// when triggered manually with r).
+//
+// While paused, files accumulate in the queue and no rebuild runs.
+func (r *engine) HandleTrigger(reason string, files []string) {
+	r.pauseMu.Lock()
+	if r.paused {
+		for _, f := range files {
+			r.queued[f] = struct{}{}
+		}
+		queued := len(r.queued)
+		r.pauseMu.Unlock()
+		r.emit(pauseChangedMsg{Paused: true, Queued: queued})
+		return
+	}
+	r.pauseMu.Unlock()
+
+	go r.runRestart(context.Background(), reason)
+}
+
+// TogglePause flips the paused flag. When transitioning from paused →
+// active with queued changes, fires one rebuild whose reason summarizes
+// the queue.
+func (r *engine) TogglePause() {
+	r.pauseMu.Lock()
+	r.paused = !r.paused
+	now := r.paused
+	queuedFiles := make([]string, 0, len(r.queued))
+	for f := range r.queued {
+		queuedFiles = append(queuedFiles, f)
+	}
+	if !now {
+		r.queued = map[string]struct{}{}
+	}
+	r.pauseMu.Unlock()
+
+	r.emit(pauseChangedMsg{Paused: now, Queued: len(queuedFiles)})
+	if !now && len(queuedFiles) > 0 {
+		go r.runRestart(context.Background(), buildReason(queuedFiles))
+	}
+}
+
+// runRestart executes the hot-rebuild sequence: stop fleet, rebuild,
+// re-run prepare db, restart fleet. Webpack and ngrok keep running across
+// the restart. PR 4's snapshot/restore logic will plug in between
+// stepStopFleet and stepPrepareDB.
+func (r *engine) runRestart(ctx context.Context, reason string) {
+	if !r.restartMu.TryLock() {
+		// Another rebuild is already running. The watcher's debounce
+		// makes back-to-back triggers very rare, but this guard keeps
+		// two concurrent rebuilds from racing on the fleet proc.
+		return
+	}
+	defer r.restartMu.Unlock()
+
+	r.emit(rebuildStartedMsg{Reason: reason})
+
+	r.runSequence(ctx, []seqStep{
+		{stepStopFleet, r.stepStopFleet},
+		{stepMakeBuild, r.stepMakeBuild},
+		{stepPrepareDB, r.stepPrepareDB},
+		{stepServe, r.stepServe},
+	})
+}
+
+// stepStopFleet shuts down the running fleet binary so stepServe can
+// re-launch it. No-op if the fleet proc isn't running (first-time edge
+// case).
+func (r *engine) stepStopFleet(ctx context.Context) error {
+	r.mu.Lock()
+	fleet := r.fleet
+	r.fleet = nil
+	r.mu.Unlock()
+	if fleet == nil {
+		return nil
+	}
+	stopCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return fleet.Stop(stopCtx, 5*time.Second)
 }
 
 // writeActiveSession captures the running-session info for coding agents.
@@ -399,8 +553,13 @@ func (r *engine) Stop(ctx context.Context) {
 	ngrok := r.ngrok
 	fleet := r.fleet
 	genDev := r.genDev
-	r.ngrok, r.fleet, r.genDev = nil, nil, nil
+	watch := r.watch
+	r.ngrok, r.fleet, r.genDev, r.watch = nil, nil, nil, nil
 	r.mu.Unlock()
+
+	if watch != nil {
+		watch.Stop()
+	}
 
 	stopCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

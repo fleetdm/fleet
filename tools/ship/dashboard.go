@@ -37,6 +37,15 @@ type dashboardModel struct {
 	steps    []stepRow
 	stepByID map[stepKind]int
 
+	// trigger is shown as a "trigger:" row above the step list during a
+	// rebuild. Empty during the initial bring-up.
+	trigger string
+
+	// queued is the count of file changes accumulated while paused.
+	// Surfaced in the keybind/status row so the user can see why their
+	// edits aren't applying yet.
+	queued int
+
 	fleetLog   []string
 	webpackLog []string
 	ngrokLog   []string
@@ -72,18 +81,37 @@ func (d *dashboardModel) setIdentity(worktree, branch, database string) {
 // pending state so the dashboard renders the full plan from the moment
 // it appears.
 func (d *dashboardModel) beginStart() {
-	expected := []stepKind{
+	d.populateSteps([]stepKind{
 		stepDockerUp, stepMakeDeps, stepGenerateDev, stepMakeBuild,
 		stepPrepareDB, stepServe, stepNgrok,
-	}
+	})
+	d.startLog = nil
+	d.trigger = ""
+}
+
+// beginRebuild pre-populates the step list with the rebuild sequence's
+// steps and stores the trigger reason for the dashboard to render above
+// the list.
+func (d *dashboardModel) beginRebuild(reason string) {
+	d.populateSteps([]stepKind{
+		stepStopFleet, stepMakeBuild, stepPrepareDB, stepServe,
+	})
+	d.trigger = reason
+	d.startLog = nil
+}
+
+func (d *dashboardModel) populateSteps(expected []stepKind) {
 	d.steps = make([]stepRow, 0, len(expected))
 	d.stepByID = make(map[stepKind]int, len(expected))
 	for i, k := range expected {
 		d.steps = append(d.steps, stepRow{Kind: k, Status: stepPending})
 		d.stepByID[k] = i
 	}
-	d.startLog = nil
 }
+
+// setQueued records the count of paused-while-queued files for the
+// keybind/status row.
+func (d *dashboardModel) setQueued(n int) { d.queued = n }
 
 func (d *dashboardModel) applyStepUpdate(msg stepUpdateMsg) {
 	idx, ok := d.stepByID[msg.Kind]
@@ -148,7 +176,7 @@ func (d dashboardModel) view(width int, state runState, errMsg string) string {
 		body = append(body, "", lipgloss.NewStyle().Foreground(colorErr).Render("✗ "+errMsg))
 	}
 
-	body = append(body, "", renderHints(state))
+	body = append(body, "", renderHints(state, d.queued))
 	return stylePane.Width(width - 2).Render(strings.Join(body, "\n"))
 }
 
@@ -214,7 +242,11 @@ func renderServices() string {
 }
 
 func renderStepList(d dashboardModel) string {
-	rows := make([]string, 0, len(d.steps))
+	rows := make([]string, 0, len(d.steps)+2)
+	if d.trigger != "" {
+		rows = append(rows, styleHint.Render("trigger: ")+styleValue.Render(d.trigger))
+		rows = append(rows, "")
+	}
 	for _, s := range d.steps {
 		rows = append(rows, renderStepRow(s))
 	}
@@ -268,13 +300,23 @@ func formatElapsed(d time.Duration) string {
 }
 
 // renderHints shows only the keybinds that are wired and contextually
-// relevant. l/w/n only appear once Fleet is actually running and there's
-// a reason to inspect logs or the ngrok tunnel.
-func renderHints(state runState) string {
+// relevant. r/p/l/w/n appear once Fleet is up; r is hidden while paused
+// because manual rebuilds during a demo would defeat the pause.
+func renderHints(state runState, queued int) string {
 	type hint struct{ key, desc string }
 	var hints []hint
-	if state == stateRunning {
+	switch state {
+	case stateRunning:
 		hints = append(hints,
+			hint{"r", "rebuild"},
+			hint{"p", "pause"},
+			hint{"l", "fleet logs"},
+			hint{"w", "webpack logs"},
+			hint{"n", "ngrok traffic"},
+		)
+	case statePaused:
+		hints = append(hints,
+			hint{"p", "resume"},
 			hint{"l", "fleet logs"},
 			hint{"w", "webpack logs"},
 			hint{"n", "ngrok traffic"},
@@ -286,5 +328,17 @@ func renderHints(state runState) string {
 	for _, h := range hints {
 		parts = append(parts, styleKey.Render(h.key)+" "+styleHint.Render(h.desc))
 	}
-	return strings.Join(parts, styleHint.Render(" · "))
+	row := strings.Join(parts, styleHint.Render(" · "))
+
+	if state == statePaused && queued > 0 {
+		row += "    " + styleHint.Render(fmt.Sprintf("%d file%s queued", queued, plural(queued)))
+	}
+	return row
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }

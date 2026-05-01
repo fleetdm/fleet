@@ -114,13 +114,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.eng.listen()
 
 	case runtimeReadyMsg:
-		m.state = stateRunning
+		// Preserve paused state if the user was paused before a manual
+		// restart finished — they shouldn't get auto-unpaused by it.
+		if m.state != statePaused {
+			m.state = stateRunning
+		}
 		m.dash.markRunning(msg.NgrokURL, time.Now())
 		return m, m.eng.listen()
 
 	case runtimeFailedMsg:
 		m.state = stateError
 		m.errMsg = msg.Err.Error()
+		return m, m.eng.listen()
+
+	case rebuildStartedMsg:
+		m.state = stateBuilding
+		m.errMsg = ""
+		m.dash.beginRebuild(msg.Reason)
+		return m, m.eng.listen()
+
+	case pauseChangedMsg:
+		if msg.Paused {
+			m.state = statePaused
+		} else if m.state == statePaused {
+			// becoming unpaused; if a rebuild is about to start the
+			// next message will flip to stateBuilding, otherwise we're
+			// back to running.
+			m.state = stateRunning
+		}
+		m.dash.setQueued(msg.Queued)
 		return m, m.eng.listen()
 
 	case tea.KeyMsg:
@@ -161,10 +183,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 
 		case screenDashboard:
-			// l/w/n only do anything once Fleet is actually up — checking
-			// state == stateRunning prevents accidental key-presses during
-			// the build sequence from doing weird things.
-			if m.state != stateRunning {
+			// Most dashboard keys only do anything once Fleet is up
+			// (running or paused). r is additionally blocked while
+			// paused — pressing r during a demo shouldn't trigger a
+			// restart.
+			if m.state != stateRunning && m.state != statePaused {
 				return m, nil
 			}
 			switch msg.String() {
@@ -176,6 +199,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.screen = screenLogs
 			case "n":
 				return m, openNgrokInspector()
+			case "r":
+				if m.state == stateRunning && m.eng != nil {
+					m.eng.HandleTrigger("r pressed", nil)
+				}
+			case "p":
+				if m.eng != nil {
+					m.eng.TogglePause()
+				}
 			}
 			return m, nil
 
