@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -261,6 +262,57 @@ func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
 		nil, http.StatusOK, &listResp)
 	require.Empty(t, listResp.Activities)
+}
+
+func (s *integrationMDMTestSuite) TestWipeMacOSUserChannelErrorKeepsUpcomingActivities() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, host, s.ds)
+
+	// add a user-channel enrollment so the device can respond on the user channel
+	require.NoError(t, mdmClient.UserEnroll())
+
+	// enqueue two upcoming script-run activities
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
+		http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo two"},
+		http.StatusAccepted, &runResp)
+
+	// confirm both are in the upcoming activities list
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+
+	// wipe the host
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	// pull the queued EraseDevice command
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+
+	// device reports an Error for EraseDevice on the user channel — this
+	// matches what a user-enrolled device does on iOS/iPadOS 18+, where the
+	// command is rejected instead of wiping. The host's upcoming activities
+	// must NOT be cleared because the device wasn't actually wiped.
+	_, err = mdmClient.UserChannelErr(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+	require.NoError(t, err)
+
+	// upcoming activities should still be present
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[1].Type)
 }
 
 func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
