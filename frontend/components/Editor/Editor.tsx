@@ -53,7 +53,7 @@ interface IEditorProps {
   isFormField?: boolean;
   maxLines?: number;
   className?: string;
-  onChange?: (value: string, event?: any) => void;
+  onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
 }
 

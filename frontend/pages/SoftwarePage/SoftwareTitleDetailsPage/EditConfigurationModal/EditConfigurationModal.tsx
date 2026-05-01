@@ -48,9 +48,12 @@ const EditConfigurationModal = ({
   const platform = softwareInstaller.platform;
   const isApplePlatform = isIPadOrIPhone(platform);
 
+  const XML_SKELETON =
+    "<dict>\n  <key>...</key>\n  <string>...</string>\n</dict>";
+
   const getInitialValue = () => {
     if (isApplePlatform) {
-      return softwareInstaller.configuration || "";
+      return softwareInstaller.configuration || XML_SKELETON;
     }
     return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
   };
