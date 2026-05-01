@@ -3648,7 +3648,7 @@ func (svc *Service) emitEditedLabelActivities(ctx context.Context, labelNames []
 	var teamName *string
 	for _, l := range labels {
 		if l.TeamID != nil {
-			teamName, err = svc.lookupTeamNameForLabel(ctx, l.TeamID)
+			teamName, err = svc.lookupTeamName(ctx, l.TeamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "lookup team name for label activity")
 			}

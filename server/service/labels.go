@@ -113,6 +113,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeCreatedLabel{
 		ID:   label.ID,
 		Name: label.Name,
+		// NOTE: Set FleetID and FleetName as soon as NewLabel supports creating labels on teams.
 	}); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create activity for label creation")
 	}
@@ -503,7 +504,7 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		return err
 	}
 
-	teamName, err := svc.lookupTeamNameForLabel(ctx, label.TeamID)
+	teamName, err := svc.lookupTeamName(ctx, label.TeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "lookup team name for deleted label")
 	}
@@ -721,7 +722,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	}
 	beforeByName := make(map[string]*fleet.Label, len(beforeApply))
 	for name, l := range beforeApply {
-		if labelMatchesScope(l, teamID) {
+		if labelMatchesTeamScope(l, teamID) {
 			beforeByName[name] = l
 		}
 	}
@@ -757,13 +758,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "look up labels after apply for activity")
 	}
-	teamName, err := svc.lookupTeamNameForLabel(ctx, teamID)
+	teamName, err := svc.lookupTeamName(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "lookup team name for label spec activity")
 	}
 	for _, spec := range regularSpecs {
 		label, ok := afterApply[spec.Name]
-		if !ok || !labelMatchesScope(label, teamID) {
+		if !ok || !labelMatchesTeamScope(label, teamID) {
 			continue
 		}
 		existing, existed := beforeByName[spec.Name]
@@ -802,9 +803,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return nil
 }
 
-// labelMatchesScope reports whether the given label belongs to the team scope
-// identified by teamID (nil means global scope).
-func labelMatchesScope(l *fleet.Label, teamID *uint) bool {
+func labelMatchesTeamScope(l *fleet.Label, teamID *uint) bool {
 	if teamID == nil {
 		return l.TeamID == nil
 	}
@@ -971,9 +970,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 	return byName, nil
 }
 
-// lookupTeamNameForLabel returns the team name for the given team ID, or nil
-// if the team ID is nil (global label).
-func (svc *Service) lookupTeamNameForLabel(ctx context.Context, teamID *uint) (*string, error) {
+func (svc *Service) lookupTeamName(ctx context.Context, teamID *uint) (*string, error) {
 	if teamID == nil {
 		return nil, nil
 	}
