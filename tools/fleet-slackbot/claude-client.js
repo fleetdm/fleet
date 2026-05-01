@@ -1,7 +1,11 @@
 const Anthropic = require("@anthropic-ai/sdk");
 const SYSTEM_PROMPT = require("./system-prompt");
 
-const MAX_TOOL_ROUNDS = 12;
+// Per-response cap on client-side tool invocations. Each call to
+// runAgentLoop (i.e. each user message) starts with a fresh budget; this
+// only stops Claude from looping in tool calls inside a single response,
+// it does not bound how many messages a user can send.
+const MAX_TOOL_CALLS = 12;
 
 class ClaudeClient {
   constructor({ apiKey, model, mcpClient }) {
@@ -23,11 +27,9 @@ class ClaudeClient {
   async runAgentLoop(userMessage, { onToolCall, onText } = {}) {
     const tools = this.mcpClient ? this.mcpClient.getAnthropicTools() : [];
     const messages = [{ role: "user", content: userMessage }];
-    let rounds = 0;
+    let toolCallsExecuted = 0;
 
-    while (rounds < MAX_TOOL_ROUNDS) {
-      rounds++;
-
+    while (true) {
       const response = await this._streamMessage(messages, tools, onText);
 
       // Collect client-side tool_use blocks (MCP tools)
@@ -51,7 +53,7 @@ class ClaudeClient {
       if (response.stop_reason === "pause_turn") {
         // Server-side tools hit iteration limit — continue the conversation
         messages.push({ role: "assistant", content: response.content });
-        console.log(`[claude] Agent loop round ${rounds}: pause_turn (server tool limit), continuing...`);
+        console.log(`[claude] Agent loop: pause_turn (server tool limit), continuing...`);
         continue;
       }
 
@@ -65,12 +67,20 @@ class ClaudeClient {
         return text;
       }
 
+      // Cap the number of tool calls in this turn so a single fan-out
+      // can't push us past the budget. Anything beyond the cap is dropped
+      // with a synthetic "budget exhausted" tool_result so Claude gets a
+      // valid response for every tool_use block it emitted.
+      const remaining = Math.max(0, MAX_TOOL_CALLS - toolCallsExecuted);
+      const toExecute = toolUseBlocks.slice(0, remaining);
+      const toSkip = toolUseBlocks.slice(remaining);
+
       // Append assistant response (with all content blocks) to messages
       messages.push({ role: "assistant", content: response.content });
 
-      // Execute each client-side tool call and build tool_result blocks
+      // Execute the allowed tool calls and build tool_result blocks
       const toolResults = [];
-      for (const toolUse of toolUseBlocks) {
+      for (const toolUse of toExecute) {
         if (onToolCall) onToolCall(toolUse.name, toolUse.input);
 
         let resultText;
@@ -87,19 +97,32 @@ class ClaudeClient {
           content: resultText,
         });
       }
+      for (const toolUse of toSkip) {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
+          content: "Tool call skipped: tool budget for this response exhausted.",
+          is_error: true,
+        });
+      }
 
+      toolCallsExecuted += toExecute.length;
       messages.push({ role: "user", content: toolResults });
-      console.log(`[claude] Agent loop round ${rounds}: ${toolUseBlocks.length} tool call(s), continuing...`);
+      console.log(`[claude] Agent loop: ${toExecute.length} tool call(s) executed (${toolCallsExecuted}/${MAX_TOOL_CALLS}), ${toSkip.length} skipped`);
+
+      if (toolCallsExecuted >= MAX_TOOL_CALLS) {
+        break;
+      }
     }
 
-    // Tool-round budget exhausted. Don't throw — force one final no-tools
+    // Tool-call budget exhausted. Don't throw — force one final no-tools
     // call so Claude produces its best answer from the data already gathered.
-    // The prompt below is deliberately phrased without referencing tools,
-    // rounds, or internal limits so Claude's reply to the user doesn't leak
+    // The prompt below is deliberately phrased without referencing tools or
+    // internal limits so Claude's reply to the user doesn't leak
     // implementation details. It's asked instead to flag any incomplete or
     // unverified parts of the answer.
     console.log(
-      `[claude] Agent loop hit ${MAX_TOOL_ROUNDS} rounds — forcing final response without tools.`
+      `[claude] Agent loop hit ${MAX_TOOL_CALLS} tool calls — forcing final response without tools.`
     );
     messages.push({
       role: "user",
@@ -294,5 +317,5 @@ class ClaudeClient {
   }
 }
 
-ClaudeClient.MAX_TOOL_ROUNDS = MAX_TOOL_ROUNDS;
+ClaudeClient.MAX_TOOL_CALLS = MAX_TOOL_CALLS;
 module.exports = ClaudeClient;
