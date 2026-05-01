@@ -609,7 +609,10 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "saving full response")
 			}
-			id, _ := sqlResult.LastInsertId()
+			id, err := sqlResult.LastInsertId()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting last insert id for full response")
+			}
 			responseID = &id
 		}
 
@@ -732,7 +735,8 @@ INSERT INTO windows_mdm_command_results
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
+    status_code = COALESCE(VALUES(status_code), status_code),
+    response_id = COALESCE(VALUES(response_id), response_id)
 `
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
