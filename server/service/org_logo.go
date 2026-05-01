@@ -10,6 +10,7 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -376,8 +377,9 @@ func requireGlobalAdmin(ctx context.Context) error {
 	return nil
 }
 
+// orgLogoServingURL builds the URL persisted in AppConfig after an upload. The `v` param is a cache-buster (ignored server-side; only `mode` is read).
 func orgLogoServingURL(mode fleet.OrgLogoMode) string {
-	return fmt.Sprintf("/api/latest/fleet/logo?mode=%s", mode)
+	return fmt.Sprintf("/api/latest/fleet/logo?mode=%s&v=%d", mode, time.Now().UnixNano())
 }
 
 // updateOrgLogoURLs sets (uploaded=true) or clears (uploaded=false) the
