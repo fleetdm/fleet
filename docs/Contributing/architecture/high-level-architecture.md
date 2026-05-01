@@ -31,7 +31,7 @@ At a high level, Fleet consists of:
    - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
    - **External Logging**: Optional integration with external logging systems
    - **MDM Clients**: Consume APIs exposed by Fleet server to configure and control MDM (Mobile Device Management)-enrolled host devices. Generally provided by vendors like Apple, Microsoft, and Google as a component of the Operating System
-   - **Apple Business Manager (ABM) / DEP**: Apple cloud service Fleet syncs with to retrieve device assignments and deliver automatic enrollment profiles before first boot (i.e. before Fleet can directly interact with the device)
+   - **Apple Business (AB) / DEP**: Apple cloud service Fleet syncs with to retrieve device assignments and deliver automatic enrollment profiles before first boot (i.e. before Fleet can directly interact with the device)
    - **Windows Autopilot**: Microsoft cloud service Windows devices check in with at first boot to retrieve their MDM server info (Fleet's URL). Fleet does not communicate with Autopilot directly — the device is redirected to Fleet by Autopilot
    - **Google Android Management API**: Google cloud service Fleet uses to manage Android Enterprise devices, policies, and managed apps. Device-originated notifications (enrollment, status, commands) are delivered back to Fleet via Google Cloud Pub/Sub
    - **APNS (Apple Push Notification Service)**: Used by Fleet to wake Apple MDM clients so they check in for pending commands
