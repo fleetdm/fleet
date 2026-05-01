@@ -448,7 +448,11 @@ spec:
           capabilities:
             drop: [ALL]
           privileged: false
+          {{- if hasKey .Values.fleet.securityContext "readOnlyRootFilesystem" }}
+          readOnlyRootFilesystem: {{ .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          {{- else }}
           readOnlyRootFilesystem: true
+          {{- end }}
           {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
           {{- end }}
@@ -472,10 +476,10 @@ spec:
             {{- if .Values.fleet.tls.enabled }}
             scheme: HTTPS
             {{- end }}
-        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
         volumeMounts:
           - name: tmp
             mountPath: /tmp
+        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
           {{- if .Values.fleet.tls.enabled }}
           - name: fleet-tls
             readOnly: true
@@ -536,10 +540,10 @@ spec:
         {{- toYaml . | nindent 8}}
       {{- end }}
       serviceAccountName: fleet
-      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         - name: tmp
           emptyDir:
+      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:

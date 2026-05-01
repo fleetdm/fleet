@@ -278,9 +278,9 @@ When a new feature is introduced it may be labeled as experimental. Experimental
 
 1. Apply the `~experimental` label to all associated user stories.
 2. Set the optional `isExperimental` property to "yes" in [pricing-features-table.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/pricing-features-table.yml).
-3. Make sure all API endpoints and configuration surface documentation includes the following message:
+3. Make sure all API endpoints and configuration surface documentation contains the following message (including the anticipated version it will be marked stable):
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows. This feature's experimental status will be reevaluated in Fleet 4.89.0.
 
 
 ### Breaking changes
@@ -675,7 +675,7 @@ Quickly confirming and reproducing bug reports is a [priority for Fleet](https:/
 
 At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug, make sure reproduction steps are documented, and update the bug's title to focus on the expected behavior instead of what's broken. 
+Then, it's the product group Product Designer's responsibility to decide if it's a bug, specify the expected behavior, and make sure reproduction steps are documented. If the expected behavior is unclear, ask the product group's Tech Lead for help.
 
 If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 

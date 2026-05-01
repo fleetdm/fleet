@@ -1,6 +1,8 @@
 # Conditional access: Entra
 
-With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS hosts.
+With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS and Windows hosts.
+
+> Instructions for Windows setup are coming soon.
 
 When a host fails a policy in Fleet, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
 
@@ -18,9 +20,9 @@ To enforce conditional access, end users must be a member of a group called "Fle
 
 Login to [Intune](https://intune.microsoft.com), and follow [this Microsoft guide](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners#add-a-compliance-partner-to-intune) to add Fleet as compliance partner in Intune.
 
-For **Platform**, select **macOS**. 
+For **Platform**, select **macOS** and **Windows**. 
 
-If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
+> If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
 
 For **Assignments** add the "Fleet conditional access" group you created to **Included groups**. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
 
@@ -80,7 +82,7 @@ Select the avatar on the right side of the top navigation and select **Labels > 
 For Entra's "Conditional Access" feature we need to deploy a Platform SSO extension for Company Portal.
 The extension must be deployed via configuration profiles. For more information see https://learn.microsoft.com/en-us/intune/intune-service/configuration/platform-sso-macos#step-3---deploy-the-company-portal-app-for-macos.
 
-If you're using Fleet's MDM features, head to **Controls > OS settings > Custom settings > + Add profile**.
+If you're using Fleet's MDM features, head to **Controls > OS settings > Configuration profiles > + Add profile**.
 Set **Target > Custom > Include all** and select **Company Portal installed**.
 
 Upload the following configuration profile:
@@ -281,5 +283,5 @@ For `lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-06-20">
+<meta name="publishedOn" value="2026-04-27">
 <meta name="description" value="Learn how to enforce conditional access with Fleet and Microsoft Entra.">

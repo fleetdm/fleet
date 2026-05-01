@@ -87,8 +87,12 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// OneTimeChallengeTTL is the time to live for one-time challenges.
-	OneTimeChallengeTTL = 1 * time.Hour
+	// OneTimeChallengeTTL is the time to live for one-time challenges. The challenge is
+	// generated at profile-render time but consumed when the device makes its SCEP request,
+	// which can be hours or days later if the device is offline (asleep, on a plane, etc.).
+	// 7 days covers a typical absence without being unbounded; once consumed, the challenge
+	// is deleted immediately regardless of TTL. See issue #44111.
+	OneTimeChallengeTTL = 7 * 24 * time.Hour
 )
 
 // HasCAVariables returns true if any of the given Fleet variable names
@@ -418,6 +422,18 @@ type MDMCommandListOptions struct {
 	ListOptions
 	Filters MDMCommandFilters
 }
+
+// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
 
 type MDMCommandStatusFilter string
 

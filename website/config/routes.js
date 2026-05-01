@@ -958,6 +958,8 @@ module.exports.routes = {
   'GET /compare/jamf': '/compare/jamf-vs-fleet',
   'GET /compare/fleet-vs-workspace-one': '/compare/workspace-one-vs-fleet',
   'GET /compare/fleet-vs-jamf-vs-intune': '/compare/jamf-vs-intune-vs-fleet',
+  'GET /articles/fleet-vs-jamf-vs-iru-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
+  'GET /articles/fleet-vs-jamf-vs-iru-kandji-mdm-comparison': '/compare/jamf-vs-iru-vs-fleet',
 
   // Software catalog redirects
   'GET /software-catalog/abstract': '/software-catalog/abstract-darwin',
@@ -1239,7 +1241,7 @@ module.exports.routes = {
   'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
   'GET /learn-more-about/microsoft-compliance-partner': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/microsoft-entra-setup': 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/TenantProperties.ReactView',
-  'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
+  'GET /learn-more-about/conditional-access': '/guides/conditional-access',
   'GET /learn-more-about/entra-conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/okta-conditional-access': '/guides/okta-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',

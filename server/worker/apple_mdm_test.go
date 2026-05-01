@@ -792,6 +792,52 @@ func TestAppleMDM(t *testing.T) {
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
 
+	t.Run("enroll reference with SSO enabled on iOS does not send AccountConfiguration", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			Username: "test",
+			Fullname: "test",
+			Email:    "test@example.com",
+		})
+		require.NoError(t, err)
+
+		idpAcc, err := ds.GetMDMIdPAccountByEmail(ctx, "test@example.com")
+		require.NoError(t, err)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		tm, err = ds.TeamWithExtras(ctx, tm.ID)
+		require.NoError(t, err)
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "ios", &tm.ID, idpAcc.UUID, false, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// AccountConfiguration is macOS-only and must NOT be sent to iOS/iPadOS devices.
+		// iOS doesn't get InstallEnterpriseApplication (fleetd) either, so no MDM
+		// commands should be enqueued (the release device follow-up job is expected
+		// to remain queued since there is no real device to respond).
+		cmdTypes := getEnqueuedCommandTypes(t)
+		require.NotContains(t, cmdTypes, "AccountConfiguration", "AccountConfiguration must not be sent to iOS/iPadOS devices")
+	})
+
 	t.Run("installs fleetd for manual enrollments", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)

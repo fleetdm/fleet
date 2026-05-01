@@ -222,6 +222,63 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
+## Quoting
+
+
+### Create a quote
+
+Navigate to the opportunity you are creating a quote for, then follow the steps below.
+
+1. Advance through each pipeline stage sequentially using the stage progression bar. Salesforce enforces sequential progression — skipping a stage will trigger an error.
+
+2. When you attempt to advance to the **"Justification"** stage, Salesforce will block the move with an error indicating an approved quote is required. Scroll down to the **"Quotes"** section and click **"New Quote"**.
+
+3. Enter a proxy name for the quote (the system auto-generates the final name). Review the pre-populated defaults — Billing Frequency is Annual and Payment Terms are Net 30 — and update if needed. Click **"Save"**, then open the newly created quote record.
+
+4. Scroll to **"Related Lists"** and locate **"Quote Line Items"**. Click **"Add Products"** to open the Fleet Price Book, select all products to include, and click **"Next"**.
+
+5. For each line item, set the following fields:
+   - **"Unit Price"**: update if applying a discount from list price
+   - **"Quantity"**: number of endpoints or units
+   - **"Contract Start Date"**: effective date of the contract
+   - **"Contract Term in Months"**: duration (e.g., 12 for one year, 24 for two years)
+
+   The **"Discount Percentage"** field is locked and updates automatically based on the difference between list price and unit price. Click **"Save"**. MRR, ARR, Total Price, and Grand Total will update automatically.
+
+6. Click **"Submit for Approval"**. Complete any remaining required fields:
+   - Billing address
+   - Contact name (selected from associated Salesforce contact records)
+   - Quote expiration date
+   - Contract term in months
+   - Billing frequency and payment terms
+
+   Add any relevant notes in the submission comments field and click **"Submit"**.
+
+   > Chaz is the approver for new business opportunities. Zay is the approver for renewals and upsells.
+
+7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
+
+8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
+
+   | Template | When to use |
+   | -------- | ----------- |
+   | Direct | Renewing an existing non-channel customer with no partner involved |
+   | Promises or custom terms | Selling directly to the customer with special commitments included |
+   | Authorized partner | Selling through an authorized channel partner |
+   | Unauthorized partner | Selling through a channel partner pending authorization |
+   | 3eye distributorship | Selling through the 3EYE distributor |
+
+
+
+### Remove a contact from the "Top contacts" list in Salesforce
+
+1. Navigate to the contact.
+2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
+
+<img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
+
+
+
 ## Signatures
 
 

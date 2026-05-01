@@ -54,14 +54,22 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
 interface IUpdateSetupExperienceBody {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
+  lock_end_user_info?: boolean;
   apple_enable_release_device_manually?: boolean;
   macos_manual_agent_install?: boolean;
+  enable_managed_local_account?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
   team_id: number | null;
   name: string;
   uploaded_at: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, unknown>;
+}
+
+export interface IDefaultAppleSetupEnrollmentProfileResponse {
+  updated_at?: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
   enrollment_profile: Record<string, unknown>;
 }
@@ -252,19 +260,6 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
-  updateEndUserAuthentication: (
-    teamId: number,
-    isEnabled: boolean,
-    canLockEndUserInfo: boolean
-  ) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
-      fleet_id: teamId,
-      enable_end_user_authentication: isEnabled,
-      lock_end_user_info: canLockEndUserInfo,
-    });
-  },
-
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP } = endpoints;
     return sendRequest("PATCH", MDM_SETUP, {
@@ -311,6 +306,11 @@ const mdmService = {
       { fleet_id: teamId }
     )}`;
     return sendRequest("GET", path);
+  },
+
+  getDefaultSetupEnrollmentProfile: (): Promise<IDefaultAppleSetupEnrollmentProfileResponse> => {
+    const { MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE);
   },
 
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {

@@ -505,7 +505,6 @@ func TestGetDetailQueries(t *testing.T) {
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
-		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
 		"disk_encryption_darwin",
@@ -518,9 +517,6 @@ func TestGetDetailQueries(t *testing.T) {
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
-
-	queriesWithoutWinOSVuln := GetDetailQueries(t.Context(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil, Integrations{}, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 29)
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
@@ -1922,43 +1918,175 @@ func TestDirectIngestSoftware(t *testing.T) {
 	})
 }
 
-func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
-	ds := new(mock.Store)
-	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
-		require.Len(t, updates, 6)
-		require.ElementsMatch(t, []fleet.WindowsUpdate{
-			{KBID: 2267602, DateEpoch: 1657929207},
-			{KBID: 890830, DateEpoch: 1658226954},
-			{KBID: 5013887, DateEpoch: 1658225364},
-			{KBID: 5005463, DateEpoch: 1658225225},
-			{KBID: 5010472, DateEpoch: 1658224963},
-			{KBID: 4052623, DateEpoch: 1657929544},
-		}, updates)
-		return nil
+func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	baseRows := []map[string]string{
+		{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		{"uid": "502", "username": "_fleetadmin", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "fleetadmin-uuid"},
 	}
 
-	host := fleet.Host{
-		ID: 1,
-	}
+	t.Run("darwin with row and NULL account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
-	payload := []map[string]string{
-		{"date": "1659392951", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
-		{"date": "1658271402", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
-		{"date": "1658228495", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
-		{"date": "1658226954", "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
-		{"date": "1658225364", "title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
-		{"date": "1658225225", "title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
-		{"date": "1658224963", "title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
-		{"date": "1658222131", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
-		{"date": "1658189063", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
-		{"date": "1658185542", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
-		{"date": "1657929544", "title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
-		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
-	}
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
 
-	err := directIngestWindowsUpdateHistory(t.Context(), slog.New(slog.DiscardHandler), &host, ds, payload)
-	require.NoError(t, err)
-	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return nil, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and different account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return new("some-uuid"), nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and existing account_uuid -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		existing := "fleetadmin-uuid"
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return &existing, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when account_uuid already set")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin with no row -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, common_mysql.NotFound("ManagedLocalAccount")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when no row exists")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin without _fleetadmin row -> no Get/Set calls", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called when _fleetadmin is absent")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		rows := []map[string]string{
+			{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		}
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, rows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("non-darwin -> no Get/Set calls even when _fleetadmin present", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "linux"}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called on non-darwin")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			// _fleetadmin is not skipped on non-darwin (guard is darwin-only),
+			// so it passes through unchanged.
+			require.Len(t, users, 2)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin Get error -> ingest still succeeds, no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, errors.New("boom")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called after Get error")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+	})
 }
 
 func TestIngestKubequeryInfo(t *testing.T) {

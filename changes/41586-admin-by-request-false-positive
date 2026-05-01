@@ -1,1 +1,0 @@
-* Fixed false positive vulnerabilities (CVE-2019-17201, CVE-2019-17202) reported for Admin By Request on macOS and Linux hosts. These CVEs are Windows-specific.

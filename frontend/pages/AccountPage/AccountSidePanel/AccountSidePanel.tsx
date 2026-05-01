@@ -39,6 +39,15 @@ const AccountSidePanel = ({
   const [darkMode, setDarkMode] = useState(() => isDarkMode());
 
   useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
+
+  useEffect(() => {
     const getVersionData = async () => {
       try {
         const data = await versionAPI.load();

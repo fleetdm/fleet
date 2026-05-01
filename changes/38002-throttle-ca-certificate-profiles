@@ -1,1 +1,0 @@
-- Added `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT` server config option to throttle the number of CA certificate profile installations per reconciler cycle, preventing CA server overload in large deployments.

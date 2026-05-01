@@ -15,6 +15,7 @@ import (
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1222,6 +1223,7 @@ func newCleanupsAndAggregationSchedule(
 	androidSvc android.Service,
 	activitySvc activity_api.Service,
 	acmeSvc acme_api.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1472,6 +1474,31 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_orphaned_nano_refetch_commands", func(ctx context.Context) error {
 			return ds.CleanupOrphanedNanoRefetchCommands(ctx)
+		}),
+		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
+			return chartSvc.CleanupData(ctx, 30)
+		}),
+	)
+
+	return s, nil
+}
+
+func newChartDataCollectionSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	chartSvc chart_api.Service,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronChartDataCollection)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
+			return chartSvc.CollectDatasets(ctx, time.Now())
 		}),
 	)
 

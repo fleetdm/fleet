@@ -129,6 +129,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledGitOpsMode{},
 	ActivityTypeDisabledGitOpsMode{},
+	ActivityTypeEnabledGitOpsException{},
+	ActivityTypeDisabledGitOpsException{},
 
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
@@ -241,6 +243,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledManagedLocalAccount{},
 
 	ActivityTypeCanceledSetupExperience{},
+
+	ActivityTypeCreatedLabel{},
+	ActivityTypeEditedLabel{},
+	ActivityTypeDeletedLabel{},
 }
 
 // ActivityDetails is an alias for the canonical ActivityDetails interface defined in server/activity/api.
@@ -860,6 +866,22 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+type ActivityTypeEnabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeEnabledGitOpsException) ActivityName() string {
+	return "enabled_gitops_exception"
+}
+
+type ActivityTypeDisabledGitOpsException struct {
+	Exception string `json:"exception"`
+}
+
+func (a ActivityTypeDisabledGitOpsException) ActivityName() string {
+	return "disabled_gitops_exception"
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
@@ -1965,4 +1987,37 @@ func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
 
 func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
 	return true
+}
+
+type ActivityTypeCreatedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeCreatedLabel) ActivityName() string {
+	return "created_label"
+}
+
+type ActivityTypeEditedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeEditedLabel) ActivityName() string {
+	return "edited_label"
+}
+
+type ActivityTypeDeletedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeDeletedLabel) ActivityName() string {
+	return "deleted_label"
 }
