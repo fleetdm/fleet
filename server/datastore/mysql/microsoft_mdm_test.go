@@ -3996,6 +3996,81 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 			}
 		})
 	})
+
+	t.Run("saveFullResponse stores envelope and links response_id", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: cmdUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Exec>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+			</Target>
+		</Item>
+	</Exec>
+`, cmdUUID),
+			TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
+		}
+		err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, cmd)
+		require.NoError(t, err)
+
+		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Exec", StatusCode: 200, UUID: cmdUUID},
+		})
+
+		// Count responses before.
+		var beforeCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &beforeCount,
+				"SELECT COUNT(*) FROM windows_mdm_responses")
+		})
+
+		// Save with saveFullResponse=true.
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, true)
+		require.NoError(t, err)
+
+		// A new windows_mdm_responses row should exist.
+		var afterCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &afterCount,
+				"SELECT COUNT(*) FROM windows_mdm_responses")
+		})
+		assert.Equal(t, beforeCount+1, afterCount, "saveFullResponse=true should insert a response row")
+
+		// The command_results row should have a non-NULL response_id.
+		var responseID *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &responseID,
+				"SELECT response_id FROM windows_mdm_command_results WHERE command_uuid = ?", cmdUUID)
+		})
+		require.NotNil(t, responseID, "response_id should be set when saveFullResponse=true")
+
+		// Re-ack the same command with saveFullResponse=true — response_id should update.
+		// Re-enqueue the command first.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
+				enrolledDevice1.ID, cmdUUID)
+			return err
+		})
+
+		enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Exec", StatusCode: 200, UUID: cmdUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML2, []string{}, true)
+		require.NoError(t, err)
+
+		var newResponseID *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &newResponseID,
+				"SELECT response_id FROM windows_mdm_command_results WHERE command_uuid = ?", cmdUUID)
+		})
+		require.NotNil(t, newResponseID)
+		assert.NotEqual(t, *responseID, *newResponseID, "response_id should update on duplicate when saveFullResponse=true")
+	})
 }
 
 type enrichResponseEntry struct {
