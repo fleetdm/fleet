@@ -13,9 +13,12 @@ on:
       - '.github/workflows/test-fleet-slackbot.yml'
   workflow_dispatch: # Manual
 
-# This allows a subsequently queued workflow run to interrupt previous runs
+# This allows a subsequently queued workflow run to interrupt previous runs.
+# For PRs, github.head_ref groups by source branch. For pushes (e.g. main),
+# head_ref is empty so we fall back to github.ref so successive pushes to the
+# same branch share a group and cancellation actually applies.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -46,7 +49,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: tools/fleet-slackbot
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run tests
         working-directory: tools/fleet-slackbot

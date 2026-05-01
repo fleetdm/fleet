@@ -92,6 +92,8 @@ CI_AUTO_FIX=true                                # set to false to disable CI aut
 
 ### 5. Run
 
+Requires Node.js 20 or newer (the test suite uses the built-in `node --test` runner).
+
 ```bash
 npm install
 npm start

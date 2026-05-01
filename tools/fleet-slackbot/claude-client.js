@@ -92,16 +92,18 @@ class ClaudeClient {
       console.log(`[claude] Agent loop round ${rounds}: ${toolUseBlocks.length} tool call(s), continuing...`);
     }
 
-    // Tool-call budget exhausted. Don't throw — force one final no-tools call
-    // so Claude produces its best answer from the data already gathered. The
-    // user gets a graceful "here's what I found, here's what I couldn't
-    // verify" response instead of a hard error.
+    // Tool-round budget exhausted. Don't throw — force one final no-tools
+    // call so Claude produces its best answer from the data already gathered.
+    // The prompt below is deliberately phrased without referencing tools,
+    // rounds, or internal limits so Claude's reply to the user doesn't leak
+    // implementation details. It's asked instead to flag any incomplete or
+    // unverified parts of the answer.
     console.log(
       `[claude] Agent loop hit ${MAX_TOOL_ROUNDS} rounds — forcing final response without tools.`
     );
     messages.push({
       role: "user",
-      content: `You've reached the maximum number of tool calls (${MAX_TOOL_ROUNDS}). Provide your best answer now using the information you've already gathered — no further tool calls will be available. If any part of the answer is incomplete or unverified because of the tool limit, say so explicitly so the user knows what's missing.`,
+      content: `Provide your best answer now based on the information you already have. If any part of the answer is incomplete or unverified, flag it clearly so the user knows what has been confirmed and what hasn't.`,
     });
     const finalResponse = await this._streamMessage(messages, tools, onText, {
       toolChoice: { type: "none" },
@@ -292,4 +294,5 @@ class ClaudeClient {
   }
 }
 
+ClaudeClient.MAX_TOOL_ROUNDS = MAX_TOOL_ROUNDS;
 module.exports = ClaudeClient;

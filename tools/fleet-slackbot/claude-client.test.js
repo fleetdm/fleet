@@ -2,6 +2,8 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const ClaudeClient = require("./claude-client");
 
+const { MAX_TOOL_ROUNDS } = ClaudeClient;
+
 // makeStreamingResponse builds a fake of the object returned by
 // `client.messages.stream(...)` — a thenable-ish thing with `.on(...)` for
 // "text" events and `.finalMessage()` returning a full message.
@@ -24,8 +26,8 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
     messages: {
       stream(params) {
         calls.push(params);
-        // First 12 calls: keep returning tool_use so the loop drains its budget.
-        if (calls.length <= 12) {
+        // First MAX_TOOL_ROUNDS calls: keep returning tool_use so the loop drains its budget.
+        if (calls.length <= MAX_TOOL_ROUNDS) {
           return makeStreamingResponse("tool_use", [
             {
               type: "tool_use",
@@ -35,7 +37,7 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
             },
           ]);
         }
-        // 13th call (the budget-exhausted fallback): return a final text.
+        // Final call (the budget-exhausted fallback): return a final text.
         return makeStreamingResponse("end_turn", [
           { type: "text", text: "Best-effort answer with partial data." },
         ]);
@@ -70,12 +72,12 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
   assert.equal(result, "Best-effort answer with partial data.");
   assert.equal(
     calls.length,
-    13,
-    "expected 12 tool rounds plus one forced no-tools call"
+    MAX_TOOL_ROUNDS + 1,
+    `expected ${MAX_TOOL_ROUNDS} tool rounds plus one forced no-tools call`
   );
 
-  // The first 12 calls must NOT disable tool use.
-  for (let i = 0; i < 12; i++) {
+  // All in-budget calls must NOT disable tool use.
+  for (let i = 0; i < MAX_TOOL_ROUNDS; i++) {
     assert.equal(
       calls[i].tool_choice,
       undefined,
@@ -83,19 +85,20 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
     );
   }
 
-  // The 13th call must disable tool use so Claude is forced to produce text.
-  assert.deepEqual(calls[12].tool_choice, { type: "none" });
+  // The fallback call must disable tool use so Claude is forced to produce text.
+  assert.deepEqual(calls[MAX_TOOL_ROUNDS].tool_choice, { type: "none" });
 
-  // The fallback call's last user message tells Claude the budget is gone.
-  const finalMessages = calls[12].messages;
+  // The fallback call's last user message asks for a best-effort answer
+  // with a non-leaky caveat — it must not mention tools, rounds, or limits.
+  const finalMessages = calls[MAX_TOOL_ROUNDS].messages;
   const lastUser = finalMessages[finalMessages.length - 1];
   assert.equal(lastUser.role, "user");
-  assert.match(
+  const lastUserText =
     typeof lastUser.content === "string"
       ? lastUser.content
-      : JSON.stringify(lastUser.content),
-    /maximum number of tool calls/
-  );
+      : JSON.stringify(lastUser.content);
+  assert.match(lastUserText, /incomplete or unverified/);
+  assert.doesNotMatch(lastUserText, /tool|round|limit/i);
 });
 
 test("runAgentLoop returns end_turn text without forcing the fallback when Claude finishes early", async () => {
