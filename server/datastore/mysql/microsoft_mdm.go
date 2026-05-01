@@ -742,11 +742,19 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 
-			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
-				result = &fleet.MDMWindowsSaveResponseResult{
-					WipeFailed: &fleet.MDMWindowsWipeResult{
-						HostUUID: enrolledDevice.HostUUID,
-					},
+			if wipeCmdStatus != "" && rowsAffected > 0 {
+				if wipeSucceeded {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeSucceeded: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
+				} else {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeFailed: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
 				}
 			}
 		}
