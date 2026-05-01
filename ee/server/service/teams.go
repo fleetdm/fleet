@@ -272,11 +272,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.EnableDiskEncryption.Valid {
-			macOSDiskEncryptionUpdated = team.Config.MDM.EnableDiskEncryption != payload.MDM.EnableDiskEncryption.Value
-			if macOSDiskEncryptionUpdated && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("apple_settings.enable_disk_encryption",
-					`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
+			diskEncryptionUpdated := team.Config.MDM.EnableDiskEncryption != payload.MDM.EnableDiskEncryption.Value
+			if diskEncryptionUpdated && !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
+				return nil, fleet.NewInvalidArgumentError("mdm.enable_disk_encryption",
+					"Couldn't update mdm.enable_disk_encryption because neither Apple MDM nor Windows MDM is turned on in Fleet.")
 			}
+			// The Apple FileVault profile and macOS-named activity only apply when Apple MDM is configured.
+			// On Windows-only deployments the flag still controls BitLocker enforcement via the Windows MDM path.
+			macOSDiskEncryptionUpdated = diskEncryptionUpdated && appCfg.MDM.EnabledAndConfigured
 			team.Config.MDM.EnableDiskEncryption = payload.MDM.EnableDiskEncryption.Value
 		}
 
