@@ -2198,14 +2198,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		}
 
 		// Stage 3: setup experience software/scripts still running. Orbit initiates setup experience during startup when it
-		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results. Wait for all of
-		// them to reach a terminal state (success/failure/cancelled).
+		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results.
 		//
 		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; on Windows that's the
-		// host's OsqueryHostID, not the Fleet host UUID on the MDM enrollment. Use the right identifier here or the lookup
-		// would silently miss the rows that the orbit-driven init enqueued and we'd wait for the 3-hour timeout. We pass
-		// teamID=0 because that parameter is only used for icon and display-name enrichment in the datastore call, not for
-		// filtering (the query filters only by host_uuid).
+		// host's OsqueryHostID. We pass teamID=0 because that parameter is only used for icon and display-name enrichment
+		// in the datastore call, not for filtering (the query filters only by host_uuid).
 		seHostUUID, err := setupExperienceHostUUID()
 		if err != nil {
 			return nil, err
@@ -2264,14 +2261,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 					"host_uuid", device.HostUUID, "results_count", len(results))
 				return nil, nil
 			}
-			// A software install has already failed. If require_all=true, the device is going to block --
-			// continuing to wait for the remaining installs to finish would just leave the user on
-			// "Working on it..." while the cancel block below tears them down anyway. Short-circuit.
-			//
-			// Defense in depth: maybeCancelPendingSetupExperienceSteps in the orbit-result reporting path
-			// usually cancels the others proactively on require_all=true failures, so this state should be rare
-			// (we'd see them as Cancelled, not Pending). But that path can partially fail, run before
-			// require_all was flipped to true, etc. -- the short-circuit catches all those edge cases.
+			// A software install has already failed. If require_all=true, the device is going to block.
 			requireAll, err := loadRequireAll()
 			if err != nil {
 				return nil, err
@@ -2281,7 +2271,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 					"host_uuid", device.HostUUID, "results_count", len(results))
 				return nil, nil
 			}
-			svc.logger.InfoContext(ctx, "ESP: software failure with require_all=true; short-circuiting Stage 3",
+			svc.logger.InfoContext(ctx, "ESP: software failure with require_all=true; blocking install",
 				"host_uuid", device.HostUUID)
 		}
 	}
@@ -2317,25 +2307,19 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		cmds = buildESPReleaseCommands(provID)
 	}
 
-	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. Run this
-	// BEFORE the CAS so a transient cancel failure aborts the finalize cleanly -- otherwise we'd commit awaiting=None
-	// while leaving non-terminal setup-experience rows behind, exactly the state cancellation is supposed to prevent.
+	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. Run
+	// this BEFORE the compare-and-swap (CAS) that commits awaiting_configuration=None at the bottom of this function,
+	// so a transient cancel failure aborts the finalize cleanly -- otherwise we'd commit awaiting=None while leaving
+	// non-terminal setup-experience rows behind, exactly the state cancellation is supposed to prevent.
 	//
-	// We must cancel both halves: the upcoming_activities queue (orbit polls this directly via
-	// ListReadyToExecuteSoftwareInstalls and would happily run any orphan rows post-login, which is exactly the bug we're
-	// trying to prevent on the timeout+require_all=false release path) AND the setup_experience_status_results status
-	// table (so the UI and downstream queries see the cancelled state). This mirrors maybeCancelPendingSetupExperienceSteps
-	// but skips that helper because it early-returns on require_all=false, which would leave us doing nothing on the
-	// pure-timeout release path -- exactly the case this block exists to handle.
+	// We must cancel both halves: the upcoming_activities queue AND the setup_experience_status_results status
+	// table (so the UI and downstream queries see the cancelled state).
 	//
 	// Cancel ordering: upcoming_activities first, then status table. If we crash mid-loop, the next retry sees the same
 	// status rows still pending, re-iterates, and will tolerate the now-deleted upcoming_activities row via IsNotFound.
-	// If we did status-first and crashed before the queue-cancel, the retry's iteration would skip those rows
-	// (status != Pending/Running) and the queued install would silently leak through.
 	//
 	// The canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
-	// software-install-result reporting path when require_all=true and a software install fails. We deliberately do
-	// not emit it again here to avoid duplicate activities when both paths fire for the same failure. Pure-timeout and
+	// software-install-result reporting path when require_all=true and a software install fails. Pure-timeout and
 	// require_all=false cancellations don't emit the activity at all (matching macOS, which only emits on the
 	// require_all=true software-failure case).
 	if timedOut || (hasSoftwareFailure && requireAll) {
@@ -2343,8 +2327,10 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		if err != nil {
 			return nil, err
 		}
-		// We re-list statuses here even when the wait gate already loaded them above: that path filters to terminality
-		// and the loop variable isn't held. The cost is one extra read per finalize and the code is simpler.
+		// We re-list statuses here rather than reusing Stage 3's `results`: that variable is scoped inside the
+		// `if !timedOut` block and isn't visible here, AND the timeout path skipped Stage 3 entirely so there's
+		// nothing to reuse on that branch. Hoisting the variable out to share it would tangle the two paths; one
+		// extra DB read per finalize keeps this block self-contained.
 		statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for cancel")
@@ -2383,10 +2369,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	// Persist BEFORE the CAS. The persist is the dropped-response retry safety net; if it fails, we want to leave
-	// awaiting_configuration=Active so the next management session retries the whole finalize from scratch. If we
-	// persisted after the CAS (the prior order), a persist failure combined with a dropped inline response would leave
-	// the device on "Working on it..." forever -- the server would think finalize was done (awaiting_configuration=None)
-	// and never send ESP commands again. With this order, persist failure aborts the finalize cleanly.
+	// awaiting_configuration=Active so the next management session retries the whole finalize from scratch.
 	//
 	// The persist is a single transactional batch (MDMWindowsInsertCommandsForHost) so a partial-fail-then-retry can't
 	// leave orphan rows in the queue.
