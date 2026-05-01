@@ -259,11 +259,12 @@ func (r *engine) emit(msg tea.Msg) {
 
 // composeProject is hardcoded so every worktree of this Fleet repo
 // shares the same MySQL/Redis containers and (more importantly) volumes.
-// PMs almost never add migrations, and PR 4's snapshots will guard
-// against the rare case where a branch swap leaves the DB in a bad
-// state — so paying with "fresh DB every worktree" by default isn't
-// worth it. PR 3 may revisit this with an opt-in for isolated DBs.
-const composeProject = "fleet-ship"
+// "fleet" specifically (rather than "fleet-ship") matches the default
+// project name an engineer would get running `docker compose up` from
+// ~/projects/fleet — which means tools/backup_db/{backup,restore}.sh
+// (which hardcode `--network fleet_default`) work against ship's
+// containers without modification, and PR 4 can reuse them directly.
+const composeProject = "fleet"
 
 func (r *engine) stepDockerUp(ctx context.Context) error {
 	// "up -d" returns once containers are started; readiness is checked
