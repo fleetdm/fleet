@@ -478,6 +478,8 @@ func previewCommand() *cli.Command {
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
+			fmt.Println()
+			fmt.Println("Use the stop and reset subcommands to manage the server and dependencies once started.")
 
 			return nil
 		},
