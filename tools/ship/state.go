@@ -83,29 +83,32 @@ type ActiveSession struct {
 	StartedAt      time.Time `json:"started_at"`
 }
 
-// activeStateDir is tools/ship/.state, resolved relative to the working
-// directory ship was launched from (which is tools/ship/, courtesy of the
-// `make ship` Makefile target).
-func activeStateDir() string {
-	return filepath.Join(".state")
+// activeStateDir resolves <repoRoot>/tools/ship/.state. After PR 3,
+// active.json travels with the active worktree (not the launch
+// worktree), so coding agents in any worktree always find it at a
+// stable repo-relative path.
+func activeStateDir(repoRoot string) string {
+	return filepath.Join(repoRoot, "tools", "ship", ".state")
 }
 
 // ActiveSessionPath is the path agents read.
-func ActiveSessionPath() string {
-	return filepath.Join(activeStateDir(), "active.json")
+func ActiveSessionPath(repoRoot string) string {
+	return filepath.Join(activeStateDir(repoRoot), "active.json")
 }
 
-// WriteActiveSession serializes the running-session info atomically.
-func WriteActiveSession(s ActiveSession) error {
-	if err := os.MkdirAll(activeStateDir(), 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", activeStateDir(), err)
+// WriteActiveSession serializes the running-session info atomically into
+// the active worktree's tools/ship/.state directory.
+func WriteActiveSession(repoRoot string, s ActiveSession) error {
+	dir := activeStateDir(repoRoot)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir %s: %w", dir, err)
 	}
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal session: %w", err)
 	}
-	final := ActiveSessionPath()
-	tmp, err := os.CreateTemp(activeStateDir(), "active-*.json")
+	final := ActiveSessionPath(repoRoot)
+	tmp, err := os.CreateTemp(dir, "active-*.json")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
 	}
@@ -126,10 +129,11 @@ func WriteActiveSession(s ActiveSession) error {
 	return nil
 }
 
-// ClearActiveSession removes the file. Called during clean shutdown so a
-// stale file doesn't mislead the next run or any agents poking at it.
-func ClearActiveSession() error {
-	err := os.Remove(ActiveSessionPath())
+// ClearActiveSession removes the file at the given worktree's path.
+// Called during clean shutdown and during a worktree switch (against
+// the OLD worktree) so stale files don't mislead agents.
+func ClearActiveSession(repoRoot string) error {
+	err := os.Remove(ActiveSessionPath(repoRoot))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}

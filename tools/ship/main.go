@@ -34,6 +34,27 @@ func main() {
 		fail(err)
 	}
 
+	// Worktree registry housekeeping: prune entries whose directories
+	// have been deleted, and silently auto-register the launching
+	// worktree if it isn't already known. The user's first launch
+	// from a fresh checkout doesn't see any prompt — it Just Works.
+	if dropped := PruneDeadWorktrees(&cfg); len(dropped) > 0 {
+		// Pruning is fine to do quietly; surfaced only via the dashboard
+		// switcher next time the user opens it.
+		_ = dropped
+	}
+	if FindWorktreeByPath(&cfg, repoRoot) == nil {
+		entry := WorktreeEntry{
+			Name:   DefaultWorktreeName(repoRoot),
+			Path:   repoRoot,
+			Branch: currentBranch(repoRoot),
+		}
+		UpsertWorktree(&cfg, entry)
+	}
+	cfg.ActiveWorktree = DefaultWorktreeName(repoRoot)
+	// Best-effort save — config corruption shouldn't block startup.
+	_ = SaveConfig(cfg)
+
 	// Wizard runs on first launch (no config file yet), when the server
 	// private key file is missing (user lost it and needs to paste from
 	// 1Password again), or when the user explicitly asked for it.
@@ -58,7 +79,9 @@ func main() {
 		defer cancel()
 		final.eng.Stop(ctx)
 	}
-	_ = ClearActiveSession()
+	if final, ok := finalModel.(model); ok {
+		_ = ClearActiveSession(final.repoRoot)
+	}
 }
 
 func fail(err error) {

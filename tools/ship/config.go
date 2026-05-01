@@ -18,6 +18,29 @@ import (
 type Config struct {
 	Ngrok NgrokConfig `yaml:"ngrok"`
 	Fleet FleetConfig `yaml:"fleet"`
+
+	// Worktrees registered with ship — populated by auto-register on
+	// launch and the new-worktree form. The launching worktree gets
+	// silently added if not already present. Removed entries are
+	// pruned against `git worktree list --porcelain` on each launch.
+	Worktrees []WorktreeEntry `yaml:"worktrees,omitempty"`
+
+	// ActiveWorktree is the Name of the worktree last used by ship.
+	// Persisted so a relaunch defaults to the same one.
+	ActiveWorktree string `yaml:"active_worktree,omitempty"`
+}
+
+// WorktreeEntry is one row in the worktree registry.
+type WorktreeEntry struct {
+	// Name is what ship calls this worktree in the UI. Defaults to the
+	// directory basename (e.g. "fleet", "fleet-vpp-fix"); editable in
+	// PR 3+ if we want.
+	Name string `yaml:"name"`
+	// Path is the absolute filesystem path to the worktree directory.
+	Path string `yaml:"path"`
+	// Branch is the branch the worktree currently has checked out.
+	// Stored at registration time; refreshed by the prune sweep.
+	Branch string `yaml:"branch,omitempty"`
 }
 
 type NgrokConfig struct {

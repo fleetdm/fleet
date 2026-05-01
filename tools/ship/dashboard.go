@@ -100,6 +100,20 @@ func (d *dashboardModel) beginRebuild(reason string) {
 	d.startLog = nil
 }
 
+// beginSwitch pre-populates the step list with the switch sequence's
+// steps. Switch reuses the engine's per-worktree bring-up steps but
+// skips docker compose and ngrok (both shared, kept running across the
+// switch).
+func (d *dashboardModel) beginSwitch(reason string) {
+	d.populateSteps([]stepKind{
+		stepMakeDeps, stepGenerateDev, stepMakeBuild, stepPrepareDB, stepServe,
+	})
+	d.trigger = reason
+	d.startLog = nil
+	// Reset uptime so the dashboard's "uptime" reads from the new run.
+	d.startedAt = time.Time{}
+}
+
 func (d *dashboardModel) populateSteps(expected []stepKind) {
 	d.steps = make([]stepRow, 0, len(expected))
 	d.stepByID = make(map[stepKind]int, len(expected))
@@ -310,6 +324,7 @@ func renderHints(state runState, queued int) string {
 		hints = append(hints,
 			hint{"r", "rebuild"},
 			hint{"p", "pause rebuilds"},
+			hint{"s", "switch worktree"},
 			hint{"l", "fleet logs"},
 			hint{"w", "webpack logs"},
 			hint{"n", "ngrok traffic"},
@@ -317,6 +332,7 @@ func renderHints(state runState, queued int) string {
 	case statePaused:
 		hints = append(hints,
 			hint{"p", "resume rebuilds"},
+			hint{"s", "switch worktree"},
 			hint{"l", "fleet logs"},
 			hint{"w", "webpack logs"},
 			hint{"n", "ngrok traffic"},

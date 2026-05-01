@@ -101,6 +101,15 @@ type pauseChangedMsg struct {
 	Queued int
 }
 
+// switchStartedMsg fires when the user picks a different worktree from
+// the switcher. Reason summarizes for the dashboard's "trigger:" row;
+// FromName / ToName are the friendly worktree names.
+type switchStartedMsg struct {
+	Reason   string
+	FromName string
+	ToName   string
+}
+
 // -----------------------------------------------------------------------------
 // Runtime — owns the supervised processes and runs the start/stop sequences.
 // -----------------------------------------------------------------------------
@@ -412,6 +421,72 @@ func (r *engine) runRestartLocked(ctx context.Context, reason string) {
 	})
 }
 
+// SwitchTo handles a worktree change. Stops fleet + generate-dev + watcher
+// (all of which were tied to the old worktree's filesystem), clears the
+// old worktree's active.json, swaps the engine's repoRoot, and runs a
+// switch-specific bring-up at the new path: make deps → make generate-dev
+// → make → prepare db → start fleet. Docker compose and ngrok keep
+// running across the switch — same volumes, same public URL.
+func (r *engine) SwitchTo(newRepoRoot, newName string) {
+	if !r.restartMu.TryLock() {
+		// A rebuild or another switch is in flight; refuse silently
+		// and let the user retry. This is rare and switches aren't
+		// safe to defer the way rebuild triggers are.
+		return
+	}
+	oldRoot := r.opts.repoRoot
+	oldName := DefaultWorktreeName(oldRoot)
+
+	go func() {
+		defer r.restartMu.Unlock()
+		r.runSwitchLocked(context.Background(), oldRoot, oldName, newRepoRoot, newName)
+	}()
+}
+
+func (r *engine) runSwitchLocked(ctx context.Context, oldRoot, oldName, newRoot, newName string) {
+	r.emit(switchStartedMsg{
+		Reason:   "switching to " + newName,
+		FromName: oldName,
+		ToName:   newName,
+	})
+
+	// Tear down everything tied to the OLD worktree's filesystem.
+	r.mu.Lock()
+	fleet := r.fleet
+	genDev := r.genDev
+	watch := r.watch
+	r.fleet, r.genDev, r.watch = nil, nil, nil
+	r.mu.Unlock()
+
+	if watch != nil {
+		watch.Stop()
+	}
+	if genDev != nil {
+		_ = genDev.Stop(ctx, 5*time.Second)
+	}
+	if fleet != nil {
+		_ = fleet.Stop(ctx, 5*time.Second)
+	}
+
+	_ = ClearActiveSession(oldRoot)
+
+	// Swap the engine's view of "where I'm running" before any step
+	// function runs (they read r.opts.repoRoot for `cmd.Dir`).
+	r.mu.Lock()
+	r.opts.repoRoot = newRoot
+	r.mu.Unlock()
+
+	// Switch-specific sequence: docker compose stays up, ngrok keeps
+	// forwarding to localhost:8080, only the per-worktree pieces rerun.
+	r.runSequence(ctx, []seqStep{
+		{stepMakeDeps, r.stepMakeDeps},
+		{stepGenerateDev, r.stepGenerateDev},
+		{stepMakeBuild, r.stepMakeBuild},
+		{stepPrepareDB, r.stepPrepareDB},
+		{stepServe, r.stepServe},
+	})
+}
+
 // stepStopFleet shuts down the running fleet binary so stepServe can
 // re-launch it. No-op if the fleet proc isn't running (first-time edge
 // case).
@@ -454,7 +529,7 @@ func (r *engine) writeActiveSession() {
 		NgrokURL:      "https://" + strings.TrimSpace(r.opts.cfg.Ngrok.StaticDomain),
 		StartedAt:     started,
 	}
-	if err := WriteActiveSession(session); err != nil {
+	if err := WriteActiveSession(r.opts.repoRoot, session); err != nil {
 		r.emit(logLineMsg{Source: "start", Line: "could not write active.json: " + err.Error()})
 	}
 }

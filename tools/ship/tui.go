@@ -45,7 +45,9 @@ const (
 	screenDoctor screen = iota
 	screenWizard
 	screenDashboard
-	screenLogs // overlay shown via l/w; esc returns to dashboard
+	screenLogs        // overlay shown via l/w; esc returns to dashboard
+	screenSwitcher    // worktree list, opened with `s`
+	screenNewWorktree // form to create a new worktree, opened from switcher with `n`
 )
 
 // model is the root bubbletea model. It owns the active screen, shared
@@ -64,6 +66,8 @@ type model struct {
 	doc  doctorModel
 	wiz  wizardModel
 	dash dashboardModel
+	sw   switcherModel
+	nw   newWorktreeModel
 
 	// logSource selects which buffer the screenLogs overlay shows.
 	logSource logSource
@@ -131,6 +135,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateBuilding
 		m.errMsg = ""
 		m.dash.beginRebuild(msg.Reason)
+		return m, m.eng.listen()
+
+	case switchStartedMsg:
+		m.state = stateBuilding
+		m.errMsg = ""
+		m.dash.beginSwitch(msg.Reason)
+		// Ensure we're showing the dashboard so the user sees progress.
+		m.screen = screenDashboard
+		// Update the active worktree displayed in the status block right
+		// away — the engine has already swapped its repoRoot.
+		newPath := findPathByName(m.cfg.Worktrees, msg.ToName)
+		if newPath != "" {
+			m.repoRoot = newPath
+			m.dash.setIdentity(msg.ToName, currentBranch(newPath), "fleet")
+		}
+		// Persist the new active worktree.
+		m.cfg.ActiveWorktree = msg.ToName
+		_ = SaveConfig(m.cfg)
 		return m, m.eng.listen()
 
 	case pauseChangedMsg:
@@ -207,6 +229,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.eng != nil {
 					m.eng.TogglePause()
 				}
+			case "s":
+				m.sw = newSwitcherModel(m.cfg.Worktrees, m.cfg.ActiveWorktree)
+				m.screen = screenSwitcher
 			}
 			return m, nil
 
@@ -215,7 +240,57 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.screen = screenDashboard
 			}
 			return m, nil
+
+		case screenSwitcher:
+			next, action := m.sw.onKey(msg.String())
+			m.sw = next
+			switch action {
+			case switcherBack:
+				m.screen = screenDashboard
+			case switcherSwitch:
+				picked := m.sw.entries[m.sw.cursor]
+				m.screen = screenDashboard
+				if m.eng != nil {
+					m.eng.SwitchTo(picked.Path, picked.Name)
+				}
+			case switcherOpenNew:
+				m.nw = newNewWorktreeModel(m.repoRoot)
+				m.screen = screenNewWorktree
+			case switcherDeleteConfirm:
+				picked := m.sw.entries[m.sw.cursor]
+				if _, err := gitWorktreeRemove(context.Background(), m.repoRoot, picked.Path, false); err != nil {
+					m.errMsg = err.Error()
+				} else {
+					RemoveWorktree(&m.cfg, picked.Name)
+					_ = SaveConfig(m.cfg)
+					m.sw = newSwitcherModel(m.cfg.Worktrees, m.cfg.ActiveWorktree)
+				}
+			}
+			return m, nil
+
+		case screenNewWorktree:
+			if msg.String() == "esc" {
+				m.screen = screenSwitcher
+				return m, nil
+			}
+			next, cmd := m.nw.update(msg)
+			m.nw = next
+			if m.nw.done {
+				UpsertWorktree(&m.cfg, m.nw.created)
+				_ = SaveConfig(m.cfg)
+				m.sw = newSwitcherModel(m.cfg.Worktrees, m.cfg.ActiveWorktree)
+				m.screen = screenSwitcher
+			}
+			return m, cmd
 		}
+	}
+
+	// textinput tick messages (cursor blink) flow through the active
+	// form-style screens.
+	if m.screen == screenNewWorktree {
+		next, cmd := m.nw.update(msg)
+		m.nw = next
+		return m, cmd
 	}
 
 	// Pass other messages (e.g. textinput's blink ticks) through to the
@@ -308,6 +383,21 @@ func (m model) View() string {
 			lines = m.dash.webpackLog
 		}
 		return renderLogScreen(m.width, m.height, m.logSource, lines)
+	case screenSwitcher:
+		return m.sw.view(m.width)
+	case screenNewWorktree:
+		return m.nw.view(m.width)
+	}
+	return ""
+}
+
+// findPathByName looks up a worktree path in cfg.Worktrees. Returns ""
+// if not found.
+func findPathByName(entries []WorktreeEntry, name string) string {
+	for _, e := range entries {
+		if e.Name == name {
+			return e.Path
+		}
 	}
 	return ""
 }
