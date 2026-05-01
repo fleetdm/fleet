@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -168,7 +169,7 @@ func (a *VPPAppStoreApp) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if len(aux.Configuration) == 0 {
+	if len(aux.Configuration) == 0 || bytes.Equal(aux.Configuration, []byte("null")) {
 		return nil
 	}
 

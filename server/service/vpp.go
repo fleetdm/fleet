@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -74,7 +75,7 @@ func (r *addAppStoreAppRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	if len(aux.Configuration) == 0 {
+	if len(aux.Configuration) == 0 || bytes.Equal(aux.Configuration, []byte("null")) {
 		return nil
 	}
 	switch r.Platform {

@@ -1,6 +1,9 @@
 package fleet
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -113,6 +116,146 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+		})
+	}
+}
+
+func TestVPPAppStoreAppMarshalJSON(t *testing.T) {
+	plist := []byte(`<dict><key>K</key><string>v</string></dict>`)
+	androidConfig := []byte(`{"a":1}`)
+
+	cases := []struct {
+		name              string
+		app               VPPAppStoreApp
+		wantConfigPresent bool
+		wantConfigOnWire  any
+	}{
+		{
+			name:              "iOS plist emitted as JSON string",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: IOSPlatform}, Configuration: plist},
+			wantConfigPresent: true,
+			wantConfigOnWire:  string(plist),
+		},
+		{
+			name:              "iPadOS plist emitted as JSON string",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: IPadOSPlatform}, Configuration: plist},
+			wantConfigPresent: true,
+			wantConfigOnWire:  string(plist),
+		},
+		{
+			name:              "Android raw bytes emitted as base64",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: AndroidPlatform}, Configuration: androidConfig},
+			wantConfigPresent: true,
+			wantConfigOnWire:  base64.StdEncoding.EncodeToString(androidConfig),
+		},
+		{
+			name:              "iOS with nil Configuration omits field",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: IOSPlatform}},
+			wantConfigPresent: false,
+		},
+		{
+			name:              "Android with nil Configuration omits field",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: AndroidPlatform}},
+			wantConfigPresent: false,
+		},
+		{
+			name:              "macOS falls through to default base64",
+			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: MacOSPlatform}, Configuration: []byte("raw")},
+			wantConfigPresent: true,
+			wantConfigOnWire:  base64.StdEncoding.EncodeToString([]byte("raw")),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data, err := json.Marshal(c.app)
+			require.NoError(t, err)
+
+			var parsed map[string]any
+			require.NoError(t, json.Unmarshal(data, &parsed))
+
+			cfg, has := parsed["configuration"]
+			require.Equal(t, c.wantConfigPresent, has)
+			if c.wantConfigPresent {
+				require.Equal(t, c.wantConfigOnWire, cfg)
+			}
+		})
+	}
+}
+
+func TestVPPAppStoreAppUnmarshalJSON(t *testing.T) {
+	plist := []byte(`<dict><key>K</key><string>v</string></dict>`)
+	androidConfig := []byte(`{"a":1}`)
+
+	cases := []struct {
+		name       string
+		wireJSON   string
+		wantConfig []byte
+	}{
+		{
+			name:       "iOS plist string decodes to raw bytes",
+			wireJSON:   fmt.Sprintf(`{"platform":"ios","configuration":%q}`, string(plist)),
+			wantConfig: plist,
+		},
+		{
+			name:       "iPadOS plist string decodes to raw bytes",
+			wireJSON:   fmt.Sprintf(`{"platform":"ipados","configuration":%q}`, string(plist)),
+			wantConfig: plist,
+		},
+		{
+			name:       "Android base64 string decodes to raw bytes",
+			wireJSON:   fmt.Sprintf(`{"platform":"android","configuration":%q}`, base64.StdEncoding.EncodeToString(androidConfig)),
+			wantConfig: androidConfig,
+		},
+		{
+			name:       "missing configuration field leaves nil",
+			wireJSON:   `{"platform":"ios"}`,
+			wantConfig: nil,
+		},
+		{
+			name:       "iOS configuration null leaves nil",
+			wireJSON:   `{"platform":"ios","configuration":null}`,
+			wantConfig: nil,
+		},
+		{
+			name:       "Android configuration null leaves nil",
+			wireJSON:   `{"platform":"android","configuration":null}`,
+			wantConfig: nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var got VPPAppStoreApp
+			require.NoError(t, json.Unmarshal([]byte(c.wireJSON), &got))
+			require.Equal(t, c.wantConfig, got.Configuration)
+		})
+	}
+}
+
+func TestVPPAppStoreAppJSONRoundTrip(t *testing.T) {
+	plist := []byte(`<dict><key>K</key><string>v</string></dict>`)
+	androidConfig := []byte(`{"a":1}`)
+
+	cases := []VPPAppStoreApp{
+		{VPPAppID: VPPAppID{AdamID: "1", Platform: IOSPlatform}, Configuration: plist},
+		{VPPAppID: VPPAppID{AdamID: "2", Platform: IPadOSPlatform}, Configuration: plist},
+		{VPPAppID: VPPAppID{AdamID: "3", Platform: AndroidPlatform}, Configuration: androidConfig},
+		{VPPAppID: VPPAppID{AdamID: "4", Platform: IOSPlatform}},
+		{VPPAppID: VPPAppID{AdamID: "5", Platform: AndroidPlatform}},
+	}
+
+	for _, original := range cases {
+		t.Run(string(original.Platform)+"_"+original.AdamID, func(t *testing.T) {
+			data, err := json.Marshal(original)
+			require.NoError(t, err)
+
+			var roundTripped VPPAppStoreApp
+			require.NoError(t, json.Unmarshal(data, &roundTripped))
+
+			require.Equal(t, original.Configuration, roundTripped.Configuration)
+			require.Equal(t, original.Platform, roundTripped.Platform)
+			require.Equal(t, original.AdamID, roundTripped.AdamID)
 		})
 	}
 }
