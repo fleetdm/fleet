@@ -29,9 +29,23 @@ if [ -f /etc/os-release ]; then
 	. /etc/os-release
 	distro_id="$ID"
 	distro_name="$NAME"
+	distro_version_id="$VERSION_ID"
 else
 	distro_id="unknown"
 	distro_name="unknown"
+	distro_version_id=""
+fi
+
+# Detect openSUSE Leap 16+. The capped wait + tarball fallback below is needed
+# only on Leap 16, where extensions.gnome.org doesn't list a compatible build of
+# this extension, so InstallRemoteExtension never completes. Other distros keep
+# the previously QA'd "wait forever for the user to accept" behavior.
+is_opensuse_leap_16_plus=false
+if [ "$distro_id" = "opensuse-leap" ]; then
+	major_version="${distro_version_id%%.*}"
+	if [ -n "$major_version" ] && [ "$major_version" -ge 16 ] 2>/dev/null; then
+		is_opensuse_leap_16_plus=true
+	fi
 fi
 
 # Determine extension name and installation method based on distribution
@@ -81,54 +95,66 @@ if [ "$extension_installed" = false ]; then
 		"$extension_name"
 
 	# Wait until the extension is accepted by the user ("gdbus call" command above is asynchronous).
-	# Cap the wait so we don't hang forever if InstallRemoteExtension can't deliver — for
-	# example on openSUSE Leap 16, where extensions.gnome.org doesn't list a compatible
-	# build of this extension and the install never completes.
-	timeout=90
-	while [ ! -d "$extension_path" ] && [ "$timeout" -gt 0 ]; do
-		sleep 1
-		timeout=$((timeout - 1))
-	done
+	if [ "$is_opensuse_leap_16_plus" = true ]; then
+		# Cap the wait on openSUSE Leap 16+ so we don't hang forever if
+		# InstallRemoteExtension can't deliver — extensions.gnome.org doesn't list
+		# a compatible build of this extension on Leap 16, so the install never
+		# completes there.
+		timeout=90
+		while [ ! -d "$extension_path" ] && [ "$timeout" -gt 0 ]; do
+			sleep 1
+			timeout=$((timeout - 1))
+		done
 
-	# If the official install path didn't deliver, fall back to fetching the extension
-	# tarball from upstream. This is required on openSUSE Leap 16, which neither packages
-	# the extension via zypper nor serves a compatible build through extensions.gnome.org.
-	# We use curl + tar (both present on a base Leap/Fedora/Debian install) rather than
-	# git, which isn't installed by default on Leap 16.
-	if [ ! -d "$extension_path" ]; then
-		extensions_dir="/home/$username/.local/share/gnome-shell/extensions"
-		tarball_url="https://github.com/ubuntu/gnome-shell-extension-appindicator/archive/refs/heads/master.tar.gz"
-		tmp_dir=$(mktemp -d /tmp/fleet-appindicator.XXXXXX)
-		tarball="$tmp_dir/extension.tar.gz"
+		# If the official install path didn't deliver, fall back to fetching the
+		# extension tarball from upstream. This is required on openSUSE Leap 16,
+		# which neither packages the extension via zypper nor serves a compatible
+		# build through extensions.gnome.org. We use curl + tar (both present on a
+		# base Leap install) rather than git, which isn't installed by default on
+		# Leap 16.
+		if [ ! -d "$extension_path" ]; then
+			extensions_dir="/home/$username/.local/share/gnome-shell/extensions"
+			tarball_url="https://github.com/ubuntu/gnome-shell-extension-appindicator/archive/refs/heads/master.tar.gz"
+			tmp_dir=$(mktemp -d /tmp/fleet-appindicator.XXXXXX)
+			tarball="$tmp_dir/extension.tar.gz"
 
-		# Download tarball — curl preferred, wget as fallback. Bail out cleanly if neither
-		# can fetch it (e.g. no network) so we don't leave a half-installed extension.
-		fetched=false
-		if command -v curl >/dev/null 2>&1; then
-			if curl -fsSL --max-time 60 -o "$tarball" "$tarball_url"; then
-				fetched=true
-			fi
-		elif command -v wget >/dev/null 2>&1; then
-			if wget -q --timeout=60 -O "$tarball" "$tarball_url"; then
-				fetched=true
-			fi
-		fi
-
-		if [ "$fetched" = true ] && [ -s "$tarball" ]; then
-			sudo -u $username -H mkdir -p "$extensions_dir"
-			# Extract to a staging dir, then move the inner directory into place under
-			# the user's UUID-named extension path. Run as the user so file ownership is right.
-			staging="$tmp_dir/staging"
-			mkdir -p "$staging"
-			if tar -xzf "$tarball" -C "$staging" --strip-components=1; then
-				sudo -u $username -H cp -r "$staging" "$extension_path"
-				if [ -d "$extension_path/schemas" ] && command -v glib-compile-schemas >/dev/null 2>&1; then
-					sudo -u $username -H glib-compile-schemas "$extension_path/schemas/"
+			# Download tarball — curl preferred, wget as fallback. Bail out cleanly
+			# if neither can fetch it (e.g. no network) so we don't leave a
+			# half-installed extension.
+			fetched=false
+			if command -v curl >/dev/null 2>&1; then
+				if curl -fsSL --max-time 60 -o "$tarball" "$tarball_url"; then
+					fetched=true
+				fi
+			elif command -v wget >/dev/null 2>&1; then
+				if wget -q --timeout=60 -O "$tarball" "$tarball_url"; then
+					fetched=true
 				fi
 			fi
-		fi
 
-		rm -rf "$tmp_dir"
+			if [ "$fetched" = true ] && [ -s "$tarball" ]; then
+				sudo -u $username -H mkdir -p "$extensions_dir"
+				# Extract to a staging dir, then move the inner directory into place
+				# under the user's UUID-named extension path. Run as the user so file
+				# ownership is right.
+				staging="$tmp_dir/staging"
+				mkdir -p "$staging"
+				if tar -xzf "$tarball" -C "$staging" --strip-components=1; then
+					sudo -u $username -H cp -r "$staging" "$extension_path"
+					if [ -d "$extension_path/schemas" ] && command -v glib-compile-schemas >/dev/null 2>&1; then
+						sudo -u $username -H glib-compile-schemas "$extension_path/schemas/"
+					fi
+				fi
+			fi
+
+			rm -rf "$tmp_dir"
+		fi
+	else
+		# Other distributions: preserve the previously QA'd behavior of waiting
+		# indefinitely for the user to accept the install prompt.
+		while [ ! -d "$extension_path" ]; do
+			sleep 1
+		done
 	fi
 
 	# Sleep to give some time for files to be downloaded.
