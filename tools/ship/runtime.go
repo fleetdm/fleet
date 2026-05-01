@@ -312,7 +312,9 @@ func (r *engine) stepPrepareDB(ctx context.Context) error {
 }
 
 // stepServe starts `./build/fleet serve --dev` with the configured
-// premium and MDM-key flags. Long-running.
+// premium toggle. The MDM private key goes through the
+// FLEET_SERVER_PRIVATE_KEY env var rather than a CLI flag so the secret
+// doesn't end up in `ps aux`. Long-running.
 func (r *engine) stepServe(ctx context.Context) error {
 	logPath := filepath.Join(r.opts.repoRoot, "tools", "ship", ".state", "logs", "fleet.log")
 	binary := filepath.Join(r.opts.repoRoot, "build", "fleet")
@@ -321,11 +323,13 @@ func (r *engine) stepServe(ctx context.Context) error {
 	if r.opts.cfg.Fleet.Premium {
 		args = append(args, "--dev_license")
 	}
+
+	var env []string
 	if r.opts.privateKey != "" {
-		args = append(args, "--fleet_server_private_key="+r.opts.privateKey)
+		env = append(env, "FLEET_SERVER_PRIVATE_KEY="+r.opts.privateKey)
 	}
 
-	p, err := startProc("fleet", r.opts.repoRoot, nil, logPath, r.logSink, binary, args...)
+	p, err := startProc("fleet", r.opts.repoRoot, env, logPath, r.logSink, binary, args...)
 	if err != nil {
 		return err
 	}

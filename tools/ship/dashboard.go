@@ -252,17 +252,13 @@ func maxOrZero(n int) int {
 	return n
 }
 
+// renderHints lists only the keybinds that are actually wired up. As future
+// PRs implement rebuild, pause, switch, hosts, etc., add them here so the
+// dashboard never advertises an action it can't perform.
 func renderHints() string {
 	hints := []struct {
 		key, desc string
 	}{
-		{"r", "rebuild"},
-		{"p", "pause"},
-		{"s", "switch"},
-		{"t", "hosts"},
-		{"l", "logs"},
-		{"d", "debug"},
-		{"?", "help"},
 		{"q", "quit"},
 	}
 	parts := make([]string, 0, len(hints))
