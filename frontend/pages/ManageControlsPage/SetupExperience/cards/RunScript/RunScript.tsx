@@ -20,7 +20,8 @@ import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
@@ -92,12 +93,15 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       )
     ) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="list"
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          buttonText="Turn on"
-          router={router}
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }

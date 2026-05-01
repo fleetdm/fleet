@@ -1346,6 +1346,38 @@ func TestMDMConfig(t *testing.T) {
 			},
 			expectedError: `"enable_end_user_authentication" must be set to "true"`,
 		},
+		{
+			name:        "apple MDM server URL no protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL must include a URL scheme",
+		},
+		{
+			name:        "apple MDM server URL invalid protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "ftp://bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL URL scheme must be http or https",
+		},
+		{
+			name:        "apple MDM server invalid URL",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http://[::1]:namedport",
+			},
+			expectedError: "mdmAppleServerURL must be a valid URL",
+		},
+		{
+			name:        "apple MDM server no host",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http:///path-only",
+			},
+			expectedError: "mdmAppleServerURL must include a host",
+		},
 	}
 
 	for _, tt := range testCases {
