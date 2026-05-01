@@ -1975,11 +1975,13 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		}
 		resPendingCmds = pendingCmds
 
-		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices.
-		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
-		espCmds, err = svc.getESPCommands(ctx, deviceID)
-		if err != nil {
-			return nil, fmt.Errorf("ESP commands error: %w", err)
+		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
+		// so we don't leak ESP state to unauthenticated devices.
+		if enrolledDevice.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone {
+			espCmds, err = svc.getESPCommands(ctx, enrolledDevice)
+			if err != nil {
+				return nil, fmt.Errorf("ESP commands error: %w", err)
+			}
 		}
 	}
 
@@ -1997,29 +1999,19 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	return msg, nil
 }
 
-// getESPCommands checks if a Windows device is in the Autopilot setup experience
-// and returns appropriate ESP SyncML commands.
+// getESPCommands dispatches ESP coordination for a Windows Autopilot device.
 //
-// For awaiting_configuration=Pending: sends hold commands to block the device at
-// the ESP during OOBE, then transitions to Active once orbit links the host UUID.
+// For awaiting_configuration=Pending: send hold commands to block the device at the ESP during OOBE, then transition
+// to Active once orbit links the host UUID.
 //
-// For awaiting_configuration=Active: checks if all profiles have been delivered
-// and releases the device when ready.
-func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
-	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			// Device may have just unenrolled; nothing to do.
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get enrolled device for ESP")
-	}
-
-	switch enrolledDevice.AwaitingConfiguration {
+// For awaiting_configuration=Active: run the wait gates (profiles + setup-experience software) and release or block
+// the device when ready, including the 3-hour timeout.
+func (svc *Service) getESPCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	switch device.AwaitingConfiguration {
 	case fleet.WindowsMDMAwaitingConfigurationPending:
-		return svc.handleESPHoldOrTransition(ctx, enrolledDevice)
+		return svc.handleESPHoldOrTransition(ctx, device)
 	case fleet.WindowsMDMAwaitingConfigurationActive:
-		return svc.handleESPRelease(ctx, enrolledDevice)
+		return svc.handleESPRelease(ctx, device)
 	default:
 		return nil, nil
 	}
@@ -2047,8 +2039,7 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			// Per DMClient CSP docs: 1=Reset PC, 2=Try Again, 4=Continue Anyway.
 			// We pre-configure Reset here so it's already set when/if the failure UI renders.
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
-			// AllowCollectLogsButton: pre-configure Collect Logs button so
-			// it's visible on both progress and failure pages.
+			// AllowCollectLogsButton: pre-configure Collect Logs button so it's visible on both progress and failure pages.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
