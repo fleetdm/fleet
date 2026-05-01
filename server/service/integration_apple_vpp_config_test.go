@@ -30,8 +30,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
 	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 
-	// Adam IDs "2" and "3" come pre-registered by the mock VPP server with
-	// iOS/iPadOS metadata; no asset list mutation needed.
+	// Adam IDs "2" and "3" come pre-registered by the mock VPP server with iOS/iPadOS metadata.
 	const iosAdamID = "2"
 	const ipadOSAdamID = "3"
 
@@ -56,8 +55,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		return json.RawMessage(b)
 	}
 
-	// Helper: read the stored configuration directly from the datastore so we
-	// don't depend on response-encoding details.
+	// Helper: read the stored configuration directly from the datastore.
 	readStoredConfig := func(adamID string, platform fleet.InstallableDevicePlatform) []byte {
 		got, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), platform, adamID, team.ID)
 		require.NoError(t, err)
@@ -85,10 +83,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusOK, &updResp)
 	require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
 
-	// GET /software/titles/{id} must return the iOS configuration as a JSON
-	// string containing the plist (matching the format used on input), not a
-	// base64-encoded blob. The response Configuration is a json.RawMessage
-	// holding the JSON string token, so unmarshal it to recover the raw plist.
+	// GET title returns the iOS configuration as a JSON string of plist; unmarshal to recover the raw plist bytes.
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
 		&getSoftwareTitleRequest{ID: addResp.TitleID, TeamID: &team.ID},
@@ -166,9 +161,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusOK, &updMacResp)
 	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, team.ID)
 
-	// 8. Add macOS app with malformed XML → 200 (silent drop must come before
-	// validation, otherwise this would 422). adamID "2" supports macOS and is
-	// not yet associated to this team for that platform.
+	// 8. Add macOS app with malformed XML → 200 (silent drop must come before validation).
 	const macosAdamIDInvalid = "2"
 	var addMacInvalidResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
@@ -190,8 +183,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, team.ID)
 
 	t.Run("BatchAssociateVPPApps", func(t *testing.T) {
-		// Use a fresh team so the batch's "replace all" semantics don't clobber
-		// the state from the linear cases above.
+		// Use a fresh team so batch "replace all" doesn't clobber the prior state.
 		batchTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-apple-config-batch-team"})
 		require.NoError(t, err)
 
@@ -201,9 +193,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 
 		var batchResp batchAssociateAppStoreAppsResponse
 
-		// Add iOS + macOS via batch, both carrying configuration in the payload.
-		// Including iOS proves the batch path actually ran, so a missing macOS
-		// row can't be explained away as a no-op.
+		// iOS in the same batch proves the path actually ran, so a missing macOS row isn't a no-op.
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
 				Apps: []fleet.VPPBatchPayload{
@@ -220,8 +210,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		// macOS config silently dropped.
 		requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, batchTeam.ID)
 
-		// Sanity: macOS app IS associated with the team — the silent drop
-		// applies to configuration only, not to the app association itself.
+		// Sanity: macOS app IS associated — silent drop applies to config only, not the app association.
 		macMeta, err := s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, macosAdamID, fleet.MacOSPlatform, &batchTeam.ID)
 		require.NoError(t, err)
 		require.Equal(t, macosAdamID, macMeta.AdamID)
@@ -237,8 +226,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		_, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, macosAdamID, fleet.MacOSPlatform, &batchTeam.ID)
 		require.True(t, fleet.IsNotFound(err), "expected macOS app to be removed, got %v", err)
 
-		// Re-add macOS via batch with a malformed plist → 200, app re-associated,
-		// no config row. Locks the silent-drop ordering for the batch path.
+		// Re-add macOS via batch with malformed plist → locks the silent-drop ordering for the batch path.
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
 				Apps: []fleet.VPPBatchPayload{

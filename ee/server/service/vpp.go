@@ -994,8 +994,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		payload.Configuration = nil
 	}
 
-	// datastoreConfig is the decoded plist for iOS/iPadOS; payload.Configuration
-	// stays in its incoming form for the activity emission below.
+	// datastoreConfig holds the decoded plist for iOS/iPadOS; payload.Configuration stays in its incoming form for the activity below.
 	datastoreConfig := payload.Configuration
 	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
 		var plist string

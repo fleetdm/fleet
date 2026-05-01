@@ -133,10 +133,7 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is the managed app configuration as returned in API
-	// responses: a JSON object for Android, a JSON string of plist XML for
-	// iOS / iPadOS. Service-layer code wraps the raw datastore bytes into
-	// this form before responding.
+	// Configuration is the managed app configuration: a JSON object for Android, a JSON string of plist XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
