@@ -72,14 +72,15 @@
       }
 
       &--disabled {
-        cursor: not-allowed;
+        &:hover {
+          background-color: transparent;
+        }
       }
     }
 
     &__tab-panel--selected {
       margin-top: $gap-page-component;
       animation: fade-in 250ms ease-out;
-
     }
 
     .tab-text {
