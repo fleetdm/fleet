@@ -1039,6 +1039,10 @@ const HostDetailsPage = ({
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
         }
+        managedAccountPasswordAvailable={
+          host.mdm.os_settings?.managed_local_account?.password_available ??
+          false
+        }
       />
     );
   };
