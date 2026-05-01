@@ -10,8 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -16976,4 +16980,85 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
+}
+
+func (s *integrationTestSuite) TestOrgLogoUpload() {
+	t := s.T()
+
+	pngImg := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	pngImg.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var pngBuf bytes.Buffer
+	require.NoError(t, png.Encode(&pngBuf, pngImg))
+	pngBytes := pngBuf.Bytes()
+
+	buildLogoBody := func(filename string, content []byte) ([]byte, map[string]string) {
+		var body bytes.Buffer
+		w := multipart.NewWriter(&body)
+		fw, err := w.CreateFormFile("logo", filename)
+		require.NoError(t, err)
+		_, err = io.Copy(fw, bytes.NewReader(content))
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
+		return body.Bytes(), map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": "Bearer " + s.token,
+		}
+	}
+
+	// 1. Upload as admin: 200, AppConfig URL set to the Fleet-hosted serving
+	// path, GET returns the bytes back with the right content type.
+	body, headers := buildLogoBody("logo.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusOK, headers)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "mode=light")
+	// Deprecated key is in sync.
+	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusOK)
+	gotBody, err := io.ReadAll(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, err)
+	require.Equal(t, pngBytes, gotBody)
+	require.Equal(t, "image/png", res.Header.Get("Content-Type"))
+
+	// 2. Upload a second mode (dark) as admin so the delete-lifecycle assertions
+	// at the bottom can confirm modes are independent.
+	body, headers = buildLogoBody("dark.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=dark", body, http.StatusOK, headers)
+
+	// 3. Auth: a maintainer is rejected.
+	maintainerEmail := "maintainer-logo@example.com"
+	maintainerUser := &fleet.User{
+		Name:       "Maintainer Logo",
+		Email:      maintainerEmail,
+		GlobalRole: ptr.String(fleet.RoleMaintainer),
+	}
+	require.NoError(t, maintainerUser.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(t.Context(), maintainerUser)
+	require.NoError(t, err)
+
+	s.token = s.getCachedUserToken(maintainerEmail, test.GoodPassword)
+	body, headers = buildLogoBody("nope.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusForbidden, headers)
+	s.token = s.getTestAdminToken()
+
+	// 4. A non-image payload is rejected at upload time.
+	body, headers = buildLogoBody("not-an-image.png", []byte("plain text, definitely not a PNG"))
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusBadRequest, headers)
+
+	// 5. DELETE clears the URL field and the GET endpoint returns 404 for
+	// the affected mode while the other mode is unaffected.
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
+
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
+	require.NoError(t, res.Body.Close())
 }
