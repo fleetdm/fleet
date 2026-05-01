@@ -309,14 +309,14 @@ func renderHints(state runState, queued int) string {
 	case stateRunning:
 		hints = append(hints,
 			hint{"r", "rebuild"},
-			hint{"p", "pause"},
+			hint{"p", "pause rebuilds"},
 			hint{"l", "fleet logs"},
 			hint{"w", "webpack logs"},
 			hint{"n", "ngrok traffic"},
 		)
 	case statePaused:
 		hints = append(hints,
-			hint{"p", "resume"},
+			hint{"p", "resume rebuilds"},
 			hint{"l", "fleet logs"},
 			hint{"w", "webpack logs"},
 			hint{"n", "ngrok traffic"},

@@ -30,7 +30,7 @@ func (s runState) String() string {
 	case stateBuilding:
 		return "◐ building"
 	case statePaused:
-		return "⏸ paused"
+		return "⏸ paused rebuilds"
 	case stateError:
 		return "✗ error"
 	default:
