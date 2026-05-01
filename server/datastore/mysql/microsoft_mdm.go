@@ -145,24 +145,16 @@ SELECT EXISTS (
 		AND global_or_team_id = ?
 		AND is_active = TRUE
 )`
-	// Use the writer: this is the fail-safe for the empty-results case in ESP release. A stale read (admin recently
-	// added installers but the replica hasn't caught up) would let the device early-release with no setup-experience
-	// installs run, and that release is permanent because the CAS that commits it runs in the same handleESPRelease
-	// call. Going through the primary closes the race. The query runs once per Active checkin in the empty-results
-	// branch only -- low volume.
 	var hasItems bool
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hasItems, stmt, teamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasItems, stmt, teamID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check setup experience items configured")
 	}
 	return hasItems, nil
 }
 
-// GetMDMWindowsAwaitingConfigurationByHostUUID returns just the
-// awaiting_configuration value for the Windows MDM enrollment of the host
-// with the given UUID. This is a lightweight read intended for the hot
-// /orbit/config polling path. Eventual consistency is acceptable
-// here because RunSetupExperience just signals orbit to call init; the ESP
-// state machine is reconciled on subsequent management sessions.
+// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting_configuration value for the Windows MDM
+// enrollment of the host with the given UUID. Reader-backed; callers that need primary-routed semantics must wrap
+// the context with ctxdb.RequirePrimary.
 func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
 	const stmt = `SELECT awaiting_configuration
 		FROM mdm_windows_enrollments

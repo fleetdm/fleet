@@ -455,17 +455,15 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// Check if Windows host is in Autopilot setup experience. When
-	// awaiting_configuration is Pending or Active, orbit should run
-	// the setup experience to install software during the ESP. We use
-	// the lightweight reader-backed lookup here because /orbit/config is
-	// a hot polling endpoint; eventual consistency is acceptable since
-	// the ESP state machine reconciles on subsequent management sessions.
+	// Check if Windows host is in Autopilot setup experience. When awaiting_configuration is Pending or Active,
+	// orbit should run the setup experience to install software during the ESP. The reader-backed lookup is fine
+	// here: RunSetupExperience is advisory (it just signals orbit to call init), and the ESP state machine on the
+	// management-session side is the authoritative gate that enforces policy on the writer. A stale reader read
+	// just means orbit calls init one /orbit/config poll later than it could have.
 	//
-	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being
-	// turned off, the unenrollment branch above sets
-	// NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set
-	// RunSetupExperience for the same orbit response.
+	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being turned off, the unenrollment branch
+	// above sets NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set RunSetupExperience for the
+	// same orbit response.
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		host.Platform == "windows" &&
 		isConnectedToFleetMDM {
