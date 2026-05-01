@@ -56,9 +56,7 @@ const SoftwareAppStoreAndroid = ({
     isPremiumTier,
     isAndroidMdmEnabledAndConfigured,
     isGlobalAdmin,
-    isAnyTeamAdmin,
   } = useContext(AppContext);
-  const isAdmin = !!(isGlobalAdmin || isAnyTeamAdmin);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -120,7 +118,7 @@ const SoftwareAppStoreAndroid = ({
       return (
         <EnableAndroidMdmMessage
           onEnableMdm={onEnableAndroidMdm}
-          isAdmin={isAdmin}
+          isAdmin={!!isGlobalAdmin}
         />
       );
     }

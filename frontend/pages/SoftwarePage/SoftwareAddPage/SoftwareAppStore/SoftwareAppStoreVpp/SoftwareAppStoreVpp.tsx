@@ -102,10 +102,7 @@ const SoftwareAppStoreVpp = ({
   router,
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier, isGlobalAdmin, isAnyTeamAdmin } = useContext(
-    AppContext
-  );
-  const isAdmin = !!(isGlobalAdmin || isAnyTeamAdmin);
+  const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -240,7 +237,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-          isAdmin={isAdmin}
+          isAdmin={!!isGlobalAdmin}
         />
       );
     }
@@ -249,7 +246,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-          isAdmin={isAdmin}
+          isAdmin={!!isGlobalAdmin}
         />
       );
     }

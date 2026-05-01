@@ -35,7 +35,6 @@ describe("SoftwareAppStoreAndroid", () => {
         app: {
           isPremiumTier: true,
           isGlobalAdmin: false,
-          isAnyTeamAdmin: false,
           isAndroidMdmEnabledAndConfigured: false,
         },
       },

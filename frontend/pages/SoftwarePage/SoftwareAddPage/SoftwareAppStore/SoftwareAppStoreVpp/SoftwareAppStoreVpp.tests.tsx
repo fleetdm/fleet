@@ -76,7 +76,6 @@ describe("SoftwareAppStoreVpp", () => {
         app: {
           isPremiumTier: true,
           isGlobalAdmin: false,
-          isAnyTeamAdmin: false,
         },
       },
     });
@@ -134,7 +133,6 @@ describe("SoftwareAppStoreVpp", () => {
         app: {
           isPremiumTier: true,
           isGlobalAdmin: false,
-          isAnyTeamAdmin: false,
         },
       },
     });
