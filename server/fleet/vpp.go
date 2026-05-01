@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -135,6 +136,53 @@ type VPPAppStoreApp struct {
 	// Configuration is the managed app configuration payload. JSON for Android,
 	// XML for iOS / iPadOS.
 	Configuration []byte `json:"configuration,omitempty"`
+}
+
+// MarshalJSON handles the configuration field which can be a json object or a plist xml.
+func (a VPPAppStoreApp) MarshalJSON() ([]byte, error) {
+	type alias VPPAppStoreApp
+	switch a.Platform {
+	case IOSPlatform, IPadOSPlatform:
+		return json.Marshal(struct {
+			alias
+			Configuration string `json:"configuration,omitempty"`
+		}{
+			alias:         alias(a),
+			Configuration: string(a.Configuration),
+		})
+	default:
+		return json.Marshal(alias(a))
+	}
+}
+
+// UnmarshalJSON handles the configuration field which can be a json object or a plist xml.
+func (a *VPPAppStoreApp) UnmarshalJSON(data []byte) error {
+	type alias VPPAppStoreApp
+	aux := struct {
+		*alias
+		Configuration json.RawMessage `json:"configuration,omitempty"`
+	}{
+		alias: (*alias)(a),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if len(aux.Configuration) == 0 {
+		return nil
+	}
+
+	switch a.Platform {
+	case IOSPlatform, IPadOSPlatform:
+		var plist string
+		if err := json.Unmarshal(aux.Configuration, &plist); err != nil {
+			return err
+		}
+		a.Configuration = []byte(plist)
+		return nil
+	default:
+		return json.Unmarshal(aux.Configuration, &a.Configuration)
+	}
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

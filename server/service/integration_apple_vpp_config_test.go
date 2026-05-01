@@ -85,6 +85,17 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusOK, &updResp)
 	require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
 
+	// GET /software/titles/{id} must round-trip the iOS configuration as a
+	// JSON string containing the plist (matching the wire format used on
+	// input), not a base64-encoded blob. VPPAppStoreApp's UnmarshalJSON
+	// extracts the plist bytes back out for the assertion.
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
+		&getSoftwareTitleRequest{ID: addResp.TitleID, TeamID: &team.ID},
+		http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Equal(t, []byte(validPlist2), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+
 	// 3. Update iOS app omitting `configuration` field → no change.
 	updResp = updateAppStoreAppResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),

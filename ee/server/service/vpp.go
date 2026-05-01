@@ -232,14 +232,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
 				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
-					decoded, err := appleConfigFromRawMessage(payload.Configuration)
-					if err != nil {
+					var plist string
+					if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
+						return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+					}
+					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 						return nil, err
 					}
-					if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
-						return nil, err
-					}
-					appStoreApp.Configuration = decoded
+					appStoreApp.Configuration = []byte(plist)
 				}
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
@@ -786,15 +786,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			}
 			androidConfigChanged = changed
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			decoded, err := appleConfigFromRawMessage(appID.Configuration)
-			if err != nil {
+			if err := fleet.ValidateAppleAppConfiguration(appID.Configuration); err != nil {
 				return 0, err
 			}
-			if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
-				return 0, err
-			}
-			// keep appID.Configuration in wire form for the activity below.
-			app.Configuration = decoded
+			app.Configuration = appID.Configuration
 		}
 	}
 
@@ -811,6 +806,14 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
+	actConfig := json.RawMessage(appID.Configuration)
+	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
+		actConfig, err = json.Marshal(string(appID.Configuration))
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "encoding configuration for activity")
+		}
+	}
+
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
 		Platform:         app.Platform,
@@ -822,7 +825,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAny: actLabelsInclAny,
 		LabelsExcludeAny: actLabelsExclAny,
 		LabelsIncludeAll: actLabelsInclAll,
-		Configuration:    appID.Configuration,
+		Configuration:    actConfig,
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -999,14 +1002,14 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	// stays in wire form for the activity emission below.
 	datastoreConfig := payload.Configuration
 	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
-		decoded, err := appleConfigFromRawMessage(payload.Configuration)
-		if err != nil {
+		var plist string
+		if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+		}
+		if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 			return nil, nil, err
 		}
-		if err := fleet.ValidateAppleAppConfiguration(decoded); err != nil {
-			return nil, nil, err
-		}
-		datastoreConfig = decoded
+		datastoreConfig = []byte(plist)
 	}
 
 	appToWrite := &fleet.VPPApp{
@@ -1395,15 +1398,3 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	return packageName, nil
 }
 
-// appleConfigFromRawMessage strips the JSON-string wrapper around the plist
-// XML so we don't pass quotes/escapes to the plist parser.
-func appleConfigFromRawMessage(raw json.RawMessage) ([]byte, error) {
-	if len(raw) == 0 {
-		return nil, nil
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
-	}
-	return []byte(s), nil
-}
