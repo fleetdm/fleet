@@ -35,7 +35,7 @@ export const parseEntityFunc = (host: IHost) => {
   };
 };
 
-const appendTargetTypeToTargets = (targets: any, targetType: string) => {
+const appendTargetTypeToTargets = (targets: IHost[], targetType: string) => {
   return map(targets, (target) => {
     if (targetType === "hosts") {
       return parseEntityFunc(target);

@@ -108,7 +108,7 @@ const SoftwareVulnerabilitiesTable = ({
 
   const tableHeaders = useMemo(
     () => generateTableConfig(Boolean(isPremiumTier), router, teamIdForApi),
-    [isPremiumTier]
+    [isPremiumTier, router, teamIdForApi]
   );
 
   const renderVulnerabilitiesCount = () => (

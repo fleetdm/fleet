@@ -1,9 +1,8 @@
 import React from "react";
 
-import { syntaxHighlight } from "utilities/helpers";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 
 const baseClass = "host-status-webhook-preview-modal";
 
@@ -46,11 +45,7 @@ const HostStatusWebhookPreviewModal = ({
         An example request sent to your configured <b>Destination URL</b>.
       </p>
       <div className={baseClass}>
-        <pre
-          dangerouslySetInnerHTML={{
-            __html: syntaxHighlight(getHostStatusPreview(isTeamScope)),
-          }}
-        />
+        <SyntaxHighlightedCode json={getHostStatusPreview(isTeamScope)} />
       </div>
       <div className="modal-cta-wrap">
         <Button type="button" onClick={toggleModal}>

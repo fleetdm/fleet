@@ -37,6 +37,7 @@ import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
 interface IVitalsProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vitalsData: { [key: string]: any };
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;

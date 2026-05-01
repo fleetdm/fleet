@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { InjectedRouter, Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
@@ -309,7 +309,8 @@ const OtherWorkflowsModal = ({
   };
 
   // Disable saving if ticket workflow is selected but no integration is chosen
-  const disableSave = (changedItems: IFormPolicy[]) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const disableSave = (_changedItems: IFormPolicy[]) => {
     if (
       isPolicyAutomationsEnabled &&
       !isWebhookEnabled &&

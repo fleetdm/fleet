@@ -13,7 +13,6 @@ interface IEmptyUsersTableProps {
   isTeamAdmin: boolean;
   toggleAddUserModal: () => void;
   toggleCreateMemberModal: () => void;
-  disabled?: boolean;
 }
 
 const infoLink = (
@@ -30,7 +29,7 @@ const CreateUserButton = ({
   toggleAddUserModal,
   toggleCreateMemberModal,
   disabled = false,
-}: Omit<IEmptyUsersTableProps, "searchString">) => {
+}: Omit<IEmptyUsersTableProps, "searchString"> & { disabled?: boolean }) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     return null;
   }

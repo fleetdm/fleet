@@ -105,7 +105,7 @@ const RunScriptBatchModal = ({
     IScript[],
     IListScriptsQueryKey[]
   >(
-    [addTeamIdCriteria({ scope: "scripts" }, teamId, isFreeTier)],
+    [addTeamIdCriteria({ scope: "scripts" } as const, teamId, isFreeTier)],
     ({ queryKey }) => {
       return scriptsAPI.getScripts(queryKey[0]);
     },
@@ -220,7 +220,18 @@ const RunScriptBatchModal = ({
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [
+      renderFlash,
+      selectedHostIds,
+      runMode,
+      batchRunDate,
+      batchRunTime,
+      filters,
+      isFreeTier,
+      onCancel,
+      runByFilters,
+      teamId,
+    ]
   );
 
   const renderModalContent = () => {

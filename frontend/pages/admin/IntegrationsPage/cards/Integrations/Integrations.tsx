@@ -187,7 +187,13 @@ const Integrations = (): JSX.Element => {
           setTestingConnection(false);
         });
     },
-    [toggleAddIntegrationModal]
+    [
+      jiraIntegrations,
+      zendeskIntegrations,
+      refetchIntegrations,
+      renderFlash,
+      toggleAddIntegrationModal,
+    ]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -245,7 +251,16 @@ const Integrations = (): JSX.Element => {
           toggleDeleteIntegrationModal();
         });
     }
-  }, [integrationEditing, toggleDeleteIntegrationModal]);
+  }, [
+    integrationEditing,
+    integrations?.jira,
+    integrations?.zendesk,
+    jiraIntegrations,
+    zendeskIntegrations,
+    refetchIntegrations,
+    renderFlash,
+    toggleDeleteIntegrationModal,
+  ]);
 
   const onActionSelection = useCallback(
     (action: string, integration: IIntegrationTableData): void => {

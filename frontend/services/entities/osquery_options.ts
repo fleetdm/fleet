@@ -10,10 +10,10 @@ export default {
 
     return sendRequest("GET", OSQUERY_OPTIONS);
   },
-  update: (agentOptions: any, endpoint: string) => {
+  update: (agentOptions: unknown, endpoint: string) => {
     return sendRequest("POST", endpoint, agentOptions);
   },
-  updateTeam: (teamId: number | undefined, agentOptions: any) => {
+  updateTeam: (teamId: number | undefined, agentOptions: unknown) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(

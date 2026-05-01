@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import Select, {
   GroupBase,
   SelectInstance,
+  ValueContainerProps,
   components,
   MenuProps,
 } from "react-select-5";
@@ -25,11 +26,13 @@ import CustomDropdownIndicator from "../CustomDropdownIndicator";
 // group heading. More info here:
 // https://react-select.com/typescript#custom-select-props
 declare module "react-select-5/dist/declarations/src/Select" {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   export interface Props<
     Option,
     IsMulti extends boolean,
     Group extends GroupBase<Option>
   > {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
     labelQuery?: string;
     canAddNewLabels?: boolean;
     onAddLabel?: () => void;
@@ -184,7 +187,10 @@ const LabelFilterSelect = ({
 
   const classes = classnames(baseClass, className);
 
-  const ValueContainer = ({ children, ...props }: any) => {
+  const ValueContainer = ({
+    children,
+    ...props
+  }: ValueContainerProps<ILabel | IEmptyOption, false, IGroupOption>) => {
     return (
       components.ValueContainer && (
         <components.ValueContainer {...props}>

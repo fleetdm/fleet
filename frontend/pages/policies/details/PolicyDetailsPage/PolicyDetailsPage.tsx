@@ -54,7 +54,6 @@ const PolicyDetailsPage = ({
     currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isGlobalObserver,
     isGlobalTechnician,
     isOnGlobalTeam,
     config,
@@ -161,8 +160,8 @@ const PolicyDetailsPage = ({
       integrations,
     } = teamData.team;
     const isIntegrationEnabled =
-      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];
@@ -387,7 +386,6 @@ const PolicyDetailsPage = ({
                 currentAutomatedPolicies={currentAutomatedPolicies}
                 onAddAutomation={noop}
                 isAddingAutomation={false}
-                gitOpsModeEnabled={false}
               />
             )}
           </>

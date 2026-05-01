@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { Option } from "react-select";
 
 import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
@@ -24,11 +25,11 @@ const AddUsersModal = ({
   onCreateNewTeamUser,
   team,
 }: IAddUsersModal): JSX.Element => {
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState<IDropdownOption[]>([]);
 
   const onChangeDropdown = useCallback(
-    (values: any) => {
-      setSelectedUsers(values);
+    (values: Option | Option[] | null) => {
+      setSelectedUsers((values || []) as IDropdownOption[]);
     },
     [setSelectedUsers]
   );
@@ -56,7 +57,7 @@ const AddUsersModal = ({
             onChange={onChangeDropdown}
             placeholder="Search users by name"
             disabledOptions={disabledUsers}
-            value={selectedUsers}
+            value={(selectedUsers as unknown) as Option[]}
             autoFocus
           />
         </div>

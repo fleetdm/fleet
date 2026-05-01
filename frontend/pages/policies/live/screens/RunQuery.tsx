@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useContext,
+  useCallback,
+  useMemo,
+} from "react";
 import SockJS from "sockjs-client";
 
 import { PolicyContext } from "context/policy";
@@ -41,19 +48,19 @@ const RunQuery = ({
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
   const ws = useRef(null);
-  const runQueryInterval = useRef<any>(null);
-  const globalSocket = useRef<any>(null);
-  const previousSocketData = useRef<any>(null);
+  const runQueryInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const globalSocket = useRef<WebSocket | null>(null);
+  const previousSocketData = useRef<string | null>(null);
 
-  const removeSocket = () => {
+  const removeSocket = useCallback(() => {
     if (globalSocket.current) {
       globalSocket.current.close();
       globalSocket.current = null;
       previousSocketData.current = null;
     }
-  };
+  }, []);
 
-  const setupDistributedQuery = (socket: WebSocket | null) => {
+  const setupDistributedQuery = useCallback((socket: WebSocket | null) => {
     globalSocket.current = socket;
     const update = () => {
       setCampaignState((prevCampaignState) => ({
@@ -65,9 +72,9 @@ const RunQuery = ({
     if (!runQueryInterval.current) {
       runQueryInterval.current = setInterval(update, 1000);
     }
-  };
+  }, []);
 
-  const teardownDistributedQuery = () => {
+  const teardownDistributedQuery = useCallback(() => {
     if (runQueryInterval.current) {
       clearInterval(runQueryInterval.current);
       runQueryInterval.current = null;
@@ -80,122 +87,146 @@ const RunQuery = ({
     }));
     setIsQueryFinished(true);
     removeSocket();
-  };
+  }, [removeSocket]);
 
-  const destroyCampaign = () => {
+  const destroyCampaign = useCallback(() => {
     setCampaignState(DEFAULT_CAMPAIGN_STATE);
-  };
+  }, []);
 
-  const connectAndRunLiveQuery = (returnedCampaign: ICampaign) => {
-    let { current: websocket }: { current: WebSocket | null } = ws;
-    websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
-    websocket.onopen = () => {
-      setupDistributedQuery(websocket);
-      // `prevCampaignState` at this point is the default state. Update that with what we get from
-      // the API response
-      setCampaignState((prevCampaignState) => ({
-        ...prevCampaignState,
-        campaign: { ...prevCampaignState.campaign, returnedCampaign },
-        queryIsRunning: true,
-      }));
-
-      websocket?.send(
-        JSON.stringify({
-          type: "auth",
-          data: { token: authToken.get() },
-        })
-      );
-      websocket?.send(
-        JSON.stringify({
-          type: "select_campaign",
-          data: { campaign_id: returnedCampaign.id },
-        })
-      );
-    };
-
-    websocket.onmessage = ({ data }: { data: string }) => {
-      // string is easy to compare before converting to object
-      if (data === previousSocketData.current) {
-        return false;
-      }
-
-      previousSocketData.current = data;
-      const socketData = JSON.parse(data);
-      setCampaignState((prevCampaignState) => {
-        return {
+  const connectAndRunLiveQuery = useCallback(
+    (returnedCampaign: ICampaign) => {
+      let { current: websocket }: { current: WebSocket | null } = ws;
+      websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
+      websocket.onopen = () => {
+        setupDistributedQuery(websocket);
+        // `prevCampaignState` at this point is the default state. Update that with what we get from
+        // the API response
+        setCampaignState((prevCampaignState) => ({
           ...prevCampaignState,
-          ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState),
-        };
-      });
+          campaign: { ...prevCampaignState.campaign, returnedCampaign },
+          queryIsRunning: true,
+        }));
 
-      if (
-        socketData.type === "status" &&
-        socketData.data.status === "finished"
-      ) {
-        return teardownDistributedQuery();
-      }
-    };
-  };
-
-  const onRunQuery = debounce(async () => {
-    if (!lastEditedQueryBody) {
-      renderFlash(
-        "error",
-        "Something went wrong running your report. Please try again."
-      );
-      return false;
-    }
-
-    const selected = formatSelectedTargetsForApi(selectedTargets);
-    setIsQueryFinished(false);
-    removeSocket();
-    destroyCampaign();
-
-    try {
-      // we do not want to run a stored query,
-      // instead always run provided query
-      const queryId = null;
-      const returnedCampaign = await queryAPI.run({
-        query: lastEditedQueryBody,
-        queryId,
-        selected,
-      });
-
-      connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
-      if (campaignError === "resource already created") {
-        renderFlash(
-          "error",
-          "A campaign with the provided query text has already been created"
+        websocket?.send(
+          JSON.stringify({
+            type: "auth",
+            data: { token: authToken.get() },
+          })
         );
-      }
+        websocket?.send(
+          JSON.stringify({
+            type: "select_campaign",
+            data: { campaign_id: returnedCampaign.id },
+          })
+        );
+      };
 
-      if ("message" in campaignError) {
-        const { message } = campaignError;
+      websocket.onmessage = ({ data }: { data: string }) => {
+        // string is easy to compare before converting to object
+        if (data === previousSocketData.current) {
+          return;
+        }
 
-        if (message === "forbidden") {
+        previousSocketData.current = data;
+        const socketData = JSON.parse(data);
+        setCampaignState((prevCampaignState) => {
+          return {
+            ...prevCampaignState,
+            ...campaignHelpers.updateCampaignState(socketData)(
+              prevCampaignState
+            ),
+          };
+        });
+
+        if (
+          socketData.type === "status" &&
+          socketData.data.status === "finished"
+        ) {
+          teardownDistributedQuery();
+        }
+      };
+    },
+    [setupDistributedQuery, teardownDistributedQuery]
+  );
+
+  const onRunQuery = useMemo(
+    () =>
+      debounce(async () => {
+        if (!lastEditedQueryBody) {
           renderFlash(
             "error",
-            "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
+            "Something went wrong running your report. Please try again."
           );
-        } else {
-          renderFlash("error", "Something has gone wrong. Please try again.");
+          return;
         }
-      }
 
-      return teardownDistributedQuery();
-    }
-  });
+        const selected = formatSelectedTargetsForApi(selectedTargets);
+        setIsQueryFinished(false);
+        removeSocket();
+        destroyCampaign();
+
+        try {
+          // we do not want to run a stored query,
+          // instead always run provided query
+          const queryId = null;
+          const returnedCampaign = await queryAPI.run({
+            query: lastEditedQueryBody,
+            queryId,
+            selected,
+          });
+
+          connectAndRunLiveQuery(returnedCampaign);
+        } catch (campaignError: unknown) {
+          if (campaignError === "resource already created") {
+            renderFlash(
+              "error",
+              "A campaign with the provided query text has already been created"
+            );
+          }
+
+          if (
+            typeof campaignError === "object" &&
+            campaignError !== null &&
+            "message" in campaignError
+          ) {
+            const { message } = campaignError as { message: string };
+
+            if (message === "forbidden") {
+              renderFlash(
+                "error",
+                "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
+              );
+            } else {
+              renderFlash(
+                "error",
+                "Something has gone wrong. Please try again."
+              );
+            }
+          }
+
+          teardownDistributedQuery();
+        }
+      }),
+    [
+      lastEditedQueryBody,
+      renderFlash,
+      selectedTargets,
+      connectAndRunLiveQuery,
+      teardownDistributedQuery,
+      removeSocket,
+      destroyCampaign,
+    ]
+  );
 
   const onStopQuery = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    return teardownDistributedQuery();
+    teardownDistributedQuery();
   };
 
   useEffect(() => {
     onRunQuery();
-  }, []);
+  }, [onRunQuery]);
 
   const { campaign } = campaignState;
 

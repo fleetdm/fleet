@@ -58,11 +58,11 @@ const HostQueryReport = ({
     }
   );
 
-  const {
-    isLoading: queryLoading,
-    data: queryResponse,
-    error: queryError,
-  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
+  const { isLoading: queryLoading, data: queryResponse } = useQuery<
+    IGetQueryResponse,
+    Error,
+    ISchedulableQuery
+  >(
     ["query", queryId],
     () => queryAPI.load(queryId),
 
@@ -139,7 +139,7 @@ const HostQueryReport = ({
         </div>
       </div>
     );
-  }, [queryId, hostId, hqrError, hostName]);
+  }, [queryId, hostId, hqrError, hostName, currentTeam?.id]);
 
   return (
     <MainContent className={baseClass}>

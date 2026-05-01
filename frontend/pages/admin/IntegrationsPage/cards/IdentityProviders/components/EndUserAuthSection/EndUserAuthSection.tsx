@@ -125,7 +125,14 @@ const EndUserAuthSection = ({
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, setFormData, renderFlash, setDirty]
+    [
+      formData,
+      setFormData,
+      renderFlash,
+      setDirty,
+      announceChanges,
+      originalFormData,
+    ]
   );
 
   const renderContent = () => {

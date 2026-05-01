@@ -29,6 +29,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const baseClass = "host-sw-library-table";
 
 interface IHostSoftwareLibraryTableProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   enhancedData?: IHostSoftwareWithUiStatus[];
@@ -93,7 +94,7 @@ const HostSoftwareLibraryTable = ({
 
       return newQueryParam;
     },
-    [selfService]
+    [selfService, teamId]
   );
 
   // TODO: Look into useDebounceCallback with dependencies

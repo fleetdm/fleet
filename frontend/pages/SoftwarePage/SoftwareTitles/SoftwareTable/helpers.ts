@@ -137,18 +137,22 @@ export type ISoftwareVulnFiltersParams = {
 };
 
 export const isValidNumber = (
-  value: any,
+  value: unknown,
   min?: number,
   max?: number
 ): value is number => {
   // Check if the value is a number and not NaN
   const isNumber = typeof value === "number" && !isNaN(value);
 
+  if (!isNumber) {
+    return false;
+  }
+
   // If min or max is provided, check if the number is within the range
   const withinRange =
     (min === undefined || value >= min) && (max === undefined || value <= max);
 
-  return isNumber && withinRange;
+  return withinRange;
 };
 
 export const buildSoftwareVulnFiltersQueryParams = (

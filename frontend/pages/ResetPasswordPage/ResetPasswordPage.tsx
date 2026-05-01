@@ -10,10 +10,10 @@ import formatErrorResponse from "utilities/format_error_response";
 // @ts-ignore
 import ResetPasswordForm from "components/forms/ResetPasswordForm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import AuthenticationNav from "components/AuthenticationNav";
 
 const baseClass = "reset-password-page";
 interface IResetPasswordPageProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
   router: InjectedRouter;
 }
@@ -27,16 +27,18 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     if (!currentUser && !token) {
       router.push(PATHS.LOGIN);
     }
-  }, [currentUser, token]);
+  }, [currentUser, token, router]);
 
   // No access prompt if API errors due to no role or currentUser data has no role
   useEffect(() => {
     if (!currentUser?.global_role && currentUser?.teams.length === 0) {
       router.push(PATHS.NO_ACCESS);
     }
-  }, [errors, currentUser]);
+  }, [errors, currentUser, router]);
 
-  const continueWithLoggedInUser = async (formData: any) => {
+  const continueWithLoggedInUser = async (formData: {
+    new_password: string;
+  }) => {
     const { new_password } = formData;
 
     try {
@@ -44,9 +46,10 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       const config = await configAPI.loadAll();
       setConfig(config);
       return router.push(PATHS.DASHBOARD);
-    } catch (response: any) {
+    } catch (response: unknown) {
+      const resp = response as { data?: { message?: string } };
       if (
-        response.data.message.includes(
+        resp.data?.message?.includes(
           "either global role or team role needs to be defined"
         )
       ) {
@@ -59,9 +62,13 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     }
   };
 
-  const onSubmit = async (formData: any) => {
+  const onSubmit = async (formData: {
+    new_password: string;
+    new_password_confirmation: string;
+  }) => {
     if (currentUser) {
-      return continueWithLoggedInUser(formData);
+      continueWithLoggedInUser(formData);
+      return;
     }
 
     const resetPasswordData = {
@@ -75,7 +82,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      return false;
     }
   };
 

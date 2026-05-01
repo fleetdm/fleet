@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
+import { Column } from "react-table";
 
 import { getPathWithQueryParams } from "utilities/url";
 import { SingleValue } from "react-select-5";
@@ -35,7 +36,7 @@ export interface ISelfServiceCardProps {
   queryParams: SelfServiceQueryParams;
   enhancedSoftware: IDeviceSoftwareWithUiStatus[];
   selfServiceData?: IGetDeviceSoftwareResponse;
-  tableConfig?: any;
+  tableConfig?: Column<IDeviceSoftwareWithUiStatus>[];
   isLoading: boolean;
   isError: boolean;
   isFetching: boolean;
@@ -44,7 +45,10 @@ export interface ISelfServiceCardProps {
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction?: any;
+  onClickInstallAction?: (
+    softwareId: number,
+    isScriptPackage?: boolean
+  ) => void;
 }
 
 const SelfServiceCard = ({
@@ -176,15 +180,17 @@ const SelfServiceCard = ({
             onSearchQueryChange={onSearchQueryChange}
             onCategoriesDropdownChange={onCategoriesDropdownChange}
           />
-          <SelfServiceTiles
-            contactUrl={contactUrl}
-            enhancedSoftware={filteredSoftware}
-            isFetching={isFetching}
-            isEmptySearch={
-              enhancedSoftware.length > 0 && filteredSoftware.length === 0
-            }
-            onClickInstallAction={onClickInstallAction}
-          />
+          {onClickInstallAction && (
+            <SelfServiceTiles
+              contactUrl={contactUrl}
+              enhancedSoftware={filteredSoftware}
+              isFetching={isFetching}
+              isEmptySearch={
+                enhancedSoftware.length > 0 && filteredSoftware.length === 0
+              }
+              onClickInstallAction={onClickInstallAction}
+            />
+          )}
         </div>
       </>
     );
@@ -208,7 +214,7 @@ const SelfServiceCard = ({
         queryParams={queryParams}
         enhancedSoftware={filteredSoftware}
         selfServiceData={selfServiceData}
-        tableConfig={tableConfig}
+        tableConfig={tableConfig ?? []}
         isFetching={isFetching}
         isEmptySearch={isEmptySearch}
         onSortChange={onSortChange}

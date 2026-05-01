@@ -4,6 +4,7 @@ import { Params } from "react-router/lib/Router";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
+import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import sessionsAPI from "services/entities/sessions";
 import formatErrorResponse from "utilities/format_error_response";
@@ -13,6 +14,7 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
 
 interface IConfirmSSOInvitePageProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
   params: Params;
   router: InjectedRouter;
@@ -35,11 +37,13 @@ const ConfirmSSOInvitePage = ({
     const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(DASHBOARD);
+      router.push(DASHBOARD);
     }
-  }, [currentUser]);
+  }, [currentUser, router]);
 
-  const onSubmit = async (formData: any) => {
+  const onSubmit = async (
+    formData: ICreateUserWithInvitationFormData & { sso_invite?: boolean }
+  ) => {
     const { DASHBOARD } = paths;
 
     formData.sso_invite = true;
@@ -51,7 +55,6 @@ const ConfirmSSOInvitePage = ({
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      return false;
     }
   };
 

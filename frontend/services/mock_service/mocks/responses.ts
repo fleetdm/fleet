@@ -10633,19 +10633,20 @@ const secrets = (url: string) => {
   };
 };
 
-const addSecret = (url: string, secret: any) => {
+const addSecret = (url: string, secret: Record<string, unknown>) => {
   // Stubbed out for now, as the secrets endpoint is not yet implemented.
-  if (secret.name === "DUPE") {
+  const name = secret.name as string;
+  if (name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (secret.name === "ERR") {
+  if (name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
   mockSecrets = [
     ...mockSecrets,
     {
-      name: secret.name,
+      name,
       id: (nextSecretId += 1),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

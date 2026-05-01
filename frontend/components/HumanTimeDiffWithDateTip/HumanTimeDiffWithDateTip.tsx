@@ -7,6 +7,7 @@ import ReactTooltip, { Place } from "react-tooltip";
 
 interface IHumanTimeDiffWithDateTip {
   timeString: string;
+  // eslint-disable-next-line react/no-unused-prop-types
   cutoffBeforeFleetLaunch?: boolean;
   tooltipPosition?: Place;
 }

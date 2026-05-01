@@ -10,7 +10,7 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import PillBadge from "components/PillBadge";
 
 interface IHeaderProps {

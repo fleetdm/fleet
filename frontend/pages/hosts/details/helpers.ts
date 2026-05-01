@@ -151,5 +151,7 @@ export const getHostDeviceStatusUIState = (
 export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState
 ) => {
-  return deviceUpdatingStates.includes(deviceStatus as any);
+  return (deviceUpdatingStates as readonly HostMdmDeviceStatusUIState[]).includes(
+    deviceStatus
+  );
 };

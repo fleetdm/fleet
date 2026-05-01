@@ -368,6 +368,7 @@ export const useTeamIdParam = ({
     search: string;
     query: { fleet_id?: string; team_id?: string };
     hash?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any; // for other location properties that may be passed in
   };
   router: InjectedRouter;

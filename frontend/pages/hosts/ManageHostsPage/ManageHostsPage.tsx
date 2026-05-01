@@ -1184,7 +1184,12 @@ const ManageHostsPage = ({
       setFilteredQueriesPath("");
       setFilteredPoliciesPath("");
     },
-    [handleTeamChange]
+    [
+      handleTeamChange,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
+    ]
   );
 
   const onSaveSecret = async (enrollSecretString: string) => {
@@ -1291,7 +1296,7 @@ const ManageHostsPage = ({
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
-      return false;
+      return;
     }
     setIsUpdating(true);
 
@@ -1565,39 +1570,99 @@ const ManageHostsPage = ({
     </div>
   );
 
-  const onExportHostsResults = async (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
+  const onExportHostsResults = useCallback(
+    async (evt: React.MouseEvent<HTMLButtonElement>) => {
+      evt.preventDefault();
 
-    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-    let currentHiddenColumns = [];
-    let visibleColumns;
-    if (hiddenColumnsStorage) {
-      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
-    }
+      const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+      let currentHiddenColumns = [];
+      let visibleColumns;
+      if (hiddenColumnsStorage) {
+        currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+      }
 
-    if (config && currentUser) {
-      const tableColumns = generateVisibleTableColumns({
-        hiddenColumns: currentHiddenColumns,
-        isFreeTier,
-        isOnlyObserver,
+      if (config && currentUser) {
+        const tableColumns = generateVisibleTableColumns({
+          hiddenColumns: currentHiddenColumns,
+          isFreeTier,
+          isOnlyObserver,
+          teamId: teamIdForApi,
+        });
+
+        const columnIds = tableColumns
+          .map((column) => (column.id ? column.id : ""))
+          // "selection" colum does not include any relevent data for the CSV
+          // so we filter it out.
+          .filter((element) => element !== "" && element !== "selection");
+        visibleColumns = columnIds.join(",");
+      }
+
+      let options = {
+        selectedLabels,
+        globalFilter: searchQuery,
+        sortBy,
         teamId: teamIdForApi,
-      });
+        policyId,
+        policyResponse,
+        macSettingsStatus,
+        softwareId,
+        softwareTitleId,
+        softwareVersionId,
+        softwareStatus,
+        status,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        osName,
+        osVersionId,
+        osVersion,
+        osSettings: osSettingsStatus,
+        bootstrapPackageStatus,
+        vulnerability,
+        visibleColumns,
+        configProfileUUID,
+        configProfileStatus,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
+      };
 
-      const columnIds = tableColumns
-        .map((column) => (column.id ? column.id : ""))
-        // "selection" colum does not include any relevent data for the CSV
-        // so we filter it out.
-        .filter((element) => element !== "" && element !== "selection");
-      visibleColumns = columnIds.join(",");
-    }
+      options = {
+        ...options,
+        teamId: teamIdForApi,
+      };
 
-    let options = {
+      if (
+        queryParams.fleet_id !== API_ALL_TEAMS_ID &&
+        queryParams.fleet_id !== ""
+      ) {
+        options.teamId = queryParams.fleet_id;
+      }
+
+      try {
+        const exportHostResults = await hostsAPI.exportHosts(options);
+
+        const formattedTime = format(new Date(), "yyyy-MM-dd");
+        const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
+        const file = new global.window.File([exportHostResults], filename, {
+          type: "text/csv",
+        });
+
+        FileSaver.saveAs(file);
+      } catch (error) {
+        console.error(error);
+        renderFlash("error", "Could not export hosts. Please try again.");
+      }
+    },
+    [
+      config,
+      currentUser,
+      isFreeTier,
+      isOnlyObserver,
+      teamIdForApi,
       selectedLabels,
-      globalFilter: searchQuery,
+      searchQuery,
       sortBy,
-      teamId: teamIdForApi,
       policyId,
       policyResponse,
       macSettingsStatus,
@@ -1613,43 +1678,17 @@ const ManageHostsPage = ({
       osName,
       osVersionId,
       osVersion,
-      osSettings: osSettingsStatus,
+      osSettingsStatus,
       bootstrapPackageStatus,
       vulnerability,
-      visibleColumns,
       configProfileUUID,
       configProfileStatus,
       scriptBatchExecutionStatus,
       scriptBatchExecutionId,
-    };
-
-    options = {
-      ...options,
-      teamId: teamIdForApi,
-    };
-
-    if (
-      queryParams.fleet_id !== API_ALL_TEAMS_ID &&
-      queryParams.fleet_id !== ""
-    ) {
-      options.teamId = queryParams.fleet_id;
-    }
-
-    try {
-      const exportHostResults = await hostsAPI.exportHosts(options);
-
-      const formattedTime = format(new Date(), "yyyy-MM-dd");
-      const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
-      const file = new global.window.File([exportHostResults], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    } catch (error) {
-      console.error(error);
-      renderFlash("error", "Could not export hosts. Please try again.");
-    }
-  };
+      queryParams.fleet_id,
+      renderFlash,
+    ]
+  );
 
   const renderHostCount = useCallback(() => {
     return (
@@ -1669,7 +1708,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, totalFilteredHostsCount]);
+  }, [totalFilteredHostsCount, onExportHostsResults]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label

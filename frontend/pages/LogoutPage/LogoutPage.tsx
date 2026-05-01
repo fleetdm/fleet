@@ -27,12 +27,12 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
       } catch (response) {
         console.error(response);
         router.goBack();
-        return renderFlash("error", "Unable to log out of your account");
+        renderFlash("error", "Unable to log out of your account");
       }
     };
 
     logoutUser();
-  }, []);
+  }, [isSandboxMode, renderFlash, router]);
 
   return null;
 };

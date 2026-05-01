@@ -189,7 +189,7 @@ const EditQueryPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   const detectIsFleetQueryRunnable = () => {
     statusAPI.live_query().catch(() => {
@@ -220,7 +220,17 @@ const EditQueryPage = ({
         })
       );
     }
-  }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
+  }, [
+    queryId,
+    isTeamMaintainerOrTeamAdmin,
+    isStoredQueryLoading,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    location.query.fleet_id,
+    location.query.host_id,
+    router,
+    storedQuery?.team_id,
+  ]);
 
   useEffect(() => {
     detectIsFleetQueryRunnable();
@@ -237,7 +247,19 @@ const EditQueryPage = ({
       setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
       setLastEditedQueryDiscardData(DEFAULT_QUERY.discard_data);
     }
-  }, [queryId]);
+  }, [
+    queryId,
+    setLastEditedQueryId,
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryObserverCanRun,
+    setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
+    setLastEditedQueryLoggingType,
+    setLastEditedQueryMinOsqueryVersion,
+    setLastEditedQueryPlatforms,
+    setLastEditedQueryDiscardData,
+  ]);
 
   const [isQuerySaving, setIsQuerySaving] = useState(false);
   const [isQueryUpdating, setIsQueryUpdating] = useState(false);
@@ -272,7 +294,7 @@ const EditQueryPage = ({
         );
         renderFlash("success", "Report created.");
         setBackendValidators({});
-      } catch (createError: any) {
+      } catch (createError: unknown) {
         if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
@@ -318,7 +340,7 @@ const EditQueryPage = ({
       await queryAPI.update(queryId, updatedQuery);
       renderFlash("success", "Report updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
-    } catch (updateError: any) {
+    } catch (updateError: unknown) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {

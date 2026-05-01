@@ -10,8 +10,11 @@ import CardHeader from "components/CardHeader";
 
 const baseClass = "agent-options-card";
 interface IAgentOptionsProps {
-  osqueryData: { [key: string]: any };
-  wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
+  osqueryData: Record<string, unknown>;
+  wrapFleetHelper: (
+    helperFn: (value: number) => string,
+    value: string
+  ) => string;
   isChromeOS?: boolean;
   className?: string;
 }
@@ -42,15 +45,15 @@ const AgentOptions = ({
   } else {
     configTLSRefresh = wrapFleetHelper(
       secondsToHms,
-      osqueryData.config_tls_refresh
+      osqueryData.config_tls_refresh as string
     );
     loggerTLSPeriod = wrapFleetHelper(
       secondsToHms,
-      osqueryData.logger_tls_period
+      osqueryData.logger_tls_period as string
     );
     distributedInterval = wrapFleetHelper(
       secondsToHms,
-      osqueryData.distributed_interval
+      osqueryData.distributed_interval as string
     );
   }
 

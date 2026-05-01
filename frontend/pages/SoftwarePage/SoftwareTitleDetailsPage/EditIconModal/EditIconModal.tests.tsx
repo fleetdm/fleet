@@ -100,6 +100,7 @@ describe("EditIconModal", () => {
     it("only edits the display name when icon is not changed", async () => {
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockResolvedValue({} as any);
       const deleteSoftwareIconSpy = jest.spyOn(
         softwareAPI,
@@ -129,6 +130,7 @@ describe("EditIconModal", () => {
     it("only edits the display name when removing a custom name", async () => {
       const editSoftwarePackageSpy = jest
         .spyOn(softwareAPI, "editSoftwarePackage")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockResolvedValue({} as any);
 
       const MODIFIED_PROPS = {

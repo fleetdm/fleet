@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { forEach } from "lodash";
 
 import {
@@ -32,25 +32,34 @@ const usePlatformSelector = (
   const [checkLinux, setCheckLinux] = useState(false);
   const [checkChrome, setCheckChrome] = useState(false);
 
-  const checksByPlatform: Record<string, boolean> = {
-    darwin: checkDarwin,
-    windows: checkWindows,
-    linux: checkLinux,
-    chrome: checkChrome,
-  };
+  const checksByPlatform: Record<string, boolean> = useMemo(
+    () => ({
+      darwin: checkDarwin,
+      windows: checkWindows,
+      linux: checkLinux,
+      chrome: checkChrome,
+    }),
+    [checkDarwin, checkWindows, checkLinux, checkChrome]
+  );
 
-  const settersByPlatform: Record<string, (val: boolean) => void> = {
-    darwin: setCheckDarwin,
-    windows: setCheckWindows,
-    linux: setCheckLinux,
-    chrome: setCheckChrome,
-  };
+  const settersByPlatform = useMemo<Record<string, (val: boolean) => void>>(
+    () => ({
+      darwin: setCheckDarwin,
+      windows: setCheckWindows,
+      linux: setCheckLinux,
+      chrome: setCheckChrome,
+    }),
+    [] // setState functions are stable
+  );
 
-  const setSelectedPlatforms = (platformsToCheck: string[]) => {
-    forEach(settersByPlatform, (setCheck, p) => {
-      platformsToCheck.includes(p) ? setCheck(true) : setCheck(false);
-    });
-  };
+  const setSelectedPlatforms = useCallback(
+    (platformsToCheck: string[]) => {
+      forEach(settersByPlatform, (setCheck, p) => {
+        platformsToCheck.includes(p) ? setCheck(true) : setCheck(false);
+      });
+    },
+    [settersByPlatform]
+  );
 
   const getSelectedPlatforms = useCallback(() => {
     return QUERYABLE_PLATFORMS.filter((p) => checksByPlatform[p]);
@@ -63,7 +72,7 @@ const usePlatformSelector = (
       setSelectedPlatforms(["darwin", "windows", "linux", "chrome"]);
     }
     platformContext && setSelectedPlatforms(platformContext.split(","));
-  }, [platformContext]);
+  }, [platformContext, setSelectedPlatforms]);
 
   const render = useCallback(() => {
     return (
@@ -82,7 +91,16 @@ const usePlatformSelector = (
         currentTeamId={currentTeamId}
       />
     );
-  }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
+  }, [
+    checkDarwin,
+    checkWindows,
+    checkLinux,
+    checkChrome,
+    disabled,
+    baseClass,
+    currentTeamId,
+    installSoftware,
+  ]);
 
   return {
     setSelectedPlatforms,

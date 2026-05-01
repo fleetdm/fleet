@@ -65,6 +65,7 @@ const QueryReport = ({
         setColumnConfigs(newColumnConfigs);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {

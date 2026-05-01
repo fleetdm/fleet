@@ -1,11 +1,10 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
 import React from "react";
-import { syntaxHighlight } from "utilities/helpers";
-
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
+import SyntaxHighlightedCode from "components/SyntaxHighlightedCode";
 
 const baseClass = "preview-data-modal";
 
@@ -51,7 +50,7 @@ const PreviewDataModal = ({
           </TooltipWrapper>
         </p>
         <div className={`${baseClass}__host-status-webhook-preview`}>
-          <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
+          <SyntaxHighlightedCode json={json} />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Close</Button>

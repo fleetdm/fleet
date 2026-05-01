@@ -91,12 +91,12 @@ const SQLEditor = ({
     [`${baseClass}__wrapper--readonly-copy`]: !!isReadonlyCopy,
   });
 
-  const onClickCopy = () => {
+  const onClickCopy = useCallback(() => {
     stringToClipboard(value || "").then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  };
+  }, [value]);
 
   const fixHotkeys = (editor: Ace.Editor) => {
     editor.commands.removeCommand("gotoline");
@@ -261,7 +261,7 @@ const SQLEditor = ({
     onLoad && onLoad(editor);
   };
 
-  const onBlurHandler = (event: any, editor?: Ace.Editor): void => {
+  const onBlurHandler = (_event: unknown, editor?: Ace.Editor): void => {
     onBlur && onBlur(editor);
   };
 
@@ -313,7 +313,7 @@ const SQLEditor = ({
         </div>
       </div>
     );
-  }, [error, label, labelActionComponent, enableCopy, copied]);
+  }, [error, label, labelActionComponent, enableCopy, copied, onClickCopy]);
 
   const renderHelpText = () => {
     if (helpText) {

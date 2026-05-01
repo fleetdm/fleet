@@ -6,6 +6,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 const baseClass = "text-cell";
 interface ITextCellProps {
   value?: React.ReactNode | { timeString: string };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   formatter?: (val: any) => React.ReactNode; // string, number, or null
   grey?: boolean;
   italic?: boolean;

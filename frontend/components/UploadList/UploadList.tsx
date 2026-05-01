@@ -3,13 +3,13 @@ import classnames from "classnames";
 
 const baseClass = "upload-list";
 
-interface IUploadListProps<T = any> {
+interface IUploadListProps<T = unknown> {
   /** The attribute name that is used for the react key for each list item.
    * This is optional and not needed when the listItem type is a string
    */
   keyAttribute?: keyof T;
   listItems: T[];
-  HeadingComponent?: (props: any) => JSX.Element;
+  HeadingComponent?: (props: Record<string, never>) => JSX.Element;
   ListItemComponent: (props: { listItem: T }) => JSX.Element;
   className?: string;
 }

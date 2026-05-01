@@ -16,6 +16,7 @@ describe("HostSoftwareTableConfig - Last opened column", () => {
     platform: "windows",
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lastOpenedColumn = headers.find((h) => h.id === "Last opened") as any;
 
   if (!lastOpenedColumn || typeof lastOpenedColumn.accessor !== "function") {

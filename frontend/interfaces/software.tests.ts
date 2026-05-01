@@ -208,6 +208,7 @@ describe("formatSoftwareType", () => {
     it("should handle unknown source types", () => {
       expect(
         formatSoftwareType({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           source: "unknown_source" as any,
         })
       ).toBe("Unknown");
@@ -235,6 +236,7 @@ describe("formatSoftwareType", () => {
       expect(
         formatSoftwareType({
           source: "chrome_extensions",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           extension_for: null as any,
         })
       ).toBe("Browser plugin");

@@ -12,7 +12,12 @@ jest.mock("..", () => ({
 }));
 
 // Create a simple mock SVG component for matched icons
-const MockSvgIcon = ({ width, height, className }: any) => (
+/* eslint-disable react/prop-types */
+const MockSvgIcon = ({
+  width,
+  height,
+  className,
+}: React.SVGProps<SVGSVGElement>) => (
   <svg
     data-testid="mock-svg"
     width={width}
@@ -20,6 +25,7 @@ const MockSvgIcon = ({ width, height, className }: any) => (
     className={className}
   />
 );
+/* eslint-enable react/prop-types */
 
 describe("OSIcon", () => {
   beforeEach(() => {

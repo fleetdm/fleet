@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useQuery } from "react-query";
 
 import {
@@ -70,7 +70,7 @@ const OperatingSystems = ({
     }
   );
 
-  const renderDescription = () => {
+  const renderDescription = useCallback(() => {
     if (selectedPlatform === "chrome") {
       return (
         <p>
@@ -103,14 +103,7 @@ const OperatingSystems = ({
         </p>
       );
     return null;
-  };
-  const titleDetail = osInfo?.counts_updated_at ? (
-    <LastUpdatedText
-      lastUpdatedAt={osInfo?.counts_updated_at}
-      whatToRetrieve="operating systems"
-    />
-  ) : null;
-
+  }, [selectedPlatform, showDescription]);
   const osVersions = osInfo?.os_versions || [];
 
   useEffect(() => {
@@ -122,13 +115,27 @@ const OperatingSystems = ({
     }
     setShowTitle(true);
     if (osVersions.length) {
+      const titleDetail = osInfo?.counts_updated_at ? (
+        <LastUpdatedText
+          lastUpdatedAt={osInfo?.counts_updated_at}
+          whatToRetrieve="operating systems"
+        />
+      ) : null;
       setTitleDescription?.(renderDescription());
       setTitleDetail?.(titleDetail);
       return;
     }
     setTitleDescription?.(null);
     setTitleDetail?.(null);
-  }, [isLoading, osInfo, setTitleDescription, setTitleDetail]);
+  }, [
+    isLoading,
+    osInfo,
+    osVersions.length,
+    renderDescription,
+    setShowTitle,
+    setTitleDescription,
+    setTitleDetail,
+  ]);
 
   // Renders opaque information as host information is loading
   const opacity = isLoading || !showTitle ? { opacity: 0 } : { opacity: 1 };

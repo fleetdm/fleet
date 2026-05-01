@@ -1,4 +1,5 @@
 import React from "react";
+import { Column } from "react-table";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
@@ -22,7 +23,7 @@ interface SelfServiceTableProps {
   };
   enhancedSoftware: IDeviceSoftwareWithUiStatus[];
   selfServiceData?: IGetDeviceSoftwareResponse;
-  tableConfig: any;
+  tableConfig: Column<IDeviceSoftwareWithUiStatus>[];
   isFetching: boolean;
   isEmptySearch: boolean;
   onSortChange: (query: ITableQueryData) => void;

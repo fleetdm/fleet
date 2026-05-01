@@ -32,8 +32,9 @@ describe("scripts_encoding", () => {
     it("should encode PowerShell install script patterns", () => {
       const script = "$installProcess = Start-Process msiexec.exe";
       const encoded = encodeScriptBase64(script);
+      expect(encoded).toBeDefined();
       // Verify it's valid base64 and decodes back correctly
-      expect(atob(encoded!)).toBe(script);
+      expect(atob(encoded as string)).toBe(script);
     });
 
     it("should encode multiline PowerShell scripts", () => {
@@ -41,15 +42,17 @@ describe("scripts_encoding", () => {
         // eslint-disable-next-line no-template-curly-in-string
         '$logFile = "${env:TEMP}/fleet-install.log"\nStart-Process msiexec.exe';
       const encoded = encodeScriptBase64(script);
+      expect(encoded).toBeDefined();
       // Verify it's valid base64 and decodes back correctly
-      expect(atob(encoded!)).toBe(script);
+      expect(atob(encoded as string)).toBe(script);
     });
 
     it("should handle unicode characters correctly", () => {
       const script = 'echo "Hello World"';
       const encoded = encodeScriptBase64(script);
+      expect(encoded).toBeDefined();
       // Decode and verify using TextDecoder for proper UTF-8 handling
-      const decoded = atob(encoded!);
+      const decoded = atob(encoded as string);
       expect(decoded).toBe(script);
     });
 
@@ -72,9 +75,9 @@ describe("scripts_encoding", () => {
         const encoded = encodeScriptBase64(script);
         expect(encoded).toBeDefined();
         // Verify it's valid base64 (won't throw)
-        expect(() => atob(encoded!)).not.toThrow();
+        expect(() => atob(encoded as string)).not.toThrow();
         // Verify it decodes back to original
-        expect(atob(encoded!)).toBe(script);
+        expect(atob(encoded as string)).toBe(script);
       });
     });
   });

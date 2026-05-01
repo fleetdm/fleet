@@ -67,10 +67,13 @@ const RunScriptBatchPaginatedList = ({
     [_onRunScript]
   );
 
-  const onClickScriptRow = useCallback((script: IPaginatedListScript) => {
-    setScriptForDetails(script);
-    return script;
-  }, []);
+  const onClickScriptRow = useCallback(
+    (script: IPaginatedListScript) => {
+      setScriptForDetails(script);
+      return script;
+    },
+    [setScriptForDetails]
+  );
 
   const renderScriptRow = (
     script: IPaginatedListScript,

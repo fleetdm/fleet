@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import classnames from "classnames";
 import {
+  Cell,
   Column,
   HeaderGroup,
   Row,
@@ -37,18 +38,19 @@ const baseClass = "data-table-block";
 
 interface IDataTableProps {
   columns: Column[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any;
   filters?: Record<string, string | number | boolean>;
   isLoading: boolean;
   manualSortBy?: boolean;
-  sortHeader: any;
-  sortDirection: any;
-  onSort: any; // TODO: an event type
+  sortHeader: string;
+  sortDirection: string;
+  onSort: (id: string | undefined, desc?: boolean) => void;
   disableMultiRowSelect: boolean;
   keyboardSelectableRows?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
-  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  toggleAllPagesSelected?: (value: boolean) => void;
   resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
@@ -72,6 +74,7 @@ interface IDataTableProps {
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
@@ -84,6 +87,7 @@ interface IDataTableProps {
   /** Optional override for react-table's row ID derivation.
    *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
    *  as IDs would collide across pages. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRowId?: (row: any, index: number) => string;
 }
 
@@ -188,6 +192,7 @@ const DataTable = ({
       // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
       getRowId:
         getRowIdProp ??
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ((row: any, index: number) =>
           row && row.id != null ? String(row.id) : String(index)),
       initialState: {
@@ -291,11 +296,22 @@ const DataTable = ({
       !!allFilters.length && setAllFilters(allFilters);
       setExportRows && setExportRows(rows);
     }
-  }, [tableFilters]);
+    // NOTE: `rows` is intentionally excluded from deps to avoid an infinite
+    // re-render loop.  `setExportRows` calls setState in the parent, which
+    // regenerates column configs, which produces a new `rows` reference,
+    // which would re-trigger this effect → OOM.  `tableFilters` is the
+    // correct trigger for this side-effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableFilters, setAllFilters, setExportRows, setGlobalFilter]);
 
   useEffect(() => {
     setExportRows && setExportRows(rows);
-  }, [tableState.filters, rows.length]);
+    // NOTE: `rows` is intentionally excluded – only `rows.length` is used so
+    // we detect actual data-count changes without reacting to every
+    // referential change (which would cause an infinite loop via
+    // setExportRows → parent re-render → new columns → new rows → …).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableState.filters, rows.length, setExportRows]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 
@@ -323,7 +339,14 @@ const DataTable = ({
       toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
     }
     isInitialRender.current = false;
-  }, [searchQuery, searchQueryColumn]);
+  }, [
+    searchQuery,
+    searchQueryColumn,
+    isClientSideFilter,
+    persistSelectedRows,
+    setDebouncedClientFilter,
+    toggleAllRowsSelected,
+  ]);
 
   useEffect(() => {
     if (isClientSideFilter && selectedDropdownFilter) {
@@ -332,7 +355,12 @@ const DataTable = ({
         ? setDebouncedClientFilter("platforms", "")
         : setDebouncedClientFilter("platforms", selectedDropdownFilter);
     }
-  }, [selectedDropdownFilter]);
+  }, [
+    selectedDropdownFilter,
+    isClientSideFilter,
+    setDebouncedClientFilter,
+    toggleAllRowsSelected,
+  ]);
 
   // track previous sort state
   const prevSort = useRef<{ id?: string; desc?: boolean }>({
@@ -372,7 +400,14 @@ const DataTable = ({
     prevSort.current = column
       ? { id: newId, desc: newDesc }
       : { id: undefined, desc: undefined };
-  }, [sortBy, sortHeader, onSort, sortDirection, isClientSidePagination]);
+  }, [
+    sortBy,
+    sortHeader,
+    onSort,
+    sortDirection,
+    isClientSidePagination,
+    gotoPage,
+  ]);
 
   /** For onClientSidePaginationChange only:
    * Prevents bug where URL page + table page mismatch
@@ -404,7 +439,7 @@ const DataTable = ({
 
   useEffect(() => {
     setPageSize(defaultPageSize);
-  }, [setPageSize]);
+  }, [setPageSize, defaultPageSize]);
 
   useDeepEffect(() => {
     if (
@@ -416,7 +451,7 @@ const DataTable = ({
   }, [tableState.selectedRowIds, toggleAllPagesSelected]);
 
   const onToggleAllPagesClick = useCallback(() => {
-    toggleAllPagesSelected();
+    toggleAllPagesSelected?.(true);
   }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
@@ -426,7 +461,7 @@ const DataTable = ({
   }, [onClearSelection, toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSelectRowClick = useCallback(
-    (row: any) => {
+    (row: Row) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -483,6 +518,7 @@ const DataTable = ({
   };
 
   const renderPrimarySelectAction = (): JSX.Element | null => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const targetIds = selectedFlatRows.map((row: any) => row.original.id);
     const buttonText =
       typeof primarySelectAction?.buttonText === "function"
@@ -504,6 +540,7 @@ const DataTable = ({
 
   const renderSecondarySelectActions = (): JSX.Element[] | null => {
     if (secondarySelectActions) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const targetIds = selectedFlatRows.map((row: any) => row.original.id);
       const buttons = secondarySelectActions.map((actionProps) => {
         actionProps = { ...actionProps, targetIds };
@@ -666,10 +703,13 @@ const DataTable = ({
                   // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
                   tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any, index: number) => {
+                  {/* eslint-disable-next-line @typescript-eslint/no-unused-vars */}
+                  {row.cells.map((cell: Cell, _index: number) => {
                     // Only allow row click behavior on first cell
                     // if the first cell is not a checkbox
-                    const cellProps = cell.getCellProps();
+                    // Destructure key from cellProps to avoid "key specified more than once" warning
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { key: _cellKey, ...cellProps } = cell.getCellProps();
                     const multiRowSelectEnabled = !disableMultiRowSelect;
 
                     return (

@@ -14,7 +14,6 @@ import {
 
 import {
   HostPlatform,
-  isAndroid,
   PLATFORM_DISPLAY_NAMES,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";
@@ -64,6 +63,7 @@ const EmptyComponent = React.memo(
 );
 
 interface IHostSoftwareTableProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   platform: HostPlatform;
@@ -131,7 +131,7 @@ const HostSoftwareTable = ({
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [teamId, vulnFilters]
   );
 
   // TODO: Look into useDebounceCallback with dependencies

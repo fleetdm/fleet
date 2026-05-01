@@ -75,9 +75,12 @@ const RunScriptModal = ({
     [onClickRun, onClickRunDetails]
   );
 
-  const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
-    setPage(pageIndex);
-  }, []);
+  const onQueryChange = useCallback(
+    ({ pageIndex }: ITableQueryData) => {
+      setPage(pageIndex);
+    },
+    [setPage]
+  );
 
   const scriptColumnConfigs = useMemo(
     () =>

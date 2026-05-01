@@ -78,7 +78,9 @@ interface IWrapperComponentProps {
 }
 
 const createWrapperComponent = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   CurrentWrapper: React.FC<React.PropsWithChildren<any>>, // TODO: types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   WrapperComponent: React.FC<React.PropsWithChildren<any>>, // TODO: types
   props: IWrapperComponentProps
 ) => {

@@ -33,8 +33,10 @@ interface ITableContainerActionButtonProps extends IActionButtonProps {
   disabledTooltipContent?: React.ReactNode;
 }
 
-interface ITableContainerProps<T = any> {
+interface ITableContainerProps<T = unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columnConfigs: any; // TODO: Figure out type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
@@ -58,7 +60,7 @@ interface ITableContainerProps<T = any> {
   className?: string;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
-  toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  toggleAllPagesSelected?: (value: boolean) => void;
   searchable?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
@@ -122,6 +124,7 @@ interface ITableContainerProps<T = any> {
   onClearSelection?: () => void;
   /** don't show the Clear selection button and selected item count when items are selected */
   suppressHeaderActions?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getRowId?: (row: any, index: number) => string;
 }
 
@@ -316,7 +319,7 @@ const TableContainer = <T,>({
     onPaginationChange,
   ]);
 
-  const renderFilterActionButton = () => {
+  const renderFilterActionButton = useCallback(() => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
       const resolvedButtonText =
@@ -357,7 +360,8 @@ const TableContainer = <T,>({
         button
       );
     }
-  };
+    return null;
+  }, [actionButton, disableActionButton]);
 
   const renderFilters = useCallback(() => {
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
@@ -492,12 +496,12 @@ const TableContainer = <T,>({
     actionButton,
     customControl,
     customFiltersButton,
-    disableActionButton,
     disableCount,
     disableTableHeader,
     inputPlaceHolder,
     isLoading,
     renderCount,
+    renderFilterActionButton,
     searchQuery,
     searchToolTipText,
     searchable,

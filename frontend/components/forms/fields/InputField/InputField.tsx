@@ -27,6 +27,7 @@ export interface IInputFieldProps {
    * parseTarget is true. See IInputFieldParseTarget and InputFieldOnChange
    * in interfaces/form_field.ts for caller-side typing helpers.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange?: (value: any) => void;
   onBlur?: (
     evt: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>

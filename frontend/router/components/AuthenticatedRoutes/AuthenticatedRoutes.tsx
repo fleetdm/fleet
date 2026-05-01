@@ -11,6 +11,7 @@ import permissions from "utilities/permissions";
 
 interface IAppProps {
   children: JSX.Element;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3
   router: InjectedRouter;
 }
@@ -83,20 +84,23 @@ export const AuthenticatedRoutes = ({
         window.location.href = "https://www.fleetdm.com/try-fleet/login";
       }
 
-      return redirectToLogin();
+      redirectToLogin();
+      return;
     }
 
     if (currentUser?.force_password_reset && !authToken.get()) {
-      return redirectToPasswordReset();
+      redirectToPasswordReset();
+      return;
     }
 
     if (currentUser?.api_only) {
-      return redirectToApiUserOnly();
+      redirectToApiUserOnly();
+      return;
     }
 
     if (currentUser && permissions.isNoAccess(currentUser)) {
       authToken.remove();
-      return handlePageError({ status: 403 });
+      handlePageError({ status: 403 });
     }
   }, [currentUser]);
 

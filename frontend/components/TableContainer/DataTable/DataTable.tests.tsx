@@ -176,6 +176,7 @@ describe("DataTable - component", () => {
       },
     ];
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = [];
 
     render(

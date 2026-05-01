@@ -1,30 +1,34 @@
 const defaultFieldSortFunc = (fields: string[]) => fields;
 
 interface ConvertToCSV {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   objArray: any[]; // TODO: typing
   fieldSortFunc?: (fields: string[]) => string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tableHeaders?: any[]; // TODO: typing
 }
 
-const formatFieldForCSV = (value: any): string => {
+const formatFieldForCSV = (value: unknown): string => {
+  let strValue: string;
+
   // If the value is an object, stringify it first
   if (typeof value === "object") {
-    value = JSON.stringify(value);
+    strValue = JSON.stringify(value);
+  } else {
+    strValue = String(value);
   }
 
   // Treat values with leading zeros as strings so csv file doesn't trim leading zeros
-  if (/^0\d+$/.test(value)) {
-    return `"=""${value}"""`;
+  if (/^0\d+$/.test(strValue)) {
+    return `"=""${strValue}"""`;
   }
 
   // Escape double quotes in the value by doubling them
-  if (typeof value === "string") {
-    value = value.replace(/"/g, '""');
-  }
+  strValue = strValue.replace(/"/g, '""');
 
   // Wrap the value in double quotes to enclose any value that may
   // have a, or a " in it to distinguish them from a comma-separated delimiter
-  return `"${value}"`;
+  return `"${strValue}"`;
 };
 
 const convertToCSV = ({

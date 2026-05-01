@@ -23,6 +23,7 @@ const createPatchConfigHandler = (spy: jest.Mock) => {
     spy(body);
     // Echo back a full config with the gitops fields from the request
     return HttpResponse.json(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       createMockConfig({ gitops: (body as any).gitops })
     );
   });

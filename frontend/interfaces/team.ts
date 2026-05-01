@@ -42,7 +42,7 @@ export interface ITeam extends ITeamSummary {
   created_at?: string;
   features?: IConfigFeatures;
   agent_options?: {
-    [key: string]: any;
+    [key: string]: unknown;
   };
   user_count?: number;
   host_count?: number;

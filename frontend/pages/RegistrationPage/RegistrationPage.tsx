@@ -5,7 +5,7 @@ import { max } from "lodash";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
-import local from "utilities/local";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";
@@ -46,9 +46,9 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     const { DASHBOARD } = paths;
 
     if (currentUser) {
-      return router.push(DASHBOARD);
+      router.push(DASHBOARD);
     }
-  }, [currentUser]);
+  }, [currentUser, router]);
 
   const onNextPage = () => {
     const nextPage = page + 1;
@@ -56,7 +56,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPageProgress(max([nextPage, pageProgress]) || 1);
   };
 
-  const onRegistrationFormSubmit = async (formData: any) => {
+  const onRegistrationFormSubmit = async (formData: IRegistrationFormData) => {
     const { DASHBOARD } = paths;
 
     setIsLoading(true);
@@ -80,7 +80,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
 
   const onSetPage = (pageNum: number) => {
     if (pageNum > pageProgress) {
-      return false;
+      return;
     }
 
     setPage(pageNum);

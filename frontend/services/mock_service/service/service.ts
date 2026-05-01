@@ -81,6 +81,7 @@ export const sendRequest = async (
   method = "GET",
   requestPath: string,
   data?: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> => {
   console.log("Mock service request URL: ", requestPath);
   console.log("Mock service request body: ", data);
@@ -111,7 +112,7 @@ export const sendRequest = async (
     const handler = methodHandlers?.[responseKey];
 
     if (typeof handler === "function") {
-      response = await handler(requestPath, data);
+      response = await handler(requestPath, data as Record<string, unknown>);
     } else {
       response = handler;
     }

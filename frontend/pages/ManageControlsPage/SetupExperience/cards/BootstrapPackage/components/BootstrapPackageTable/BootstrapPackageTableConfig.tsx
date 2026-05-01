@@ -28,6 +28,9 @@ interface ICellProps {
   cell: {
     value: string;
   };
+}
+
+interface ICellPropsWithRow extends ICellProps {
   row: {
     original: {
       status: IStatusCellValue;
@@ -51,6 +54,7 @@ type IColumnConfig = {
   disableSortBy?: boolean;
   Cell:
     | ((props: ICellProps) => JSX.Element)
+    | ((props: ICellPropsWithRow) => JSX.Element)
     | ((props: IStatusCellProps) => JSX.Element);
 };
 
@@ -94,7 +98,7 @@ export const COLUMN_CONFIGS: IColumnConfig[] = [
     Header: "",
     accessor: "linkToFilteredHosts",
     disableSortBy: true,
-    Cell: (cellProps: ICellProps) => {
+    Cell: (cellProps: ICellPropsWithRow) => {
       return (
         <>
           {cellProps.row.original && (

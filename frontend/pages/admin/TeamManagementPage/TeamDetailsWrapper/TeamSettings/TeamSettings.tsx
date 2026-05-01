@@ -206,9 +206,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         )
       );
     }
-    // no need for isInitialTeamConfig dependence, since this effect should only run on initial
-    // config load
-  }, [teamConfig]);
+  }, [teamConfig, isInitialTeamConfig]);
 
   const onInputChange = useCallback(
     (newVal: { name: FormNames; value: string | number | boolean }) => {

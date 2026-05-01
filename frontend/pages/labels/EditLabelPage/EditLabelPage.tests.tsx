@@ -11,6 +11,7 @@ import {
 import EditLabelPage from "./EditLabelPage";
 
 // TODO: make this a utility for other tests.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const generateMockRouterProps = (overrides?: any) => {
   return {
     location: {},

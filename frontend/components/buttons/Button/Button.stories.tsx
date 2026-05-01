@@ -13,6 +13,7 @@ const DEFAULT_ARGS = {
 const meta: Meta<typeof Button> = {
   // TODO: change this after button is updated to a functional component. For
   // some reason the typing is incorrect because Button is a class component.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: Button as any,
   title: "Components/Button",
   argTypes: {

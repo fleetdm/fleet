@@ -6,5 +6,5 @@ export interface IRouterLocation {
   port: string;
   protocol: string;
   // lots of other stuff
-  [key: string]: any;
+  [key: string]: unknown;
 }

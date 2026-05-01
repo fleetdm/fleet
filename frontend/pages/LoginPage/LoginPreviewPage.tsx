@@ -1,12 +1,11 @@
 // TODO: Clean up/remove isPreviewMode
 
-import React, { useEffect, useContext } from "react";
+import React, { useCallback, useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import sessionsAPI from "services/entities/sessions";
-import local from "utilities/local";
 import authToken from "utilities/auth_token";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
@@ -29,31 +28,34 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     setCurrentTeam,
   } = useContext(AppContext);
 
-  const onSubmit = async (formData: ILoginData) => {
-    const { DASHBOARD } = paths;
+  const onSubmit = useCallback(
+    async (formData: ILoginData) => {
+      const { DASHBOARD } = paths;
 
-    try {
-      const {
-        user,
-        available_teams,
-        token,
-        token_expires_at,
-      } = await sessionsAPI.login(formData);
-      const expiresAt = token_expires_at
-        ? new Date(token_expires_at)
-        : undefined;
-      authToken.save(token, expiresAt);
+      try {
+        const {
+          user,
+          available_teams,
+          token,
+          token_expires_at,
+        } = await sessionsAPI.login(formData);
+        const expiresAt = token_expires_at
+          ? new Date(token_expires_at)
+          : undefined;
+        authToken.save(token, expiresAt);
 
-      setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
-      setCurrentTeam(undefined);
+        setCurrentUser(user);
+        setAvailableTeams(user, available_teams);
+        setCurrentTeam(undefined);
 
-      return router.push(DASHBOARD);
-    } catch (response) {
-      console.error(response);
-      return false;
-    }
-  };
+        return router.push(DASHBOARD);
+      } catch (response) {
+        console.error(response);
+        return false;
+      }
+    },
+    [router, setAvailableTeams, setCurrentTeam, setCurrentUser]
+  );
 
   useEffect(() => {
     if (isPreviewMode) {
@@ -62,7 +64,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
         password: "preview1337#",
       });
     }
-  }, []);
+  }, [isPreviewMode, onSubmit]);
 
   return (
     <AuthenticationFormWrapper header="Login successful">

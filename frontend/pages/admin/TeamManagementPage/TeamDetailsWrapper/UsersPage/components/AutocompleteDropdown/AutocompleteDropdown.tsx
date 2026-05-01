@@ -70,6 +70,7 @@ const AutocompleteDropdown = ({
 
   // We disable any filtering client side as the server filters the results
   // for us.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const filterOptions = useCallback((options: any) => {
     return options;
   }, []);
@@ -90,9 +91,11 @@ const AutocompleteDropdown = ({
   // we have decided to use callbacks as those seemed to make the component work
   // More info is here:
   // https://stackoverflow.com/questions/52984105/react-select-async-loadoptions-is-not-loading-options-properly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getOptions = debounce((input: string, callback: any) => {
     if (!input) {
-      return callback([]);
+      callback([]);
+      return;
     }
 
     fetch(createUrl(resourceUrl, input), {

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import yaml from "js-yaml";
@@ -52,7 +52,7 @@ const AgentOptionsPage = ({
 
   const [teamName, setTeamName] = useState("");
   const [formData, setFormData] = useState<{ agentOptions?: string }>({});
-  const [formErrors, setFormErrors] = useState<any>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isUpdatingAgentOptions, setIsUpdatingAgentOptions] = useState(false);
 
   const { agentOptions } = formData;
@@ -79,8 +79,8 @@ const AgentOptionsPage = ({
     }
   );
 
-  const validateForm = () => {
-    const errors: any = {};
+  const validateForm = useCallback(() => {
+    const errors: Record<string, string> = {};
 
     if (agentOptions) {
       const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
@@ -90,12 +90,12 @@ const AgentOptionsPage = ({
     }
 
     setFormErrors(errors);
-  };
+  }, [agentOptions]);
 
   // onChange basic yaml validation only
   useEffect(() => {
     validateForm();
-  }, [formData]);
+  }, [validateForm]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

@@ -290,8 +290,7 @@ const generateColumnConfigs = ({
   if (canEditQueries && !omitSelectionColumn) {
     tableHeaders.unshift({
       id: "selection",
-      // TODO - improve typing of IHeaderProps instead of using any
-      // Header: (headerProps: IHeaderProps): JSX.Element => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       Header: (headerProps: any): JSX.Element => {
         const checkboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,

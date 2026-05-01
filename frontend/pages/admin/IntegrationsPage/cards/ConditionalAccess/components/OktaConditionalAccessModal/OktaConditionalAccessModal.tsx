@@ -121,13 +121,14 @@ const OktaConditionalAccessModal = ({
     conditionalAccessAPI.getIdpAppleProfile,
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      onError: (e: any) => {
+      onError: (e: unknown) => {
         // When responseType is "text", error responses come back as JSON strings
         // that need to be parsed manually
         let errorReason = "";
         try {
-          if (e.data && typeof e.data === "string") {
-            const parsedError = JSON.parse(e.data);
+          const err = e as Record<string, unknown>;
+          if (err.data && typeof err.data === "string") {
+            const parsedError = JSON.parse(err.data);
             errorReason = parsedError.errors?.[0]?.reason || "";
           } else {
             errorReason = getErrorReason(e);

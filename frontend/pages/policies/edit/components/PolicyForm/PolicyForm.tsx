@@ -36,7 +36,6 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
@@ -80,10 +79,10 @@ interface IPolicyFormProps {
 }
 
 const validateQuerySQL = (query: string) => {
-  const errors: { [key: string]: any } = {};
+  const errors: Record<string, string> = {};
   const { error: queryError, valid: queryValid } = validateQuery(query);
 
-  if (!queryValid) {
+  if (!queryValid && queryError) {
     errors.query = queryError;
   }
 
@@ -115,12 +114,10 @@ const PolicyForm = ({
   currentAutomatedPolicies,
   onCancel,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
-  const [showQueryEditor, setShowQueryEditor] = useState(false);
-
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedCustomTarget, setSelectedCustomTarget] = useState(
     "labelsIncludeAny"
@@ -168,13 +165,8 @@ const PolicyForm = ({
   const queryClient = useQueryClient();
 
   const {
-    currentUser,
     currentTeam,
     isGlobalObserver,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
@@ -315,7 +307,7 @@ const PolicyForm = ({
     if (isNewTemplatePolicy) {
       setCompatiblePlatforms(lastEditedQueryBody);
     }
-  }, []);
+  }, [isNewTemplatePolicy, lastEditedQueryBody, setCompatiblePlatforms]);
 
   useEffect(() => {
     debounceSQL(lastEditedQueryBody);
@@ -326,13 +318,20 @@ const PolicyForm = ({
       return;
     }
     setCompatiblePlatforms(lastEditedQueryBody);
-  }, [lastEditedQueryBody, lastEditedQueryId]);
+  }, [
+    debounceSQL,
+    isNewTemplatePolicy,
+    lastEditedQueryBody,
+    lastEditedQueryId,
+    policyIdForEdit,
+    setCompatiblePlatforms,
+  ]);
 
   const onLoad = (editor: Ace.Editor) => {
     editor.setOptions({
       enableLinking: true,
       enableMultiselect: false, // Disables command + click creating multiple cursors
-    } as any);
+    } as Partial<Ace.EditorOptions>);
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -378,17 +377,19 @@ const PolicyForm = ({
     evt.preventDefault();
 
     if (isEditMode && !lastEditedQueryName) {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "Policy name must be present",
       });
+      return;
     }
 
     if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "At least one platform must be selected",
       });
+      return;
     }
 
     if (isPatchPolicy && isEditMode) {
@@ -659,7 +660,6 @@ const PolicyForm = ({
               currentAutomatedPolicies={currentAutomatedPolicies}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
-              gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
           {isEditMode &&

@@ -124,7 +124,7 @@ const PolicyPage = ({
     if (lastEditedQueryBody === "") {
       setLastEditedQueryBody(DEFAULT_POLICY.query);
     }
-  }, []);
+  }, [lastEditedQueryBody, setLastEditedQueryBody]);
 
   useEffect(() => {
     // cleanup when component unmounts
@@ -132,7 +132,7 @@ const PolicyPage = ({
       setLastEditedQueryCritical(false);
       setLastEditedQueryPlatform(null);
     };
-  }, []);
+  }, [setLastEditedQueryCritical, setLastEditedQueryPlatform]);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -227,8 +227,8 @@ const PolicyPage = ({
       integrations,
     } = teamData.team;
     const isIntegrationEnabled =
-      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];

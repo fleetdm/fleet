@@ -11,11 +11,14 @@ export interface IScript {
 export const isScriptSupportedPlatform = (hostPlatform: string) =>
   ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados, android see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
 
-export const addTeamIdCriteria = (
-  pred: any,
+export const addTeamIdCriteria = <T extends Record<string, unknown>>(
+  pred: T,
   teamId: number,
   isFreeTier?: boolean
-) => (isFreeTier ? { ...pred } : { ...pred, fleet_id: teamId });
+): T & { fleet_id?: number } =>
+  (isFreeTier ? { ...pred } : { ...pred, fleet_id: teamId }) as T & {
+    fleet_id?: number;
+  };
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 

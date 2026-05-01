@@ -1,16 +1,12 @@
 import { filter, includes } from "lodash";
 
-interface IDictionary {
-  [key: string]: any;
-}
-
-const simpleSearch = (
+const simpleSearch = <T extends { name?: string }>(
   searchQuery = "",
-  dictionary: IDictionary | undefined
-) => {
+  dictionary: T[] | undefined
+): T[] => {
   const lowerSearchQuery = searchQuery.toLowerCase();
 
-  const filterResults = filter(dictionary, (item) => {
+  const filterResults = filter(dictionary, (item: T) => {
     if (!item.name) {
       return false;
     }
