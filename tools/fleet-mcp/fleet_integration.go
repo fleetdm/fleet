@@ -79,6 +79,11 @@ type VulnerabilityImpact struct {
 	CVEID           string `json:"cve_id"`
 	TotalSystems    int    `json:"total_systems"`
 	ImpactedSystems int    `json:"impacted_systems"`
+	// Truncated is true when ImpactedSystems is a lower bound — at least
+	// one per-version-id fan-out hit fetchHostsHardCap, so the actual
+	// impact may be larger. Operators should tighten filters or raise the
+	// cap to get an exact count.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 // AggregateResponse represents a consistent response format for aggregations
@@ -812,7 +817,9 @@ func (fc *FleetClient) resolveTeamNames(ctx context.Context, teamNames []string)
 // without this cap a runaway filter (or a Fleet that ignores a filter and
 // returns the full inventory) can OOM the MCP. Callers can tune via
 // fetchHostsFromPathBounded.
-const fetchHostsHardCap = 10000
+// var (not const) so tests can temporarily lower the cap without having to
+// generate 10k+ host fixtures.
+var fetchHostsHardCap = 10000
 
 // fetchHostsFromPath issues GETs against an arbitrary Fleet hosts-listing
 // path (e.g. /api/v1/fleet/hosts?... or /api/v1/fleet/labels/:id/hosts?...)
@@ -824,15 +831,16 @@ const fetchHostsHardCap = 10000
 // ctx propagation: caller cancellation stops the fan-out between pages —
 // long-running multi-page fetches (label intersection, CVE compose) honor
 // MCP request cancellation rather than running every page to completion.
-func (fc *FleetClient) fetchHostsFromPath(ctx context.Context, path string) ([]Endpoint, error) {
+func (fc *FleetClient) fetchHostsFromPath(ctx context.Context, path string) ([]Endpoint, bool, error) {
 	return fc.fetchHostsFromPathBounded(ctx, path, fetchHostsHardCap)
 }
 
 // fetchHostsFromPathBounded is the paginating worker behind fetchHostsFromPath.
 // hardCap <= 0 falls back to fetchHostsHardCap. When the cap is hit we log a
-// warning so operators see truncation rather than silently returning a partial
-// host list.
-func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path string, hardCap int) ([]Endpoint, error) {
+// warning AND return truncated=true so callers (e.g. GetVulnerabilityImpact)
+// can surface "result is incomplete" to operators instead of silently
+// undercounting.
+func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path string, hardCap int) ([]Endpoint, bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -842,7 +850,7 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 	base, query, _ := strings.Cut(path, "?")
 	params, err := url.ParseQuery(query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse hosts path query: %w", err)
+		return nil, false, fmt.Errorf("failed to parse hosts path query: %w", err)
 	}
 	perPage := 500
 	if v := params.Get("per_page"); v != "" {
@@ -853,19 +861,20 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 	params.Set("per_page", strconv.Itoa(perPage))
 
 	out := make([]Endpoint, 0, perPage)
+	truncated := false
 	for page := 0; ; page++ {
 		// Honor caller cancellation between paginated requests.
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		params.Set("page", strconv.Itoa(page))
 		resp, err := fc.makeFleetRequest(ctx, "GET", base+"?"+params.Encode(), nil)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch hosts: %w", err)
+			return nil, false, fmt.Errorf("failed to fetch hosts: %w", err)
 		}
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			return nil, fmt.Errorf("failed to fetch hosts: status %d", resp.StatusCode)
+			return nil, false, fmt.Errorf("failed to fetch hosts: status %d", resp.StatusCode)
 		}
 		var result struct {
 			Hosts []Endpoint `json:"hosts"`
@@ -873,7 +882,7 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 		decErr := json.NewDecoder(resp.Body).Decode(&result)
 		resp.Body.Close()
 		if decErr != nil {
-			return nil, fmt.Errorf("failed to decode hosts response: %w", decErr)
+			return nil, false, fmt.Errorf("failed to decode hosts response: %w", decErr)
 		}
 		// Hard cap enforcement — truncate the incoming page so out never
 		// exceeds hardCap. Truncation is rare; when it happens the operator
@@ -881,11 +890,13 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 		remaining := hardCap - len(out)
 		if remaining <= 0 {
 			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			truncated = true
 			break
 		}
 		if len(result.Hosts) > remaining {
 			out = append(out, result.Hosts[:remaining]...)
 			logrus.Warnf("fleet host fetch hit hard cap %d (path=%s) — result truncated; tighten filters or raise fetchHostsHardCap", hardCap, base)
+			truncated = true
 			break
 		}
 		out = append(out, result.Hosts...)
@@ -894,7 +905,7 @@ func (fc *FleetClient) fetchHostsFromPathBounded(ctx context.Context, path strin
 			break
 		}
 	}
-	return out, nil
+	return out, truncated, nil
 }
 
 // resolvePlatformOrLabelToLabelID picks a single Fleet label_id from EITHER
@@ -999,7 +1010,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		if policyResponse != "" {
 			params.Set("policy_response", policyResponse)
 		}
-		hosts, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
+		hosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
 		if err != nil {
 			return nil, err
 		}
@@ -1026,7 +1037,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	// Always pull a wide page from the label endpoint — intersection may
 	// reduce the count, and the label endpoint doesn't honor most filters.
 	labelParams.Set("per_page", "500")
-	labelHosts, err := fc.fetchHostsFromPath(ctx, fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?%s", labelID, labelParams.Encode()))
+	labelHosts, _, err := fc.fetchHostsFromPath(ctx, fmt.Sprintf("/api/v1/fleet/labels/%d/hosts?%s", labelID, labelParams.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -1067,7 +1078,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		policyParams.Set("query", q)
 	}
 	policyParams.Set("per_page", "500")
-	policyHosts, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+policyParams.Encode())
+	policyHosts, _, err := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+policyParams.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch policy host set for intersection: %w", err)
 	}
@@ -1229,8 +1240,12 @@ func (fc *FleetClient) GetVulnerabilityImpact(ctx context.Context, cveID string)
 	}
 
 	// Reuse GetHostsForCVE with no filters and no per-page cap so the count
-	// is the full impacted set, not the truncated tool-response cap.
-	hosts, err := fc.GetHostsForCVE(ctx, cveID, "", "", "", "", "", 0)
+	// is the full impacted set, not the truncated tool-response cap. The
+	// per-version-id fan-out is still bounded by fetchHostsHardCap; if any
+	// fan-out hit it, GetHostsForCVE returns truncated=true and we surface
+	// it on the response so operators see "incomplete" rather than a
+	// silent undercount.
+	hosts, truncated, err := fc.GetHostsForCVE(ctx, cveID, "", "", "", "", "", 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute vulnerability impact: %w", err)
 	}
@@ -1244,6 +1259,7 @@ func (fc *FleetClient) GetVulnerabilityImpact(ctx context.Context, cveID string)
 		CVEID:           cveID,
 		TotalSystems:    totalSystems,
 		ImpactedSystems: len(hosts),
+		Truncated:       truncated,
 	}, nil
 }
 
@@ -1268,12 +1284,17 @@ func (fc *FleetClient) GetVulnerabilityImpact(ctx context.Context, cveID string)
 //
 // Use this — NOT GetVulnerabilityImpact — when callers need the actual
 // host list. GetVulnerabilityImpact only returns an aggregate count.
-func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, platform, status, query, labelName string, perPage int) ([]Endpoint, error) {
+//
+// The second return is `truncated` — true when any per-version-id host
+// fetch hit fetchHostsHardCap, meaning the impacted-host set is incomplete.
+// Callers that need an accurate count (e.g. GetVulnerabilityImpact) must
+// surface this so operators see "10000+" rather than a silent undercount.
+func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, platform, status, query, labelName string, perPage int) ([]Endpoint, bool, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if strings.TrimSpace(cveID) == "" {
-		return nil, fmt.Errorf("cve_id is required")
+		return nil, false, fmt.Errorf("cve_id is required")
 	}
 
 	// Resolve team once.
@@ -1281,46 +1302,69 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	if teamName != "" {
 		teamIDs, err := fc.resolveTeamNames(ctx, []string{teamName})
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve fleet: %w", err)
+			return nil, false, fmt.Errorf("failed to resolve fleet: %w", err)
 		}
 		teamIDStr = fmt.Sprintf("%d", teamIDs[0])
 	}
 
 	// Step 1: software titles affected by this CVE (optionally team-scoped).
+	// Paginate so CVEs that hit many vulnerable titles (e.g. an OpenSSL bug
+	// affecting dozens of bundled products) don't silently drop pages
+	// beyond the first.
+	const titlesPerPage = 100
 	titleParams := url.Values{}
 	titleParams.Set("vulnerable", "true")
 	titleParams.Set("query", strings.TrimSpace(cveID))
-	titleParams.Set("per_page", "100")
+	titleParams.Set("per_page", strconv.Itoa(titlesPerPage))
 	if teamIDStr != "" {
 		titleParams.Set("team_id", teamIDStr)
 	}
-	titleResp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+titleParams.Encode(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get software titles for CVE: %w", err)
+	titleIDs := make([]uint, 0)
+	for page := 0; ; page++ {
+		// Honor caller cancellation between paginated requests.
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
+		titleParams.Set("page", strconv.Itoa(page))
+		titleResp, err := fc.makeFleetRequest(ctx, "GET", "/api/v1/fleet/software/titles?"+titleParams.Encode(), nil)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to get software titles for CVE: %w", err)
+		}
+		if titleResp.StatusCode == http.StatusNotFound {
+			titleResp.Body.Close()
+			return nil, false, fmt.Errorf("CVE not found: %s", cveID)
+		}
+		if titleResp.StatusCode != http.StatusOK {
+			status := titleResp.StatusCode
+			titleResp.Body.Close()
+			return nil, false, fmt.Errorf("failed to get software titles for CVE: status %d", status)
+		}
+		var titlesResult struct {
+			SoftwareTitles []struct {
+				ID uint `json:"id"`
+			} `json:"software_titles"`
+		}
+		decErr := json.NewDecoder(titleResp.Body).Decode(&titlesResult)
+		titleResp.Body.Close()
+		if decErr != nil {
+			return nil, false, fmt.Errorf("failed to decode software titles response: %w", decErr)
+		}
+		for _, t := range titlesResult.SoftwareTitles {
+			titleIDs = append(titleIDs, t.ID)
+		}
+		// Last page — Fleet returned fewer than the requested page size.
+		if len(titlesResult.SoftwareTitles) < titlesPerPage {
+			break
+		}
 	}
-	defer titleResp.Body.Close()
-	if titleResp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("CVE not found: %s", cveID)
-	}
-	if titleResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get software titles for CVE: status %d", titleResp.StatusCode)
-	}
-	var titlesResult struct {
-		SoftwareTitles []struct {
-			ID uint `json:"id"`
-		} `json:"software_titles"`
-	}
-	if err := json.NewDecoder(titleResp.Body).Decode(&titlesResult); err != nil {
-		return nil, fmt.Errorf("failed to decode software titles response: %w", err)
-	}
-	if len(titlesResult.SoftwareTitles) == 0 {
-		return []Endpoint{}, nil
+	if len(titleIDs) == 0 {
+		return []Endpoint{}, false, nil
 	}
 
 	// Step 2: per title, fetch detail to get version IDs.
 	versionIDs := make([]uint, 0)
-	for _, t := range titlesResult.SoftwareTitles {
-		detailURL := fmt.Sprintf("/api/v1/fleet/software/titles/%d", t.ID)
+	for _, tID := range titleIDs {
+		detailURL := fmt.Sprintf("/api/v1/fleet/software/titles/%d", tID)
 		if teamIDStr != "" {
 			detailURL += "?team_id=" + teamIDStr
 		}
@@ -1328,16 +1372,16 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		// many vulnerable titles can issue dozens of HTTP calls, so checking
 		// ctx between each one means a cancelled MCP request stops promptly.
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		detailResp, dErr := fc.makeFleetRequest(ctx, "GET", detailURL, nil)
 		if dErr != nil {
-			logrus.Warnf("failed to fetch software title %d detail: %v", t.ID, dErr)
+			logrus.Warnf("failed to fetch software title %d detail: %v", tID, dErr)
 			continue
 		}
 		if detailResp.StatusCode != http.StatusOK {
 			detailResp.Body.Close()
-			logrus.Warnf("failed to fetch software title %d detail: status %d", t.ID, detailResp.StatusCode)
+			logrus.Warnf("failed to fetch software title %d detail: status %d", tID, detailResp.StatusCode)
 			continue
 		}
 		var detailResult struct {
@@ -1350,7 +1394,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		decErr := json.NewDecoder(detailResp.Body).Decode(&detailResult)
 		detailResp.Body.Close()
 		if decErr != nil {
-			logrus.Warnf("failed to decode software title %d detail: %v", t.ID, decErr)
+			logrus.Warnf("failed to decode software title %d detail: %v", tID, decErr)
 			continue
 		}
 		for _, v := range detailResult.SoftwareTitle.Versions {
@@ -1358,7 +1402,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		}
 	}
 	if len(versionIDs) == 0 {
-		return []Endpoint{}, nil
+		return []Endpoint{}, false, nil
 	}
 
 	// Step 3: per version_id, fetch hosts with composing filters server-side.
@@ -1383,6 +1427,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 
 	seen := make(map[uint]bool)
 	hosts := make([]Endpoint, 0)
+	truncated := false
 	for _, vid := range versionIDs {
 		// Short-circuit: if the caller asked for at most perPage hosts and we
 		// already have enough qualifying hosts, skip the rest of the fan-out.
@@ -1393,17 +1438,20 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		}
 		// Honor caller cancellation between version-id fan-outs.
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		params := url.Values{}
 		for k, v := range baseParams {
 			params[k] = v
 		}
 		params.Set("software_version_id", fmt.Sprintf("%d", vid))
-		page, fErr := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
+		page, pageTruncated, fErr := fc.fetchHostsFromPath(ctx, "/api/v1/fleet/hosts?"+params.Encode())
 		if fErr != nil {
 			logrus.Warnf("failed to fetch hosts for software_version_id=%d: %v", vid, fErr)
 			continue
+		}
+		if pageTruncated {
+			truncated = true
 		}
 		if needPostFilter {
 			page = filterHostsByPlatformOrLabel(page, platform, labelName)
@@ -1420,7 +1468,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 		}
 	}
 
-	return hosts, nil
+	return hosts, truncated, nil
 }
 
 // filterHostsByPlatformOrLabel narrows a host list to those matching either
@@ -1573,7 +1621,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 	if hasFilter {
 		switch {
 		case spec.CVEID != "":
-			cveHosts, err := fc.GetHostsForCVE(ctx, spec.CVEID, spec.Fleet, spec.Platform, spec.Status, spec.Query, spec.Label, livePerPage)
+			cveHosts, _, err := fc.GetHostsForCVE(ctx, spec.CVEID, spec.Fleet, spec.Platform, spec.Status, spec.Query, spec.Label, livePerPage)
 			if err != nil {
 				return nil, fmt.Errorf("CVE filter resolution failed: %w", err)
 			}
@@ -1630,7 +1678,7 @@ func (fc *FleetClient) ResolveLiveQueryTargets(ctx context.Context, spec LiveQue
 			if full, fErr := fc.GetHostByID(ctx, cand.ID); fErr == nil {
 				cand = *full
 			}
-			if strings.EqualFold(cand.Name, name) || strings.EqualFold(cand.ComputerName, name) || strings.EqualFold(cand.DisplayName, name) {
+			if endpointMatchesHostname(cand, name) {
 				resolved = &cand
 			}
 		}
@@ -1886,6 +1934,29 @@ func (fc *FleetClient) runMultiHostQuery(ctx context.Context, hostIDs []uint, sq
 	}, nil
 }
 
+// isTempQueryName reports whether name marks a transient saved query
+// created by runMultiHostQuery. Tolerates the "[<team>] " prefix that
+// GetQueries prepends to team-scoped queries so team-scoped temp queries
+// are detected alongside global ones.
+func isTempQueryName(name string) bool {
+	if strings.HasPrefix(name, "[") {
+		if idx := strings.Index(name, "] "); idx > 0 {
+			name = name[idx+2:]
+		}
+	}
+	return strings.HasPrefix(name, tempQueryNamePrefix)
+}
+
+// endpointMatchesHostname reports whether ep's hostname-like fields (Name,
+// ComputerName, DisplayName) equal name case-insensitively. Used to verify
+// a singleton substring hit from Fleet's /hosts?query= actually matched on
+// a hostname rather than a serial / IP / user field.
+func endpointMatchesHostname(ep Endpoint, name string) bool {
+	return strings.EqualFold(ep.Name, name) ||
+		strings.EqualFold(ep.ComputerName, name) ||
+		strings.EqualFold(ep.DisplayName, name)
+}
+
 // SweepLeftoverTempQueries deletes any saved queries whose name begins with
 // tempQueryNamePrefix. Called once at MCP startup to clean up residue from
 // previous runMultiHostQuery invocations whose deferred DELETE failed (process
@@ -1899,15 +1970,7 @@ func (fc *FleetClient) SweepLeftoverTempQueries(ctx context.Context) {
 	}
 	swept := 0
 	for _, q := range queries {
-		// GetQueries rewrites team-scoped names as "[<team>] <name>" — strip
-		// that bracket so team-scoped temp queries are also detected.
-		name := q.Name
-		if strings.HasPrefix(name, "[") {
-			if idx := strings.Index(name, "] "); idx > 0 {
-				name = name[idx+2:]
-			}
-		}
-		if !strings.HasPrefix(name, tempQueryNamePrefix) {
+		if !isTempQueryName(q.Name) {
 			continue
 		}
 		delEndpoint := fmt.Sprintf("/api/v1/fleet/reports/id/%d", q.ID)

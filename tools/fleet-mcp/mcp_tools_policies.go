@@ -192,19 +192,21 @@ func registerGetVulnerabilityHosts(s *server.MCPServer, fleetClient *FleetClient
 
 		perPage := parsePerPageArg(request, defaultEndpointsPerPage)
 
-		hosts, err := fleetClient.GetHostsForCVE(ctx, cveID, fleet, platform, status, query, label, perPage)
+		hosts, truncated, err := fleetClient.GetHostsForCVE(ctx, cveID, fleet, platform, status, query, label, perPage)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get hosts for CVE %s: %v", cveID, err)), nil
 		}
 
 		return jsonResult(struct {
-			CVEID    string     `json:"cve_id"`
-			Returned int        `json:"returned"`
-			Hosts    []Endpoint `json:"hosts"`
+			CVEID     string     `json:"cve_id"`
+			Returned  int        `json:"returned"`
+			Truncated bool       `json:"truncated,omitempty"`
+			Hosts     []Endpoint `json:"hosts"`
 		}{
-			CVEID:    cveID,
-			Returned: len(hosts),
-			Hosts:    hosts,
+			CVEID:     cveID,
+			Returned:  len(hosts),
+			Truncated: truncated,
+			Hosts:     hosts,
 		})
 	})
 }
