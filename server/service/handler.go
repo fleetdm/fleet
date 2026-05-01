@@ -1078,7 +1078,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
 	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
 	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
-	ne.GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
+
+	orgLogoLimiter := ratelimit.NewMiddleware(limitStore).Limit(
+		"org_logo",
+		throttled.RateQuota{MaxRate: throttled.PerMin(60), MaxBurst: 20},
+	)
+	ne.WithCustomMiddleware(orgLogoLimiter).
+		GET("/api/_version_/fleet/logo", getOrgLogoEndpoint, getOrgLogoRequest{})
+
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
