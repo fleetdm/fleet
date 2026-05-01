@@ -306,6 +306,12 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/fleet/me`
 
+#### Parameters
+
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| include_ui_settings       | boolean| query| If set to true, includes the columns the user hides on the **Hosts** page (default: `false`). |
+
 #### Example
 
 `GET /api/v1/fleet/me`
