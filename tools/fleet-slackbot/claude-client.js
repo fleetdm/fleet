@@ -1,17 +1,23 @@
 const Anthropic = require("@anthropic-ai/sdk");
 const SYSTEM_PROMPT = require("./system-prompt");
 
-// Per-response cap on client-side tool invocations. Each call to
-// runAgentLoop (i.e. each user message) starts with a fresh budget; this
-// only stops Claude from looping in tool calls inside a single response,
-// it does not bound how many messages a user can send.
-const MAX_TOOL_CALLS = 12;
+// Default per-response cap on client-side tool invocations. Each call to
+// runAgentLoop (i.e. each user message) starts with a fresh budget. This
+// is a safety net against pathological tool loops, not a normal-path
+// limit — set high enough that legitimate multi-step investigations
+// don't routinely hit it. Override at runtime via the MAX_TOOL_CALLS env
+// var or the `maxToolCalls` constructor option.
+const DEFAULT_MAX_TOOL_CALLS = 100;
 
 class ClaudeClient {
-  constructor({ apiKey, model, mcpClient }) {
+  constructor({ apiKey, model, mcpClient, maxToolCalls }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
     this.model = model;
     this.mcpClient = mcpClient;
+    this.maxToolCalls =
+      Number.isFinite(maxToolCalls) && maxToolCalls > 0
+        ? maxToolCalls
+        : DEFAULT_MAX_TOOL_CALLS;
   }
 
   /**
@@ -67,11 +73,11 @@ class ClaudeClient {
         return text;
       }
 
-      // Cap the number of tool calls in this turn so a single fan-out
-      // can't push us past the budget. Anything beyond the cap is dropped
-      // with a synthetic "budget exhausted" tool_result so Claude gets a
-      // valid response for every tool_use block it emitted.
-      const remaining = Math.max(0, MAX_TOOL_CALLS - toolCallsExecuted);
+      // Cap the number of tool calls in this turn so a runaway loop
+      // can't push us past the budget. Anything beyond the cap is
+      // dropped with a synthetic "budget exhausted" tool_result so
+      // Claude gets a valid response for every tool_use block it emitted.
+      const remaining = Math.max(0, this.maxToolCalls - toolCallsExecuted);
       const toExecute = toolUseBlocks.slice(0, remaining);
       const toSkip = toolUseBlocks.slice(remaining);
 
@@ -108,9 +114,9 @@ class ClaudeClient {
 
       toolCallsExecuted += toExecute.length;
       messages.push({ role: "user", content: toolResults });
-      console.log(`[claude] Agent loop: ${toExecute.length} tool call(s) executed (${toolCallsExecuted}/${MAX_TOOL_CALLS}), ${toSkip.length} skipped`);
+      console.log(`[claude] Agent loop: ${toExecute.length} tool call(s) executed (${toolCallsExecuted}/${this.maxToolCalls}), ${toSkip.length} skipped`);
 
-      if (toolCallsExecuted >= MAX_TOOL_CALLS) {
+      if (toolCallsExecuted >= this.maxToolCalls) {
         break;
       }
     }
@@ -122,7 +128,7 @@ class ClaudeClient {
     // implementation details. It's asked instead to flag any incomplete or
     // unverified parts of the answer.
     console.log(
-      `[claude] Agent loop hit ${MAX_TOOL_CALLS} tool calls — forcing final response without tools.`
+      `[claude] Agent loop hit ${this.maxToolCalls} tool calls — forcing final response without tools.`
     );
     messages.push({
       role: "user",
@@ -317,5 +323,5 @@ class ClaudeClient {
   }
 }
 
-ClaudeClient.MAX_TOOL_CALLS = MAX_TOOL_CALLS;
+ClaudeClient.DEFAULT_MAX_TOOL_CALLS = DEFAULT_MAX_TOOL_CALLS;
 module.exports = ClaudeClient;
