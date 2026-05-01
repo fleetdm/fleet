@@ -2567,6 +2567,68 @@ This activity contains the following fields:
 }
 ```
 
+## canceled_setup_experience
+
+Generated when macOS setup experience is canceled due to software install failure.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 1234
+}
+```
+
+## added_label_to_host
+
+Generated when a label is added to a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
+}
+```
+
+## removed_label_from_host
+
+Generated when a label is removed from a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
