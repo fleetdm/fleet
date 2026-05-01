@@ -1,3 +1,10 @@
+## Fleet 4.84.1 (Apr 30, 2026)
+
+### Bug fixes
+
+- Fixed Fleet's Docker image failing to start in Kubernetes with an `unknown userid` error, triggered by a fleetctl dependency side effect.
+- Use Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
+
 ## Fleet 4.84.0 (Apr 24, 2026)
 
 ### IT Admins
@@ -82,7 +89,7 @@
 - Fixed issue where the `include_available_for_install` query param wasn't being applied correctly to the `GET /api/latest/fleet/hosts/{id}/software` endpoint.
 - Fixed disk encryption key modal to not show stale key when switching between hosts.
 - Fixed SCIM user not associating with host when IdP username was set before the SCIM user was created.
-- Fixed Google Drive version not matching upstream.
+- Fixed  Google Drive version not matching upstream.
 - Fixed bug that cleared the MDM lock state if an "idle" message was received right after the lock ACK.
 - Fixed team maintainers, admins, and GitOps users being unable to add certificate templates due to missing read access to certificate authorities.
 - Fixed fleetd installation failure on macOS when installing it through Host details page > Software > Library as a Custom package.
