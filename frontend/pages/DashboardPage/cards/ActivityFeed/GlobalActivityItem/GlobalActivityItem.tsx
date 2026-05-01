@@ -40,6 +40,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.InstalledAppStoreApp,
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
+  ActivityType.FailedEnrollmentProfileRenewal,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -1939,6 +1940,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  failedEnrollmentRenewalProfile: (activity: IActivity) => {
+    return (
+      <>
+        enrollment profile renewal failed for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2375,6 +2384,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);
+    }
+    case ActivityType.FailedEnrollmentProfileRenewal: {
+      return TAGGED_TEMPLATES.failedEnrollmentRenewalProfile(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
