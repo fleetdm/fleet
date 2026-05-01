@@ -74,6 +74,8 @@ const LogoCard = ({
     previewSrc = "";
   }
 
+  const hasCustomLogo = previewSrc !== "";
+
   return (
     <div className={`${cardClass}__logo-card`}>
       <div className={`${cardClass}__logo-card-header`}>
@@ -100,7 +102,7 @@ const LogoCard = ({
               <Button
                 variant="icon"
                 onClick={onDelete}
-                disabled={disableChildren}
+                disabled={disableChildren || !hasCustomLogo}
                 title="Remove logo"
               >
                 <Icon name="trash" color="core-fleet-green" />
