@@ -257,10 +257,19 @@ func (r *engine) emit(msg tea.Msg) {
 // Individual steps
 // -----------------------------------------------------------------------------
 
+// composeProject is hardcoded so every worktree of this Fleet repo
+// shares the same MySQL/Redis containers and (more importantly) volumes.
+// PMs almost never add migrations, and PR 4's snapshots will guard
+// against the rare case where a branch swap leaves the DB in a bad
+// state — so paying with "fresh DB every worktree" by default isn't
+// worth it. PR 3 may revisit this with an opt-in for isolated DBs.
+const composeProject = "fleet-ship"
+
 func (r *engine) stepDockerUp(ctx context.Context) error {
 	// "up -d" returns once containers are started; readiness is checked
 	// implicitly by `prepare db` later, which retries on connection errors.
-	return runOneShot(ctx, "start", r.opts.repoRoot, nil, r.logSink, "docker", "compose", "up", "-d")
+	return runOneShot(ctx, "start", r.opts.repoRoot, nil, r.logSink,
+		"docker", "compose", "-p", composeProject, "up", "-d")
 }
 
 func (r *engine) stepMakeDeps(ctx context.Context) error {
@@ -399,7 +408,7 @@ func (r *engine) Stop(ctx context.Context) {
 	}
 	// `docker compose down` without -v keeps named volumes intact, so the
 	// PM's MySQL data + simulated host UUIDs survive the shutdown.
-	_ = exec.CommandContext(stopCtx, "docker", "compose", "down").Run()
+	_ = exec.CommandContext(stopCtx, "docker", "compose", "-p", composeProject, "down").Run()
 }
 
 // -----------------------------------------------------------------------------

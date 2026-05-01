@@ -16,15 +16,16 @@ type stepRow struct {
 	Elapsed time.Duration
 }
 
-const (
-	maxFleetLogLines   = 8
-	maxWebpackLogLines = 3
-	maxNgrokLogLines   = 2
-)
+// We keep a much larger ring buffer per source than the dashboard itself
+// will ever render — the on-demand log overlay screen reads from these,
+// so the cap needs to be useful, not just glanceable.
+const logBufferLines = 200
 
-// dashboardModel is the steady-state TUI: header, status block, log panes,
-// keybind hint row. Until the engine reports stateRunning, the log panes
-// area is taken over by the start-sequence step list.
+// dashboardModel is the steady-state TUI: header, status block, services
+// list, keybind hint row. Until the engine reports stateRunning, the
+// services area is taken over by the start-sequence step list. Logs are
+// captured per-source and shown via the log overlay screen, not on the
+// dashboard itself.
 type dashboardModel struct {
 	worktree  string
 	branch    string
@@ -34,12 +35,12 @@ type dashboardModel struct {
 	startedAt time.Time
 
 	steps    []stepRow
-	stepByID map[stepKind]int // index into steps
+	stepByID map[stepKind]int
 
 	fleetLog   []string
 	webpackLog []string
 	ngrokLog   []string
-	startLog   []string // process output during the build steps
+	startLog   []string
 }
 
 func newDashboardModel() dashboardModel {
@@ -53,12 +54,26 @@ func newDashboardModel() dashboardModel {
 	}
 }
 
-// beginStart is called when the engine is launched. We pre-populate the step
-// list with all expected steps in pending state so the user sees the full
-// plan from the moment the dashboard appears.
+// setIdentity is called once at startup with values that don't change for
+// the life of the run.
+func (d *dashboardModel) setIdentity(worktree, branch, database string) {
+	if worktree != "" {
+		d.worktree = worktree
+	}
+	if branch != "" {
+		d.branch = branch
+	}
+	if database != "" {
+		d.database = database
+	}
+}
+
+// beginStart pre-populates the step list with all expected steps in
+// pending state so the dashboard renders the full plan from the moment
+// it appears.
 func (d *dashboardModel) beginStart() {
 	expected := []stepKind{
-		stepDockerUp, stepMakeDeps, stepMakeBuild, stepGenerateDev,
+		stepDockerUp, stepMakeDeps, stepGenerateDev, stepMakeBuild,
 		stepPrepareDB, stepServe, stepNgrok,
 	}
 	d.steps = make([]stepRow, 0, len(expected))
@@ -83,11 +98,11 @@ func (d *dashboardModel) applyStepUpdate(msg stepUpdateMsg) {
 func (d *dashboardModel) appendLog(line logLine) {
 	switch line.Source {
 	case "fleet":
-		d.fleetLog = pushRing(d.fleetLog, line.Line, maxFleetLogLines)
+		d.fleetLog = pushRing(d.fleetLog, line.Line, logBufferLines)
 	case "webpack":
-		d.webpackLog = pushRing(d.webpackLog, line.Line, maxWebpackLogLines)
+		d.webpackLog = pushRing(d.webpackLog, line.Line, logBufferLines)
 	case "ngrok":
-		d.ngrokLog = pushRing(d.ngrokLog, line.Line, maxNgrokLogLines)
+		d.ngrokLog = pushRing(d.ngrokLog, line.Line, logBufferLines)
 	default:
 		// "start" — output from one-shot commands during bring-up.
 		d.startLog = pushRing(d.startLog, line.Line, 5)
@@ -116,10 +131,8 @@ func (d dashboardModel) view(width int, state runState, errMsg string) string {
 		width = 80
 	}
 
-	header := renderHeader(width, state, d.uptimeStr())
-
 	body := []string{
-		header,
+		renderHeader(width, state, d.uptimeStr()),
 		"",
 		renderStatusBlock(d),
 		"",
@@ -128,16 +141,14 @@ func (d dashboardModel) view(width int, state runState, errMsg string) string {
 	if state == stateBuilding || state == stateError {
 		body = append(body, renderStepList(d))
 	} else {
-		body = append(body, renderLogPane(width, "fleet server", d.fleetLog, maxFleetLogLines))
-		body = append(body, "")
-		body = append(body, renderLogPane(width, "webpack", d.webpackLog, maxWebpackLogLines))
+		body = append(body, renderServices())
 	}
 
 	if errMsg != "" {
 		body = append(body, "", lipgloss.NewStyle().Foreground(colorErr).Render("✗ "+errMsg))
 	}
 
-	body = append(body, "", renderHints())
+	body = append(body, "", renderHints(state))
 	return stylePane.Width(width - 2).Render(strings.Join(body, "\n"))
 }
 
@@ -177,9 +188,28 @@ func renderStatusBlock(d dashboardModel) string {
 	}
 	urlRow := styleLabel.Render(fmt.Sprintf("%-10s", "public")) + styleURL.Render(d.publicURL)
 	return strings.Join([]string{
-		row("worktree", d.worktree) + "    " + row("branch", d.branch),
-		row("database", d.database) + "    " + row("port", fmt.Sprintf("%d", d.port)),
+		row("worktree", d.worktree),
+		row("branch", d.branch),
+		row("database", d.database),
 		urlRow,
+	}, "\n")
+}
+
+// renderServices is the compact view shown once Fleet is up. Each row is
+// a status dot + service name + short description. Detailed output lives
+// behind l/w/n keybinds.
+func renderServices() string {
+	dot := lipgloss.NewStyle().Foreground(colorOK).Bold(true).Render("●")
+	row := func(name, status string) string {
+		return "    " + dot + "  " +
+			lipgloss.NewStyle().Width(16).Render(name) +
+			styleHint.Render(status)
+	}
+	return strings.Join([]string{
+		styleLabel.Render("Services"),
+		row("Fleet server", "running"),
+		row("Webpack", "watching for frontend changes"),
+		row("ngrok", "tunnel up"),
 	}, "\n")
 }
 
@@ -237,30 +267,21 @@ func formatElapsed(d time.Duration) string {
 	return fmt.Sprintf("%dm%ds", int(d.Minutes()), int(d.Seconds())%60)
 }
 
-func renderLogPane(width int, title string, lines []string, _ int) string {
-	header := styleSection.Render("─ " + title + " " + strings.Repeat("─", maxOrZero(width-len(title)-6)))
-	if len(lines) == 0 {
-		lines = []string{styleHint.Render("(waiting for output...)")}
+// renderHints shows only the keybinds that are wired and contextually
+// relevant. l/w/n only appear once Fleet is actually running and there's
+// a reason to inspect logs or the ngrok tunnel.
+func renderHints(state runState) string {
+	type hint struct{ key, desc string }
+	var hints []hint
+	if state == stateRunning {
+		hints = append(hints,
+			hint{"l", "fleet logs"},
+			hint{"w", "webpack logs"},
+			hint{"n", "ngrok traffic"},
+		)
 	}
-	return header + "\n" + strings.Join(lines, "\n")
-}
+	hints = append(hints, hint{"q", "quit"})
 
-func maxOrZero(n int) int {
-	if n < 0 {
-		return 0
-	}
-	return n
-}
-
-// renderHints lists only the keybinds that are actually wired up. As future
-// PRs implement rebuild, pause, switch, hosts, etc., add them here so the
-// dashboard never advertises an action it can't perform.
-func renderHints() string {
-	hints := []struct {
-		key, desc string
-	}{
-		{"q", "quit"},
-	}
 	parts := make([]string, 0, len(hints))
 	for _, h := range hints {
 		parts = append(parts, styleKey.Render(h.key)+" "+styleHint.Render(h.desc))

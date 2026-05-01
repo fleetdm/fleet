@@ -45,6 +45,7 @@ const (
 	screenDoctor screen = iota
 	screenWizard
 	screenDashboard
+	screenLogs // overlay shown via l/w; esc returns to dashboard
 )
 
 // model is the root bubbletea model. It owns the active screen, shared
@@ -63,6 +64,9 @@ type model struct {
 	doc  doctorModel
 	wiz  wizardModel
 	dash dashboardModel
+
+	// logSource selects which buffer the screenLogs overlay shows.
+	logSource logSource
 
 	eng *engine
 
@@ -155,6 +159,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m2, tea.Batch(cmd, startCmd)
 			}
 			return m, cmd
+
+		case screenDashboard:
+			// l/w/n only do anything once Fleet is actually up — checking
+			// state == stateRunning prevents accidental key-presses during
+			// the build sequence from doing weird things.
+			if m.state != stateRunning {
+				return m, nil
+			}
+			switch msg.String() {
+			case "l":
+				m.logSource = logSourceFleet
+				m.screen = screenLogs
+			case "w":
+				m.logSource = logSourceWebpack
+				m.screen = screenLogs
+			case "n":
+				return m, openNgrokInspector()
+			}
+			return m, nil
+
+		case screenLogs:
+			if msg.String() == "esc" {
+				m.screen = screenDashboard
+			}
+			return m, nil
 		}
 	}
 
@@ -182,6 +211,14 @@ func (m model) startEngine() (model, tea.Cmd) {
 	if m.eng != nil {
 		return m, nil
 	}
+	// Populate the dashboard's identifying fields up front — they're
+	// known immediately and don't depend on the engine succeeding.
+	m.dash.setIdentity(
+		filepath.Base(m.repoRoot),
+		currentBranch(m.repoRoot),
+		"fleet", // default Fleet dev database name
+	)
+
 	m.eng = newEngine(runtimeOpts{
 		cfg:        m.cfg,
 		privateKey: m.priv,
@@ -191,6 +228,17 @@ func (m model) startEngine() (model, tea.Cmd) {
 	m.state = stateBuilding
 	m.eng.Start(context.Background())
 	return m, m.eng.listen()
+}
+
+// currentBranch reads the current branch from the worktree at root. Returns
+// "HEAD" on detached checkouts, empty string if git fails entirely.
+func currentBranch(root string) string {
+	cmd := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // persistWizard writes the wizard's results to disk.
@@ -220,8 +268,26 @@ func (m model) View() string {
 		return m.wiz.view(m.width)
 	case screenDashboard:
 		return m.dash.view(m.width, m.state, m.errMsg)
+	case screenLogs:
+		var lines []string
+		switch m.logSource {
+		case logSourceFleet:
+			lines = m.dash.fleetLog
+		case logSourceWebpack:
+			lines = m.dash.webpackLog
+		}
+		return renderLogScreen(m.width, m.height, m.logSource, lines)
 	}
 	return ""
+}
+
+// openNgrokInspector launches the system browser pointed at ngrok's
+// local traffic UI. Wrapped in a tea.Cmd so we don't block Update.
+func openNgrokInspector() tea.Cmd {
+	return func() tea.Msg {
+		_ = exec.Command("open", "http://localhost:4040").Start()
+		return nil
+	}
 }
 
 // findRepoRoot walks up from the current working directory looking for the
