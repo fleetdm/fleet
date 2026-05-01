@@ -6894,37 +6894,9 @@ None.
   "updated_at": "2026-04-04T00:00:00Z",
   "enrollment_profile": {
     "profile_name": "Fleet default enrollment profile",
-    "allow_pairing": true,
-    "auto_advance_setup": false,
-    "is_multi_user": false,
-    "is_mandatory": false,
-    "is_mdm_removable": true,
-    "language": "en",
-    "org_magic": "1",
-    "skip_setup_items": [
-      "Appearance",
-      "AppleID",
-      "AppStore",
-      "Biometric",
-      "Diagnostics",
-      "FileVault",
-      "iCloudDiagnostics",
-      "iCloudStorage",
-      "Intelligence",
-      "Location",
-      "OSShowcase",
-      "Payment",
-      "Privacy",
-      "Restore",
-      "ScreenTime",
-      "Siri",
-      "SoftwareUpdate",
-      "TermsOfAddress",
-      "TOS",
-      "UnlockWithWatch",
-      "UpdateCompleted",
-      "Welcome"
-    ]
+    "is_supervised": true,
+    "is_mdm_removable": false,
+    "skip_setup_items": []
   }
 }
 ```
