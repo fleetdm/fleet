@@ -118,6 +118,7 @@
     font-size: $xx-small;
     color: $ui-fleet-black-75;
     margin: $pad-xsmall 0 0;
+    overflow-wrap: anywhere;
   }
 
   &__clipped-badge {

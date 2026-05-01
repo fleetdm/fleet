@@ -98,11 +98,16 @@ func IsRecoveryLockPasswordMismatchError(chain []mdm.ErrorChain) bool {
 // was not found on the device. When this error occurs during a RemoveProfile
 // command, it means the profile is already absent — the desired outcome.
 //
-// Known error signature:
+// Known error signatures:
 // - MDMClientError (89): "Profile with identifier '...' not found."
+// - MDMErrorDomain (12075): "The profile '...' is not installed."
 func IsProfileNotFoundError(chain []mdm.ErrorChain) bool {
 	for _, e := range chain {
 		if e.ErrorDomain == "MDMClientError" && e.ErrorCode == 89 {
+			return true
+		}
+
+		if e.ErrorDomain == "MDMErrorDomain" && e.ErrorCode == 12075 {
 			return true
 		}
 	}

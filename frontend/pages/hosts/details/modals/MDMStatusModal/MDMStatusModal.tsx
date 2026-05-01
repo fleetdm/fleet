@@ -97,7 +97,7 @@ const getProfileStatusUI = (raw?: string | null) => {
   return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
 };
 
-const getThrottleCopy = (responseUpdatedAt?: string | null) => {
+export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   if (!responseUpdatedAt) {
     return "when available.";
   }

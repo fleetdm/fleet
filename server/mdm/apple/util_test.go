@@ -89,6 +89,35 @@ func TestIsProfileNotFoundError(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "MDMErrorDomain 12075 - profile not installed",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 12075, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "The profile 'com.example' is not installed."},
+			},
+			expected: true,
+		},
+		{
+			name: "different MDMErrorDomain code",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 12076, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "Some other error"},
+			},
+			expected: false,
+		},
+		{
+			name: "different error domain with code 12075",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 12075, ErrorDomain: "SomeOtherDomain", USEnglishDescription: "Some error"},
+			},
+			expected: false,
+		},
+		{
+			name: "profile not installed in chain with other errors",
+			chain: []mdm.ErrorChain{
+				{ErrorCode: 100, ErrorDomain: "SomeOtherDomain", USEnglishDescription: "First error"},
+				{ErrorCode: 12075, ErrorDomain: "MDMErrorDomain", USEnglishDescription: "The profile 'com.example' is not installed."},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tt := range cases {

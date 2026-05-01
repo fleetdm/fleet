@@ -26,6 +26,10 @@ import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninst
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
+import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
+import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
+import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
+import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -56,6 +60,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.FailedWipe]: FailedWipeActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
@@ -72,6 +77,9 @@ export const pastActivityComponentMap: Record<
   [ActivityType.InstalledCertificate]: InstalledCertificateActivityItem,
   [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
+  [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
+  [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
+  [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

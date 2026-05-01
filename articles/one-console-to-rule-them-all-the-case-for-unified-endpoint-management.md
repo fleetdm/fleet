@@ -116,5 +116,5 @@ Managing endpoints from one console isn't a compromise. For most organizations, 
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2025-07-21">
+<meta name="publishedOn" value="2026-04-22">
 <meta name="description" value="Why the 'best tool for each OS' argument is costing you more than you think">

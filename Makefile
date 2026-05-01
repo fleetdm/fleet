@@ -686,20 +686,39 @@ restore: $(SNAPSHOT_BINARY)
 # To generate an osquery bundle for a unreleased change in osquery in a pull request
 # (e.g. https://github.com/osquery/osquery/pull/8815):
 # make osqueryd-app-tar-gz pr=8815 out-path=.
+#
+# To generate an osquery bundle from a locally built osqueryd executable:
+# make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
 osqueryd-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target osqueryd-app-tar-gz is only supported on macOS"
 	@exit 1
 endif
-ifdef pr
+ifdef osqueryd_path
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@if [ ! -f "$(osqueryd_path)" ]; then \
+		echo "Error: osqueryd executable not found at $(osqueryd_path)"; \
+		rm -rf $(TMP_DIR); \
+		exit 1; \
+	fi
+	mkdir -p $(TMP_DIR)/osquery.app/Contents/MacOS
+	mkdir -p $(TMP_DIR)/osquery.app/Contents/Resources
+	cp "$(osqueryd_path)" $(TMP_DIR)/osquery.app/Contents/MacOS/osqueryd
+	chmod +x $(TMP_DIR)/osquery.app/Contents/MacOS/osqueryd
+	@OSQUERY_VERSION=$$("$(osqueryd_path)" --version | awk '{print $$NF}') && \
+		printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n\t<key>CFBundleIdentifier</key>\n\t<string>io.osquery.agent</string>\n\t<key>CFBundleName</key>\n\t<string>osquery</string>\n\t<key>CFBundleExecutable</key>\n\t<string>osqueryd</string>\n\t<key>CFBundleVersion</key>\n\t<string>%s</string>\n\t<key>CFBundleShortVersionString</key>\n\t<string>%s</string>\n\t<key>CFBundleInfoDictionaryVersion</key>\n\t<string>6.0</string>\n\t<key>CFBundlePackageType</key>\n\t<string>APPL</string>\n\t<key>CFBundleSignature</key>\n\t<string>????</string>\n\t<key>LSMinimumSystemVersion</key>\n\t<string>10.14</string>\n</dict>\n</plist>\n' "$$OSQUERY_VERSION" "$$OSQUERY_VERSION" > $(TMP_DIR)/osquery.app/Contents/Info.plist
+	$(TMP_DIR)/osquery.app/Contents/MacOS/osqueryd --version
+	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR) osquery.app
+	rm -rf $(TMP_DIR)
+else ifdef pr
 	$(eval TMP_DIR := $(shell mktemp -d))
 	@echo "Fetching macos_unsigned_tgz_universal artifact from osquery/osquery PR $(pr)..."
 	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
 		echo "PR head SHA: $$PR_SHA" && \
 		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
-			-q '[.workflow_runs[] | select(.conclusion == "success") | .id] | .[]') && \
+			-q '[.workflow_runs[] | .id] | .[]') && \
 		if [ -z "$$RUN_IDS" ]; then \
-			echo "Error: no successful workflow runs found for PR $(pr)"; \
+			echo "Error: no workflow runs found for PR $(pr)"; \
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi && \
@@ -746,6 +765,73 @@ else
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
 endif
+
+# Download the osqueryd Linux executable from a pull request in osquery/osquery
+# and extract it into out-path.
+#
+# Usage:
+# make osqueryd-linux pr=8844 arch=amd64 out-path=.
+# make osqueryd-linux pr=8844 arch=arm64 out-path=.
+osqueryd-linux:
+ifndef pr
+	@echo "Error: pr argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
+	@exit 1
+endif
+ifndef out-path
+	@echo "Error: out-path argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
+	@exit 1
+endif
+ifeq ($(arch),amd64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz)
+else ifeq ($(arch),arm64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz_aarch64)
+else
+	@echo "Error: arch must be 'amd64' or 'arm64' (got '$(arch)')"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@echo "Fetching $(ARTIFACT_NAME) artifact from osquery/osquery PR $(pr)..."
+	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
+		echo "PR head SHA: $$PR_SHA" && \
+		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
+			-q '[.workflow_runs[] | .id] | .[]') && \
+		if [ -z "$$RUN_IDS" ]; then \
+			echo "Error: no workflow runs found for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		DOWNLOADED=false && \
+		for run_id in $$RUN_IDS; do \
+			if gh run download -R osquery/osquery $$run_id -n $(ARTIFACT_NAME) -D $(TMP_DIR)/artifact 2>/dev/null; then \
+				DOWNLOADED=true; \
+				echo "Downloaded artifact from run $$run_id"; \
+				break; \
+			fi; \
+		done && \
+		if [ "$$DOWNLOADED" != "true" ]; then \
+			echo "Error: $(ARTIFACT_NAME) artifact not found in any workflow run for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi
+	@INNER_TGZ=$$(find $(TMP_DIR)/artifact -name '*.tar.gz' -o -name '*.tgz' | head -1) && \
+		if [ -z "$$INNER_TGZ" ]; then \
+			echo "Error: no tarball found inside downloaded artifact"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		mkdir -p $(TMP_DIR)/extracted && \
+		tar xf "$$INNER_TGZ" -C $(TMP_DIR)/extracted
+	@OSQUERYD=$$(find $(TMP_DIR)/extracted -type f -name 'osqueryd' | head -1) && \
+		if [ -z "$$OSQUERYD" ]; then \
+			echo "Error: osqueryd not found in extracted artifact. Contents:"; \
+			find $(TMP_DIR)/extracted -type f; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		cp "$$OSQUERYD" "$(out-path)/osqueryd" && \
+		chmod +x "$(out-path)/osqueryd" && \
+		echo "Extracted osqueryd to $(out-path)/osqueryd"
+	rm -rf $(TMP_DIR)
 
 # Generate nudge.app.tar.gz bundle from nudge repo.
 #

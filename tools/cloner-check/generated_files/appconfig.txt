@@ -33,6 +33,7 @@ github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ActivityExpirySettings	fleet.ActivityExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryWindow	int
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	PreserveHostActivitiesOnReenrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
@@ -157,8 +158,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftware	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftwareWindows	bool
-github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	*bool
-github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	*string
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string

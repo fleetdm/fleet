@@ -18,6 +18,8 @@ import (
 	"testing"
 	"text/template"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
@@ -32,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	mock_pkg "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -58,6 +61,8 @@ type enterpriseIntegrationGitopsTestSuite struct {
 	integrationtest.WithServer
 	fleetCfg               config.FleetConfig
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	iconDir                string
+	activityMock           *mock_pkg.MockActivityService
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
@@ -100,6 +105,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
 	require.NoError(s.T(), err)
 	s.softwareTitleIconStore = softwareTitleIconStore
+	s.iconDir = iconDir
 
 	serverConfig := service.TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -124,6 +130,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		serverConfig.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	s.activityMock = serverConfig.ActivityMock
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.Server = server
 	s.Users = users
@@ -2917,6 +2924,139 @@ settings:
 	require.Equal(t, "icon.png", teamIconFilenames[1])
 }
 
+// TestGitOpsIconRecoversAfterClearingStaleHash documents the recovery path
+// when an icon row's storage_id refers to bytes that are no longer in the
+// store. The planner short-circuits any subsequent gitops run because the
+// row's hash still matches the local YAML; clearing the row's storage_id
+// forces the next run to re-upload.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconRecoversAfterClearingStaleHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		teamTemplate = `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	// Resolve the absolute path to the testdata icon used by the YAML.
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+	dirPath = filepath.Join(dirPath, "../../fleetctl")
+	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fmt.Fprintf(teamFile, teamTemplate, dirPath, teamName)
+	require.NoError(t, err)
+	require.NoError(t, teamFile.Close())
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	firstRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, firstRunOut)
+	require.Contains(t, firstRunOut, "set icons on 1 software title")
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx,
+		fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+
+	var storageID string
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storageID,
+			"SELECT storage_id FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
+			team.ID, titles[0].ID)
+	})
+	require.NotEmpty(t, storageID)
+
+	iconPath := filepath.Join(s.iconDir, "software-title-icons", storageID)
+	info, err := os.Stat(iconPath)
+	require.NoError(t, err)
+	originalSize := info.Size()
+	require.Positive(t, originalSize)
+
+	// Truncate the bytes on disk while leaving the icon row intact.
+	require.NoError(t, os.Truncate(iconPath, 0))
+
+	// A second gitops run with the unchanged YAML silently no-ops because
+	// the planner short-circuits before any API call. This pins down that
+	// known limitation; the recovery below is what restores the icon.
+	secondRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, secondRunOut)
+	require.Contains(t, secondRunOut, "set icons on 0 software titles")
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), info.Size())
+
+	// Recovery: clearing storage_id forces a hash mismatch and re-upload
+	// on the next run.
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE software_title_icons SET storage_id = '' WHERE team_id = ? AND software_title_id = ?",
+			team.ID, titles[0].ID)
+		return err
+	})
+
+	thirdRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, thirdRunOut)
+	require.Contains(t, thirdRunOut, "set icons on 1 software title")
+
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, originalSize, info.Size())
+}
+
 // TestGitOpsTeamLabels tests operations around team labels
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabels() {
 	t := s.T()
@@ -3277,6 +3417,260 @@ func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ct
 		got[r.Name] = teamID
 	}
 	return got
+}
+
+// captureLabelActivities replaces the suite's activity mock with a recorder.
+// It returns a function that returns and resets the captured label activities.
+// Cleanup restores the previous NewActivityFunc.
+func (s *enterpriseIntegrationGitopsTestSuite) captureLabelActivities(t *testing.T) func() []activity_api.ActivityDetails {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []activity_api.ActivityDetails
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		switch a.(type) {
+		case fleet.ActivityTypeCreatedLabel, fleet.ActivityTypeEditedLabel, fleet.ActivityTypeDeletedLabel:
+			mu.Lock()
+			captured = append(captured, a)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []activity_api.ActivityDetails {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsLabelActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetCfg := s.createFleetctlConfig(t, user)
+
+	teamName := uuid.NewString()
+	_, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+
+	// Hosts to assign to the manual label in later phases.
+	for _, h := range []string{"label-act-host-1", "label-act-host-2"} {
+		_, err := s.DS.NewHost(ctx, &fleet.Host{
+			UUID:           h,
+			Hostname:       h,
+			Platform:       "linux",
+			HardwareSerial: h,
+		})
+		require.NoError(t, err)
+	}
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	writeGlobal := func(body string) {
+		require.NoError(t, os.WriteFile(globalFile.Name(), []byte(`
+agent_options:
+controls:
+org_settings:
+  secrets:
+  - secret: test_secret
+policies:
+reports:
+labels:
+`+body), 0o644))
+	}
+	writeTeam := func(body string) {
+		require.NoError(t, os.WriteFile(teamFile.Name(), fmt.Appendf(nil, `
+controls:
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+%s`, teamName, body), 0o644))
+	}
+	apply := func() {
+		s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+			"gitops", "--config", fleetCfg.Name(),
+			"-f", globalFile.Name(), "-f", teamFile.Name(),
+		}))
+	}
+
+	flush := s.captureLabelActivities(t)
+
+	// Phase 1: initial apply creates one global and one team label.
+	writeGlobal(`  - name: lbl-global
+    description: original-global
+    label_membership_type: dynamic
+    query: SELECT 1
+`)
+	writeTeam(`  - name: lbl-team
+    description: original-team
+    label_membership_type: dynamic
+    query: SELECT 2
+`)
+	apply()
+	got := flush()
+	require.Len(t, got, 2, "expected created_label for global + team")
+
+	byName := map[string]fleet.ActivityTypeCreatedLabel{}
+	for _, a := range got {
+		c, ok := a.(fleet.ActivityTypeCreatedLabel)
+		require.True(t, ok, "expected created_label, got %T", a)
+		byName[c.Name] = c
+	}
+	require.Contains(t, byName, "lbl-global")
+	require.Contains(t, byName, "lbl-team")
+	require.Nil(t, byName["lbl-global"].FleetID, "global label should have nil fleet_id")
+	require.NotNil(t, byName["lbl-team"].FleetID, "team label should have a fleet_id")
+	require.NotNil(t, byName["lbl-team"].FleetName)
+	require.Equal(t, teamName, *byName["lbl-team"].FleetName)
+
+	// Phase 2: re-apply identical specs — no activity should fire.
+	apply()
+	require.Empty(t, flush(), "no-op apply should produce no activity")
+
+	// Phase 3: edit the global label's description and the team label's query.
+	writeGlobal(`  - name: lbl-global
+    description: edited-global
+    label_membership_type: dynamic
+    query: SELECT 1
+`)
+	writeTeam(`  - name: lbl-team
+    description: original-team
+    label_membership_type: dynamic
+    query: SELECT 99
+`)
+	apply()
+	got = flush()
+	require.Len(t, got, 2, "expected edited_label for both edits")
+	editedNames := map[string]struct{}{}
+	for _, a := range got {
+		e, ok := a.(fleet.ActivityTypeEditedLabel)
+		require.True(t, ok, "expected edited_label, got %T", a)
+		editedNames[e.Name] = struct{}{}
+	}
+	require.Contains(t, editedNames, "lbl-global")
+	require.Contains(t, editedNames, "lbl-team")
+
+	// Phase 4: change lbl-global from dynamic to manual (membership_type swap)
+	// and assign one host. Should emit a single edited_label for lbl-global.
+	writeGlobal(`  - name: lbl-global
+    description: edited-global
+    label_membership_type: manual
+    hosts:
+      - label-act-host-1
+`)
+	writeTeam(`  - name: lbl-team
+    description: original-team
+    label_membership_type: dynamic
+    query: SELECT 99
+`)
+	apply()
+	got = flush()
+	require.Len(t, got, 1, "expected edited_label for membership_type change")
+	e, ok := got[0].(fleet.ActivityTypeEditedLabel)
+	require.True(t, ok, "expected edited_label, got %T", got[0])
+	require.Equal(t, "lbl-global", e.Name)
+
+	// Phase 5: extend the manual label's host list. Should emit a single
+	// edited_label even though all other fields stayed the same.
+	writeGlobal(`  - name: lbl-global
+    description: edited-global
+    label_membership_type: manual
+    hosts:
+      - label-act-host-1
+      - label-act-host-2
+`)
+	apply()
+	got = flush()
+	require.Len(t, got, 1, "expected edited_label for host list change")
+	e, ok = got[0].(fleet.ActivityTypeEditedLabel)
+	require.True(t, ok, "expected edited_label, got %T", got[0])
+	require.Equal(t, "lbl-global", e.Name)
+
+	// Phase 5b: re-apply same host list — must be a no-op.
+	apply()
+	require.Empty(t, flush(), "no-op host list should produce no activity")
+
+	// Phase 6: add a host_vitals label alongside the existing labels.
+	writeGlobal(`  - name: lbl-global
+    description: edited-global
+    label_membership_type: manual
+    hosts:
+      - label-act-host-1
+      - label-act-host-2
+  - name: lbl-host-vitals
+    description: vitals-label
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      value: original-group
+`)
+	apply()
+	got = flush()
+	require.Len(t, got, 1, "expected created_label for host_vitals label")
+	c, ok := got[0].(fleet.ActivityTypeCreatedLabel)
+	require.True(t, ok, "expected created_label, got %T", got[0])
+	require.Equal(t, "lbl-host-vitals", c.Name)
+
+	// Phase 7: update the host_vitals criteria — should emit edited_label.
+	writeGlobal(`  - name: lbl-global
+    description: edited-global
+    label_membership_type: manual
+    hosts:
+      - label-act-host-1
+      - label-act-host-2
+  - name: lbl-host-vitals
+    description: vitals-label
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      value: updated-group
+`)
+	apply()
+	got = flush()
+	require.Len(t, got, 1, "expected edited_label for criteria change")
+	e, ok = got[0].(fleet.ActivityTypeEditedLabel)
+	require.True(t, ok, "expected edited_label, got %T", got[0])
+	require.Equal(t, "lbl-host-vitals", e.Name)
+
+	// Phase 7b: re-apply the same criteria — must be a no-op.
+	apply()
+	require.Empty(t, flush(), "no-op criteria re-apply should produce no activity")
+
+	// Phase 8: remove all labels from the spec — gitops issues delete calls
+	// per name, which should each emit a deleted_label activity.
+	writeGlobal("")
+	writeTeam("")
+	apply()
+	got = flush()
+	require.Len(t, got, 3, "expected deleted_label for all three labels")
+	deletedNames := map[string]struct{}{}
+	for _, a := range got {
+		d, ok := a.(fleet.ActivityTypeDeletedLabel)
+		require.True(t, ok, "expected deleted_label, got %T", a)
+		deletedNames[d.Name] = struct{}{}
+	}
+	require.Contains(t, deletedNames, "lbl-global")
+	require.Contains(t, deletedNames, "lbl-team")
+	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
@@ -3928,6 +4322,108 @@ reports:
 		"secret should be stored as the raw value (not XML-escaped)")
 }
 
+// TestJSONConfigurationProfileEscaping covers issue #38013 — JSON profiles
+// (Apple DDM declarations) must have variable values JSON-escaped at expansion
+// time, while the underlying secret is still stored on the server unescaped.
+func (s *enterpriseIntegrationGitopsTestSuite) TestJSONConfigurationProfileEscaping() {
+	t := s.T()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		declIdentifier     = "com.fleetdm.json.escape.test"
+		secretPasswordName = "JSON_ESCAPE_PASSWORD"
+
+		// Values contain characters that break naive JSON string interpolation
+		// (double quote, backslash, and XML-significant chars for completeness).
+		secretPasswordValue = `custom"password\tag&<>` //nolint:gosec // G101: test fixture, not a credential
+		apiKeyValue         = `my"api&key\v`           //nolint:gosec // G101: test fixture, not a credential
+	)
+
+	t.Setenv("FLEET_SECRET_"+secretPasswordName, secretPasswordValue)
+	t.Setenv("API_KEY", apiKeyValue)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	declPath := filepath.Join(tempDir, "decl.json")
+	declBody := fmt.Sprintf(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": %q,
+		"Payload": {
+			"Password": "$FLEET_SECRET_%s",
+			"ApiKey": "$API_KEY"
+		}
+	}`, declIdentifier, secretPasswordName)
+	require.NoError(t, os.WriteFile(declPath, []byte(declBody), 0o644)) //nolint:gosec
+
+	gitopsConfig := fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: json_escape_test_secret
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+policies:
+reports:
+`, s.Server.URL, declPath)
+
+	configPath := filepath.Join(tempDir, "gitops.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte(gitopsConfig), 0o644)) //nolint:gosec
+
+	// Before the fix, this run would fail with
+	// "Declaration profiles should include valid JSON."
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", configPath})
+
+	// Retrieve the stored declaration by listing profiles and matching on identifier.
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	var declUUID string
+	for _, p := range profs {
+		if p.Platform == "darwin" && p.Identifier == declIdentifier {
+			declUUID = p.ProfileUUID
+			break
+		}
+	}
+	require.NotEmpty(t, declUUID, "uploaded declaration should be listed")
+
+	decl, err := s.DS.GetMDMAppleDeclaration(ctx, declUUID)
+	require.NoError(t, err)
+	stored := string(decl.RawJSON)
+
+	// Stored bytes must be valid JSON — this is the regression guard for #38013.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(decl.RawJSON, &parsed),
+		"stored declaration must be valid JSON")
+
+	// $FLEET_SECRET_* placeholder must be stored literally; it is expanded
+	// server-side at delivery time so secrets are never double-encoded.
+	assert.Contains(t, stored, "$FLEET_SECRET_"+secretPasswordName,
+		"stored declaration should still contain the FLEET_SECRET_ placeholder")
+
+	// $API_KEY must be JSON-escaped: `"` → `\"`, `\` → `\\`.
+	payload, ok := parsed["Payload"].(map[string]any)
+	require.True(t, ok, "Payload should be an object")
+	assert.Equal(t, apiKeyValue, payload["ApiKey"],
+		"ApiKey should round-trip to the raw env var value after JSON parse")
+	assert.NotContains(t, stored, "$API_KEY",
+		"stored declaration should not contain the unexpanded $API_KEY reference")
+
+	// The custom secret must be stored raw so server-side expansion doesn't double-encode it.
+	dbSecrets, err := s.DS.GetSecretVariables(ctx, []string{secretPasswordName})
+	require.NoError(t, err)
+	require.Len(t, dbSecrets, 1)
+	assert.Equal(t, secretPasswordValue, dbSecrets[0].Value,
+		"secret should be stored as the raw value (not JSON-escaped)")
+}
+
 // TestGitOpsSoftwareWithEnvVarInstalledByPolicy tests that a software package
 // with an environment variable in the URL can be referenced by a policy to be
 // installed automatically.
@@ -4558,4 +5054,86 @@ queries:
 	// Applying a DDM declaration with an unsupported Fleet variable should fail
 	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_BOZO is not supported in DDM profiles")
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestManagedLocalAccount() {
+	t := s.T()
+	ctx := context.Background()
+
+	originalAppConfig, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.DS.SaveAppConfig(ctx, originalAppConfig))
+	})
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	const (
+		globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		noTeamConfig = `name: Unassigned
+controls:
+  setup_experience:
+    enable_create_local_admin_account: true
+    end_user_local_account_type: "admin"
+policies:
+software:
+`
+
+		teamConfig = `
+controls:
+  setup_experience:
+    enable_create_local_admin_account: true
+    end_user_local_account_type: "admin"
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, []byte(body), 0o644))
+		return p
+	}
+
+	globalFile := write("global.yml", globalConfig)
+	noTeamFile := write("unassigned.yml", noTeamConfig)
+	teamName := uuid.NewString()
+	teamFile := write("team.yml", fmt.Sprintf(teamConfig, teamName))
+
+	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", teamFile, "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", noTeamFile, "-f", teamFile}))
+
+	appConfig, err := s.DS.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", appConfig.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }

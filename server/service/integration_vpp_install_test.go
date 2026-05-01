@@ -685,6 +685,20 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		commandResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
 	)
 
+	// Verify the device/self-service endpoint also returns VPP metadata (#43957)
+	var deviceCmdResultsResp getMDMCommandResultsResponse
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", "foobar", installCmdUUID), nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&deviceCmdResultsResp)
+	require.NoError(t, err)
+	require.Len(t, deviceCmdResultsResp.Results, 1)
+	require.Equal(t, false, deviceCmdResultsResp.Results[0].ResultsMetadata["software_installed"])
+	require.InEpsilon(
+		t,
+		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		deviceCmdResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
+		0.01,
+	)
+
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host
 	// ========================================================
@@ -1264,7 +1278,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// enqueue a script run, so the VPP app installs are pending in the unified
 	// queue
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// trigger install of both apps on the host
@@ -2800,7 +2814,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// enqueue a script execution first, so that when it's marked as executed, both
 	// vpp app installs activate at the same time (VPP app installs get batch-activated
 	// when they are consecutive in the upcoming queue)
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost2.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, appXcodeTitleID), &installSoftwareRequest{},
