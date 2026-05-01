@@ -1800,6 +1800,24 @@ func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
 	return true
 }
 
+type ActivityTypeFailedEnrollmentProfileRenewal struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	CommandUUID     string `json:"command_uuid"`
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) ActivityName() string {
+	return "failed_enrollment_profile_renewal"
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) WasFromAutomation() bool {
+	return true
+}
+
+func (a ActivityTypeFailedEnrollmentProfileRenewal) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCreatedLabel struct {
 	ID        uint    `json:"label_id"`
 	Name      string  `json:"label_name"`

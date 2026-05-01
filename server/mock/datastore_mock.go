@@ -1901,6 +1901,8 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
+type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -4718,6 +4720,9 @@ type DataStore struct {
 
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc        MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked bool
+
+	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
+	IsAppleEnrollmentRenewalCommandFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11293,4 +11298,11 @@ func (s *DataStore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.C
 	s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc(ctx, deviceId)
+}
+
+func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID string, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
 }
