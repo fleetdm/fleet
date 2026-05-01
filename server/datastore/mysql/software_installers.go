@@ -3590,7 +3590,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids
+	si.package_ids,
+	si.install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3611,7 +3612,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	'' AS package_ids
+	'' AS package_ids,
+	0 AS install_script_content_id
 FROM
 	in_house_apps iha
 	JOIN software_titles st ON iha.title_id = st.id
@@ -3666,7 +3668,8 @@ SELECT
 	st.bundle_identifier AS bundle_identifier,
 	st.name AS title,
 	si.package_ids AS package_ids,
-	si.http_etag AS http_etag
+	si.http_etag AS http_etag,
+	si.install_script_content_id AS install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3699,68 +3702,63 @@ LIMIT 1`
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
-	// if this is an in-house app, check if an installer exists
-	if payload.Extension == "ipa" {
+	switch payload.Platform {
+	// currently, the platform will always be ios for .ipa files
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
 		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
 		// for ipa apps, so check for conflicts on either platform.
 		for platform, source := range map[string]string{
 			string(fleet.IOSPlatform):    "ios_apps",
 			string(fleet.IPadOSPlatform): "ipados_apps",
 		} {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
+			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
+
+			// check if equivalent installers exist, duplicate in-house apps are checked in insertInHouseApp
+			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "check if software installer exists for title identifier")
 			}
 			if exists {
 				return alreadyExists("software installer", payload.Title)
 			}
-
-			exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
 		}
-	} else {
-		// check if a VPP app already exists for that software title in the same
-		// platform and team.
-		if payload.Platform == string(fleet.MacOSPlatform) || payload.Platform == string(fleet.IOSPlatform) || payload.Platform == string(fleet.IPadOSPlatform) {
-			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
+	case string(fleet.MacOSPlatform):
+		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("VPP app", payload.Title)
 		}
 
-		// Check if an in-house app with the same bundle id already exists.
-		// Also check if equivalent installers exist, since we relaxed the uniqueness constraints to allow
-		// multiple FMA installer versions.
-		if payload.BundleIdentifier != "" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if in-house app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("in-house app", payload.Title)
-			}
-
-			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("installer", payload.Title)
-			}
+		// check only for installers, since in-house apps target iOS/iPadOS so they won't conflict
+		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
+		}
+	case "windows", "linux":
+		// check by name before any software title renaming side effects can happen
+		exists, err := ds.checkInstallerExistsByName(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists by name")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
 		}
 
-		if payload.Platform == "windows" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		if payload.UpgradeCode != "" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+				return ctxerr.Wrap(ctx, err, "check if installer exists for upgrade code")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)

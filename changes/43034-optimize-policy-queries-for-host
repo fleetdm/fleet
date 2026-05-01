@@ -1,1 +1,0 @@
-* Optimized `PolicyQueriesForHost` and `ListPoliciesForHost` SQL queries by replacing correlated subqueries with a single aggregated LEFT JOIN for label-based policy scoping, reducing query time by ~77% at scale.

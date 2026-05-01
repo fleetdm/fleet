@@ -40,11 +40,10 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// DefaultResolutionHours returns the default display granularity in hours
-	// (1 for uptime, 24 for CVE). Used when the caller doesn't specify
-	// RequestOpts.Resolution. Unrelated to write-side granularity — all
-	// collectors write at 1h regardless of display resolution; see
-	// SampleStrategy for details.
+	// DefaultResolutionHours returns the default display granularity in hours.
+	// Used when the caller doesn't specify RequestOpts.Resolution. Unrelated
+	// to write-side granularity — all collectors write at 1h regardless of
+	// display resolution; see SampleStrategy for details.
 	DefaultResolutionHours() int
 
 	// SampleStrategy returns how samples combine within and across buckets.
@@ -65,6 +64,12 @@ type DatasetStore interface {
 	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
 	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+
+	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
+	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// underlying joins: a host's software/OS row transitions when it upgrades
+	// past the vulnerable version, so the join naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.

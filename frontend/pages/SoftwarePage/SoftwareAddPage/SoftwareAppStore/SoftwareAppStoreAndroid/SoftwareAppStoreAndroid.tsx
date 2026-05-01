@@ -29,13 +29,12 @@ const SoftwareAppStoreAndroid = ({
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      fleet_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
-
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
   const onAddSoftware = async (formData: ISoftwareAndroidFormData) => {
@@ -84,7 +83,7 @@ const SoftwareAppStoreAndroid = ({
       <div className={`${baseClass}__content`}>
         <SoftwareAndroidForm
           onSubmit={onAddSoftware}
-          onCancel={goBackToSoftwareTitles}
+          onCancel={goBackToSoftwareLibrary}
           isLoading={isLoading}
         />
       </div>
