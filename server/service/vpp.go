@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -65,31 +64,6 @@ type addAppStoreAppRequest struct {
 	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
-// UnmarshalJSON handles the configuration field which can be a json object or a plist xml.
-func (r *addAppStoreAppRequest) UnmarshalJSON(data []byte) error {
-	type alias addAppStoreAppRequest
-	aux := struct {
-		*alias
-		Configuration json.RawMessage `json:"configuration,omitempty"`
-	}{alias: (*alias)(r)}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-	if len(aux.Configuration) == 0 || bytes.Equal(aux.Configuration, []byte("null")) {
-		return nil
-	}
-	switch r.Platform {
-	case fleet.IOSPlatform, fleet.IPadOSPlatform:
-		var plist string
-		if err := json.Unmarshal(aux.Configuration, &plist); err != nil {
-			return fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
-		}
-		r.Configuration = []byte(plist)
-	default:
-		r.Configuration = aux.Configuration
-	}
-	return nil
-}
 
 type addAppStoreAppResponse struct {
 	TitleID uint  `json:"software_title_id,omitempty"`

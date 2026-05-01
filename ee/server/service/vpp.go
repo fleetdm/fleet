@@ -786,10 +786,14 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			}
 			androidConfigChanged = changed
 		case fleet.IOSPlatform, fleet.IPadOSPlatform:
-			if err := fleet.ValidateAppleAppConfiguration(appID.Configuration); err != nil {
+			var plist string
+			if err := json.Unmarshal(appID.Configuration, &plist); err != nil {
+				return 0, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the plist XML")
+			}
+			if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
 				return 0, err
 			}
-			app.Configuration = appID.Configuration
+			app.Configuration = []byte(plist)
 		}
 	}
 
@@ -806,14 +810,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(addedApp.ValidatedLabels)
 
-	actConfig := json.RawMessage(appID.Configuration)
-	if appID.Platform == fleet.IOSPlatform || appID.Platform == fleet.IPadOSPlatform {
-		actConfig, err = json.Marshal(string(appID.Configuration))
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "encoding configuration for activity")
-		}
-	}
-
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:       app.AdamID,
 		Platform:         app.Platform,
@@ -825,7 +821,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAny: actLabelsInclAny,
 		LabelsExcludeAny: actLabelsExclAny,
 		LabelsIncludeAll: actLabelsInclAll,
-		Configuration:    actConfig,
+		Configuration:    json.RawMessage(appID.Configuration),
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
