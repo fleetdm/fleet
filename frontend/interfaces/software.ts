@@ -50,6 +50,7 @@ export interface ISoftware {
   extension_for?: string;
   vendor?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  title_id?: number; // ID of the associated software title
 }
 
 export type IVulnerabilitySoftware = Omit<
