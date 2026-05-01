@@ -1293,6 +1293,12 @@ func TestGetESPCommands(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 		}
+		// Default empty result list: the cancel block in handleESPRelease now lists statuses on every finalize
+		// (timeout AND software-failure+require_all=true) so it can iterate upcoming_activities. Tests that don't
+		// care about cancel-loop behavior get this no-op default; tests that need pending rows override it.
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
 		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
 	}
 
@@ -1886,10 +1892,11 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Equal(t, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
 			"timeout without software failure uses timeout-specific error text")
 
-		// Wait gates should be skipped on timeout.
+		// Wait gates should be skipped on timeout. ListSetupExperienceResultsByHostUUID is intentionally NOT asserted
+		// because the cancel block now reads it on every finalize to iterate upcoming_activities, even though the
+		// wait-gate read was skipped.
 		assert.False(t, ds.ListMDMWindowsProfilesToInstallForHostFuncInvoked)
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
-		assert.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked)
 	})
 
 	t.Run("timeout with require_all=false releases with error text and cancels", func(t *testing.T) {
@@ -1927,6 +1934,152 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
 			"release path must not include CustomErrorText (failure UI never renders)")
 		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+	})
+
+	t.Run("timeout cancels upcoming_activities for pending rows on release path", func(t *testing.T) {
+		// Regression: on timeout+require_all=false, the device is released to login but the cancel block must clean
+		// BOTH the setup_experience_status_results status table AND the upcoming_activities queue. orbit polls
+		// upcoming_activities directly via ListReadyToExecuteSoftwareInstalls (no join on the status table), so an
+		// orphan activated_at IS NOT NULL row would otherwise run the install post-login -- exactly the post-login
+		// orphan-install bug this block exists to prevent.
+		ds, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:             deviceID,
+				HostUUID:                hostUUID,
+				AwaitingConfiguration:   fleet.WindowsMDMAwaitingConfigurationActive,
+				AwaitingConfigurationAt: &past,
+			}, nil
+		}
+		const (
+			swExecID     = "exec-software-1"
+			scriptExecID = "exec-script-1"
+			nanoCmdUUID  = "nano-cmd-1"
+		)
+		// Mix of statuses to verify selectivity: only Pending and Running rows should generate
+		// CancelHostUpcomingActivity calls. Success/Failure/Cancelled rows must be skipped.
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			swExec := swExecID
+			scriptExec := scriptExecID
+			nanoUUID := nanoCmdUUID
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Pending Software", Status: fleet.SetupExperienceStatusPending, HostSoftwareInstallsExecutionID: &swExec},
+				{Name: "Running Script", Status: fleet.SetupExperienceStatusRunning, ScriptExecutionID: &scriptExec},
+				{Name: "Pending VPP", Status: fleet.SetupExperienceStatusPending, NanoCommandUUID: &nanoUUID},
+				{Name: "Already Done", Status: fleet.SetupExperienceStatusSuccess, HostSoftwareInstallsExecutionID: new("exec-done")},
+				{Name: "Already Failed", Status: fleet.SetupExperienceStatusFailure, HostSoftwareInstallsExecutionID: new("exec-failed")},
+			}, nil
+		}
+		// HostLite must surface ID + OsqueryHostID so the cancel block has both: ID for upcoming_activities cancel,
+		// OsqueryHostID for status-table cancel.
+		const expectedHostID = uint(7)
+		osqueryHostID := "osquery-" + hostUUID
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: expectedHostID, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = false
+			return ac, nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+
+		// Track every CancelHostUpcomingActivity call and the order of operations: every upcoming_activities
+		// cancel must complete BEFORE CancelPendingSetupExperienceSteps runs. If we updated the status table first,
+		// a mid-loop crash would leave the iteration's pending check unable to find the orphan rows on retry.
+		var cancelledExecIDs []string
+		var cancelledHostIDs []uint
+		var statusCancelled bool
+		var statusCancelledBeforeQueue bool
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+			if statusCancelled {
+				statusCancelledBeforeQueue = true
+			}
+			cancelledExecIDs = append(cancelledExecIDs, executionID)
+			cancelledHostIDs = append(cancelledHostIDs, hostID)
+			return nil, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			statusCancelled = true
+			assert.Equal(t, osqueryHostID, hUUID,
+				"CancelPendingSetupExperienceSteps must be called with the setup-experience host UUID (= OsqueryHostID on Windows)")
+			return nil
+		}
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		// Device must still be released (require_all=false).
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"timeout with require_all=false must still release the device")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"))
+
+		// upcoming_activities cancel: exactly one call per non-terminal row, with the correct host.ID and execution ID.
+		require.Len(t, cancelledExecIDs, 3,
+			"must cancel one upcoming_activities row for each Pending/Running setup-experience status (3 of 5)")
+		assert.ElementsMatch(t, []string{swExecID, scriptExecID, nanoCmdUUID}, cancelledExecIDs,
+			"must cancel the software install, script, and VPP execution IDs from the non-terminal rows")
+		for _, hid := range cancelledHostIDs {
+			assert.Equal(t, expectedHostID, hid,
+				"CancelHostUpcomingActivity must use host.ID (numeric), not the device UUID")
+		}
+
+		// Both halves cancelled, in the right order.
+		assert.True(t, statusCancelled, "must also cancel the setup_experience_status_results status table")
+		assert.False(t, statusCancelledBeforeQueue,
+			"upcoming_activities cancel must complete BEFORE the status table update -- otherwise a mid-loop "+
+				"crash would leak orphan rows past the retry's status-pending filter")
+	})
+
+	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
+		// Regression: CancelHostUpcomingActivity returns notFound when the row is already absent (e.g., a previous
+		// finalize attempt cancelled the queue row and crashed before the status table update; the retry sees status
+		// still Pending and re-tries). Tolerating notFound keeps retries idempotent. Anything stricter would loop
+		// forever on the same checkin until the 3-hour timeout expires server-side.
+		ds, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:             deviceID,
+				HostUUID:                hostUUID,
+				AwaitingConfiguration:   fleet.WindowsMDMAwaitingConfigurationActive,
+				AwaitingConfigurationAt: &past,
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Already Cancelled Queue", Status: fleet.SetupExperienceStatusPending, HostSoftwareInstallsExecutionID: new("exec-gone")},
+			}, nil
+		}
+		setRequireAll(ds, false)
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+			return nil, newNotFoundError()
+		}
+		var statusCancelled bool
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			statusCancelled = true
+			return nil
+		}
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		_, err := svc.getESPCommands(t.Context(), deviceID)
+		require.NoError(t, err,
+			"notFound from CancelHostUpcomingActivity must be tolerated -- otherwise mid-loop crashes loop forever on retry")
+		assert.True(t, statusCancelled,
+			"after tolerating the notFound, the status-table cancel must still run so the iteration eventually clears "+
+				"the rows and the next retry's pending check skips them")
 	})
 
 	t.Run("success path does not include error text", func(t *testing.T) {

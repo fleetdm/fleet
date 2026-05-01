@@ -2286,16 +2286,63 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. Run this
 	// BEFORE the CAS so a transient cancel failure aborts the finalize cleanly -- otherwise we'd commit awaiting=None
 	// while leaving non-terminal setup-experience rows behind, exactly the state cancellation is supposed to prevent.
-	// CancelPendingSetupExperienceSteps is idempotent so a retry on the next session is safe.
+	//
+	// We must cancel both halves: the upcoming_activities queue (orbit polls this directly via
+	// ListReadyToExecuteSoftwareInstalls and would happily run any orphan rows post-login, which is exactly the bug we're
+	// trying to prevent on the timeout+require_all=false release path) AND the setup_experience_status_results status
+	// table (so the UI and downstream queries see the cancelled state). This mirrors maybeCancelPendingSetupExperienceSteps
+	// but skips that helper because it early-returns on require_all=false, which would leave us doing nothing on the
+	// pure-timeout release path -- exactly the case this block exists to handle.
+	//
+	// Cancel ordering: upcoming_activities first, then status table. If we crash mid-loop, the next retry sees the same
+	// status rows still pending, re-iterates, and will tolerate the now-deleted upcoming_activities row via IsNotFound.
+	// If we did status-first and crashed before the queue-cancel, the retry's iteration would skip those rows
+	// (status != Pending/Running) and the queued install would silently leak through.
 	//
 	// The canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
 	// software-install-result reporting path when require_all=true and a software install fails. We deliberately do
-	// not emit it again here to avoid duplicate activities when both paths fire for the same failure.
+	// not emit it again here to avoid duplicate activities when both paths fire for the same failure. Pure-timeout and
+	// require_all=false cancellations don't emit the activity at all (matching macOS, which only emits on the
+	// require_all=true software-failure case).
 	if timedOut || (hasSoftwareFailure && requireAll) {
 		seHostUUID, err := setupExperienceHostUUID()
 		if err != nil {
 			return nil, err
 		}
+		// We re-list statuses here even when the wait gate already loaded them above: that path filters to terminality
+		// and the loop variable isn't held. The cost is one extra read per finalize and the code is simpler.
+		statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for cancel")
+		}
+		host, err := loadHost()
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range statuses {
+			if s.Status != fleet.SetupExperienceStatusPending && s.Status != fleet.SetupExperienceStatusRunning {
+				continue
+			}
+			var executionID string
+			switch {
+			case s.HostSoftwareInstallsExecutionID != nil:
+				executionID = *s.HostSoftwareInstallsExecutionID
+			case s.NanoCommandUUID != nil:
+				executionID = *s.NanoCommandUUID
+			case s.ScriptExecutionID != nil:
+				executionID = *s.ScriptExecutionID
+			default:
+				continue
+			}
+			// Tolerate notFound: a previous attempt may have cancelled the upcoming_activities row before crashing
+			// before the status table update, or another path (manual cancel, re-enrollment cleanup) may have removed
+			// it concurrently. In either case the queue is already in the desired state.
+			if _, err := svc.ds.CancelHostUpcomingActivity(ctx, host.ID, executionID); err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "cancel upcoming setup experience activity")
+			}
+		}
+		// CancelPendingSetupExperienceSteps is idempotent (status filter excludes terminal rows) so a retry on the
+		// next session is safe.
 		if err := svc.ds.CancelPendingSetupExperienceSteps(ctx, seHostUUID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
 		}
