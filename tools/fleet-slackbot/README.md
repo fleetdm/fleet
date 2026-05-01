@@ -59,7 +59,7 @@ Create a Slack app at [api.slack.com/apps](https://api.slack.com/apps) with:
 ### 2. GitHub
 
 - Create a fine-grained personal access token with **read/write access to contents and pull requests** on your GitOps repo.
-- Add a webhook on the repo pointing to `http://your-host:3000/github/webhook`, sending `Check runs` and `Pull request review comments` events. Note the secret you choose.
+- Add a webhook on the repo pointing to `http://your-host:3000/github/webhook`, sending `Check runs`, `Issue comments`, and `Pull request review comments` events. Note the secret you choose.
 
 ### 3. Fleet MCP server
 
