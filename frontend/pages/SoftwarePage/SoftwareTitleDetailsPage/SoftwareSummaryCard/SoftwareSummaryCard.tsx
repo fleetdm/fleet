@@ -120,9 +120,10 @@ const SoftwareSummaryCard = ({
 
   const canEditAppearance = canManageSoftware;
   const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
-  /** Permission to manage software + Google Playstore app that's not a web app */
+  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
   const canEditConfiguration =
-    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
+    canManageSoftware &&
+    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
   const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;

@@ -101,7 +101,7 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show edit configuration option only for Android installers that are not web apps
+  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",

@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import { IAppStoreApp } from "interfaces/software";
+import { isIPadOrIPhone } from "interfaces/platform";
 
 import { NotificationContext } from "context/notification";
 
@@ -13,26 +14,21 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import InstallerDetailsWidget from "../SoftwareInstallerCard/InstallerDetailsWidget";
-import { getErrorMessage } from "./helpers";
+import {
+  getErrorMessage,
+  validateJson,
+  validateXml,
+  getPlatformLabel,
+} from "./helpers";
 import { getDisplayedSoftwareName } from "../../helpers";
 
 const baseClass = "edit-configuration-modal";
-
-// Used to surface error.message in UI of unknown error type
-type ErrorWithMessage = {
-  message: string;
-  [key: string]: unknown;
-};
-
-const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
-  return (error as ErrorWithMessage).message !== undefined;
-};
 
 export interface ISoftwareConfigurationFormData {
   configuration: string;
 }
 
-interface EditConfigurationModal {
+interface IEditConfigurationModalProps {
   softwareId: number;
   teamId: number;
   softwareInstaller: IAppStoreApp;
@@ -46,34 +42,46 @@ const EditConfigurationModal = ({
   teamId,
   refetchSoftwareTitle,
   onExit,
-}: EditConfigurationModal) => {
+}: IEditConfigurationModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  const platform = softwareInstaller.platform;
+  const isApplePlatform = isIPadOrIPhone(platform);
+
+  const getInitialValue = () => {
+    if (isApplePlatform) {
+      return softwareInstaller.configuration || "";
+    }
+    return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
+  };
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [canSaveForm, setCanSaveForm] = useState(true);
-  const [jsonFormData, setJsonFormData] = useState<string>(
-    JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}"
-  );
+  const [formData, setFormData] = useState<string>(getInitialValue());
   const [formError, setFormError] = useState<string | null>(null);
 
-  const validateForm = (curFormData: string) => {
-    let error = null;
-
-    if (curFormData) {
-      try {
-        JSON.parse(curFormData);
-      } catch (e: unknown) {
-        if (isErrorWithMessage(e)) {
-          error = e.message.toString();
-        } else {
-          throw e;
-        }
-      }
+  const validateForm = (curFormData: string): string | null => {
+    if (isApplePlatform) {
+      return validateXml(curFormData);
     }
-    return error;
+    return validateJson(curFormData);
   };
 
-  // Edit package API call
+  const buildSubmitPayload = (): ISoftwareConfigurationFormData => {
+    if (isApplePlatform) {
+      // iOS/iPadOS: send XML as a string
+      return { configuration: formData };
+    }
+    // Android: send parsed JSON object (cast to string to match interface;
+    // runtime value is an object that gets serialized by sendRequest)
+    if (formData === "") {
+      return { configuration: ({} as unknown) as string };
+    }
+    return {
+      configuration: (JSON.parse(formData) as unknown) as string,
+    };
+  };
+
   const onEditConfiguration = async (
     evt: React.MouseEvent<HTMLFormElement>
   ) => {
@@ -81,15 +89,12 @@ const EditConfigurationModal = ({
 
     evt.preventDefault();
 
-    // Format for API
-    const formDataToSubmit =
-      jsonFormData === ""
-        ? { configuration: {} } // Send empty object if no keys are set
-        : {
-            configuration: (jsonFormData && JSON.parse(jsonFormData)) || null,
-          };
     try {
-      await softwareAPI.editAppStoreApp(softwareId, teamId, formDataToSubmit);
+      await softwareAPI.editAppStoreApp(
+        softwareId,
+        teamId,
+        buildSubmitPayload()
+      );
 
       renderFlash(
         "success",
@@ -113,21 +118,28 @@ const EditConfigurationModal = ({
   };
 
   const onInputChange = (value: string) => {
-    setJsonFormData(value);
+    setFormData(value);
 
     const error = validateForm(value);
     setFormError(error);
     setCanSaveForm(!error);
   };
 
+  const platformLabel = getPlatformLabel(platform);
+  const editorMode = isApplePlatform ? "xml" : "json";
+  const formatLabel = isApplePlatform ? "XML" : "JSON";
+  const learnMoreSlug = isApplePlatform
+    ? "ios-ipados-software-managed-configuration"
+    : "android-software-managed-configuration";
+
   const renderHelpText = () => {
     return (
       <div className={`${baseClass}__help-text`}>
-        The Android app&apos;s configuration in JSON format.{" "}
+        The {platformLabel} app&apos;s configuration in {formatLabel} format.{" "}
         <CustomLink
           newTab
           text="Learn more"
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-software-managed-configuration`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/${learnMoreSlug}`}
         />
       </div>
     );
@@ -136,8 +148,8 @@ const EditConfigurationModal = ({
   const renderForm = () => (
     <>
       <Editor
-        mode="json"
-        value={jsonFormData as string}
+        mode={editorMode}
+        value={formData}
         helpText={renderHelpText()}
         onChange={onInputChange}
         error={formError}
@@ -150,8 +162,10 @@ const EditConfigurationModal = ({
     <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
       <InstallerDetailsWidget
         softwareName={softwareInstaller.name}
-        androidPlayStoreId={softwareInstaller.app_store_id}
-        customDetails="Android"
+        androidPlayStoreId={
+          isApplePlatform ? undefined : softwareInstaller.app_store_id
+        }
+        customDetails={platformLabel}
         installerType="app-store"
         isFma={false}
         isScriptPackage={false}

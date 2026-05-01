@@ -337,7 +337,8 @@ const handleConfigurationAppStoreAppForm = (
   formData: ISoftwareConfigurationFormData,
   body: IEditAppStoreAppPostBody
 ) => {
-  body.configuration = formData.configuration || "{}";
+  // Use ?? to preserve empty strings (iOS/iPadOS clears config with "")
+  body.configuration = formData.configuration ?? "{}";
 };
 
 const handleAutoUpdateConfigAppStoreAppForm = (
