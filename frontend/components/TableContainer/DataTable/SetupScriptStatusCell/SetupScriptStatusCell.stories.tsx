@@ -26,7 +26,3 @@ export const Success: Story = {
 export const Failure: Story = {
   args: { status: "failure" },
 };
-
-export const Cancelled: Story = {
-  args: { status: "cancelled" },
-};
