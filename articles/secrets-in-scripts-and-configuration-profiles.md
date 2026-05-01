@@ -8,6 +8,8 @@ In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts)
 
 Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
+> Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fleet replaces them with their values when the install script is sent to the host.
+
 ## Add variables
 
 A variable can be used in a script or configuration profile by specifying a variable in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the variable's value. The prefix `FLEET_SECRET_` is required to indicate that this is a variable, and Fleet reserves this prefix for variables.
