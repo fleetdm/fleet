@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260420120000, Down_20260420120000)
+	MigrationClient.AddMigration(Up_20260501133045, Down_20260501133045)
 }
 
-func Up_20260420120000(tx *sql.Tx) error {
+func Up_20260501133045(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS windows_mdm_default_team (
   id         INT(10) UNSIGNED NOT NULL DEFAULT 1,
@@ -30,6 +30,6 @@ CREATE TABLE IF NOT EXISTS windows_mdm_default_team (
 	return nil
 }
 
-func Down_20260420120000(_ *sql.Tx) error {
+func Down_20260501133045(_ *sql.Tx) error {
 	return nil
 }
