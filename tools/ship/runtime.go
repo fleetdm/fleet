@@ -354,13 +354,12 @@ func (r *engine) stepNgrok(ctx context.Context) error {
 	}
 	logPath := filepath.Join(r.opts.repoRoot, "tools", "ship", ".state", "logs", "ngrok.log")
 
-	// Fleet's --dev server speaks HTTPS with a self-signed cert, so ngrok
-	// has to forward to https://, not http://. Tell it not to verify the
-	// upstream cert since the dev cert is ephemeral and self-signed.
+	// Matches the command shape that's known to work: forward to the HTTPS
+	// upstream, point at the user's static domain via --url. ngrok handles
+	// the localhost self-signed cert automatically here.
 	target := fmt.Sprintf("https://localhost:%d", r.opts.cfg.Fleet.Port)
 	p, err := startProc("ngrok", r.opts.repoRoot, nil, logPath, r.logSink,
-		"ngrok", "http", "--domain="+domain, "--log=stdout",
-		"--upstream-tls-verify=disabled", target)
+		"ngrok", "http", target, "--url="+domain)
 	if err != nil {
 		return err
 	}
