@@ -16,6 +16,7 @@ interface ILabelFormProps {
   defaultDescription?: string;
   additionalFields?: ReactNode;
   isUpdatingLabel?: boolean;
+  isManualLabel?: boolean;
   teamName: string | null;
   onCancel: () => void;
   immutableFields: string[];
@@ -52,6 +53,7 @@ const LabelForm = ({
   defaultDescription = "",
   additionalFields,
   isUpdatingLabel,
+  isManualLabel = false,
   teamName,
   onCancel,
   onSave,
@@ -171,21 +173,32 @@ const LabelForm = ({
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
+        {isManualLabel ? (
+          <Button
+            type="submit"
+            isLoading={isUpdatingLabel}
+            disabled={!formValidation.isValid}
+          >
+            Save
+          </Button>
+        ) : (
+          <GitOpsModeTooltipWrapper
+            entityType="labels"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                isLoading={isUpdatingLabel}
+                disabled={disableChildren || !formValidation.isValid}
+              >
+                Save
+              </Button>
+            )}
+          />
+        )}
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <GitOpsModeTooltipWrapper
-          entityType="labels"
-          renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              isLoading={isUpdatingLabel}
-              disabled={disableChildren || !formValidation.isValid}
-            >
-              Save
-            </Button>
-          )}
-        />
       </div>
     </form>
   );
