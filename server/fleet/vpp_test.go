@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -143,10 +142,10 @@ func TestVPPAppStoreAppMarshalJSON(t *testing.T) {
 			wantConfigOnWire:  string(plist),
 		},
 		{
-			name:              "Android raw bytes emitted as base64",
+			name:              "Android raw JSON emitted as JSON object",
 			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: AndroidPlatform}, Configuration: androidConfig},
 			wantConfigPresent: true,
-			wantConfigOnWire:  base64.StdEncoding.EncodeToString(androidConfig),
+			wantConfigOnWire:  map[string]any{"a": float64(1)},
 		},
 		{
 			name:              "iOS with nil Configuration omits field",
@@ -157,12 +156,6 @@ func TestVPPAppStoreAppMarshalJSON(t *testing.T) {
 			name:              "Android with nil Configuration omits field",
 			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: AndroidPlatform}},
 			wantConfigPresent: false,
-		},
-		{
-			name:              "macOS falls through to default base64",
-			app:               VPPAppStoreApp{VPPAppID: VPPAppID{Platform: MacOSPlatform}, Configuration: []byte("raw")},
-			wantConfigPresent: true,
-			wantConfigOnWire:  base64.StdEncoding.EncodeToString([]byte("raw")),
 		},
 	}
 
@@ -203,8 +196,8 @@ func TestVPPAppStoreAppUnmarshalJSON(t *testing.T) {
 			wantConfig: plist,
 		},
 		{
-			name:       "Android base64 string decodes to raw bytes",
-			wireJSON:   fmt.Sprintf(`{"platform":"android","configuration":%q}`, base64.StdEncoding.EncodeToString(androidConfig)),
+			name:       "Android JSON object decodes to raw bytes",
+			wireJSON:   fmt.Sprintf(`{"platform":"android","configuration":%s}`, string(androidConfig)),
 			wantConfig: androidConfig,
 		},
 		{

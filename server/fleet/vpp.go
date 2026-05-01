@@ -152,7 +152,13 @@ func (a VPPAppStoreApp) MarshalJSON() ([]byte, error) {
 			Configuration: string(a.Configuration),
 		})
 	default:
-		return json.Marshal(alias(a))
+		return json.Marshal(struct {
+			alias
+			Configuration json.RawMessage `json:"configuration,omitempty"`
+		}{
+			alias:         alias(a),
+			Configuration: json.RawMessage(a.Configuration),
+		})
 	}
 }
 
@@ -180,10 +186,10 @@ func (a *VPPAppStoreApp) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		a.Configuration = []byte(plist)
-		return nil
 	default:
-		return json.Unmarshal(aux.Configuration, &a.Configuration)
+		a.Configuration = aux.Configuration
 	}
+	return nil
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
