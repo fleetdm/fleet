@@ -21,21 +21,21 @@ type getTeamScheduleRequest struct {
 }
 
 type getTeamScheduleResponse struct {
-	Scheduled []scheduledQueryResponse `json:"scheduled"`
-	Err       error                    `json:"error,omitempty"`
+	Scheduled []fleet.ScheduledQueryResponse `json:"scheduled"`
+	Err       error                          `json:"error,omitempty"`
 }
 
 func (r getTeamScheduleResponse) Error() error { return r.Err }
 
 func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
-	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
+	resp := getTeamScheduleResponse{Scheduled: []fleet.ScheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return getTeamScheduleResponse{Err: err}, nil
 	}
 	for _, q := range queries {
-		resp.Scheduled = append(resp.Scheduled, scheduledQueryResponse{
+		resp.Scheduled = append(resp.Scheduled, fleet.ScheduledQueryResponse{
 			ScheduledQuery: *q,
 		})
 	}

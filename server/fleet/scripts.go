@@ -387,8 +387,9 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	scriptHashbangValidation       = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter      = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	ErrUnsupportedShellInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
 
 type ShebangKind int
@@ -514,7 +515,7 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	}
 
 	maxLen := SavedScriptMaxRuneLen
-	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	maxLenErrMsg := RunScriptSavedMaxLenErrMsg
 	if !isSavedScript {
 		maxLen = UnsavedScriptMaxRuneLen
 		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
@@ -541,6 +542,49 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 
 	if _, err := ValidateShebang(s); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ValidateSoftwareInstallerScript validates the content of a software installer
+// script (install, post-install, or uninstall). Unlike ValidateHostScriptContents,
+// empty scripts are valid (meaning "no script"). The platform parameter determines
+// whether shebang validation is applied (only for "darwin" and "linux"; skipped
+// for "windows" since those use PowerShell).
+func ValidateSoftwareInstallerScript(s, platform string) error {
+	// Empty scripts are valid — they mean "no script provided".
+	if s == "" {
+		return nil
+	}
+
+	// Size check: use the saved-script limit (500,000 runes).
+	if len(s) > utf8.UTFMax*SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+	if utf8.RuneCountInString(s) > SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+
+	// Binary check: must be valid UTF-8.
+	if !utf8.ValidString(s) {
+		return errors.New("Wrong data format. Only plain text allowed.")
+	}
+
+	// Shebang/interpreter check: only for darwin and linux (shell scripts).
+	// Windows uses PowerShell, which doesn't use shebangs.
+	if platform != "windows" {
+		kind, _, err := ShebangInfo(s)
+		if err != nil {
+			// Return a shell-specific error message for software installer scripts,
+			// since they only support shell interpreters (not python).
+			return ErrUnsupportedShellInterpreter
+		}
+		// Software installer scripts must use a shell interpreter (or no shebang,
+		// which defaults to /bin/sh). Python shebangs are not supported here.
+		if kind == ShebangPython {
+			return ErrUnsupportedShellInterpreter
+		}
 	}
 
 	return nil
@@ -582,6 +626,8 @@ type SoftwareInstallerPayload struct {
 
 	IconPath string `json:"-"`
 	IconHash string `json:"-"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	AlwaysDownload bool `json:"always_download"`
 }
 
 type HostLockWipeStatus struct {

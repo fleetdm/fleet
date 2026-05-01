@@ -627,6 +627,10 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
+	ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return []fleet.SoftwarePackageResponse{}, nil
 	}

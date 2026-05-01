@@ -1,3 +1,29 @@
+## Orbit 1.54.0 (Apr 07, 2026)
+
+* Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
+
+* Improved initial loading state of macOS setup experience when displaying web view UI.
+
+* Fixed an issue where the automatic migration preview would show when the device was not MDM-enrolled and not enrolled via DEP.
+
+* Fixed a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
+
+* Added `registration_completed` and `login_type` columns to `app_sso_platform` table.
+
+* Updated script validation to support python interpreters on macOS and Linux.
+
+* Added a new `disk_space` fleetd table for macOS that reports accurate available disk space including purgeable storage.
+
+* Added `macos_thermal_pressure`, `macos_soc_power`, `macadmins_wifi_network`, and `local_network_permissions` tables from https://github.com/macadmins/osquery-extension.
+
+* Fixed BitLocker encryption failing with `E_INVALIDARG` after migrating Windows devices from another MDM. Fleet now reads the `OSEncryptionType` registry policy to use the correct encryption mode and cleans up stale key protectors from previous failed attempts.
+
+* Fixed a bug where the fleetd `executable_hashes` table failed to compute hashes for app bundles with emoji characters in their names.
+
+* Updated go to 1.26.1.
+
+* Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.
+
 ## Orbit 1.53.1 (Mar 18, 2026)
 
 * Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.

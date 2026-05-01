@@ -264,6 +264,17 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	return ac, nil
 }
 
+func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	// We skip auhtorization, as this is used where we don't have access to it, but that is why we return a subset of AppConfig fields.
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfigUrls(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ac, nil
+}
+
 // //////////////////////////////////////////////////////////////////////////////
 // Modify AppConfig
 // //////////////////////////////////////////////////////////////////////////////
@@ -508,6 +519,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
 		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
+	}
+
+	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	} else {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	}
+
+	if !oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	} else {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -850,6 +879,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
+	newExceptions := appConfig.GitOpsConfig.Exceptions
+	exceptionChanges := []struct {
+		name       string
+		oldEnabled bool
+		newEnabled bool
+	}{
+		{"labels", oldExceptions.Labels, newExceptions.Labels},
+		{"software", oldExceptions.Software, newExceptions.Software},
+		{"secrets", oldExceptions.Secrets, newExceptions.Secrets},
+	}
+	for _, c := range exceptionChanges {
+		if c.oldEnabled == c.newEnabled {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if c.newEnabled {
+			act = fleet.ActivityTypeEnabledGitOpsException{Exception: c.name}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsException{Exception: c.name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	addedEntraTenantIDs := make([]string, 0)
 	removedEntraTenantIDs := make([]string, 0)
 	oldTenantIDSet := make(map[string]struct{})
@@ -1123,6 +1178,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+
+	if appleMDMUrlChanged && appConfig.MDM.AppleServerURL != "" {
+		parsedURL, err := url.Parse(appConfig.MDM.AppleServerURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
+		}
+		scheme := strings.ToLower(parsedURL.Scheme)
+		if scheme == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
+		}
+
+		if scheme != "http" && scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+		}
+
+		if parsedURL.Hostname() == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
+		}
+	}
+
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
@@ -1136,6 +1211,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			act = fleet.ActivityTypeEnabledWindowsMDM{}
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
+
+			// Clean up all pending Windows MDM profile rows since hosts can no longer receive MDM commands.
+			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
+			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
@@ -1376,6 +1456,9 @@ func (svc *Service) validateMDM(
 	}
 	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
 		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
+	}
+	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
+		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
 	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet

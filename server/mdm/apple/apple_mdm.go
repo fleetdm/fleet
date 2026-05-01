@@ -83,6 +83,10 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
+func ResolveAppleACMEDirectoryURL(serverURL string, acmeIdent string) (string, error) {
+	return commonmdm.ResolveURL(serverURL, fmt.Sprintf("/api/mdm/acme/%s/directory", acmeIdent), true)
+}
+
 // DEPService is used to encapsulate tasks related to DEP enrollment.
 //
 // This service doesn't perform any authentication checks, so its suitable for
@@ -96,21 +100,18 @@ type DEPService struct {
 	logger     *slog.Logger
 }
 
-// getDefaultProfile returns a godep.Profile with default values set.
-func (d *DEPService) getDefaultProfile() *godep.Profile {
+// GetDefaultProfile returns a godep.Profile with default values set.
+func (d *DEPService) GetDefaultProfile() *godep.Profile {
 	return &godep.Profile{
 		ProfileName:      "Fleet default enrollment profile",
 		AllowPairing:     true,
 		AutoAdvanceSetup: false,
-		IsSupervised:     false,
 		IsMultiUser:      false,
 		IsMandatory:      false,
 		IsMDMRemovable:   true,
 		Language:         "en",
 		OrgMagic:         "1",
-		Region:           "US",
 		SkipSetupItems: []string{
-			"Accessibility",
 			"Appearance",
 			"AppleID",
 			"AppStore",
@@ -119,15 +120,20 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 			"FileVault",
 			"iCloudDiagnostics",
 			"iCloudStorage",
+			"Intelligence",
 			"Location",
+			"OSShowcase",
 			"Payment",
 			"Privacy",
 			"Restore",
 			"ScreenTime",
 			"Siri",
+			"SoftwareUpdate",
 			"TermsOfAddress",
 			"TOS",
 			"UnlockWithWatch",
+			"UpdateCompleted",
+			"Welcome",
 		},
 	}
 }
@@ -136,7 +142,7 @@ func (d *DEPService) getDefaultProfile() *godep.Profile {
 // profile in mdm_apple_enrollment_profiles but does not register it with
 // Apple. It also creates the authentication token to get enrollment profiles.
 func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
-	depProfile := d.getDefaultProfile()
+	depProfile := d.GetDefaultProfile()
 	token := uuid.New().String()
 	rawDEPProfile, err := json.Marshal(depProfile)
 	if err != nil {
@@ -1269,6 +1275,89 @@ var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(templ
 </dict>
 </plist>`))
 
+var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>Attest</key>
+			<true/>
+			<key>ClientIdentifier</key>
+			<string>{{ .ClientIdentifier | xml }}</string>
+			<key>DirectoryURL</key>
+			<string>{{ .DirectoryURL | xml }}</string>
+			<key>HardwareBound</key>
+			<true/>
+			<key>KeySize</key>
+			<integer>384</integer>
+			<key>KeyType</key>
+			<string>ECSECPrimeRandom</string>
+			<key>PayloadDisplayName</key>
+			<string>Fleet Identity ACME</string>
+			<key>PayloadIdentifier</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Subject</key>
+			<array>
+				<array>
+					<array>
+						<string>CN</string>
+						<string>{{ .SerialTemplate | xml }}</string>
+					</array>
+				</array>
+			</array>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL | xml }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic | xml }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization | xml }} enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization | xml }}</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
 func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
@@ -1342,6 +1431,44 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	q.Add(mobileconfig.FleetEnrollReferenceKey, reference)
 	u.RawQuery = q.Encode()
 	return u.String(), nil
+}
+
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string) ([]byte, error) {
+	serverURL, err := ResolveAppleMDMURL(mdmURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	acmeURL, err := ResolveAppleACMEDirectoryURL(mdmURL, acmeIdent)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := acmeEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization     string
+		DirectoryURL     string
+		Topic            string
+		ServerURL        string
+		ClientIdentifier string
+		SerialTemplate   string
+	}{
+		Organization:     orgName,
+		DirectoryURL:     acmeURL,
+		Topic:            topic,
+		ServerURL:        serverURL,
+		ClientIdentifier: deviceSerial,
+		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	// TODO: In the PoC, the generated profile unexpectedly escaped the left angle bracket in the opening
+	// `<?xml` tag. If we see that again, the replacement below can be used as a workaround, but
+	// ideally we should figure out why that is happening in the first place.
+	// return bytes.Replace(buf.Bytes(), []byte("&lt;"), []byte("<"), 1), nil
+
+	return buf.Bytes(), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility
@@ -1663,6 +1790,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 type RecoveryLockCommander interface {
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 // SendRecoveryLockCommands is the cron job function that sends SetRecoveryLock MDM commands
@@ -1675,8 +1803,9 @@ func SendRecoveryLockCommands(
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
-	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger)
+	return sendRecoveryLockCommandsWithCommander(ctx, ds, commander, logger, newActivityFn)
 }
 
 func sendRecoveryLockCommandsWithCommander(
@@ -1684,6 +1813,7 @@ func sendRecoveryLockCommandsWithCommander(
 	ds fleet.Datastore,
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
 ) error {
 	var result *multierror.Error
 
@@ -1696,6 +1826,17 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.InfoContext(ctx, "restored recovery lock for re-enabled hosts", "count", restored)
 	}
 
+	// Soft-delete any live rows whose host is no longer MDM enrolled. Catches hosts
+	// where MDM was disabled without firing MDMTurnOff or MDMResetEnrollment — typically
+	// when the device user removed the MDM profile manually and only osquery refetch
+	// eventually reported host_mdm.enrolled=0. One bounded UPDATE per cron tick.
+	swept, err := ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts"))
+	} else if swept > 0 {
+		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
+	}
+
 	// Handle SET password operations (hosts that need a recovery lock password)
 	if err := sendSetRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
@@ -1703,6 +1844,11 @@ func sendRecoveryLockCommandsWithCommander(
 
 	// Handle CLEAR password operations (hosts that need their recovery lock cleared)
 	if err := sendClearRecoveryLockCommands(ctx, ds, commander, logger); err != nil {
+		result = multierror.Append(result, err)
+	}
+
+	// Handle AUTO-ROTATION for viewed passwords (password viewed 1+ hour ago)
+	if err := sendAutoRotationCommands(ctx, ds, commander, logger, newActivityFn); err != nil {
 		result = multierror.Append(result, err)
 	}
 
@@ -1852,6 +1998,120 @@ func sendClearRecoveryLockCommands(
 	)
 
 	return nil
+}
+
+func sendAutoRotationCommands(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander RecoveryLockCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) error {
+	hosts, err := ds.GetHostsForAutoRotation(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get hosts for auto rotation")
+	}
+
+	if len(hosts) == 0 {
+		logger.DebugContext(ctx, "no hosts need auto-rotation")
+		return nil
+	}
+
+	logger.InfoContext(ctx, "performing auto-rotation for viewed passwords", "count", len(hosts))
+
+	var result *multierror.Error
+	for _, host := range hosts {
+		newPassword := GenerateRecoveryLockPassword()
+
+		// Initiate rotation - stores pending password and validates eligibility
+		if err := ds.InitiateRecoveryLockRotation(ctx, host.HostUUID, newPassword); err != nil {
+			// Check for benign race conditions where host state changed between
+			// GetHostsForAutoRotation and now (e.g., manual rotation started,
+			// password removed, host deleted, etc.)
+			if fleet.IsNotFound(err) ||
+				errors.Is(err, fleet.ErrRecoveryLockRotationPending) ||
+				errors.Is(err, fleet.ErrRecoveryLockNotEligible) {
+				logger.DebugContext(ctx, "host lost eligibility for auto-rotation",
+					"host_uuid", host.HostUUID,
+					"error", err,
+				)
+				continue
+			}
+
+			logger.ErrorContext(ctx, "failed to initiate auto-rotation",
+				"host_uuid", host.HostUUID,
+				"error", err,
+			)
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		// Enqueue RotateRecoveryLock command
+		cmdUUID := uuid.NewString()
+		if err := commander.RotateRecoveryLock(ctx, host.HostUUID, cmdUUID); err != nil {
+			var apnsErr *APNSDeliveryError
+			if errors.As(err, &apnsErr) {
+				// Command was persisted but push notification failed - log activity and continue.
+				// The command will be retried when the device checks in.
+				logAutoRotationActivity(ctx, logger, newActivityFn, host)
+				logger.WarnContext(ctx, "auto-rotation command enqueued but APNs push failed",
+					"host_uuid", host.HostUUID,
+					"command_uuid", cmdUUID,
+					"error", err,
+				)
+				continue
+			}
+
+			// Persistence failed - clear pending rotation so host can be retried
+			logger.ErrorContext(ctx, "failed to enqueue auto-rotation command",
+				"host_uuid", host.HostUUID,
+				"error", err,
+			)
+			if clearErr := ds.ClearRecoveryLockRotation(ctx, host.HostUUID); clearErr != nil {
+				logger.ErrorContext(ctx, "failed to clear pending rotation after enqueue failure",
+					"host_uuid", host.HostUUID,
+					"error", clearErr,
+				)
+				result = multierror.Append(result, clearErr)
+			}
+			result = multierror.Append(result, err)
+			continue
+		}
+
+		// Log activity for auto-rotation (Fleet-initiated)
+		logAutoRotationActivity(ctx, logger, newActivityFn, host)
+
+		logger.DebugContext(ctx, "sent auto-rotation command",
+			"host_uuid", host.HostUUID,
+			"command_uuid", cmdUUID,
+		)
+	}
+
+	return result.ErrorOrNil()
+}
+
+// logAutoRotationActivity logs the rotation activity for auto-rotations.
+// It uses the same activity type as manual rotations but marks it as Fleet-initiated.
+func logAutoRotationActivity(
+	ctx context.Context,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+	host fleet.HostAutoRotationInfo,
+) {
+	if newActivityFn == nil {
+		return
+	}
+
+	if err := newActivityFn(ctx, nil, fleet.ActivityTypeRotatedHostRecoveryLockPassword{
+		HostID:          host.HostID,
+		HostDisplayName: host.DisplayName,
+		FleetInitiated:  true,
+	}); err != nil {
+		logger.WarnContext(ctx, "auto-rotation: failed to create activity",
+			"host_uuid", host.HostUUID,
+			"err", err,
+		)
+	}
 }
 
 // RecoveryLockPasswordCharset excludes confusing characters (0/O, 1/I/l)

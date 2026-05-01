@@ -33,6 +33,35 @@
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% if (sails.config.environment === 'production') { %>
+    <% /* ConsentMode */ %>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+          dataLayer.push(arguments);
+      }
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied", 
+          ad_personalization: "denied",
+          analytics_storage: "denied",
+          functionality_storage: "denied",
+          personalization_storage: "denied",
+          security_storage: "granted",
+          wait_for_update: 2000,
+      });
+      gtag("set", "ads_data_redaction", true);
+      gtag("set", "url_passthrough", true);
+    </script>
+
+    <% /* GTM */ %>
+    <% /* Global site tag (gtag.js) - Google Analytics */%>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+  	// Google Ads configuration (including Enhanced Conversions) 
+  	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
+    </script>      
+
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% } %>
@@ -61,13 +90,7 @@
     </script>
    
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
-    <% /* Global site tag (gtag.js) - Google Analytics */%>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-	// Google Ads configuration (including Enhanced Conversions) 
-	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
-    </script>
+
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -286,6 +309,8 @@
                     <a purpose="mobile-dropdown-toggle" href="/customers" class="d-flex align-items-center">Customers</a>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" href="/partners" class="d-flex align-items-center">Partners</a>
                     <hr>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
                       <div><p>More</p></div>
@@ -542,6 +567,8 @@
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
 
+                <a purpose="header-nav-btn" button-text="Partners" href="/partners" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'partners' ? 'current-section' : '' %>" style="width: 85px; text-decoration: none; line-height: 23px;">Partners</a>
+
 
                 <div purpose="dropdown-button" class="btn-group" >
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
@@ -711,6 +738,7 @@
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
+              <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
@@ -732,7 +760,7 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
@@ -743,6 +771,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -849,6 +880,7 @@
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -871,21 +903,33 @@
     <script src="/js/pages/admin/query-generator.page.js"></script>
     <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
-    <script src="/js/pages/app-details.page.js"></script>
-    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/articles/basic-webinar.page.js"></script>
     <script src="/js/pages/articles/basic-whitepaper.page.js"></script>
     <script src="/js/pages/articles/case-study.page.js"></script>
-    <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
+    <script src="/js/pages/customers.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
+    <script src="/js/pages/docs/app-details.page.js"></script>
+    <script src="/js/pages/docs/app-library.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/docs/command-details.page.js"></script>
+    <script src="/js/pages/docs/mdm-commands.page.js"></script>
+    <script src="/js/pages/docs/os-settings.page.js"></script>
+    <script src="/js/pages/docs/osquery-table-details.page.js"></script>
+    <script src="/js/pages/docs/policy-details.page.js"></script>
+    <script src="/js/pages/docs/policy-library.page.js"></script>
+    <script src="/js/pages/docs/report-details.page.js"></script>
+    <script src="/js/pages/docs/report-library.page.js"></script>
+    <script src="/js/pages/docs/script-details.page.js"></script>
+    <script src="/js/pages/docs/script-library.page.js"></script>
+    <script src="/js/pages/docs/vital-details.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -903,35 +947,26 @@
     <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/landing-pages/linux-management.page.js"></script>
+    <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/mdm-commands.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
-    <script src="/js/pages/os-settings.page.js"></script>
-    <script src="/js/pages/osquery-table-details.page.js"></script>
-    <script src="/js/pages/policy-details.page.js"></script>
-    <script src="/js/pages/policy-library.page.js"></script>
+    <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
-    <script src="/js/pages/query-detail.page.js"></script>
-    <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/script-details.page.js"></script>
-    <script src="/js/pages/scripts.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
-    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -1051,6 +1086,35 @@
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
       });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
+      });
     </script>
+    <% if (sails.config.environment === 'production') { %>
+    <% /* ActiveCampaign */ %>
+    <script>
+      (function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+      vgo('setAccount', '652899825');
+      vgo('setTrackByDefault', false);
+      vgo('process');
+    </script>      
+   <% } %>
   </body>
 </html>

@@ -1,1 +1,0 @@
-* Fixed an issue where users with the same ID as an invited user would be hidden from the users table, and fixed the users count to include invited users.

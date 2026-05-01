@@ -1,1 +1,0 @@
-- Added support for `paths:` key under `reports:`, `labels:` and `policies:` in GitOps .yml files.

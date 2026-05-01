@@ -1,6 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -11,7 +10,7 @@ import {
   InstallerType,
 } from "interfaces/software";
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
@@ -49,11 +48,9 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: InstallerType;
-  router: InjectedRouter;
   openViewYamlModal: () => void;
   isFleetMaintainedApp?: boolean;
   isIosOrIpadosApp?: boolean;
-  gitOpsModeEnabled?: boolean;
   name: string;
   displayName: string;
   source?: string;
@@ -67,7 +64,6 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
-  router,
   openViewYamlModal,
   isFleetMaintainedApp = false,
   isIosOrIpadosApp = false,
@@ -77,9 +73,8 @@ const EditSoftwareModal = ({
   iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
   const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
 
@@ -241,6 +236,14 @@ const EditSoftwareModal = ({
           </>
         );
       }
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
@@ -306,6 +309,14 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       onExit();
       refetchSoftwareTitle();
     } catch (e) {

@@ -1,3 +1,11 @@
+// Matches the fade-in on `.react-tabs__tab-panel--selected` for TabNav pages
+// that render content via React Router children instead of <TabPanel>. Consumers
+// should wrap their routed content in this class with `key={location.pathname}`
+// so the element remounts on tab change and re-triggers the animation.
+.tab-nav-routed-content {
+  animation: fade-in 250ms ease-out;
+}
+
 .tab-nav {
   top: 0;
   // No background color as TabNav is often over a background gradient
@@ -60,28 +68,19 @@
       &--selected {
         font-weight: $bold;
         background-color: $ui-fleet-black-5;
+        color: $core-fleet-black;
       }
 
       &--disabled {
-        cursor: not-allowed;
+        &:hover {
+          background-color: transparent;
+        }
       }
     }
 
     &__tab-panel--selected {
       margin-top: $gap-page-component;
-
-      .no-results-message {
-        margin-top: $pad-xxlarge;
-        font-size: $small;
-        font-weight: $bold;
-
-        span {
-          margin-top: $pad-medium;
-          font-size: $x-small;
-          font-weight: $regular;
-          display: block;
-        }
-      }
+      animation: fade-in 250ms ease-out;
     }
 
     .tab-text {
@@ -141,7 +140,7 @@
             content: "";
             width: 100%;
             height: 0;
-            border-bottom: 2px solid $core-fleet-black;
+            border-bottom: 2px solid $nav-active-underline;
             position: absolute;
             bottom: 0;
             left: 0;
@@ -153,7 +152,7 @@
             content: "";
             width: 100%;
             height: 0;
-            border-bottom: 2px solid $core-fleet-black;
+            border-bottom: 2px solid $nav-active-underline;
             position: absolute;
             bottom: 0;
             left: 0;

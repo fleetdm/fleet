@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.fleetdm.agent.scep.ScepClient
 import com.fleetdm.agent.scep.ScepClientImpl
 import java.math.BigInteger
+import java.net.UnknownHostException
 import java.security.PrivateKey
 import java.security.cert.Certificate
 import java.text.SimpleDateFormat
@@ -16,8 +17,6 @@ import java.time.Instant
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -150,16 +149,29 @@ class CertificateOrchestrator(
         storeCertificateState(context = context, certificateId = certificateId, certInstallInfo = newInfo)
     }
 
-    internal suspend fun markCertificateFailure(context: Context, certificateId: Int, alias: String): CertificateState {
+    internal suspend fun markCertificateForceFailed(context: Context, certificateId: Int, alias: String, uuid: String) {
         val existingInfo = getCertificateState(context = context, certificateId = certificateId)
-            ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0)
+            ?: CertificateState(alias = alias, status = CertificateStatus.FAILED, retries = 0, uuid = uuid)
+
+        val newInfo = existingInfo.copy(alias = alias, status = CertificateStatus.FAILED, uuid = uuid)
+        storeCertificateState(context = context, certificateId = certificateId, certInstallInfo = newInfo)
+    }
+
+    internal suspend fun recordEnrollmentAttemptFailure(
+        context: Context,
+        certificateId: Int,
+        alias: String,
+        uuid: String,
+    ): CertificateState {
+        val existingInfo = getCertificateState(context = context, certificateId = certificateId)
+            ?: CertificateState(alias = alias, status = CertificateStatus.RETRY, retries = 0, uuid = uuid)
 
         if (existingInfo.status != CertificateStatus.RETRY) {
-            Log.d(TAG, "markCertificateFailure: skipping cert $certificateId, status is ${existingInfo.status}")
+            Log.d(TAG, "recordEnrollmentAttemptFailure: skipping cert $certificateId, status is ${existingInfo.status}")
             return existingInfo
         }
 
-        var newInfo = existingInfo.copy(retries = existingInfo.retries + 1)
+        var newInfo = existingInfo.copy(retries = existingInfo.retries + 1, uuid = uuid)
 
         if (newInfo.retries >= MAX_CERT_INSTALL_RETRIES) {
             newInfo = newInfo.copy(status = CertificateStatus.FAILED)
@@ -701,9 +713,15 @@ class CertificateOrchestrator(
 
         Log.d(TAG, "Successfully fetched certificate template: ${template.name}")
 
+        if (template.status == "failed") {
+            // Server says this certificate is permanently failed. Mark it locally as failed so we stop polling
+            Log.i(TAG, "Certificate template ${template.name} has terminal status \"failed\", marking locally as failed")
+            markCertificateForceFailed(context, certificateId, template.name, uuid)
+            return CertificateEnrollmentHandler.EnrollmentResult.PermanentlyFailed(template.name)
+        }
+
         if (template.status != "delivered") {
-            // The certificate template hasn't failed on the device, but isn't ready to be processed yet.
-            // Retry next time we fetch but don't mark as failed locally
+            // Not ready to be processed yet (e.g. pending, delivering). Retry next time.
             Log.i(TAG, "Certificate template ${template.name} does not have status \"delivered\": status \"${template.status}\"")
             return CertificateEnrollmentHandler.EnrollmentResult.Success(
                 alias = template.name,
@@ -769,8 +787,20 @@ class CertificateOrchestrator(
                 }
             }
             is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
-                val updatedInfo = markCertificateFailure(context = context, certificateId = certificateId, alias = template.name)
-                if (!updatedInfo.shouldRetry()) {
+                val shouldReportFailure = if (result.isRetryable) {
+                    val updatedInfo = recordEnrollmentAttemptFailure(
+                        context = context,
+                        certificateId = certificateId,
+                        alias = template.name,
+                        uuid = uuid,
+                    )
+                    !updatedInfo.shouldRetry()
+                } else {
+                    markCertificateForceFailed(context, certificateId, template.name, uuid)
+                    true
+                }
+
+                if (shouldReportFailure) {
                     FleetLog.e(TAG, "Certificate enrollment failed for ID $certificateId: ${result.reason}", result.exception)
                     apiClient.updateCertificateStatus(
                         certificateId = certificateId,
@@ -791,7 +821,13 @@ class CertificateOrchestrator(
     }
 
     /**
-     * Enrolls multiple certificates in parallel.
+     * Enrolls multiple certificates sequentially. Each enrollment involves multiple HTTP calls
+     * (template fetch, SCEP enrollment, status update), so sequential processing avoids
+     * overwhelming the server and the device's network stack.
+     *
+     * If DNS resolution fails for a certificate (after exhausting in-call retries), we abort the
+     * remaining certs since DNS failures are network-level, not cert-specific. The worker will
+     * return Result.retry() and WorkManager's backoff handles the DNS recovery.
      *
      * @param context Android context for certificate installation
      * @param hostCertificates List of certificate templates to enroll
@@ -801,15 +837,30 @@ class CertificateOrchestrator(
         context: Context,
         hostCertificates: List<HostCertificate>,
         certificateInstaller: CertificateEnrollmentHandler.CertificateInstaller? = null,
-    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> = coroutineScope {
+    ): Map<Int, CertificateEnrollmentHandler.EnrollmentResult> {
         Log.d(TAG, "Starting batch certificate enrollment for ${hostCertificates.size} certificates")
 
-        hostCertificates.associate { cert ->
-            cert.id to async {
-                enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
+        val results = mutableMapOf<Int, CertificateEnrollmentHandler.EnrollmentResult>()
+        for (cert in hostCertificates) {
+            val result = enrollCertificate(context, cert.id, cert.uuid, certificateInstaller)
+            results[cert.id] = result
+            if (result is CertificateEnrollmentHandler.EnrollmentResult.Failure && result.isDnsFailure()) {
+                Log.w(
+                    TAG,
+                    "DNS resolution failed for certificate ${cert.id}, aborting batch (${hostCertificates.size - results.size} certs deferred to next run)",
+                )
+                break
             }
-        }.mapValues { it.value.await() }
+        }
+        return results
     }
+
+    /**
+     * Returns true if this failure was caused by a DNS resolution problem, either directly or wrapped in
+     * another exception (e.g. SCEP wraps UnknownHostException in ScepNetworkException).
+     */
+    private fun CertificateEnrollmentHandler.EnrollmentResult.Failure.isDnsFailure(): Boolean =
+        generateSequence(exception as Throwable?) { it.cause }.any { it is UnknownHostException }
 
     /**
      * Android-specific certificate installer using DevicePolicyManager.
@@ -827,6 +878,13 @@ class CertificateOrchestrator(
             val dpm = context.getSystemService(DevicePolicyManager::class.java)
                 ?: error("DevicePolicyManager not available")
 
+            // Defensive check: verify delegation is present before consuming the certificate. The worker-level gate
+            // should catch this earlier, but this protects against code paths that skip the worker.
+            val scopes = dpm.getDelegatedScopes(null, context.packageName)
+            if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
+                error("CERT_INSTALL delegation not granted to ${context.packageName}, current scopes: $scopes")
+            }
+
             // The admin component is null because the caller is a DELEGATED application,
             // not the Device Policy Controller itself. The DPM recognizes the delegation
             // via the calling package's UID and the granted CERT_INSTALL scope.
@@ -841,7 +899,7 @@ class CertificateOrchestrator(
             if (success) {
                 Log.i(TAG, "Certificate successfully installed with alias: $alias")
             } else {
-                FleetLog.e(TAG, "Certificate installation failed. Check MDM policy and delegation status.")
+                FleetLog.e(TAG, "Certificate installation failed for alias '$alias': installKeyPair returned false")
             }
 
             return success

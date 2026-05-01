@@ -150,14 +150,7 @@
     flex-direction: column;
     gap: 32px;
     h1 {
-      color: #192147;
-
-      /* Heading/H1 */
-      font-family: Inter;
-      font-size: 48px;
-      font-style: normal;
-      font-weight: 800;
-      line-height: 120%;
+      .title-xl();
       margin-bottom: 0px;
     }
 
@@ -477,65 +470,10 @@
       height: 17px;
     }
     [purpose='checklist'] {
-      margin-bottom: 32px;
-      p {
-        font-size: 16px;
-        line-height: 150%;
-        font-style: normal;
-        font-weight: 400;
-        padding-left: 40px;
-        text-indent: -40px;
-        margin-bottom: 16px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        &:last-of-type {
-          margin-bottom: 0px;
-        }
-      }
-      p::before {
-        content: ' ';
-        background-image: url('/images/icon-checkbox-checked-24x24@2x.png');
-        background-size: 24px 24px;
-        display: inline-block;
-        position: relative;
-        top: 7px;
-        margin-right: 16px;
-        width: 24px;
-        height: 24px;
-      }
+      .article-checklist();
     }
     [purpose='tip'] {
-      margin: 16px 0 32px;
-      background: #F7F7FC;
-      border: 1px solid @core-vibrant-blue-50;
-      padding: 16px;
-      border-radius: 8px;
-      display: flex;
-      img {
-        display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 16px;
-        line-height: 24px;
-        font-size: 16px;
-      }
-      p:only-child, p:last-child {
-        margin-bottom: 0px;
-      }
-      ul:last-child {
-        margin-bottom: 0px;
-      }
-      li:last-child {
-        padding-bottom: 0px;
-      }
-      :first-child {// Remove top padding from the first element inside purpose="tip" blockquotes
-        padding-top: 0;
-      }
+      .tip-block();
     }
     [purpose='embedded-content'] {
       position: relative;

@@ -1,1 +1,0 @@
-* Fixed MSRC vulnerability scanning to differentiate between Windows Server Core and full desktop installations, preventing false positive/negative CVEs caused by non-deterministic product matching.

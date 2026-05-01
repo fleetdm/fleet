@@ -1,5 +1,5 @@
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -131,9 +131,8 @@ const HQRTable = ({
   const renderEmptyState = useCallback(() => {
     if (reportClipped) {
       return (
-        <EmptyTable
+        <EmptyState
           className={`${baseClass}__report-clipped`}
-          graphicName="empty-software"
           header="Report clipped"
           info="This report has paused reporting in Fleet, and no results were saved for this host."
         />
@@ -142,9 +141,8 @@ const HQRTable = ({
     if (!lastFetched) {
       // collecting results
       return (
-        <EmptyTable
+        <EmptyState
           className={`${baseClass}__collecting-results`}
-          graphicName="collecting-results"
           header="Collecting results..."
           info={`Fleet is collecting report results from ${hostName}. Check back later.`}
         />
@@ -152,9 +150,8 @@ const HQRTable = ({
     }
     return (
       // nothing to report
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__nothing-to-report`}
-        graphicName="empty-software"
         header="Nothing to report"
         info={`This report has run on ${hostName}, but returned no data for this host.`}
       />
@@ -211,6 +208,7 @@ const HQRTable = ({
           emptyComponent={() => null}
           defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
+          getRowId={(_row, index) => String(index)}
         />
       )}
     </div>

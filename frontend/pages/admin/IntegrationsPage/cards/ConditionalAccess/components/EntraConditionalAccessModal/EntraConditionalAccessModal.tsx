@@ -4,7 +4,6 @@ import { size } from "lodash";
 import { NotificationContext } from "context/notification";
 import conditionalAccessAPI from "services/entities/conditional_access";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";

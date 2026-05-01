@@ -1298,3 +1298,21 @@ allow {
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
+
+##
+# API Endpoints
+##
+
+# Global admins can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  subject.global_role == admin
+  action == read
+}
+
+# Any team admin can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  team_role(subject, subject.teams[_].id) == admin
+  action == read
+}

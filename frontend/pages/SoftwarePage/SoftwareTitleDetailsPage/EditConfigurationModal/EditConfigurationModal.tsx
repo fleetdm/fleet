@@ -14,6 +14,7 @@ import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import InstallerDetailsWidget from "../SoftwareInstallerCard/InstallerDetailsWidget";
 import { getErrorMessage } from "./helpers";
+import { getDisplayedSoftwareName } from "../../helpers";
 
 const baseClass = "edit-configuration-modal";
 
@@ -93,17 +94,20 @@ const EditConfigurationModal = ({
       renderFlash(
         "success",
         <>
-          <strong>{softwareInstaller.name}</strong> configuration updated.
+          <strong>
+            {getDisplayedSoftwareName(
+              softwareInstaller.name,
+              softwareInstaller.display_name
+            )}
+          </strong>{" "}
+          configuration updated.
         </>
       );
 
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      renderFlash("error", getErrorMessage(e));
     }
     setIsUpdatingConfiguration(false);
   };

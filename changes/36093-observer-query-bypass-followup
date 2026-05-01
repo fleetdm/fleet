@@ -1,2 +1,0 @@
-* Fixed host search in live queries returning no results for observer users when many hosts on inaccessible teams matched the search term before accessible ones.
-* Fixed live query host/team targeting to correctly scope `observer_can_run` to the query's own team, preventing observers from targeting hosts on other observed teams.

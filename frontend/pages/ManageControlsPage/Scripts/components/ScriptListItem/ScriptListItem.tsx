@@ -141,7 +141,7 @@ const ScriptListItem = ({
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="text-link">{script.name}</Button>}
+      title={<Button variant="link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}

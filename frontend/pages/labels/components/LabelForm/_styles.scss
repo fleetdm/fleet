@@ -6,7 +6,10 @@
   }
 
   &__help-text {
-    @include help-text;
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+    line-height: 1.5;
   }
 
   &__label-platform {

@@ -34,7 +34,7 @@ const BootstrapAdvancedOptions = ({
     try {
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        manual_agent_install: selectManualAgentInstall,
+        macos_manual_agent_install: selectManualAgentInstall,
       });
       renderFlash("success", "Successfully updated.");
     } catch {

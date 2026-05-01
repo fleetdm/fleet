@@ -3,7 +3,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import { ITeamFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 

@@ -3,7 +3,8 @@
     {
       "version": "1.4.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape' AND version_compare(version, '1.4.3') < 0);"
       },
       "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-1.4.3.msi",
       "install_script_ref": "8959087b",

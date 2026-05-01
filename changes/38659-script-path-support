@@ -1,1 +1,0 @@
-- Added support for referencing `.sh` or `.ps1` script files directly in the GitOps `path` field for software packages.

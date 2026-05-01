@@ -1,1 +1,0 @@
-* Improved body parsing validation by using http.MaxBytesReader and wrapping gzip decode output too.

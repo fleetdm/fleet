@@ -1,0 +1,113 @@
+name: Go tests (Windows)
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
+    paths:
+      - "orbit/**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/test-go-windows.yml"
+  pull_request:
+    paths:
+      - "orbit/**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/test-go-windows.yml"
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: pwsh
+
+permissions:
+  contents: read
+
+jobs:
+  test-go-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Run Windows-specific Go tests
+        run: |
+          $packages = @(
+            "./orbit/pkg/bitlocker/..."
+            "./orbit/pkg/keystore/..."
+            "./orbit/pkg/platform/..."
+            "./orbit/pkg/table/bitlocker_key_protectors/..."
+            "./orbit/pkg/table/cis_audit/..."
+            "./orbit/pkg/table/windowsupdatetable/..."
+          )
+          Write-Host "Running Windows-specific Go tests for packages:"
+          $packages | ForEach-Object { Write-Host "  $_" }
+          go test -v -timeout=10m $packages 2>&1 | Tee-Object -FilePath "$env:TEMP\gotest.log"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Go tests failed with exit code $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: windows-go-test-logs
+          path: ${{ runner.temp }}\gotest.log
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          $logContent = Get-Content "$env:TEMP\gotest.log" -Raw -ErrorAction SilentlyContinue
+          if ($logContent) {
+            $failures = ($logContent -split "`n" | Select-String -Pattern "^--- FAIL:").Line
+            $panics = ($logContent -split "`n" | Select-String -Pattern "^panic:").Line
+            $failPkgs = ($logContent -split "`n" | Select-String -Pattern "^FAIL\t").Line
+            Write-Host "=== Test Failures ==="
+            if ($failures) { $failures | ForEach-Object { Write-Host $_ } }
+            if ($panics) { $panics | ForEach-Object { Write-Host $_ } }
+            if ($failPkgs) { $failPkgs | ForEach-Object { Write-Host $_ } }
+          }
+
+      - name: Slack Notification
+        if: github.event_name == 'schedule' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Windows Go tests failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *Windows Go tests failed*\n<https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

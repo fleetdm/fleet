@@ -68,13 +68,6 @@ Fleet provides the granularity and flexibility needed to manage modern developme
 
 The platform allows teams to customize policies, automate remediation, and maintain visibility across diverse operating systems without relying on rigid, one-size-fits-all tooling.
 
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.
-
-By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.
-
-Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="EV manufacturer brings Linux workstations under centralized management with Fleet">
 <meta name="authorFullName" value="Irena Reedy">

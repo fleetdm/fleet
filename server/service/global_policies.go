@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,27 +25,8 @@ import (
 // Add
 /////////////////////////////////////////////////////////////////////////////////
 
-type globalPolicyRequest struct {
-	QueryID          *uint    `json:"query_id" renameto:"report_id"`
-	Query            string   `json:"query"`
-	Name             string   `json:"name"`
-	Description      string   `json:"description"`
-	Resolution       string   `json:"resolution"`
-	Platform         string   `json:"platform"`
-	Critical         bool     `json:"critical" premium:"true"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-}
-
-type globalPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r globalPolicyResponse) Error() error { return r.Err }
-
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*globalPolicyRequest)
+	req := request.(*fleet.GlobalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
 		QueryID:          req.QueryID,
 		Query:            req.Query,
@@ -54,13 +36,14 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Platform:         req.Platform,
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
-		return globalPolicyResponse{Err: err}, nil
+		return fleet.GlobalPolicyResponse{Err: err}, nil
 	}
-	return globalPolicyResponse{Policy: resp}, nil
+	return fleet.GlobalPolicyResponse{Policy: resp}, nil
 }
 
 func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -78,7 +61,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), vc.User); err != nil {
+	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -108,24 +95,13 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 // List
 /////////////////////////////////////////////////////////////////////////////////
 
-type listGlobalPoliciesRequest struct {
-	Opts fleet.ListOptions `url:"list_options"`
-}
-
-type listGlobalPoliciesResponse struct {
-	Policies []*fleet.Policy `json:"policies,omitempty"`
-	Err      error           `json:"error,omitempty"`
-}
-
-func (r listGlobalPoliciesResponse) Error() error { return r.Err }
-
 func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listGlobalPoliciesRequest)
+	req := request.(*fleet.ListGlobalPoliciesRequest)
 	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
-		return listGlobalPoliciesResponse{Err: err}, nil
+		return fleet.ListGlobalPoliciesResponse{Err: err}, nil
 	}
-	return listGlobalPoliciesResponse{Policies: resp}, nil
+	return fleet.ListGlobalPoliciesResponse{Policies: resp}, nil
 }
 
 func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -140,24 +116,13 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 // Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
-type getPolicyByIDRequest struct {
-	PolicyID uint `url:"policy_id"`
-}
-
-type getPolicyByIDResponse struct {
-	Policy *fleet.Policy `json:"policy"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r getPolicyByIDResponse) Error() error { return r.Err }
-
 func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getPolicyByIDRequest)
+	req := request.(*fleet.GetPolicyByIDRequest)
 	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
 	if err != nil {
-		return getPolicyByIDResponse{Err: err}, nil
+		return fleet.GetPolicyByIDResponse{Err: err}, nil
 	}
-	return getPolicyByIDResponse{Policy: policy}, nil
+	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
 }
 
 func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
@@ -183,23 +148,13 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 // Count
 // ///////////////////////////////////////////////////////////////////////////////
 
-type countGlobalPoliciesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-type countGlobalPoliciesResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countGlobalPoliciesResponse) Error() error { return r.Err }
-
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countGlobalPoliciesRequest)
+	req := request.(*fleet.CountGlobalPoliciesRequest)
 	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
 	if err != nil {
-		return countGlobalPoliciesResponse{Err: err}, nil
+		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
 	}
-	return countGlobalPoliciesResponse{Count: resp}, nil
+	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
 }
 
 func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
@@ -219,24 +174,13 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
 
-type deleteGlobalPoliciesRequest struct {
-	IDs []uint `json:"ids"`
-}
-
-type deleteGlobalPoliciesResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r deleteGlobalPoliciesResponse) Error() error { return r.Err }
-
 func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteGlobalPoliciesRequest)
+	req := request.(*fleet.DeleteGlobalPoliciesRequest)
 	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
 	if err != nil {
-		return deleteGlobalPoliciesResponse{Err: err}, nil
+		return fleet.DeleteGlobalPoliciesResponse{Err: err}, nil
 	}
-	return deleteGlobalPoliciesResponse{Deleted: resp}, nil
+	return fleet.DeleteGlobalPoliciesResponse{Deleted: resp}, nil
 }
 
 // DeleteGlobalPolicies deletes the given policies from the database.
@@ -322,27 +266,15 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
-type modifyGlobalPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
-	fleet.ModifyPolicyPayload
-}
-
-type modifyGlobalPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
-
 const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*modifyGlobalPolicyRequest)
+	req := request.(*fleet.ModifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
-		return modifyGlobalPolicyResponse{Err: err}, nil
+		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil
 	}
-	return modifyGlobalPolicyResponse{Policy: resp}, nil
+	return fleet.ModifyGlobalPolicyResponse{Policy: resp}, nil
 }
 
 func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
@@ -353,21 +285,10 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 // Reset automation
 /////////////////////////////////////////////////////////////////////////////////
 
-type resetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
-	PolicyIDs []uint `json:"policy_ids"`
-}
-
-type resetAutomationResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r resetAutomationResponse) Error() error { return r.Err }
-
 func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*resetAutomationRequest)
+	req := request.(*fleet.ResetAutomationRequest)
 	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
-	return resetAutomationResponse{Err: err}, nil
+	return fleet.ResetAutomationResponse{Err: err}, nil
 }
 
 func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error {
@@ -500,23 +421,13 @@ func teamAutomationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet
 // Apply Spec
 /////////////////////////////////////////////////////////////////////////////////
 
-type applyPolicySpecsRequest struct {
-	Specs []*fleet.PolicySpec `json:"specs"`
-}
-
-type applyPolicySpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyPolicySpecsResponse) Error() error { return r.Err }
-
 func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyPolicySpecsRequest)
+	req := request.(*fleet.ApplyPolicySpecsRequest)
 	err := svc.ApplyPolicySpecs(ctx, req.Specs)
 	if err != nil {
-		return applyPolicySpecsResponse{Err: err}, nil
+		return fleet.ApplyPolicySpecsResponse{Err: err}, nil
 	}
-	return applyPolicySpecsResponse{}, nil
+	return fleet.ApplyPolicySpecsResponse{}, nil
 }
 
 // checkPolicySpecAuthorization verifies that the user is authorized to modify the
@@ -567,6 +478,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Type == "" {
+			policy.Type = fleet.PolicyTypeDynamic
+		}
+
 		if policy.Team == "" && policy.ConditionalAccessEnabled {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
@@ -580,8 +495,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		}
 
 		// Make sure any applied labels exist.
-		labels := policy.LabelsIncludeAny
-		labels = append(labels, policy.LabelsExcludeAny...)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsExcludeAny)
 		if len(labels) > 0 {
 			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
 			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine
@@ -637,24 +551,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 // Autofill
 /////////////////////////////////////////////////////////////////////////////////
 
-type autofillPoliciesRequest struct {
-	SQL string `json:"sql"`
-}
-
-type autofillPoliciesResponse struct {
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Err         error  `json:"error,omitempty"`
-}
-
-func (a autofillPoliciesResponse) Error() error {
-	return a.Err
-}
-
 func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*autofillPoliciesRequest)
+	req := request.(*fleet.AutofillPoliciesRequest)
 	description, resolution, err := svc.AutofillPolicySql(ctx, req.SQL)
-	return autofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil
+	return fleet.AutofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil
 }
 
 // Exposing external URL and timeout for testing purposes

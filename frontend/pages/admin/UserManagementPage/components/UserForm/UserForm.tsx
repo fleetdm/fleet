@@ -19,7 +19,6 @@ import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -344,10 +343,7 @@ const UserForm = ({
     return (
       <>
         {isPremiumTier && (
-          <InfoBanner
-            color="grey"
-            className={`${baseClass}__user-permissions-info`}
-          >
+          <InfoBanner className={`${baseClass}__user-permissions-info`}>
             <p>
               Global users can manage or observe all users, entities, and
               settings in Fleet.
@@ -507,7 +503,7 @@ const UserForm = ({
         placeholder="Full name"
         value={formData.name || ""}
         inputOptions={{
-          maxLength: "80",
+          maxLength: 80,
         }}
         ignore1password
         parseTarget

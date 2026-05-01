@@ -9,7 +9,6 @@ import paths from "router/paths";
 import { NotificationContext } from "context/notification";
 import certificatesAPI, { ICertificate } from "services/entities/certificates";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";

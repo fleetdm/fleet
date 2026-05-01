@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.2.0.0",
+      "version": "3.2.4.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'GIMP 3.0.8-2' AND publisher = 'The GIMP Team';"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team' AND version_compare(version, '3.2.4.0') < 0);"
       },
-      "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.0-setup.exe",
+      "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.4-setup.exe",
       "install_script_ref": "7e5269bc",
       "uninstall_script_ref": "79fb181d",
-      "sha256": "6332ab8fdf9d1f229abd7aab18874d476ae31405e2fe75bf786b8fdc90b891a8",
+      "sha256": "ec31d757dd82831d201ffcf47ffeac4175df739e0c02d5122e89aeeadfb988cc",
       "default_categories": [
         "Productivity"
       ]

@@ -116,6 +116,7 @@
 #  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
 - industryName: Command line tool (CLI)
   friendlyName: fleetctl
+  description: Use fleetctl, Fleet's command-line interface, to manage Fleet from your terminal including running reports and managing hosts.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Configuration]
@@ -130,7 +131,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage
-  description: Fork the best practices GitHub repo and use the included GitHub Actions or GitLab CI/CD pipelines to quickly automate Fleet console and configuration workflow management.
+  description: Run `fleetctl new` and use the included best practice directory structure, starter files, and GitHub Actions or GitLab CI/CD pipelines to quickly manage your computers as code (configuration as code).
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
   usualDepartment: IT
@@ -141,7 +142,14 @@
     description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
     quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
     moreInfoUrl: https://docs.google.com/document/d/1hAQL6P--Tt3syq1MTRONAxhQA_2Vjt3oOJJt_O4xbiE/edit?disco=AAABAVnYvns&usp_dm=true#heading=h.7en766pueek4
-#  
+  waysToUse:
+    - description: New Fleet instances are pre-configured with GitOps templates so the first GitOps run matches the default UI setup (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/41409
+    - description: Add Fleet-maintained apps to policies via GitOps to automatically install software when a policy fails (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
+    - description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
+#
 #  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
 #   ╩ ╚╩╝╚═╝   ╚  ╩ ╩╚═╝ ╩ ╚═╝╩╚═  ╩ ╩╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ ╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝
@@ -160,6 +168,7 @@
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
 #  ╩╚═╚═╝╩═╝╚═╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝
 - industryName: Role-based access control
+  description: Control who can see and do what in Fleet by assigning roles like admin, maintainer, observer, and GitOps to users globally or per-fleet.
   documentationUrl: https://fleetdm.com/guides/role-based-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
@@ -228,7 +237,7 @@
 #  ╔╦╗╔╦╗╔╦╗  ╔╦╗╦╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
+- industryName: MDM migration
   description: Easily move your macOS, iOS/iPadOS, Windows, and Linux devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
@@ -237,6 +246,9 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
+  waysToUse:
+    - description: See the timestamp and errors for the last time Fleet assigned an automatic enrollment profile to Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB), to troubleshoot MDM migration and DEP assignment issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39063
 #  
 #  ╔═╗╔═╗╦═╗╔═╗  ╔╦╗╔═╗╦ ╦╔═╗╦ ╦  ╔═╗╔═╗╔╦╗╦ ╦╔═╗
 #  ╔═╝║╣ ╠╦╝║ ║───║ ║ ║║ ║║  ╠═╣  ╚═╗║╣  ║ ║ ║╠═╝
@@ -256,12 +268,16 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
+    - description: Configuration profiles are delivered to Apple hosts almost immediately after DEP enrollment instead of waiting for the next reconciler cycle (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/34433
+    - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
   demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
     - description: Connect end users to Wi-Fi by adding your SCEP server.
       moreInfoUrl: https://youtu.be/secV4NCGYPg
-#  
+#
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
 #  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
@@ -274,13 +290,19 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
-  waysToUse:
-    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2025-03-31)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
 - industryName: Work profiles for personal (BYOD) Android
   description: Separate work data and apps from personal ones with work profiles on personal Android devices.
   documentationUrl: https://fleetdm.com/guides/android-mdm-setup
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+- industryName: Fully-managed for employee-issued Android
+  description: Enroll and manage company-owned Android devices.
+  documentationUrl: https://fleetdm.com/guides/android-mdm-setup
+  tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
   usualDepartment: IT
@@ -425,6 +447,23 @@
     - description: Escrow FileVault keys on macOS
     - description: Encrypt hard disks on Windows with BitLocker.
 #  
+#  ╦═╗╔═╗╔═╗╔═╗╦  ╦╔═╗╦═╗╦ ╦  ╦  ╔═╗╔═╗╦╔═  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔═╗
+#  ╠╦╝║╣ ║  ║ ║╚╗╔╝║╣ ╠╦╝╚╦╝  ║  ║ ║║  ╠╩╗  ╠═╝╠═╣╚═╗╚═╗║  ║ ║ ║║║╣ ╚═╗
+#  ╩╚═╚═╝╚═╝╚═╝ ╚╝ ╚═╝╩╚═ ╩   ╩═╝╚═╝╚═╝╩ ╩  ╩  ╩ ╩╚═╝╚═╝╚═╝╚═╝═╩╝╚═╝╚═╝
+- industryName: Recovery lock passcodes
+  description: Automatically escrow and rotate unique Recovery Lock passwords for macOS hosts to help end users recover from a forgotten local password.
+  documentationUrl: https://fleetdm.com/guides/recovery-lock-password
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/37497
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: Automatically rotate the Recovery Lock password on macOS hosts 1 hour after they're viewed so passwords are never reused (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/41003
+#  
 #  ╔═╗╔╗╔╔═╗╔═╗╦═╗╔═╗╔═╗  ╔═╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗╔═╗
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣   ║ ║╠═╝║╣ ╠╦╝╠═╣ ║ ║║║║║ ╦  ╚═╗╚╦╝╚═╗ ║ ║╣ ║║║  ║ ║╠═╝ ║║╠═╣ ║ ║╣ ╚═╗
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ╚═╝╩  ╚═╝╩╚═╩ ╩ ╩ ╩╝╚╝╚═╝  ╚═╝ ╩ ╚═╝ ╩ ╚═╝╩ ╩  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝╚═╝
@@ -469,11 +508,15 @@
       moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
     - description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
       moreInfoUrl: https://fleetdm.com/docs/configuration/agent-configuration
+    - description: Automatically remove settings from Windows hosts when a configuration profile is deleted (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/33418
+    - description: Automatically retries failed configuration profile installations up to 3 times on Apple macOS, iOS, and iPadOS hosts, eliminating compliance gaps caused by network blips (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42327
   productCategories: [Device management]
   pricingTableCategories: [Devices]
-#  
-#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗  
-#   ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║   
+#
+#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+#   ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║
 #  ═╩╝╚═╝╚═╝╩═╝╩ ╩╩╚═╩ ╩ ╩ ╩ ╚╝ ╚═╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩            
 - industryName: Declarative Device Management (DDM) support for configuration profiles
   description: Full support for Apple DDM configuration profiles.
@@ -488,12 +531,13 @@
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦ ╦╔═╗╔═╗╦ ╔╦╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠═╣║╣ ╠═╣║  ║ ╠═╣
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╚═╝╩ ╩╩═╝╩ ╩ ╩
-- industryName: Device health
-  friendlyName: Automate device health
-  description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+- industryName: Conditional access
+  friendlyName: Device health
+  description: Automatically block access to corporate resources when a device falls out of compliance with Fleet policies, using Okta or Microsoft Entra ID conditional access (zero trust). This keep corporate data out of the hands of compromised or misconfigured devices (4.84.0).
+  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
   screenshotSrc:
-  tier: Free
+  tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
   productCategories: [Device management,Endpoint operations]
@@ -508,6 +552,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
+    - description: Automatically report system health issues using webhooks or integrations, to notify or quarantine outdated or misconfigured systems that are at higher risk of vulnerabilities or theft.
   demos:
     - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
@@ -561,8 +606,12 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
   waysToUse:
    - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
-     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
-   - description: Offer licenses for Photoshop and other App Sore apps for your end users.
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
+   - description: Offer licenses for Photoshop and other App Store apps for your end users.
+   - description: Use "labels include all" custom scope to target software to specific groups of hosts using multiple label criteria (4.84.0).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/39916
+   - description: Add a Fleet-maintained app to a policy via GitOps to automatically install the app when the policy fails (4.84.0).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
 #  
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
 #  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
@@ -634,8 +683,10 @@
     - description: Run scripts on online/offline hosts
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
     - description: Only maintainers and admins can run scripts.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055  
-#  
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055
+    - description: Run Python scripts on macOS and Linux hosts (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/38793
+#
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║║║╣ ╚╗╔╝║║  ║╣   ╠╦╝║╣ ║║║║╣  ║║║╠═╣ ║ ║║ ║║║║
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
@@ -700,11 +751,22 @@
 #                                                                                  
 #
 #      
-#  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗ 
-#  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗ 
-#  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝                                                                                                                                                                                                          
-- industryName: Queries
-  description: Scheduled or saved queries with optional AI-generated descriptions, and, live queries for real-time data collection.  
+- industryName: Dashboard widgets
+  description: At-a-glance visibility into host activity and enrollment trends directly on the Fleet dashboard.
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/41519
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Devices]
+  waysToUse:
+    - description: View host activity and hosts enrolled widgets to understand fleet uptime and host distribution at a glance (4.84.0).
+#  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗
+#  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
+#  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
+- industryName: Reports
+  description: Reports with optional AI-generated descriptions, and, live reports for real-time data collection.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-ui
   tier: Free
   jamfProHasFeature: no
@@ -712,6 +774,11 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT
+  waysToUse:
+    - description: View each report and its first result directly on the Host details page, similar to extension attributes in Jamf (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40187
+    - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
   demos:
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
@@ -719,7 +786,8 @@
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
 #  ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩╩ ╩╝╚╝╚═╝╚═╝  ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
-- industryName: Query performance monitoring
+- industryName: Performance impact monitoring
+  description: Monitor the performance impact of reports running on your hosts, including CPU usage and memory consumption, to ensure reports don't degrade device performance.
   documentationUrl: https://fleetdm.com/docs/get-started/faq#will-fleet-slow-down-my-servers-what-about-my-employee-laptops
   tier: Free
   jamfProHasFeature: no
@@ -750,7 +818,7 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Devices]
   usualDepartment: IT
-# 
+#
 #  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
 #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
@@ -784,6 +852,7 @@
 #  ║  ╠═╣╠╩╗║╣ ║  ╚═╗
 #  ╩═╝╩ ╩╚═╝╚═╝╩═╝╚═╝
 - industryName: Labels
+  description: Create dynamic or manual groups of hosts using SQL queries or manual selection to filter and target devices across Fleet.
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -990,6 +1059,7 @@
 #  ╚═╝╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╩ ╩╝╚╝╝╚╝╩╝╚╝╚═╝
 - industryName: Continuous scanning
   friendlyName: Detect vulnerable software
+  description: Automatically and continuously scan all enrolled hosts for known vulnerabilities (CVEs) in installed software, matching against the National Vulnerability Database (NVD) and other sources.
   documentationUrl: https://fleetdm.com/vulnerability-management
   productCategories: [Vulnerability management]
   pricingTableCategories: [Devices]
@@ -1005,6 +1075,8 @@
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
     - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+    - description: Vulnerability detection for Ubuntu uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39900
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
@@ -1017,6 +1089,7 @@
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
 - industryName: Vulnerability scores
   friendlyName: EPSS and CVSS
+  description: Prioritize remediation using EPSS (Exploit Prediction Scoring System) and CVSS (Common Vulnerability Scoring System) scores to understand exploit likelihood and severity for each vulnerability.
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
   jamfProHasFeature: no
@@ -1081,7 +1154,7 @@
 #  ╩╚═╚═╝╚═╝ ╩   ╩ ╩╩  ╩
 - industryName: REST API
   friendlyName: Automate any feature
-  description: 
+  description: Programmatically access and automate every Fleet feature using a comprehensive REST API, including managing hosts, reports, policies, software, and more.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
@@ -1145,7 +1218,7 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Deploy certificates
-  description: Help your end users connect to third-party tools (e.g. Wi-Fi or VPN) by deploying certificates from your certificate authority (CA).                
+  description: Help your end users connect to third-party tools (e.g. Wi-Fi or VPN) by deploying certificates from your certificate authority (CA).
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
@@ -1154,6 +1227,13 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  waysToUse:
+    - description: Throttle certificate profile requests to avoid overloading your CA server when deploying certificates to large numbers of Apple hosts (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/38002
+    - description: Automatically retry failed certificate installations up to 3 times on Android hosts (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37546
+    - description: Resend certificates to a specific Android host to troubleshoot issues (4.84.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
@@ -1207,10 +1287,10 @@
     - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Torq,Custom IdP]
-#  
-#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
-#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 
-#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩  
+#
+#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦
+#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝
+#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩
 - industryName: Munki compatibility + visibility
   tier: Premium
   jamfProHasFeature: yes
@@ -1232,6 +1312,7 @@
 #  ║ ║╠═╝║╣ ║║║───╚═╗║ ║║ ║╠╦╝║  ║╣   ║╚═╗╚═╗║ ║║╣    ║ ╠╦╝╠═╣║  ╠╩╗║╣ ╠╦╝  ║ ╦║ ║ ╠═╣║ ║╠╩╗
 #  ╚═╝╩  ╚═╝╝╚╝   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝  ╩╚═╝╚═╝╚═╝╚═╝   ╩ ╩╚═╩ ╩╚═╝╩ ╩╚═╝╩╚═  ╚═╝╩ ╩ ╩ ╩╚═╝╚═╝
 - industryName: Open-source issue tracker (GitHub)
+  description: File bug reports, request features, and track progress publicly on Fleet's open-source GitHub issue tracker.
   documentationUrl: https://github.com/fleetdm/fleet/issues
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1243,6 +1324,7 @@
 #  ║  ║ ║║║║║║║║ ║║║║║ ║ ╚╦╝  ╚═╗║  ╠═╣║  ╠╩╗  ║  ╠═╣╠═╣║║║║║║║╣ ║  
 #  ╚═╝╚═╝╩ ╩╩ ╩╚═╝╝╚╝╩ ╩  ╩   ╚═╝╩═╝╩ ╩╚═╝╩ ╩  ╚═╝╩ ╩╩ ╩╝╚╝╝╚╝╚═╝╩═╝
 - industryName: Community Slack channel
+  description: Get help from Fleet engineers and community members in the public Fleet Slack channel.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1254,6 +1336,7 @@
 #  ║ ║║║║║  ║║║║║ ║ ║╣  ║║  ║╣ ║║║╠═╣║║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║
 #  ╚═╝╝╚╝╩═╝╩╩ ╩╩ ╩ ╚═╝═╩╝  ╚═╝╩ ╩╩ ╩╩╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩
 - industryName: Unlimited email support (confidential)
+  description: Get unlimited, confidential email support from Fleet's team for deployment, configuration, and troubleshooting.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1265,6 +1348,7 @@
 #  ╠═╝╠═╣║ ║║║║║╣   ╠═╣║║║ ║║  ╚╗╔╝║ ║║║╣ ║ ║  ║  ╠═╣║  ║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╩  ╩ ╩╚═╝╝╚╝╚═╝  ╩ ╩╝╚╝═╩╝   ╚╝ ╩═╩╝╚═╝╚═╝  ╚═╝╩ ╩╩═╝╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Phone and video call support
+  description: Schedule phone or video calls with Fleet's support team for real-time help with complex issues and questions.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]

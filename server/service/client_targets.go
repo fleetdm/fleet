@@ -1,8 +1,6 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -20,7 +18,7 @@ func (c *Client) SearchTargets(query string, hostIDs, labelIDs []uint) (*fleet.T
 	var responseBody searchTargetsResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, fmt.Errorf("SearchTargets: %s", err)
+		return nil, err
 	}
 
 	hosts := make([]*fleet.Host, len(responseBody.Targets.Hosts))

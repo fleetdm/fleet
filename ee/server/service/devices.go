@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -313,15 +314,15 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	// Get current status of the setup experience.
-	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
-	// Mark canceled items as failed.
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	// Add activities for canceled installs + setup experience run
+	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), results)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
 	var software []*fleet.SetupExperienceStatusResult

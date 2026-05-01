@@ -8,13 +8,13 @@ import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { INotification } from "interfaces/notification";
 
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
@@ -90,7 +90,7 @@ const InstallSoftwareForm = ({
 }: IInstallSoftwareFormProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
     savedRequireAllSoftwareMacOS ?? false
   );
@@ -234,7 +234,7 @@ const InstallSoftwareForm = ({
 
   const renderEmptyState = () => {
     return (
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__empty-table`}
         header="No software available to install"
         primaryButton={
@@ -268,10 +268,7 @@ const InstallSoftwareForm = ({
         {platform === "macos" && (
           <div className={`${baseClass}__macos_options`}>
             <Checkbox
-              disabled={
-                config?.gitops.gitops_mode_enabled ||
-                manualAgentInstallBlockingSoftware
-              }
+              disabled={gitOpsModeEnabled || manualAgentInstallBlockingSoftware}
               value={requireAllSoftwareMacOS}
               onChange={handleChangeRequireAll}
             >

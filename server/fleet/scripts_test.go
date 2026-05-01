@@ -214,6 +214,161 @@ func TestValidateHostScriptContents(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallerScript(t *testing.T) {
+	tests := []struct {
+		name     string
+		script   string
+		platform string
+		wantErr  error
+	}{
+		{
+			name:     "empty script is valid (darwin)",
+			script:   "",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "empty script is valid (windows)",
+			script:   "",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "empty script is valid (linux)",
+			script:   "",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with bash shebang on darwin",
+			script:   "#!/bin/bash\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with sh shebang on darwin",
+			script:   "#!/bin/sh\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with zsh shebang on darwin",
+			script:   "#!/bin/zsh\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with no shebang on darwin",
+			script:   "echo hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with bash shebang on linux",
+			script:   "#!/bin/bash\necho hello",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with no shebang on linux",
+			script:   "echo hello",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "unsupported interpreter on darwin",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "darwin",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "unsupported interpreter on linux",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "linux",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "unsupported interpreter on windows is OK (shebang not checked)",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid powershell content on windows",
+			script:   "Write-Host 'hello'",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "too large by byte count (darwin)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "darwin",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by rune count (darwin)",
+			script:   strings.Repeat("🙂", SavedScriptMaxRuneLen+1),
+			platform: "darwin",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by byte count (windows)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "windows",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by byte count (linux)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "linux",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "invalid utf8 encoding (darwin)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "darwin",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "invalid utf8 encoding (windows)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "windows",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "invalid utf8 encoding (linux)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "linux",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "at exactly the size limit is valid",
+			script:   strings.Repeat("a", SavedScriptMaxRuneLen),
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "python shebang is rejected on darwin (software installer scripts are shell only)",
+			script:   "#!/usr/bin/env python3\nprint('hello')",
+			platform: "darwin",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "python shebang is rejected on linux (software installer scripts are shell only)",
+			script:   "#!/usr/bin/env python3\nprint('hello')",
+			platform: "linux",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSoftwareInstallerScript(tt.script, tt.platform)
+			require.Equal(t, tt.wantErr, err)
+		})
+	}
+}
+
 func TestHostTimeout(t *testing.T) {
 	now := time.Now()
 	tests := []struct {

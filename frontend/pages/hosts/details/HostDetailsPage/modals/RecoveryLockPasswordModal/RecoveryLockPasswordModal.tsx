@@ -13,11 +13,13 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
+import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
+import { monthDayTimeFormat } from "utilities/date_format";
 
 const baseClass = "recovery-lock-password-modal";
 
@@ -36,15 +38,19 @@ const RecoveryLockPasswordModal = ({
   const [isRotating, setIsRotating] = useState(false);
 
   const {
-    data: recoveryLockPassword,
+    data: recoveryLockData,
     error: recoveryLockPasswordError,
     isLoading,
-  } = useQuery<IHostRecoveryLockPasswordResponse, unknown, string>(
+  } = useQuery<
+    IHostRecoveryLockPasswordResponse,
+    unknown,
+    IHostRecoveryLockPasswordResponse["recovery_lock_password"]
+  >(
     ["hostRecoveryLockPassword", hostId],
     () => hostAPI.getRecoveryLockPassword(hostId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (data) => data.recovery_lock_password.password,
+      select: (data) => data.recovery_lock_password,
       // prevent caching this sensitive string
       cacheTime: 0,
     }
@@ -73,7 +79,7 @@ const RecoveryLockPasswordModal = ({
     if (canRotatePassword) {
       return (
         <Button
-          variant="text-link"
+          variant="inverse"
           onClick={onRotatePassword}
           disabled={isRotating}
           className={`${baseClass}__rotate-button`}
@@ -114,7 +120,7 @@ const RecoveryLockPasswordModal = ({
       ) : (
         !isLoading && (
           <>
-            <InputFieldHiddenContent value={recoveryLockPassword ?? ""} />
+            <InputFieldHiddenContent value={recoveryLockData?.password ?? ""} />
             <p>
               Use this to unlock and regain access to the host if the end user
               forgets their local password.{" "}
@@ -124,6 +130,12 @@ const RecoveryLockPasswordModal = ({
                 text="Learn more"
               />
             </p>
+            {recoveryLockData?.auto_rotate_at && (
+              <InfoBanner color="yellow">
+                Password rotates automatically after{" "}
+                {monthDayTimeFormat(recoveryLockData.auto_rotate_at)}.
+              </InfoBanner>
+            )}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>
               {renderRotateButton()}

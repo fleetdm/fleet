@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Disable external intelligence extensions</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-apple-intelligence-extensions.check</string>
+			<key>PayloadUUID</key>
+			<string>A1B2C3D4-E5F6-7890-ABCD-EF1234567801</string>
+			<key>allowExternalIntelligenceIntegrations</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Disables external Apple Intelligence extensions (e.g. ChatGPT) to prevent data being sent to third-party AI services. CIS macOS 15 benchmark.</string>
+	<key>PayloadDisplayName</key>
+	<string>[macOS 15] CIS - Ensure external intelligence extensions is disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.macos15.cis-apple-intelligence-extensions</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A1B2C3D4-E5F6-7890-ABCD-EF1234567802</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

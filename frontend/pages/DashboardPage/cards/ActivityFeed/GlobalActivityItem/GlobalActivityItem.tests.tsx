@@ -564,24 +564,6 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders an 'enabled_disk_encryption' type activity for a team", () => {
-    const activity = createMockActivity({
-      type: ActivityType.EnabledDiskEncryption,
-      details: { team_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText("enforced disk encryption for hosts assigned to the", {
-        exact: false,
-      })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
-  });
-
   it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
@@ -601,7 +583,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for a team", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
       details: { team_name: "Alphas" },
@@ -622,43 +604,6 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
-    // Test deprecated activity type
-    const activity = createMockActivity({
-      type: ActivityType.DisabledDiskEncryption,
-      details: { team_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "removed disk encryption enforcement for hosts assigned to the",
-        {
-          exact: false,
-        }
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
-  });
-
-  it("renders an 'enabled_disk_encryption' type activity for hosts that are unassigned.", () => {
-    const activity = createMockActivity({
-      type: ActivityType.EnabledDiskEncryption,
-      details: {},
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "enforced disk encryption for hosts that are unassigned."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("assigned to the")).toBeNull();
-  });
-
   it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
@@ -670,24 +615,6 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText(
         "enforced disk encryption for hosts that are unassigned."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("assigned to the")).toBeNull();
-  });
-
-  it("renders a 'disabled_disk_encryption' type activity for hosts that are unassigned.", () => {
-    const activity = createMockActivity({
-      type: ActivityType.DisabledDiskEncryption,
-      details: {},
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "removed disk encryption enforcement for hosts that are unassigned.",
-        {
-          exact: false,
-        }
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
@@ -750,7 +677,7 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("rotated the Recovery Lock password for", {
+      screen.getByText("triggered rotation of the Recovery Lock password for", {
         exact: false,
       })
     ).toBeInTheDocument();
@@ -1889,5 +1816,65 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+  });
+
+  it("renders an enabled_gitops_exception activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledGitOpsException,
+      details: { exception: "labels" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("enabled the labels exception for GitOps.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders a disabled_gitops_exception activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledGitOpsException,
+      details: { exception: "software" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("disabled the software exception for GitOps.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders a created_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("created a label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+  });
+
+  it("renders an edited_label activity scoped to a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedLabel,
+      details: {
+        label_id: 1,
+        label_name: "Workstations",
+        fleet_id: 5,
+        fleet_name: "Engineering",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("edited the label on the fleet.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("deleted the label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
 });

@@ -24,7 +24,7 @@ Technicians have the ability to run scripts, view their results, and install/uni
 
 The observer role is a read-only role. It can access most entities in Fleet, like queries, policies, labels, application configuration, fleets, etc.
 
-They can also run queries configured with the `observer_can_run` flag set to `true`.
+They can also run reports configured with the `observer_can_run` flag set to `true`.
 
 ### Observer+
 
@@ -95,10 +95,12 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Retrieve contents from file carving                                                                                                        |          |            |            |            | ✅    |         |
 | Create Apple Push Certificates service (APNs) certificate signing request (CSR)                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete APNs certificate                                                                                                    |          |            |            |            | ✅    |         |
-| View, edit, and delete Apple Business Manager (ABM) connections                                                                            |          |            |            |            | ✅    |         |
+| View, edit, and delete Apple Business (AB) connections                                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                         |          |            |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                                                 |          |            |            |            | ✅    |         |
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                               | ✅       | ✅         | ✅         | ✅        | ✅    |         |
+| View Recovery Lock password for macOS hosts                                                                                                | ✅       | ✅         | ✅         | ✅        | ✅    |         |
+| Rotate Recovery Lock password for macOS hosts                                                                                              |          |            |            | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                  |          |            |            |            | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                            |          |            |            | ✅         | ✅    | ✅      |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                            |          |            | ✅         | ✅         | ✅    | ✅      |
@@ -109,6 +111,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
+| View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
+| View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
 | Request certificates (CA)\*                                                                                                                |          |            |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅         | ✅    |         |
 | Schedule scripts on hosts                                                                                                                  |          |            |            | ✅         | ✅    |         |
@@ -131,16 +135,12 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 Users in Fleet either have global access or access to specific fleets.
 
-Users with access to specific fleets only have access to the [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies) assigned to
-their fleet.
+Users with access to specific fleets only have access to data for their assigned fleet.
 
-Users with global access have access to all
-[hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
+Global users can access data for all fleets. Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
-Users can be assigned to multiple fleets in Fleet.
-
-Users with access to multiple fleets can be assigned different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
+Users can be assigned to multiple fleets, and can have different roles for each fleet. For example, a user can be given access to the "💻 Workstations" fleet and assigned the "Observer" role. This same user can be given access to the "📱🔐 Personal mobile devices" fleet and assigned the "Maintainer" role.
 
 | **Action**                                                                                                                       | Observer | Observer+ | Technician | Maintainer | Admin | GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | :-----------: | :------------: | :-------------: | :-------------: | :--------: | :---------: |
@@ -182,6 +182,8 @@ Users with access to multiple fleets can be assigned different roles for each fl
 | Edit agent options                                                                                                               |               |                |                 |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                |                 | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| View Recovery Lock password for macOS hosts                                                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| Rotate Recovery Lock password for macOS hosts                                                                                    |               |                |                 | ✅              | ✅         |             |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                        |               |                |                 |                 | ✅         | ✅          |
 | Create, edit, resend and delete configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                  |               |                |                 | ✅              | ✅         | ✅          |
 | View and resend configuration profiles for Apple (macOS/iOS/iPadOS), Windows, and Android hosts                                  |               |                | ✅              | ✅              | ✅         | ✅          |
@@ -196,6 +198,7 @@ Users with access to multiple fleets can be assigned different roles for each fl
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                |                 | ✅              | ✅         |             |
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
+| View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)

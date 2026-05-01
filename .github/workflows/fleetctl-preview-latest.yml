@@ -1,7 +1,8 @@
 name: Test latest changes in fleetctl preview
 
-# Tests the `fleetctl preview` command with latest changes in fleetctl and
-# docs/01-Using-Fleet/starter-library/starter-library.yml
+# Tests the `fleetctl preview` command with the Fleet server and fleetctl
+# built from the same commit, ensuring the starter library and GitOps
+# pipeline work end-to-end.
 
 on:
   push:
@@ -16,7 +17,6 @@ on:
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
-      - 'docs/01-Using-Fleet/starter-library/starter-library.yml'
       - '.github/workflows/fleetctl-preview-latest.yml'
       - 'tools/osquery/in-a-box'
   pull_request:
@@ -27,7 +27,6 @@ on:
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
-      - 'docs/01-Using-Fleet/starter-library/starter-library.yml'
       - '.github/workflows/fleetctl-preview-latest.yml'
       - 'tools/osquery/in-a-box'
   workflow_dispatch: # Manual
@@ -71,15 +70,43 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Set up Node.js
+      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+      with:
+        node-version-file: package.json
+        check-latest: true
+
+    - name: Install JS dependencies
+      run: make deps
+
+    - name: Generate assets
+      run: make generate
+
     - name: Build Fleetctl
       run: make fleetctl
+
+    - name: Build Fleet server Docker image
+      run: |
+        make fleet-static
+        cp ./build/fleet fleet
+        docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
+        rm fleet
+
+    - name: Prepare preview config
+      run: |
+        # Copy the in-a-box config and set pull_policy so Docker uses the
+        # locally built image instead of trying to pull from Docker Hub.
+        cp -a tools/osquery/in-a-box /tmp/preview-config
+        # Add pull_policy: never to fleet01 and fleet02 services
+        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
+        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' /tmp/preview-config/docker-compose.yml
 
     - name: Run fleetctl preview
       run: |
         ./build/fleetctl preview \
+          --tag dev \
           --disable-open-browser \
-          --starter-library-file-path $(pwd)/docs/01-Using-Fleet/starter-library/starter-library.yml \
-          --preview-config-path ./tools/osquery/in-a-box
+          --preview-config-path /tmp/preview-config
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]

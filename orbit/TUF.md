@@ -7,8 +7,8 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 | Component\OS |    macOS     | Linux  | Windows | Linux (arm64) | Windows (arm64) |
 |--------------|--------------|--------|---------|---------------|-----------------|
-| orbit        | 1.53.1       | 1.53.1 | 1.53.1  | 1.53.1        | 1.53.1          |
-| desktop      | 1.53.1       | 1.53.1 | 1.53.1  | 1.53.1        | 1.53.1          |
+| orbit        | 1.54.0       | 1.54.0 | 1.54.0  | 1.54.0        | 1.54.0          |
+| desktop      | 1.54.0       | 1.54.0 | 1.54.0  | 1.54.0        | 1.54.0          |
 | osqueryd     | 5.22.1       | 5.22.1 | 5.22.1  | 5.22.1        | 5.22.1          |
 | nudge        | 1.1.10.81462 | -      | -       | -             | -               |
 | swiftDialog  | 2.5.6        | -      | -       | -             | -               |
@@ -18,9 +18,9 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 | Component\OS | macOS  | Linux  | Windows | Linux (arm64) | Windows (arm64) |
 |--------------|--------|--------|---------|---------------|-----------------|
-| orbit        | 1.53.1 | 1.53.1 | 1.53.1  | 1.53.1        | 1.53.1          |
-| desktop      | 1.53.1 | 1.53.1 | 1.53.1  | 1.53.1        | 1.53.1          |
-| osqueryd     | 5.22.1 | 5.22.1 | 5.22.1  | 5.22.1        | 5.22.1          |
+| orbit        | 1.54.0 | 1.54.0 | 1.54.0  | 1.54.0        | 1.54.0          |
+| desktop      | 1.54.0 | 1.54.0 | 1.54.0  | 1.54.0        | 1.54.0          |
+| osqueryd     | 5.23.0 | 5.23.0 | 5.23.0  | 5.23.0        | 5.23.0          |
 | nudge        | -      | -      | -       | -             | -               |
 | swiftDialog  | -      | -      | -       | -             | -               |
 | escrowBuddy  | -      | -      | -       | -             | -               |

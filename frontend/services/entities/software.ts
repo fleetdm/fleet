@@ -9,7 +9,7 @@ import {
   encodeScriptBase64,
   SCRIPTS_ENCODED_HEADER,
 } from "utilities/scripts_encoding";
-import software, {
+import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
@@ -84,16 +84,12 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken?: string | null;
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {

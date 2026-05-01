@@ -38,7 +38,7 @@ parasails.registerComponent('docsNavAndSearch', {
           <a :class="[currentSection === 'docs' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/docs" style="text-decoration: none; text-decoration-line: none;">Get started</a>
           <a :class="[currentSection === 'controls' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/mdm-commands" style="text-decoration: none; text-decoration-line: none;">Controls</a>
           <a :class="[currentSection === 'vitals' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/vitals" style="text-decoration: none; text-decoration-line: none;">Vitals</a>
-          <a :class="[currentSection === 'queries' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/queries" style="text-decoration: none; text-decoration-line: none;">Queries</a>
+          <a :class="[currentSection === 'reports' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/reports" style="text-decoration: none; text-decoration-line: none;">Reports</a>
           <a :class="[currentSection === 'policies' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/policies" style="text-decoration: none; text-decoration-line: none;">Policies</a>
           <a :class="[currentSection === 'software' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/software-catalog" style="text-decoration: none; text-decoration-line: none;">Software</a>
           <a :class="[currentSection === 'tables' ? 'active' : '']" purpose="docs-top-nav-menu-link" href="/tables" style="text-decoration: none; text-decoration-line: none;">Data tables</a>
@@ -75,7 +75,7 @@ parasails.registerComponent('docsNavAndSearch', {
   mounted: async function() {
     let filterForSearch = {};
     if(this.searchFilter){
-      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'software'];
+      let searchIndexesThatExist = ['docs', 'software', 'queries', 'vitals', 'policies', 'tables', 'handbook', 'controls'];
       if(!searchIndexesThatExist.includes(this.searchFilter)){
         throw new Error(`Invalid 'searchFilter' value provided to <docs-nav-and-search> component. Please change the searchFilter value to one of: ${searchIndexesThatExist.join(', ')}`);
       }

@@ -21,7 +21,8 @@ import {
 } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 
@@ -109,7 +110,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
@@ -141,7 +142,7 @@ const BootstrapPackage = ({
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        manual_agent_install: false,
+        macos_manual_agent_install: false,
       });
       renderFlash("success", "Successfully deleted.");
     } catch {
@@ -216,12 +217,15 @@ const BootstrapPackage = ({
       )
     ) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }

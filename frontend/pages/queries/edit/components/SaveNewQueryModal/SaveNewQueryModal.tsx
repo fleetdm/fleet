@@ -23,7 +23,6 @@ import {
 } from "interfaces/schedulable_query";
 
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";

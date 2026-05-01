@@ -925,6 +925,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		}
 	}
 
+	// Fetch FMA canonical names to override osquery-reported names for macOS apps.
+	// This ensures software titles use consistent names (e.g., "Microsoft Visual Studio Code"
+	// instead of "Code" which is what osquery reports for VS Code).
+	// Note: This call is made from the base datastore so it bypasses the cached_mysql layer.
+	// The query is simple (SELECT from the small fleet_maintained_apps table) so this is acceptable.
+	// The cached_mysql layer still caches this method for other callers (e.g., API endpoints).
+	fmaNames, fmaErr := ds.GetFMANamesByIdentifier(ctx)
+	if fmaErr != nil {
+		// Log but don't fail - we can still use osquery-reported names.
+		// A nil map is safe here since Go's map access on nil returns the zero value.
+		if ds.logger != nil {
+			ds.logger.WarnContext(ctx, "failed to get FMA names by identifier", "err", fmaErr)
+		}
+		fmaNames = nil
+	}
+
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
@@ -941,13 +957,19 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					// there is not an existing software title corresponding to this incoming software version
 					newTitleName := sw.Name
 					if sw.BundleIdentifier != "" {
-						key := titleKey{
-							bundleID:     sw.BundleIdentifier,
-							source:       sw.Source,
-							extensionFor: sw.ExtensionFor,
-						}
-						if computedName, exists := bestTitleNames[key]; exists {
-							newTitleName = computedName
+						// First check if there's an FMA with this bundle identifier - use its canonical name
+						if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
+							newTitleName = fmaName
+						} else {
+							// Fall back to computed best name from osquery reports
+							key := titleKey{
+								bundleID:     sw.BundleIdentifier,
+								source:       sw.Source,
+								extensionFor: sw.ExtensionFor,
+							}
+							if computedName, exists := bestTitleNames[key]; exists {
+								newTitleName = computedName
+							}
 						}
 					}
 
@@ -1186,8 +1208,34 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					missingSoftwareTitles = append(missingSoftwareTitles,
 						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
+
+				// Use FMA canonical name if available, otherwise use osquery-reported name.
+				// This ensures software.name matches software_titles.name for consistency.
+				//
+				// IMPORTANT: The checksum is intentionally computed from osquery data
+				// (including the osquery-reported name, NOT the FMA name) for these reasons:
+				//
+				// 1. The checksum is used for deduplication via unique index. It serves as
+				//    an internal identifier, not a content integrity hash. The stored name
+				//    can differ from the name used in checksum computation.
+				//
+				// 2. Checksums are computed before FMA lookup, using raw osquery data.
+				//    If we regenerated checksums with FMA names:
+				//    - A cache miss or FMA sync delay could cause the same software to
+				//      generate different checksums, creating duplicate entries.
+				//    - Migration would require recomputing checksums for millions of rows.
+				//
+				// 3. The checksum is never recomputed from stored data - it's only computed
+				//    from incoming osquery data during ingestion and used for lookup.
+				softwareName := sw.Name
+				if sw.BundleIdentifier != "" {
+					if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
+						softwareName = fmaName
+					}
+				}
+
 				args = append(
-					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
+					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
 				)
 			}
@@ -2515,7 +2563,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		)
 
 	// join only on software_id as we'll need counts for all teams
-	// to filter down to the team's the user has access to
+	// to filter down to the teams the user has access to
 	if tmFilter != nil {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
@@ -2613,6 +2661,26 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	}
 
 	return &software, nil
+}
+
+func (ds *Datastore) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	const stmt = `
+    SELECT id, name, version
+    FROM software
+    WHERE id = ?
+  `
+	var results fleet.SoftwareLite
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return fleet.SoftwareLite{}, notFound("Software").WithID(id)
+		}
+		return fleet.SoftwareLite{}, ctxerr.Wrap(ctx, err, "get software version name for host filter")
+	}
+
+	return results, nil
 }
 
 // SyncHostsSoftware calculates the number of hosts having each
@@ -4105,7 +4173,12 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.host_id = :host_id AND
 				hvsi.removed = 0 AND
 				hvsi.canceled = 0 AND
-				(hvsi.platform != 'android' OR ncr.id IS NULL) AND
+				-- Android installs never produce nano_command_results (they use Google's
+				-- Android Management API instead of nanoMDM), so ncr is always NULL for
+				-- Android rows. No NCR filter is applied here — all statuses (pending,
+				-- failed, installed) are shown, which is intentional for the host software
+				-- list. Compare with vpp.go / software_installers.go which filter by NCR
+				-- for per-app aggregate counts, different semantics.
 				hvsi2.id IS NULL AND
 				NOT EXISTS (
 					SELECT 1

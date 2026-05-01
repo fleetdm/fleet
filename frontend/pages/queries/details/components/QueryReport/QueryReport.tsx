@@ -16,7 +16,7 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
@@ -131,9 +131,8 @@ const QueryReport = ({
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (
-              <EmptyTable
+              <EmptyState
                 className={baseClass}
-                graphicName="empty-software"
                 header="Nothing to report yet"
                 info="This report has returned no data so far."
               />
@@ -150,6 +149,7 @@ const QueryReport = ({
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
           renderCount={renderResultsCount}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );

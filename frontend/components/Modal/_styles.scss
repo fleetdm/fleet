@@ -1,7 +1,7 @@
 .modal {
   &__background {
     @include position(fixed, 0 0 0 0);
-    background-color: rgba($core-fleet-black, 0.4);
+    background-color: $core-fleet-black-overlay-40;
     z-index: 101;
     overflow: auto;
     display: flex;

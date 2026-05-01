@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "138.0.7204.26",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Credential Provider for Windows' AND publisher = 'Google LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Credential Provider for Windows' AND publisher = 'Google LLC' AND version_compare(version, '138.0.7204.26') < 0);"
+      },
+      "installer_url": "https://dl.google.com/credentialprovider/gcpwstandaloneenterprise64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "23ea1ef2",
+      "sha256": "f2fde1b2e3bcf88e517a9f59f48887ddb5e2aa4f808b1d5ed9f4bbd11c66288c",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "23ea1ef2": "# Attempts to locate Google Credential Provider for Windows product code from registry and uninstall it using msiexec\n\n$displayName = \"Google Credential Provider for Windows\"\n$publisher = \"Google LLC\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$productCode = $null\nforeach ($p in $paths) {\n  $items = Get-ChildItem -Path $p -ErrorAction SilentlyContinue | ForEach-Object {\n    Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue\n  } | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -eq $publisher) -and $_.PSChildName -match '^{[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}}$'\n  }\n  if ($items) {\n    $productCode = ($items | Select-Object -First 1).PSChildName\n    break\n  }\n}\n\nif (-not $productCode) {\n  Write-Host \"Product code not found for $displayName\"\n  Exit 1\n}\n\nWrite-Host \"Found product code: $productCode\"\nWrite-Host \"Attempting to uninstall using msiexec...\"\n\n$timeoutSeconds = 300  # 5 minute timeout\n\ntry {\n  $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $productCode, \"/norestart\") -PassThru -NoNewWindow\n  \n  # Wait for process with timeout\n  $completed = $process.WaitForExit($timeoutSeconds * 1000)\n  \n  if (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Write-Host \"Uninstall timed out after $timeoutSeconds seconds\"\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n  }\n  \n  # Check exit code and output result\n  if ($process.ExitCode -eq 0) {\n    Write-Host \"Uninstall successful\"\n    Exit 0\n  } else {\n    Write-Host \"Uninstall failed with exit code: $($process.ExitCode)\"\n    Exit $process.ExitCode\n  }\n} catch {\n  Write-Host \"Error running uninstaller: $_\"\n  Exit 1\n}\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

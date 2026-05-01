@@ -13,6 +13,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
   android_enabled_and_configured: false,
+  apple_require_hardware_attestation: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -25,16 +26,16 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     minimum_version: "",
     deadline: "",
   },
-  macos_settings: {
-    custom_settings: null,
+  apple_settings: {
+    configuration_profiles: null,
     enable_disk_encryption: false,
   },
-  macos_setup: {
-    bootstrap_package: "",
-    manual_agent_install: false,
+  setup_experience: {
+    macos_bootstrap_package: "",
+    macos_manual_agent_install: false,
     enable_end_user_authentication: false,
-    macos_setup_assistant: null,
-    enable_release_device_manually: false,
+    apple_setup_assistant: null,
+    apple_enable_release_device_manually: false,
     require_all_software_macos: false,
     lock_end_user_info: false,
   },
@@ -220,6 +221,11 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   gitops: {
     gitops_mode_enabled: false,
     repository_url: "",
+    exceptions: {
+      labels: false,
+      software: false,
+      secrets: true,
+    },
   },
 };
 

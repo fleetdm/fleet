@@ -88,10 +88,10 @@ func TestLiveQueryWithContext(t *testing.T) {
 	require.NoError(t, err)
 	client := &Client{
 		baseClient: &baseClient{
-			baseURL:            baseURL,
-			http:               fleethttp.NewClient(),
-			insecureSkipVerify: false,
-			urlPrefix:          "",
+			BaseURL:            baseURL,
+			HTTP:               fleethttp.NewClient(),
+			InsecureSkipVerify: false,
+			URLPrefix:          "",
 		},
 		token:        "1234",
 		outputWriter: nil,

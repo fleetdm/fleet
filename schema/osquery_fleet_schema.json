@@ -16626,6 +16626,86 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
+    "name": "macos_soc_power",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Power draw in milliwatts for the CPU, GPU, Apple Neural Engine (ANE), and total System on a Chip (SoC), plus GPU active ratio, sampled via powermetrics. Requires root.",
+    "columns": [
+      {
+        "name": "cpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the CPU."
+      },
+      {
+        "name": "gpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the GPU."
+      },
+      {
+        "name": "ane_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the Apple Neural Engine."
+      },
+      {
+        "name": "combined_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the total System on a Chip."
+      },
+      {
+        "name": "gpu_active_ratio",
+        "type": "text",
+        "required": false,
+        "description": "Percentage of time a GPU is actively processing commands rather than idling."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. Longer intervals produce more accurate averages. (Default: 3000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_soc_power",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_soc_power.yml"
+  },
+  {
+    "name": "macos_thermal_pressure",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Reports whether macOS is thermally throttling the device, via powermetrics. Returns thermal_pressure (Nominal/Light/Moderate/Heavy/Sleeping) and a derived is_throttling integer (1 if not Nominal). Requires root.",
+    "columns": [
+      {
+        "name": "thermal_pressure",
+        "type": "text",
+        "required": false,
+        "description": "Nominal/Light/Moderate/Heavy/Sleeping."
+      },
+      {
+        "name": "is_throttling",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if thermal_pressure is not Nominal."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. (Default 1000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_thermal_pressure",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_thermal_pressure.yml"
+  },
+  {
     "name": "macos_user_profiles",
     "evented": false,
     "description": "High level information on installed user profiles enrollment.",
@@ -18535,6 +18615,43 @@
     "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- Requires that the fleetd extension is force-installed by enterprise policy",
     "url": "https://fleetdm.com/tables/network_interfaces",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
+  },
+  {
+    "name": "network_quality",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Output from the macOS `networkQuality` binary, reporting download and upload throughput.",
+    "columns": [
+      {
+        "name": "dl_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Download throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "ul_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Upload throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "dl_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Download throughput in megabits per second, formatted to two decimal places."
+      },
+      {
+        "name": "ul_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Upload throughput in megabits per second, formatted to two decimal places."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\nThe `/usr/bin/networkQuality` binary is only available on macOS 12 (Monterey) and later. On hosts where the binary is not present, the table returns no rows.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/network_quality",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_quality.yml"
   },
   {
     "name": "nfs_shares",

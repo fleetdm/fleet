@@ -730,9 +730,9 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available when{" "}
-          {isHostSpecific ? "the" : "this"} <br />
-          report runs{isHostSpecific && " on this host"}.
+          Performance impact will be available
+          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          {isHostSpecific && " on this host"}.
         </>
       );
     default:

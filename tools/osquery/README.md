@@ -1,4 +1,4 @@
-# Configs and Tools for Testing Fleet
+# Configs and tools for testing Fleet
 
 The files in this directory are intended to assist with Fleet development.
 
@@ -10,29 +10,30 @@ The files in this directory are intended to assist with Fleet development.
 
 - `fleet.crt` & `fleet.key`: Self-signed SSL certificate & key useful for testing locally with `osqueryd`. Works with the domain `host.docker.internal` (exposed within docker containers as the host's IP). Should **never** be used in production.
 
-## Testing with containerized osqueryd
+## Testing with containerized Linux hosts
 
-Using Docker enables us to rapidly spin up and down pre-configured `osqueryd` instances for testing Fleet. Currently we have container images for Ubuntu14 and Centos7 osquery installations.
-
-### Setup
+Using Docker enables us to rapidly spin up and down pre-configured Linux hosts (`osqueryd` instances) for testing Fleet. Currently we have container images for Ubuntu14 and Centos7 hosts.
 
 Docker and docker-compose are the only dependencies. The necessary container images will be pulled from Docker Cloud on first run.
 
+### Usage
+
 Set the environment variable `ENROLL_SECRET` to the value of your Fleet enroll secret (available on the manage hosts page, or via `fleetctl get enroll-secret`).
 
-(Optionally) Set `FLEET_SERVER` if you want to connect to a fleet server
-besides `host.docker.internal:8080`.
+```
+export ENROLL_SECRET=<your-enroll-secret>
+```
 
-### Running osqueryd
-
-The osqueryd instances are configured to use the TLS plugins at `host.docker.internal:8080`. Using the `example_osquery.flags` in this directory should configure Fleet with the appropriate settings for these `osqueryd` containers to connect.
-
-To start one instance each of Centos 6, Centos 7, Ubuntu 14, and Ubuntu 16
-`osqueryd`, use:
+Then, To start one host each of Centos 6, Centos 7, Ubuntu 14, and Ubuntu 16, use:
 
 ```
 docker-compose up
 ```
+
+You can optionally, set `FLEET_SERVER` if you want to connect to a fleet server
+besides `host.docker.internal:8080`.
+
+The hosts (osqueryd instances) are configured to use the TLS plugins at `host.docker.internal:8080`. Using the `example_osquery.flags` in this directory should configure Fleet with the appropriate settings for these `osqueryd` containers to connect.
 
 Linux users should use the overrides (which add DNS entries for
 `host.docker.internal` based on the `DOCKER_HOST` env var):

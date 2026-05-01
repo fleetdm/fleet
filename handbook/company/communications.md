@@ -289,6 +289,11 @@ We have specific channels for various topics, but we also have more general chan
 | `#random`                   | Be random.
 
 
+### Converting a private Slack channel to public
+
+Slack does not allow regular members or channel creators to convert a private channel to public. To convert a private channel to public, invite `@Pepper` (Andrea Pepper), the [IT support administrator](https://fleetdm.com/handbook/it#team), to the channel and she will convert it.
+
+
 ## AI usage guidelines
 
 We encourage everyone to use AI tools to work more efficiently, think more creatively, and free yourself from repetitive, low-value tasks so you can spend more time on work that's interesting, complex, and uniquely human. These guidelines exist not to restrict how you use AI, but to make sure we're using it responsibly and in a way that protects our customers, our teammates, and the quality of our work.
@@ -304,6 +309,17 @@ You have access to the following tools and can use whatever combination best fit
 - **ChatGPT or other general-purpose assistants:** approval from your manager and expense via your Brex card.
 
 You're not limited to this list. If another tool would help you do your job better, use it. Expense it via Brex if there's a cost, and use the judgment in these guidelines to do so responsibly.
+
+#### Accessing Claude
+
+Fleet has an enterprise Claude account available to team members. To access it:
+
+1. Log into [fleetdm.okta.com](https://fleetdm.okta.com)
+2. Click the **Anthropic** tile
+
+Chats under the enterprise account are covered by Anthropic's commercial terms and are not used for model training. Follow the AI usage guidelines above when using Claude for Fleet work.
+
+Questions? Ask in #help-it.
 
 
 ### Integrated AI tools
@@ -410,7 +426,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -419,6 +435,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `bug` A defect in the product.
 - `story` A user story.
 - `timebox` A timeboxed issue (a task or bug limited to a fixed duration, after which work stops regardless of completion).
+- `reliability` A scaling, performance, or reliability issue, including post-mortem action items.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs).
 
@@ -457,7 +474,35 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 
 ## Social media 
-When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don’t necessarily represent your company or peers.
+When posting about a personal or philosophical topic that potential Fleet customers might read, consider adding a disclaimer that these are your views and don't necessarily represent your company or peers.
+
+
+### Create content for YouTube
+
+#### Recording standards
+- Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
+- Add a few seconds of silence at the start and end of each recording.
+- Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+- Make sure videos are shared as downloadable
+
+#### Best practices
+**Browser and terminal:**
+- Zoom in so text is legible at 1080p (most viewers watch smaller than full screen).
+- Use a clean browser profile. Close unnecessary tabs.
+
+**Desktop:**
+- Pause notifications. Close or minimize anything that might expose private data.
+- Hide desktop icons or confirm no filenames contain sensitive info.
+
+**Mouse:**
+- Move deliberately. Pause briefly on important UI elements and wait for results to load before moving on.
+
+**Privacy:**
+- Don't show public IPs, passwords, tokens, or credentials.
+- Don't show or say customer names, codenames, or real email addresses.
+
+**Playback:**
+- Don't enable closed captions during sprint demo recording (they're added later if needed).
 
 
 ## Feedback
@@ -547,7 +592,19 @@ To request reimbursement for miles driven:
 4. Enter your starting and ending destinations, and whether it was one-way or round-trip. Brex will automatically calculate your miles driven. If the distance doesn't match what you actually drove, edit it to be correct.
 5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
 
-Finance will review and process your request within 2 business days. 
+Finance will review and process your request within 5 business days. 
+
+
+### Other reimbursement
+
+To request reimbursement for expenses incurred during travel: 
+1. Navigate to [Brex](https://dashboard.brex.com/wallet)
+2. Click "Request reimbursement," then "Out of pocket."
+3. Upload receipt for the spend item.
+4. Follow the instructions on the screen. 
+5. In the memo line, describe the reason for your travel (E.g. Houston GitOps) and submit the request.
+
+Finance will review and process your request within 5 business days. 
 
 
 ### Lodging
@@ -604,7 +661,7 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 ## Tools and equipment
 
-Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
+Fleet provides laptops and software licenses for core team members to use while working at Fleet. If you need new equipment or would like to propose a tool to be used internally at Fleet, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) on the 🌐 IT kanban board.
 
 
 ### Requesting new equipment
@@ -790,7 +847,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
 - A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
 - Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
-- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
+- Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program). (Note: AEs complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.)
 
 <!--
 ### Onboarding retrospective

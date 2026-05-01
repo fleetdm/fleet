@@ -4,7 +4,7 @@
 For each computer in Jamf this script:
   1. Reads the assigned user's email (falls back to username if no email is set).
   2. Finds the matching host in Fleet by serial number.
-  3. Sets the human-device mapping email on that Fleet host via the API.
+  3. Sets the IDP username on that Fleet host via the API.
 
 Required environment variables
 -------------------------------
@@ -215,11 +215,11 @@ def get_fleet_host_by_serial(serial: str) -> dict | None:
 
 
 def assign_fleet_device_mapping(host_id: int, email: str) -> None:
-    """Set the custom device-mapping email for a Fleet host."""
+    """Set the IDP username for a Fleet host."""
     resp = requests.put(
         f"{FLEET_URL}/api/v1/fleet/hosts/{host_id}/device_mapping",
         headers=_fleet_headers,
-        json={"email": email},
+        json={"email": email, "source": "idp"},
         timeout=30,
     )
     resp.raise_for_status()

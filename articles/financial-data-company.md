@@ -2,25 +2,25 @@
 
 A financial data and media company provides business intelligence, analytics, and global news. Its products support financial institutions, governments, and enterprises that rely on accurate, real-time information.
 
-Supporting this infrastructure requires strong internal security and operational visibility. The company manages approximately 140,000 hosts across macOS, Windows, and Linux. At this scale, device visibility and compliance are critical.
+Supporting this infrastructure requires strong internal security and operational visibility. The company manages approximately 140,000 hosts across macOS, Windows, and Linux. At this scale, endpoint observability is critical.
 
 
 ## At a glance
 
-* **Industry:** Financial data and media
+- **Industry:** Financial data and media
 
-* **Devices managed:** \~140,000 hosts across macOS, Windows, and Linux
+- **Devices managed:** ~140,000 hosts across macOS, Windows, and Linux
 
-* **Primary requirements:** Scalable visibility, on-premise control, GitOps workflows
+- **Primary requirements:** Scalable endpoint observability, on-premise control, deep telemetry across operating systems
 
-* **Previous challenge:** Limited visibility across Linux environments and difficult-to-deploy systems
+- **Previous challenge:** Limited visibility across Linux environments and difficult-to-deploy systems
 
 
 ## The challenge
 
-The company needed a platform capable of delivering deep telemetry across its global infrastructure without introducing performance bottlenecks. Traditional device management approaches often relied on proprietary agents that limited transparency and flexibility.
+The company needed a platform capable of delivering deep telemetry across its global infrastructure without introducing performance bottlenecks. Traditional endpoint tools often relied on proprietary agents that limited transparency and flexibility, making it harder to trust and verify the data being collected.
 
-Deployment gaps also created visibility challenges. Some systems, especially Linux hosts and difficult-to-deploy devices, lacked consistent coverage. The team needed a system capable of collecting reliable device telemetry across every operating system.
+Coverage gaps also created visibility challenges. Some systems, especially Linux hosts and other difficult-to-deploy devices, lacked consistent telemetry. The team needed a platform capable of collecting reliable, real-time device data across every operating system in their environment.
 
 
 ## The evaluation criteria
@@ -33,43 +33,41 @@ During evaluation, Fleet needed to meet three key requirements:
 2. **osquery integration**  
     Provide SQL-based visibility across a global fleet.
 
-3. **GitOps and infrastructure-as-code workflows**  
-    Enable configuration management using repeatable, engineering-driven processes.
-
-The team also wanted a unified platform capable of managing macOS, Windows, and Linux through a single API instead of maintaining separate management systems.
+3. **Open, scalable telemetry**  
+    Deliver consistent endpoint data across macOS, Windows, and Linux through a single API, replacing fragmented, proprietary agents.
 
 
 ## The solution
 
-Fleet now provides a unified telemetry layer across the company’s device infrastructure. The security team can run real-time queries across any host worldwide. This allows engineers to retrieve system data instantly without relying on slow legacy scanning cycles or manual IT intervention.
+Fleet now provides a unified telemetry layer across the company's device infrastructure. The security team can run real-time queries against any host in the world and retrieve system data instantly, without relying on slow legacy scanning cycles or manual IT intervention.
 
-The platform integrates directly with internal security tooling. Telemetry data flows into vulnerability management and security monitoring systems, enabling teams to analyze device health and compliance across the entire fleet.
+The platform integrates directly with internal security tooling. Endpoint telemetry from Fleet flows into vulnerability management and security monitoring systems, giving teams a continuous view of device health and compliance across the entire fleet.
 
-Fleet’s API also enables custom automation. Security teams use it to run automated queries and scripts that collect device information and enforce policy checks across the organization.
+Fleet's API also enables custom automation around observability. Security teams use it to run scheduled queries, collect device information at scale, and feed that data into the workflows they already rely on.
 
-The open-source nature of Fleet was also important. Being able to inspect and extend the platform allows the company to adapt the system to its complex infrastructure.
+The open-source nature of Fleet was equally important. Being able to inspect and extend the platform allows the company to adapt how it collects and uses endpoint data to fit its complex, large-scale infrastructure.
 
 
 ### Careful rollout across 140,000 hosts
 
-Deploying and upgrading a platform across a fleet of this size requires careful coordination.
+Deploying and upgrading a telemetry platform across a fleet of this size requires careful coordination.
 
-Major migration and upgrade cycles are treated as long-term projects. One large upgrade cycle took roughly a year to complete, prioritizing stability and continuity of service.
+Major migration and upgrade cycles are treated as long-term projects. One large upgrade cycle took roughly a year to complete, prioritizing stability and service continuity throughout.
 
 During large check-in events, the system occasionally experienced high traffic spikes. The infrastructure was designed to recover quickly, typically stabilizing within 45 to 90 minutes.
 
-This careful rollout strategy allowed the company to maintain uptime while expanding device coverage across the organization.
+This careful rollout strategy allowed the company to maintain uptime while expanding observability coverage across the organization.
 
 
 ## The results
 
-Fleet introduced comprehensive device visibility across the global fleet.
+Fleet introduced comprehensive endpoint visibility across the global fleet.
 
 Security teams now access real-time telemetry instead of relying on scheduled reports. Vulnerabilities can be investigated immediately, allowing the company to respond faster to new threats and compliance requests.
 
-The platform also eliminated the need for multiple proprietary agents. Consolidating telemetry into a single platform simplified the device management stack and improved operational efficiency.
+The platform also reduced the need for multiple proprietary agents on each device. Consolidating endpoint telemetry into a single open platform simplified the security stack and improved operational efficiency.
 
-Fleet also helps unify security practices across operating systems. With macOS, Windows, and Linux managed through a single API, teams can maintain a consistent security baseline across the organization.
+With macOS, Windows, and Linux observable through a single API, teams can maintain a consistent visibility baseline across the organization, regardless of operating system.
 
 
 ## Why they recommend Fleet
@@ -79,11 +77,6 @@ For organizations managing large and complex infrastructures, their recommendati
 Fleet provides the data depth of osquery while scaling reliably across hundreds of thousands of hosts. This combination allows security teams to operate with real-time insight into device state across global environments.
 
 For a financial data company operating in a high-compliance industry, that level of observability is essential.
-
-
-## About Fleet
-
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs. By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives. Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.
 
 <meta name="articleTitle" value="Financial data company scales endpoint visibility with Fleet">
 <meta name="authorFullName" value="Irena Reedy">

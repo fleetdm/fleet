@@ -1,4 +1,4 @@
-import { formatDistanceToNow, parseISO } from "date-fns";
+import { format, formatDistanceToNow, isValid, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 /** Utility to create a string from a date in this format:
@@ -32,4 +32,17 @@ export const dateAgo = (date: string | Date) => {
  */
 export const monthDayYearFormat = (date: string) => {
   return formatInTimeZone(parseISO(date), "UTC", "MMMM d, yyyy");
+};
+
+/**
+ * Formats a date as abbreviated month, day, and time
+ * @example "Mar 20, 1:35 PM"
+ * @returns formatted date string, or empty string if invalid
+ */
+export const monthDayTimeFormat = (isoDate: string) => {
+  const date = parseISO(isoDate);
+  if (!isValid(date)) {
+    return "";
+  }
+  return format(date, "MMM d, p");
 };
