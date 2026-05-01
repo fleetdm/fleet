@@ -225,7 +225,7 @@ func isOpenSUSELeap16Plus() bool {
 		return false
 	}
 	var id, versionID string
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		key, value, ok := strings.Cut(line, "=")
 		if !ok {
 			continue
