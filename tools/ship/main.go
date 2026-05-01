@@ -34,9 +34,9 @@ func main() {
 		fail(err)
 	}
 
-	// Wizard runs on first launch (no config file yet), when the MDM key
-	// file is missing (user lost it and needs to paste from 1Password
-	// again), or when the user explicitly asked for it.
+	// Wizard runs on first launch (no config file yet), when the server
+	// private key file is missing (user lost it and needs to paste from
+	// 1Password again), or when the user explicitly asked for it.
 	needWiz := !cfgExists || !keyExists || *reconfigure
 
 	p := tea.NewProgram(

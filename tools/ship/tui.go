@@ -57,7 +57,7 @@ type model struct {
 	screen   screen
 	state    runState
 	cfg      Config
-	priv     string // MDM server private key, in-memory copy
+	priv     string // Fleet server private key, in-memory copy
 	needWiz  bool
 	repoRoot string
 

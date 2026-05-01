@@ -321,7 +321,7 @@ func (r *engine) stepPrepareDB(ctx context.Context) error {
 }
 
 // stepServe starts `./build/fleet serve --dev` with the configured
-// premium toggle. The MDM private key goes through the
+// premium toggle. The Fleet server private key goes through the
 // FLEET_SERVER_PRIVATE_KEY env var rather than a CLI flag so the secret
 // doesn't end up in `ps aux`. Long-running.
 func (r *engine) stepServe(ctx context.Context) error {

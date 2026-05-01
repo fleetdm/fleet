@@ -7,20 +7,20 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// wizardModel runs a one-time setup conversation: ngrok static domain, MDM
+// wizardModel runs a one-time setup conversation: ngrok static domain, Fleet
 // server private key (only when missing), premium on/off. Outputs are written
 // back into the root model's Config + private key file before the TUI moves
 // to the dashboard.
 type wizardModel struct {
 	step       wizardStep
 	ngrokInput textinput.Model
-	mdmInput   textinput.Model
+	privInput   textinput.Model
 	premium    bool
 
-	// askMDMKey is decided at construction time: only ask if there's no
-	// key on disk yet. Skipping the field when we have one keeps reruns
-	// fast and avoids tempting the user to paste it again.
-	askMDMKey bool
+	// askPrivateKey is decided at construction time: only ask if there's no
+	// server private key on disk yet. Skipping the field when we have one
+	// keeps reruns fast and avoids tempting the user to paste it again.
+	askPrivateKey bool
 
 	// done marks the wizard finished — the root model reads this to know
 	// when to advance the screen and persist results.
@@ -31,7 +31,7 @@ type wizardStep int
 
 const (
 	wizStepNgrok wizardStep = iota
-	wizStepMDMKey
+	wizStepPrivateKey
 	wizStepPremium
 )
 
@@ -53,9 +53,9 @@ func newWizardModel(initial Config, hasPrivateKey bool) wizardModel {
 	return wizardModel{
 		step:       wizStepNgrok,
 		ngrokInput: ngrok,
-		mdmInput:   mdm,
+		privInput:   mdm,
 		premium:    initial.Fleet.Premium,
-		askMDMKey:  !hasPrivateKey,
+		askPrivateKey:  !hasPrivateKey,
 	}
 }
 
@@ -89,34 +89,34 @@ func (w wizardModel) update(msg tea.Msg) (wizardModel, tea.Cmd) {
 	switch w.step {
 	case wizStepNgrok:
 		w.ngrokInput, cmd = w.ngrokInput.Update(msg)
-	case wizStepMDMKey:
-		w.mdmInput, cmd = w.mdmInput.Update(msg)
+	case wizStepPrivateKey:
+		w.privInput, cmd = w.privInput.Update(msg)
 	}
 	return w, cmd
 }
 
 // advance moves to the next step, or marks the wizard done if we're on the
-// last one. Skips the MDM key step when a key is already on disk.
+// last one. Skips the server-private-key step when a key is already on disk.
 func (w wizardModel) advance() (wizardModel, tea.Cmd) {
 	switch w.step {
 	case wizStepNgrok:
 		if strings.TrimSpace(w.ngrokInput.Value()) == "" {
 			return w, nil // require a domain — nothing else makes sense without it
 		}
-		if w.askMDMKey {
-			w.step = wizStepMDMKey
+		if w.askPrivateKey {
+			w.step = wizStepPrivateKey
 			w.ngrokInput.Blur()
-			w.mdmInput.Focus()
+			w.privInput.Focus()
 		} else {
 			w.step = wizStepPremium
 			w.ngrokInput.Blur()
 		}
-	case wizStepMDMKey:
-		if strings.TrimSpace(w.mdmInput.Value()) == "" {
+	case wizStepPrivateKey:
+		if strings.TrimSpace(w.privInput.Value()) == "" {
 			return w, nil
 		}
 		w.step = wizStepPremium
-		w.mdmInput.Blur()
+		w.privInput.Blur()
 	case wizStepPremium:
 		w.done = true
 	}
@@ -125,14 +125,14 @@ func (w wizardModel) advance() (wizardModel, tea.Cmd) {
 
 func (w wizardModel) back() (wizardModel, tea.Cmd) {
 	switch w.step {
-	case wizStepMDMKey:
+	case wizStepPrivateKey:
 		w.step = wizStepNgrok
-		w.mdmInput.Blur()
+		w.privInput.Blur()
 		w.ngrokInput.Focus()
 	case wizStepPremium:
-		if w.askMDMKey {
-			w.step = wizStepMDMKey
-			w.mdmInput.Focus()
+		if w.askPrivateKey {
+			w.step = wizStepPrivateKey
+			w.privInput.Focus()
 		} else {
 			w.step = wizStepNgrok
 			w.ngrokInput.Focus()
@@ -142,8 +142,9 @@ func (w wizardModel) back() (wizardModel, tea.Cmd) {
 }
 
 // applyTo merges wizard answers into the supplied Config and returns it. The
-// MDM key (if asked for) is returned separately so the caller can persist it
-// to ~/.config/fleet-ship/server_private_key with the right file mode.
+// server private key (if asked for) is returned separately so the caller can
+// persist it to ~/.config/fleet-ship/server_private_key with the right file
+// mode.
 func (w wizardModel) applyTo(cfg Config) (Config, string) {
 	cfg.Ngrok.StaticDomain = strings.TrimSpace(w.ngrokInput.Value())
 	cfg.Fleet.Premium = w.premium
@@ -151,8 +152,8 @@ func (w wizardModel) applyTo(cfg Config) (Config, string) {
 		cfg.Fleet.Port = 8080
 	}
 	mdm := ""
-	if w.askMDMKey {
-		mdm = strings.TrimSpace(w.mdmInput.Value())
+	if w.askPrivateKey {
+		mdm = strings.TrimSpace(w.privInput.Value())
 	}
 	return cfg, mdm
 }
@@ -172,12 +173,12 @@ func (w wizardModel) view(width int) string {
 			"Get one for free at "+styleURL.Render("https://dashboard.ngrok.com/domains"),
 			w.ngrokInput.View(),
 		)
-	case wizStepMDMKey:
+	case wizStepPrivateKey:
 		body = renderField(
-			"MDM server private key",
+			"Server private key",
 			"Paste from your 1Password Fleet dev login. Stored at "+
 				styleURL.Render("~/.config/fleet-ship/server_private_key"),
-			w.mdmInput.View(),
+			w.privInput.View(),
 		)
 	case wizStepPremium:
 		body = renderPremiumChoice(w.premium)
@@ -237,18 +238,18 @@ func renderPremiumChoice(premium bool) string {
 }
 
 // stepLabel renders something like "Step 2 of 3" — the count varies based on
-// whether the MDM key step is being skipped.
+// whether the server-private-key step is being skipped.
 func stepLabel(w wizardModel) string {
 	total := 2
-	if w.askMDMKey {
+	if w.askPrivateKey {
 		total = 3
 	}
 	current := 1
 	switch w.step {
-	case wizStepMDMKey:
+	case wizStepPrivateKey:
 		current = 2
 	case wizStepPremium:
-		if w.askMDMKey {
+		if w.askPrivateKey {
 			current = 3
 		} else {
 			current = 2

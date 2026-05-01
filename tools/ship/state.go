@@ -13,7 +13,7 @@ import (
 // State files come in two flavors:
 //
 //   1. Persistent, user-scoped: lives under ~/.config/fleet-ship/. Includes
-//      the MDM server private key (paste-only, never auto-generated) and
+//      the Fleet server private key (paste-only, never auto-generated) and
 //      DB snapshots.
 //
 //   2. Per-running-session: lives at tools/ship/.state/active.json inside
@@ -30,7 +30,7 @@ func PrivateKeyPath() (string, error) {
 	return filepath.Join(dir, "server_private_key"), nil
 }
 
-// LoadPrivateKey reads the MDM server private key. Returns empty + ok=false
+// LoadPrivateKey reads the Fleet server private key. Returns empty + ok=false
 // when the file is missing — that's the trigger for the wizard to ask the
 // user to paste theirs from 1Password.
 func LoadPrivateKey() (key string, exists bool, err error) {
@@ -48,7 +48,7 @@ func LoadPrivateKey() (key string, exists bool, err error) {
 	return strings.TrimSpace(string(data)), true, nil
 }
 
-// SavePrivateKey persists the MDM server private key with mode 0600 so other
+// SavePrivateKey persists the Fleet server private key with mode 0600 so other
 // users on the machine can't read it.
 func SavePrivateKey(key string) error {
 	dir, err := ConfigDir()
