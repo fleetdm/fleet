@@ -1,4 +1,5 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
+import { Ace } from "ace-builds";
 import { IAppStoreApp } from "interfaces/software";
 import { isIPadOrIPhone } from "interfaces/platform";
 
@@ -48,20 +49,7 @@ const EditConfigurationModal = ({
   const platform = softwareInstaller.platform;
   const isApplePlatform = isIPadOrIPhone(platform);
 
-  const XML_SKELETON =
-    "<dict>\n  <key>...</key>\n  <string>...</string>\n</dict>";
-
-  const getInitialValue = () => {
-    if (isApplePlatform) {
-      return softwareInstaller.configuration || XML_SKELETON;
-    }
-    return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
-  };
-
-  const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
-  const [canSaveForm, setCanSaveForm] = useState(true);
-  const [formData, setFormData] = useState<string>(getInitialValue());
-  const [formError, setFormError] = useState<string | null>(null);
+  const XML_EMPTY = "<dict>\n  \n</dict>";
 
   const validateForm = (curFormData: string): string | null => {
     if (isApplePlatform) {
@@ -69,6 +57,34 @@ const EditConfigurationModal = ({
     }
     return validateJson(curFormData);
   };
+
+  const getInitialValue = () => {
+    if (isApplePlatform) {
+      return softwareInstaller.configuration || XML_EMPTY;
+    }
+    return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
+  };
+
+  // Place cursor between <dict> tags when starting with empty XML scaffold
+  const isEmptyAppleConfig =
+    isApplePlatform && !softwareInstaller.configuration;
+  const onEditorLoad = useCallback(
+    (editor: Ace.Editor) => {
+      if (isEmptyAppleConfig) {
+        // Row 1 (0-indexed) is the blank line between <dict> and </dict>
+        editor.moveCursorTo(1, 2);
+        editor.clearSelection();
+      }
+    },
+    [isEmptyAppleConfig]
+  );
+
+  const initialValue = getInitialValue();
+
+  const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
+  const [canSaveForm, setCanSaveForm] = useState(!validateForm(initialValue));
+  const [formData, setFormData] = useState<string>(initialValue);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const buildSubmitPayload = (): ISoftwareConfigurationFormData => {
     if (isApplePlatform) {
@@ -178,6 +194,7 @@ const EditConfigurationModal = ({
       value={formData}
       helpText={renderHelpText()}
       onChange={onInputChange}
+      onLoad={onEditorLoad}
       error={formError}
       label="Configuration"
     />
