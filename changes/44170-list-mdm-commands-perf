@@ -1,0 +1,1 @@
+- Fixed slow load times and timeouts on the list MDM commands API (`GET /api/v1/fleet/commands`) on Fleet deployments with many Windows hosts. The endpoint now caps `per_page` at 1,000 (default 10) and `page` at 100; requests above either limit return HTTP 400. To traverse beyond 100 pages, use cursor pagination via the `after` query parameter.

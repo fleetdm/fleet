@@ -244,6 +244,10 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeCanceledSetupExperience{},
 
+	ActivityTypeCreatedLabel{},
+	ActivityTypeEditedLabel{},
+	ActivityTypeDeletedLabel{},
+	
 	ActivityTypeChangedOrgLogo{},
 	ActivityTypeDeletedOrgLogo{},
 }
@@ -2002,4 +2006,37 @@ func (a ActivityTypeCanceledSetupExperience) HostIDs() []uint {
 
 func (a ActivityTypeCanceledSetupExperience) WasFromAutomation() bool {
 	return true
+}
+
+type ActivityTypeCreatedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeCreatedLabel) ActivityName() string {
+	return "created_label"
+}
+
+type ActivityTypeEditedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeEditedLabel) ActivityName() string {
+	return "edited_label"
+}
+
+type ActivityTypeDeletedLabel struct {
+	ID        uint    `json:"label_id"`
+	Name      string  `json:"label_name"`
+	FleetID   *uint   `json:"fleet_id,omitempty"`
+	FleetName *string `json:"fleet_name,omitempty"`
+}
+
+func (a ActivityTypeDeletedLabel) ActivityName() string {
+	return "deleted_label"
 }

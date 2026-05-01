@@ -2021,6 +2021,9 @@ func TestApplyLabels(t *testing.T) {
 			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
 		}, nil
 	}
+	// Reset invocation flag — earlier sub-cases call LabelsByName as part of
+	// the regular-label apply flow (used for created/edited activity detection).
+	ds.LabelsByNameFuncInvoked = false
 
 	name = writeTmpYml(t, builtinLabelSpec)
 	_, err := RunAppNoChecks([]string{"apply", "-f", name})

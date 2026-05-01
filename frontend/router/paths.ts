@@ -85,9 +85,10 @@ export default {
 
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
-  SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_INVENTORY: `${URL_PREFIX}/software/inventory`,
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
+  SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
