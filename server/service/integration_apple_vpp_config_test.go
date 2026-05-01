@@ -49,7 +49,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	const validPlist = `<dict><key>ServerURL</key><string>https://example.com</string></dict>`
 	const validPlist2 = `<dict><key>ServerURL</key><string>https://other.example.com</string><key>HostUUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
 
-	// Helper: encode a plist XML string as a JSON string (the wire format clients use).
+	// Helper: encode a plist XML string as a JSON string (the form clients send).
 	asJSONString := func(s string) json.RawMessage {
 		b, err := json.Marshal(s)
 		require.NoError(t, err)
@@ -57,7 +57,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	}
 
 	// Helper: read the stored configuration directly from the datastore so we
-	// don't depend on response wire-format details.
+	// don't depend on response-encoding details.
 	readStoredConfig := func(adamID string, platform fleet.InstallableDevicePlatform) []byte {
 		got, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), platform, adamID, team.ID)
 		require.NoError(t, err)
@@ -85,16 +85,18 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		}, http.StatusOK, &updResp)
 	require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
 
-	// GET /software/titles/{id} must round-trip the iOS configuration as a
-	// JSON string containing the plist (matching the wire format used on
-	// input), not a base64-encoded blob. VPPAppStoreApp's UnmarshalJSON
-	// extracts the plist bytes back out for the assertion.
+	// GET /software/titles/{id} must return the iOS configuration as a JSON
+	// string containing the plist (matching the format used on input), not a
+	// base64-encoded blob. The response Configuration is a json.RawMessage
+	// holding the JSON string token, so unmarshal it to recover the raw plist.
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
 		&getSoftwareTitleRequest{ID: addResp.TitleID, TeamID: &team.ID},
 		http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
-	require.Equal(t, []byte(validPlist2), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+	var gotPlist string
+	require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.AppStoreApp.Configuration, &gotPlist))
+	require.Equal(t, validPlist2, gotPlist)
 
 	// 3. Update iOS app omitting `configuration` field → no change.
 	updResp = updateAppStoreAppResponse{}

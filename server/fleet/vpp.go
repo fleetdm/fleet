@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -62,7 +61,7 @@ type VPPAppTeam struct {
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
 	// Configuration is the managed app configuration payload. JSON for Android,
-	// XML for iOS / iPadOS.
+	// plist XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool   `json:"-"`
 	AutoUpdateStartTime *string `json:"-"`
@@ -134,62 +133,11 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is the managed app configuration payload. JSON for Android,
-	// XML for iOS / iPadOS.
-	Configuration []byte `json:"configuration,omitempty"`
-}
-
-// MarshalJSON handles the configuration field which can be a json object or a plist xml.
-func (a VPPAppStoreApp) MarshalJSON() ([]byte, error) {
-	type alias VPPAppStoreApp
-	switch a.Platform {
-	case IOSPlatform, IPadOSPlatform:
-		return json.Marshal(struct {
-			alias
-			Configuration string `json:"configuration,omitempty"`
-		}{
-			alias:         alias(a),
-			Configuration: string(a.Configuration),
-		})
-	default:
-		return json.Marshal(struct {
-			alias
-			Configuration json.RawMessage `json:"configuration,omitempty"`
-		}{
-			alias:         alias(a),
-			Configuration: json.RawMessage(a.Configuration),
-		})
-	}
-}
-
-// UnmarshalJSON handles the configuration field which can be a json object or a plist xml.
-func (a *VPPAppStoreApp) UnmarshalJSON(data []byte) error {
-	type alias VPPAppStoreApp
-	aux := struct {
-		*alias
-		Configuration json.RawMessage `json:"configuration,omitempty"`
-	}{
-		alias: (*alias)(a),
-	}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	if len(aux.Configuration) == 0 || bytes.Equal(aux.Configuration, []byte("null")) {
-		return nil
-	}
-
-	switch a.Platform {
-	case IOSPlatform, IPadOSPlatform:
-		var plist string
-		if err := json.Unmarshal(aux.Configuration, &plist); err != nil {
-			return err
-		}
-		a.Configuration = []byte(plist)
-	default:
-		a.Configuration = aux.Configuration
-	}
-	return nil
+	// Configuration is the managed app configuration as returned in API
+	// responses: a JSON object for Android, a JSON string of plist XML for
+	// iOS / iPadOS. Service-layer code wraps the raw datastore bytes into
+	// this form before responding.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
