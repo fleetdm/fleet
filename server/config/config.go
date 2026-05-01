@@ -808,6 +808,7 @@ type MDMConfig struct {
 	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
+	WindowsMDMSaveFullResponse        bool `yaml:"windows_mdm_save_full_response"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
 }
@@ -1604,6 +1605,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.windows_mdm_save_full_response", false, "Store full SyncML response envelopes in windows_mdm_responses on every Windows MDM check-in (default false, disabled to reduce database write load)")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -1931,6 +1933,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			WindowsMDMSaveFullResponse:        man.getConfigBool("mdm.windows_mdm_save_full_response"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),

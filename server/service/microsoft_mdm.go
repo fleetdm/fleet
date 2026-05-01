@@ -1706,7 +1706,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	saveResponse := func(topLevelExists []string) error {
 		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
 		if enrichedSyncML.HasCommands() {
-			result, err := svc.ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enrichedSyncML, topLevelExists)
+			result, err := svc.ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enrichedSyncML, topLevelExists, svc.config.MDM.WindowsMDMSaveFullResponse)
 			if err != nil {
 				return fmt.Errorf("store incoming msgs: %w", err)
 			}

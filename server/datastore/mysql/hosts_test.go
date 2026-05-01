@@ -13273,20 +13273,9 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 		return nil
 	})
 
-	// Create Windows MDM response for the wipe command
-	var responseID int64
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, "")
-		if err != nil {
-			return err
-		}
-		responseID, _ = res.LastInsertId()
-		return nil
-	})
-
 	// Add result for wipe command
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, '200')`, enrollmentID, wipeCmdUUID, "", responseID)
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, NULL, '200')`, enrollmentID, wipeCmdUUID, "")
 		return err
 	})
 

@@ -4068,21 +4068,10 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 		return err
 	})
 
-	var responseID int64
-	rawResponse := []byte("some-response")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
-		if err != nil {
-			return err
-		}
-		responseID, err = res.LastInsertId()
-		return err
-	})
-
 	rawResult := []byte("some-result")
 	statusCode := "200"
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`, enrollmentID, cmdUUID, rawResult, responseID, statusCode)
+		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, NULL, ?)`, enrollmentID, cmdUUID, rawResult, statusCode)
 		return err
 	})
 
@@ -4091,7 +4080,7 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	require.Len(t, resp.Results, 1)
 	require.Equal(t, dev.HostUUID, resp.Results[0].HostUUID)
 	require.Equal(t, cmdUUID, resp.Results[0].CommandUUID)
-	require.Equal(t, rawResponse, resp.Results[0].Result)
+	require.Equal(t, rawResult, resp.Results[0].Result)
 	require.Equal(t, cmdTarget, resp.Results[0].RequestType)
 	require.Equal(t, statusCode, resp.Results[0].Status)
 	require.Equal(t, h.Hostname, resp.Results[0].Hostname)
@@ -9019,9 +9008,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		var fullResult []byte
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &fullResult, `
-			SELECT raw_response
-			FROM windows_mdm_responses wmr
-			JOIN windows_mdm_command_results wmcr ON wmcr.response_id = wmr.id
+			SELECT raw_result
+			FROM windows_mdm_command_results
 			WHERE command_uuid = ?
 			`, cmdUUID)
 		})
