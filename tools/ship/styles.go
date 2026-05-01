@@ -2,16 +2,29 @@ package main
 
 import "github.com/charmbracelet/lipgloss"
 
-// Brand palette pulled from frontend/styles/var/colors.scss.
-// Borders and muted text use AdaptiveColor so the TUI reads well on
-// both light and dark terminals; the brand accents work on both as-is.
+// Brand palette pulled from frontend/styles/var/colors.scss. Every role uses
+// AdaptiveColor so the TUI reads well on both light- and dark-background
+// terminals — values map to the corresponding light- or dark-mode CSS token.
+//
+// Accent is core-fleet-green (Fleet's 2025 brand color, replacing the older
+// vibrant-blue). Status colors use ui-success / ui-warning / ui-error, which
+// are intentionally distinct shades from the brand green so "running" status
+// dots don't blur into accent text.
 var (
-	colorBorder = lipgloss.AdaptiveColor{Light: "#192147", Dark: "#6a6f8a"} // core-fleet-black / dark core-fleet-blue
-	colorMuted  = lipgloss.AdaptiveColor{Light: "#515774", Dark: "#8b8fa2"} // ui-fleet-black-75 / ui-fleet-black-50
-	colorAccent = lipgloss.Color("#6a67fe")                                 // core-vibrant-blue
-	colorOK     = lipgloss.Color("#3db67b")                                 // ui-success
-	colorWarn   = lipgloss.Color("#ebbc43")                                 // ui-warning
-	colorErr    = lipgloss.Color("#d66c7b")                                 // ui-error
+	// Outer pane / divider lines. Want it visible but not loud on either
+	// terminal background.
+	colorBorder = lipgloss.AdaptiveColor{Light: "#515774", Dark: "#6a6f8a"} // ui-fleet-black-75 / dark core-fleet-blue
+
+	// Labels, helper text, "(waiting...)" placeholders.
+	colorMuted = lipgloss.AdaptiveColor{Light: "#8b8fa2", Dark: "#87888B"} // ui-fleet-black-50
+
+	// Brand accent: header text, URLs, keybind letters.
+	colorAccent = lipgloss.AdaptiveColor{Light: "#009a7d", Dark: "#00C28B"} // core-fleet-green
+
+	// Status colors.
+	colorOK   = lipgloss.AdaptiveColor{Light: "#3db67b", Dark: "#4dc98b"} // ui-success
+	colorWarn = lipgloss.AdaptiveColor{Light: "#ebbc43", Dark: "#f0ca5e"} // ui-warning
+	colorErr  = lipgloss.AdaptiveColor{Light: "#d66c7b", Dark: "#e07888"} // ui-error
 )
 
 var (
