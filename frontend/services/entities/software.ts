@@ -89,7 +89,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {

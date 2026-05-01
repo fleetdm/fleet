@@ -4,13 +4,11 @@ import EmptyState from "components/EmptyState";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   getVulnFilterRenderDetails,
-  ISoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { HostPlatform, isAndroid } from "interfaces/platform";
 
 export interface IEmptySoftwareTableProps {
-  softwareFilter?: ISoftwareDropdownFilterVal;
   vulnFilters?: ISoftwareVulnFiltersParams;
   tableName?: string;
   isSoftwareDisabled?: boolean;
@@ -21,12 +19,8 @@ export interface IEmptySoftwareTableProps {
 
 const generateTypeText = (
   tableName: string,
-  softwareFilter?: ISoftwareDropdownFilterVal,
   vulnFilters?: ISoftwareVulnFiltersParams
 ) => {
-  if (softwareFilter === "installableSoftware") {
-    return "installable software";
-  }
   if (vulnFilters?.vulnerable) {
     return "vulnerable software";
   }
@@ -34,26 +28,20 @@ const generateTypeText = (
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter = "allSoftware",
   vulnFilters,
   tableName = "software",
   isSoftwareDisabled,
-  noSearchQuery,
+  noSearchQuery = true,
   installableSoftwareExists,
   platform,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(
-    tableName,
-    softwareFilter,
-    vulnFilters
-  );
+  const softwareTypeText = generateTypeText(tableName, vulnFilters);
 
   const { filterCount: vulnFiltersCount } = getVulnFilterRenderDetails(
     vulnFilters
   );
 
-  const isFiltered =
-    vulnFiltersCount > 0 || !noSearchQuery || softwareFilter !== "allSoftware";
+  const isFiltered = vulnFiltersCount > 0 || !noSearchQuery;
 
   const getEmptySoftwareInfo = (): IEmptyStateProps => {
     if (isSoftwareDisabled) {
@@ -79,18 +67,16 @@ const EmptySoftwareTable = ({
     }
 
     if (!isFiltered) {
-      if (softwareFilter === "allSoftware") {
-        if (installableSoftwareExists) {
-          return {
-            header: `No ${tableName} detected`,
-            info: "Install software on your hosts to see versions.",
-          };
-        }
+      if (installableSoftwareExists) {
         return {
           header: `No ${tableName} detected`,
-          info,
+          info: "Install software on your hosts to see versions.",
         };
       }
+      return {
+        header: `No ${tableName} detected`,
+        info,
+      };
     }
 
     return {

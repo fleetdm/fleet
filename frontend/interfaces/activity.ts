@@ -170,6 +170,9 @@ export enum ActivityType {
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
   FailedEnrollmentProfileRenewal = "failed_enrollment_profile_renewal",
+  CreatedLabel = "created_label",
+  EditedLabel = "edited_label",
+  DeletedLabel = "deleted_label",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -307,6 +310,10 @@ export interface IActivityDetails {
   certificate_template_id?: number;
   detail?: string;
   exception?: string;
+  label_id?: number;
+  label_name?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -489,4 +496,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
   [ActivityType.FailedEnrollmentProfileRenewal]:
     "Enrollment profile renewal failed",
+  [ActivityType.CreatedLabel]: "Created label",
+  [ActivityType.EditedLabel]: "Edited label",
+  [ActivityType.DeletedLabel]: "Deleted label",
 };
