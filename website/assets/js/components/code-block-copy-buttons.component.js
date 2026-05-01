@@ -23,7 +23,7 @@ parasails.registerComponent('code-block-copy-buttons', {
       // Prepend all <pre> elements with a code-block-copy-button elment, and add the position-relative bootstrap class.
       $('pre')
       .prepend('<div purpose="code-block-copy-button"></div>')
-      .addClass('position-relative');// Note: we set this bootstrap class to correctly position the copy button without needing to adjust the styles of the page it is added to.
+      .addClass('has-copy-button');// Note: we set this bootstrap class to correctly position the copy button without needing to adjust the styles of the page it is added to.
 
       // Now add click events to each code-block-copy-button element that copies the text content of the neighboring <code> element.
       $('[purpose="code-block-copy-button"]').on('click', async function() {
