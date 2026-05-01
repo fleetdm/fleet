@@ -2541,6 +2541,69 @@ This activity contains the following fields:
 }
 ```
 
+## created_label
+
+Generated when creating labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the new label.
+- "label_name": the name of the new label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## edited_label
+
+Generated when editing labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the edited label.
+- "label_name": the name of the edited label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## deleted_label
+
+Generated when deleting labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the deleted label.
+- "label_name": the name of the deleted label.
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
 ## resent_certificate
 
 Generated when a user resends a certificate to a host.
