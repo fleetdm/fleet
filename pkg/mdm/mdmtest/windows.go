@@ -307,10 +307,17 @@ func (c *TestWindowsMDMClient) shouldAuth(req *fleet.SyncML) (bool, *string) {
 	return false, nil
 }
 
-func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
+func (c *TestWindowsMDMClient) SendResponse() (cmds map[string]fleet.ProtoCmdOperation, err error) {
 	// Drain alerts queued by async helpers (e.g., the post-SCEP-completion alert) so they
-	// piggyback on the next sync.
+	// piggyback on the next sync. If we fail to send the request, re-queue them so they'll be
+	// retried on the next SendResponse instead of being silently dropped.
 	pendingAlerts := c.takePendingAlerts()
+	sent := false
+	defer func() {
+		if !sent && len(pendingAlerts) > 0 {
+			c.requeuePendingAlerts(pendingAlerts)
+		}
+	}()
 
 	// A real Windows client does not POST a message that contains only a SyncHdr Status ack and
 	// no protocol commands. Per [MS-MDM] §2.2.7.8 (Status):
@@ -322,6 +329,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	// Fleet also rejects such a body with "invalid SyncML body: no SyncML protocol commands".
 	// An Alert IS a protocol command, so a sync that carries only an Alert is fine to send.
 	if len(c.queuedCommandResponses) == 0 && len(pendingAlerts) == 0 {
+		sent = true // nothing to send is success; no alerts to re-queue.
 		return nil, nil
 	}
 
@@ -368,7 +376,12 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 		return nil, fmt.Errorf("serializing XML req: %w", err)
 	}
 
-	return c.doManagementReq(xmlReq)
+	cmds, err = c.doManagementReq(xmlReq)
+	if err != nil {
+		return nil, err
+	}
+	sent = true
+	return cmds, nil
 }
 
 func (c *TestWindowsMDMClient) getCredHDR() *fleet.CredHdr {

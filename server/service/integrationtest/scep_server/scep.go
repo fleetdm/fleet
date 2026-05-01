@@ -108,7 +108,9 @@ func newInMemorySigner(caCert *x509.Certificate, caKey *rsa.PrivateKey) scepserv
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			BasicConstraintsValid: true,
-			SignatureAlgorithm:    m.CSR.SignatureAlgorithm,
+			// Leave SignatureAlgorithm zero so x509.CreateCertificate picks one matching the CA key
+			// type. The CSR's algorithm describes how the requester signed the CSR, not how the CA
+			// should sign the issued cert; copying it across can mismatch the CA key.
 		}
 		der, err := x509.CreateCertificate(cryptorand.Reader, tpl, caCert, m.CSR.PublicKey, caKey)
 		if err != nil {

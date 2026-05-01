@@ -144,8 +144,10 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 
 	out := make([]SCEPCommand, 0, len(byID))
 	for _, sc := range byID {
-		if sc.ServerURL == "" || sc.SubjectName == "" {
-			// Not a complete SCEP install request - skip.
+		if sc.ServerURL == "" || sc.SubjectName == "" || sc.EnrollCmdID == "" {
+			// Not a complete SCEP install request: missing one of ServerURL, SubjectName, or the
+			// /Install/Enroll Exec that triggers the exchange. Skip silently and let a later message
+			// deliver the missing pieces.
 			continue
 		}
 		out = append(out, *sc)
@@ -404,6 +406,17 @@ func (c *TestWindowsMDMClient) takePendingAlerts() []fleet.SyncMLCmd {
 	return out
 }
 
+// requeuePendingAlerts puts alerts back at the head of the queue so a failed SendResponse can be
+// retried on the next sync without losing the post-SCEP-completion alert.
+func (c *TestWindowsMDMClient) requeuePendingAlerts(alerts []fleet.SyncMLCmd) {
+	if len(alerts) == 0 {
+		return
+	}
+	c.pendingAlertsMu.Lock()
+	defer c.pendingAlertsMu.Unlock()
+	c.pendingAlerts = append(alerts, c.pendingAlerts...)
+}
+
 func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {
 	return fleet.SyncMLCmd{
 		XMLName: xml.Name{Local: fleet.CmdStatus},
@@ -423,6 +436,7 @@ func parseSCEPSubject(s string) (pkix.Name, error) {
 	if strings.TrimSpace(s) == "" {
 		return n, errors.New("empty subject")
 	}
+	recognized := false
 	for part := range strings.SplitSeq(s, ",") {
 		left, right, ok := strings.Cut(strings.TrimSpace(part), "=")
 		if !ok {
@@ -433,19 +447,25 @@ func parseSCEPSubject(s string) (pkix.Name, error) {
 		switch key {
 		case "CN":
 			n.CommonName = val
+			recognized = true
 		case "OU":
 			n.OrganizationalUnit = append(n.OrganizationalUnit, val)
+			recognized = true
 		case "O":
 			n.Organization = append(n.Organization, val)
+			recognized = true
 		case "C":
 			n.Country = append(n.Country, val)
+			recognized = true
 		case "L":
 			n.Locality = append(n.Locality, val)
+			recognized = true
 		case "ST":
 			n.Province = append(n.Province, val)
+			recognized = true
 		}
 	}
-	if n.CommonName == "" && len(n.OrganizationalUnit) == 0 {
+	if !recognized {
 		return n, fmt.Errorf("subject %q has no recognized RDN", s)
 	}
 	return n, nil

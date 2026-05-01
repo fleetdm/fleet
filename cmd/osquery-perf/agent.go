@@ -1548,10 +1548,12 @@ func (a *agent) runWindowsMDMLoop() {
 		scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
 		handled, scepResults := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
 		if len(handled) > 0 {
-			a.stats.IncrementMDMSCEPRequests()
 			go func() {
 				defer cancelSCEP()
+				// One SCEPResult is emitted per CSP; increment per-result so the request counter
+				// matches the per-CSP success/error counters even when multiple CSPs ride one SyncML.
 				for res := range scepResults {
+					a.stats.IncrementMDMSCEPRequests()
 					if res.Err != nil {
 						log.Printf("MDM SCEP exchange failed: %s", res.Err)
 						a.stats.IncrementMDMSCEPErrors()

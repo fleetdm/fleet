@@ -8467,6 +8467,29 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 			_, err = mdmDevice.SendResponse()
 			require.NoError(t, err)
 
+			// Run a follow-up sync to flush the post-SCEP completion Alert (queued by
+			// AppendSCEPInstallResponses). A real Windows client initiates a new session after async
+			// cert install; here we mimic the same flow so the alert-after-exchange path is exercised.
+			cmds2, err := mdmDevice.StartManagementSession()
+			require.NoError(t, err)
+			msgID2, err := mdmDevice.GetCurrentMsgID()
+			require.NoError(t, err)
+			for _, c := range cmds2 {
+				if c.Verb == fleet.CmdStatus {
+					continue
+				}
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID2,
+					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+					Cmd:     ptr.String(c.Verb),
+					Data:    ptr.String(syncml.CmdStatusOK),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+			_, err = mdmDevice.SendResponse()
+			require.NoError(t, err)
+
 			profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 			require.NoError(t, err)
 			var found bool
