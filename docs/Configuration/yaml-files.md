@@ -216,7 +216,7 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
-  retry_automations: true
+  continuous_automations: true
   install_software:
     package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
@@ -232,7 +232,7 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
-  retry_automations: true
+  continuous_automations: true
   install_software: true
 ```
 
