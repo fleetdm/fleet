@@ -601,7 +601,6 @@ Follow the [Test Fleet Helm Chart With Docker Desktop runbook](https://github.co
 <td>pass/fail</td>
 </tr>
 
-
 <tr>
 <td>Migration test</td>
 <td>Verify Fleet can migrate to the next version with no issues.</td>
