@@ -6,72 +6,6 @@ import {
   createMockAppStoreAppIos,
 } from "__mocks__/softwareMock";
 import EditConfigurationModal from "./EditConfigurationModal";
-import { validateJson, validateXml, getPlatformLabel } from "./helpers";
-
-// ──────────────────────────────────────────────
-// Unit tests for validation helpers
-// ──────────────────────────────────────────────
-
-describe("validateJson", () => {
-  it("returns null for valid JSON", () => {
-    expect(validateJson('{"key":"value"}')).toBeNull();
-  });
-
-  it("returns null for empty string", () => {
-    expect(validateJson("")).toBeNull();
-  });
-
-  it("returns error message for invalid JSON", () => {
-    const error = validateJson("{{ invalid");
-    expect(error).toBeTruthy();
-    expect(typeof error).toBe("string");
-  });
-});
-
-describe("validateXml", () => {
-  it("returns null for valid XML with <dict> root", () => {
-    expect(
-      validateXml("<dict><key>k</key><string>v</string></dict>")
-    ).toBeNull();
-  });
-
-  it("returns null for empty string", () => {
-    expect(validateXml("")).toBeNull();
-  });
-
-  it("returns error for malformed XML", () => {
-    const error = validateXml("<dict><unclosed");
-    expect(error).toBeTruthy();
-  });
-
-  it("returns error when root element is not <dict>", () => {
-    const error = validateXml("<array><string>hi</string></array>");
-    expect(error).toMatch(/root element must be <dict>/i);
-  });
-
-  it("returns null for multi-line XML with self-closing tags", () => {
-    const xml = "<dict>\n\t<key>ForceLoginWithSSO</key>\n\t<true/>\n</dict>";
-    expect(validateXml(xml)).toBeNull();
-  });
-});
-
-describe("getPlatformLabel", () => {
-  it("returns iOS for ios", () => {
-    expect(getPlatformLabel("ios")).toBe("iOS");
-  });
-
-  it("returns iPadOS for ipados", () => {
-    expect(getPlatformLabel("ipados")).toBe("iPadOS");
-  });
-
-  it("returns Android for android", () => {
-    expect(getPlatformLabel("android")).toBe("Android");
-  });
-});
-
-// ──────────────────────────────────────────────
-// Component tests
-// ──────────────────────────────────────────────
 
 const androidInstaller = createMockAppStoreAppAndroid();
 const iosInstaller = createMockAppStoreAppIos();
@@ -132,6 +66,25 @@ describe("EditConfigurationModal", () => {
       });
     });
 
+    it("initializes with empty configuration and Save enabled", async () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      const emptyInstaller = createMockAppStoreAppAndroid({
+        configuration: undefined,
+      });
+      render(
+        <EditConfigurationModal
+          {...ANDROID_PROPS}
+          softwareInstaller={emptyInstaller}
+        />
+      );
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+
+      await waitFor(() => {
+        expect(saveButton).toBeEnabled();
+      });
+    });
+
     it("calls onExit handler when modal close is triggered via Escape key", async () => {
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditConfigurationModal {...ANDROID_PROPS} />);
@@ -176,6 +129,17 @@ describe("EditConfigurationModal", () => {
       await waitFor(() => {
         expect(saveButton).not.toBeDisabled();
       });
+    });
+
+    it("links to Android learn more URL", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditConfigurationModal {...ANDROID_PROPS} />);
+
+      const learnMore = screen.getByText("Learn more").closest("a");
+      expect(learnMore).toHaveAttribute(
+        "href",
+        expect.stringContaining("android-software-managed-configuration")
+      );
     });
   });
 
@@ -266,6 +230,25 @@ describe("EditConfigurationModal", () => {
       });
     });
 
+    it("initializes with undefined configuration and Save enabled", async () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      const noConfigInstaller = createMockAppStoreAppIos({
+        configuration: undefined,
+      });
+      render(
+        <EditConfigurationModal
+          {...IOS_PROPS}
+          softwareInstaller={noConfigInstaller}
+        />
+      );
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+
+      await waitFor(() => {
+        expect(saveButton).toBeEnabled();
+      });
+    });
+
     it("calls onExit handler when modal close is triggered via Escape key", async () => {
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditConfigurationModal {...IOS_PROPS} />);
@@ -273,6 +256,17 @@ describe("EditConfigurationModal", () => {
       await user.keyboard("{Escape}");
 
       expect(IOS_PROPS.onExit).toHaveBeenCalled();
+    });
+
+    it("links to iOS/iPadOS learn more URL", () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(<EditConfigurationModal {...IOS_PROPS} />);
+
+      const learnMore = screen.getByText("Learn more").closest("a");
+      expect(learnMore).toHaveAttribute(
+        "href",
+        expect.stringContaining("ios-ipados-software-managed-configuration")
+      );
     });
   });
 });

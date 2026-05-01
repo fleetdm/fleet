@@ -33,7 +33,12 @@ type ErrorWithMessage = {
 export const isErrorWithMessage = (
   error: unknown
 ): error is ErrorWithMessage => {
-  return (error as ErrorWithMessage).message !== undefined;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as ErrorWithMessage).message === "string"
+  );
 };
 
 /** Validates a JSON string. Returns an error message or null if valid. */
