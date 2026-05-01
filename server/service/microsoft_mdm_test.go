@@ -1285,6 +1285,14 @@ func TestGetESPCommands(t *testing.T) {
 
 	newSvc := func(t *testing.T) (*mock.Store, *Service) {
 		ds := new(mock.Store)
+		// Default HostLite mock: every test reaching Stage 3 calls HostLiteByIdentifier (via the cached loadHost
+		// closure) to translate device.HostUUID -> setup_experience_status_results.host_uuid (= OsqueryHostID on
+		// Windows). Provide a sensible default so tests that don't care about the team/setup-experience identifier
+		// still work; tests that do care override this.
+		osqueryHostID := "osquery-" + hostUUID
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
+		}
 		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
 	}
 
@@ -1457,13 +1465,23 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		setReleaseMocks(ds)
+		// Capture ordering: persist must run BEFORE the CAS so a persist failure can't leave the device finalized
+		// without the dropped-response retry safety net.
+		persisted := false
 		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			persisted = true
 			return nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			require.True(t, persisted, "persist must run BEFORE CAS Active->None")
+			return true, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands")
+		assert.True(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
+			"release path must persist final commands as the dropped-response retry backup")
 		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
 			"should transition awaiting_configuration out of Active")
 	})
@@ -1620,14 +1638,16 @@ func TestGetESPCommands(t *testing.T) {
 		require.NotEmpty(t, cmds, "should return block commands")
 		assert.True(t, cancelled, "should cancel pending setup experience steps")
 
-		// Block path must persist all three commands in a SINGLE batch call so the retry path preserves
-		// CustomErrorText / AllowCollectLogsButton on dropped responses, and so a partial DB failure can't leave
-		// orphan rows behind (the batch is one transaction).
+		// Block path must persist all four commands in a SINGLE batch call so the retry path preserves
+		// CustomErrorText / BlockInStatusPage / AllowCollectLogsButton / TimeOutUntilSyncFailure on dropped responses,
+		// and so a partial DB failure can't leave orphan rows behind (the batch is one transaction).
 		assert.Equal(t, 1, batchCalls, "persist must be a single batched call, not a loop of single inserts")
 		joined := strings.Join(persistedURIs, ",")
 		assert.Contains(t, joined, "CustomErrorText", "must persist CustomErrorText")
 		assert.Contains(t, joined, "BlockInStatusPage", "must persist BlockInStatusPage")
 		assert.Contains(t, joined, "AllowCollectLogsButton", "must persist AllowCollectLogsButton")
+		assert.Contains(t, joined, "TimeOutUntilSyncFailure",
+			"must persist TimeOutUntilSyncFailure -- this is what actually triggers the failure UI on Windows ESP")
 
 		// Persisted CmdIDs MUST equal the inline CmdIDs so that when the
 		// device acks the inline send, the persisted backup row clears via
@@ -2043,6 +2063,11 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		setRequireAll(ds, true)
+		// Cancel runs BEFORE persist (so a transient cancel failure aborts cleanly without committing CAS); cancel
+		// is idempotent so it's safe to run again on the next session if persist fails afterwards.
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return nil
+		}
 		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 			return errors.New("transient db error")
 		}
@@ -2050,18 +2075,58 @@ func TestGetESPCommands(t *testing.T) {
 			t.Fatal("CAS Active->None must NOT run when persist fails")
 			return false, nil
 		}
-		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
-			t.Fatal("cancel-pending must NOT run when persist fails")
-			return nil
-		}
 
 		cmds, err := svc.getESPCommands(t.Context(), deviceID)
 		require.Error(t, err, "must return error so device retries on next session")
 		assert.Nil(t, cmds)
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
 			"CAS must NOT have been invoked when persist fails")
-		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
-			"cancel-pending must NOT have been invoked when persist fails")
+	})
+
+	t.Run("cancel failure aborts finalize without committing CAS", func(t *testing.T) {
+		// Cancel runs before persist and CAS. A transient cancel failure must abort the finalize cleanly: otherwise we
+		// would commit awaiting=None while leaving non-terminal setup-experience rows behind, which is exactly the
+		// state cancellation is supposed to prevent. CancelPendingSetupExperienceSteps is idempotent so a retry on the
+		// next session is safe.
+		ds, svc := newSvc(t)
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:           deviceID,
+				HostUUID:              hostUUID,
+				AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+			}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		setRequireAll(ds, true)
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return errors.New("transient db error")
+		}
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			t.Fatal("persist must NOT run when cancel fails")
+			return nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			t.Fatal("CAS Active->None must NOT run when cancel fails")
+			return false, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), deviceID)
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
+			"persist must NOT have been invoked when cancel fails")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"CAS must NOT have been invoked when cancel fails")
 	})
 
 	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {

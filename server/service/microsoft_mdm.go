@@ -2099,26 +2099,43 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// hasSoftwareFailure tracks setup-experience software failures only.
 	var hasSoftwareFailure bool
 
-	// loadTeamID lazily fetches the host's team_id (writer-routed) and memoizes the result for the rest of this checkin.
+	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
+	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
+	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
+	// require_all_software_windows be read from the wrong team and bypass the gate.
 	//
-	// Writer routing guards two replica-lag races: (1) spurious notFound during the brief gap between orbit's host
-	// registration and the next management session, and (2) stale team_id if a host transferred teams mid-enrollment,
-	// which could let require_all_software_windows be read from the wrong team and bypass the gate.
+	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
+	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
+	// stored on the MDM enrollment record.
 	var (
-		cachedTeamID *uint
-		hostLoaded   bool
+		cachedHost *fleet.HostLite
+		hostLoaded bool
 	)
-	loadTeamID := func() (*uint, error) {
+	loadHost := func() (*fleet.HostLite, error) {
 		if hostLoaded {
-			return cachedTeamID, nil
+			return cachedHost, nil
 		}
 		host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP team_id")
+			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP")
 		}
-		cachedTeamID = host.TeamID
+		cachedHost = host
 		hostLoaded = true
-		return cachedTeamID, nil
+		return host, nil
+	}
+
+	// setupExperienceHostUUID returns the identifier used as setup_experience_status_results.host_uuid for this host.
+	// On Windows that's OsqueryHostID per fleet.HostUUIDForSetupExperience; if it's missing for some reason we fall back
+	// to the Fleet host UUID, which is at least consistent with the manual-test data shape.
+	setupExperienceHostUUID := func() (string, error) {
+		host, err := loadHost()
+		if err != nil {
+			return "", err
+		}
+		if host.OsqueryHostID != nil && *host.OsqueryHostID != "" {
+			return *host.OsqueryHostID, nil
+		}
+		return device.HostUUID, nil
 	}
 
 	if !timedOut {
@@ -2161,28 +2178,34 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results. Wait for all of
 		// them to reach a terminal state (success/failure/cancelled).
 		//
-		// We pass teamID=0 because that parameter is only used for icon and display-name enrichment in the datastore call,
-		// not for filtering (the query filters only by host_uuid). Skipping a host lookup also avoids replica-lag issues
-		// that could let the gate be bypassed.
-		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, device.HostUUID, 0)
+		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; on Windows that's the
+		// host's OsqueryHostID, not the Fleet host UUID on the MDM enrollment. Use the right identifier here or the lookup
+		// would silently miss the rows that the orbit-driven init enqueued and we'd wait for the 3-hour timeout. We pass
+		// teamID=0 because that parameter is only used for icon and display-name enrichment in the datastore call, not for
+		// filtering (the query filters only by host_uuid).
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP release check")
 		}
 		svc.logger.DebugContext(ctx, "ESP: setup experience check",
-			"host_uuid", device.HostUUID, "results_count", len(results))
+			"host_uuid", device.HostUUID, "se_host_uuid", seHostUUID, "results_count", len(results))
 
 		// Empty results is ambiguous: it can mean "no setup experience is configured for this team" (safe to release) or
 		// "setup is configured but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit links the host UUID to
 		// the MDM enrollment independently of when it calls init, so on the first Active checkin after link we can hit
 		// this race. Disambiguate by checking whether items are configured for the host's team.
 		if len(results) == 0 {
-			teamID, err := loadTeamID()
+			host, err := loadHost()
 			if err != nil {
 				return nil, err
 			}
 			var teamIDForQuery uint
-			if teamID != nil {
-				teamIDForQuery = *teamID
+			if host.TeamID != nil {
+				teamIDForQuery = *host.TeamID
 			}
 			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamIDForQuery)
 			if err != nil {
@@ -2216,22 +2239,22 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// block and release. Return the error on lookup failure so the device stays Active and retries on the next management
 	// session: failing open here would permanently bypass the policy after the Active->None transition below.
 	//
-	// loadTeamID memoizes the writer-routed host lookup, so this reuses the fetch from the empty-results disambiguation if
+	// loadHost memoizes the writer-routed host lookup, so this reuses the fetch from the empty-results disambiguation if
 	// it already ran this checkin. The team-config read (TeamLite/AppConfig) uses the replica/cache because team settings
 	// are stable on the ESP timescale.
-	teamID, err := loadTeamID()
+	host, err := loadHost()
 	if err != nil {
 		return nil, err
 	}
 	var requireAll bool
-	if teamID == nil {
+	if host.TeamID == nil {
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
 		}
 		requireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
 	} else {
-		team, err := svc.ds.TeamLite(ctx, *teamID)
+		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
 		}
@@ -2260,6 +2283,24 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		cmds = buildESPReleaseCommands(provID)
 	}
 
+	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. Run this
+	// BEFORE the CAS so a transient cancel failure aborts the finalize cleanly -- otherwise we'd commit awaiting=None
+	// while leaving non-terminal setup-experience rows behind, exactly the state cancellation is supposed to prevent.
+	// CancelPendingSetupExperienceSteps is idempotent so a retry on the next session is safe.
+	//
+	// The canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
+	// software-install-result reporting path when require_all=true and a software install fails. We deliberately do
+	// not emit it again here to avoid duplicate activities when both paths fire for the same failure.
+	if timedOut || (hasSoftwareFailure && requireAll) {
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		if err := svc.ds.CancelPendingSetupExperienceSteps(ctx, seHostUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
+		}
+	}
+
 	// Persist BEFORE the CAS. The persist is the dropped-response retry safety net; if it fails, we want to leave
 	// awaiting_configuration=Active so the next management session retries the whole finalize from scratch. If we
 	// persisted after the CAS (the prior order), a persist failure combined with a dropped inline response would leave
@@ -2277,7 +2318,8 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
 	}
 
-	// CAS Active -> None: only one concurrent checkin does the cancel/activity work below.
+	// CAS Active -> None: only one concurrent checkin commits the finalize. Cancel and persist above ran for both
+	// concurrent winners, but cancel is idempotent and persist's losers get harmlessly delivered as orphan Replaces.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
 	if err != nil {
@@ -2286,19 +2328,6 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	if !transitioned {
 		// Another concurrent checkin already finalized.
 		return nil, nil
-	}
-
-	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. The
-	// canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
-	// software-install-result reporting path when require_all is true and a software install fails. We deliberately do
-	// not emit it again here to avoid duplicate activities when both paths fire for the same failure. The
-	// CancelPendingSetupExperienceSteps call below is idempotent and covers the timeout case where pending items were
-	// not already cancelled.
-	if timedOut || (hasSoftwareFailure && requireAll) {
-		if cancelErr := svc.ds.CancelPendingSetupExperienceSteps(ctx, device.HostUUID); cancelErr != nil {
-			svc.logger.WarnContext(ctx, "ESP: failed to cancel pending setup experience steps",
-				"err", cancelErr, "host_uuid", device.HostUUID)
-		}
 	}
 
 	svc.logger.InfoContext(ctx, "ESP: finalizing",

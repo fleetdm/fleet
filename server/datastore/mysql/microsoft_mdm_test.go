@@ -186,6 +186,12 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, cleanupDevice))
 
+	// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; for Windows that's the
+	// host's OsqueryHostID, NOT host.UUID. Insert with the production-shape key so this test would catch a regression
+	// where cleanup deletes by host.UUID and silently misses real Windows rows.
+	require.NotNil(t, host.OsqueryHostID, "test host must have OsqueryHostID set")
+	seHostUUID := *host.OsqueryHostID
+
 	profUUID := InsertWindowsProfileForTest(t, ds, 0)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
@@ -196,7 +202,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 		}
 		if _, err := q.ExecContext(ctx, `INSERT INTO setup_experience_status_results
 				(host_uuid, name, status) VALUES (?, ?, ?)`,
-			host.UUID, "TestApp", fleet.SetupExperienceStatusPending); err != nil {
+			seHostUUID, "TestApp", fleet.SetupExperienceStatusPending); err != nil {
 			return err
 		}
 		_, err := q.ExecContext(ctx, `INSERT INTO upcoming_activities
@@ -213,7 +219,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 			return err
 		}
 		if err := sqlx.GetContext(ctx, q, &resultCount,
-			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID); err != nil {
+			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, seHostUUID); err != nil {
 			return err
 		}
 		return sqlx.GetContext(ctx, q, &activityCount,
@@ -233,14 +239,15 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 			return err
 		}
 		if err := sqlx.GetContext(ctx, q, &resultCount,
-			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, host.UUID); err != nil {
+			`SELECT COUNT(*) FROM setup_experience_status_results WHERE host_uuid = ?`, seHostUUID); err != nil {
 			return err
 		}
 		return sqlx.GetContext(ctx, q, &activityCount,
 			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID)
 	})
 	assert.Equal(t, 0, profCount, "host_mdm_windows_profiles must be cleaned on re-enrollment")
-	assert.Equal(t, 0, resultCount, "setup_experience_status_results must be cleaned on re-enrollment")
+	assert.Equal(t, 0, resultCount,
+		"setup_experience_status_results must be cleaned on re-enrollment, even when keyed by OsqueryHostID")
 	assert.Equal(t, 0, activityCount, "upcoming_activities must be cleaned on re-enrollment via JOIN on hosts.uuid")
 }
 

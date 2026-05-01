@@ -145,8 +145,13 @@ SELECT EXISTS (
 		AND global_or_team_id = ?
 		AND is_active = TRUE
 )`
+	// Use the writer: this is the fail-safe for the empty-results case in ESP release. A stale read (admin recently
+	// added installers but the replica hasn't caught up) would let the device early-release with no setup-experience
+	// installs run, and that release is permanent because the CAS that commits it runs in the same handleESPRelease
+	// call. Going through the primary closes the race. The query runs once per Active checkin in the empty-results
+	// branch only -- low volume.
 	var hasItems bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasItems, stmt, teamID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &hasItems, stmt, teamID); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "check setup experience items configured")
 	}
 	return hasItems, nil
@@ -250,7 +255,12 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 		loadStmt        = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
 		delActionsStmt  = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
 		delProfilesStmt = "DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?"
-		delSetupExpStmt = "DELETE FROM setup_experience_status_results WHERE host_uuid = ?"
+		// setup_experience_status_results.host_uuid is keyed by fleet.HostUUIDForSetupExperience; for Windows that's the
+		// host's OsqueryHostID, NOT the Fleet host UUID stored on the MDM enrollment. Resolve via JOIN so we delete by
+		// whichever identifier matches (works for both shapes).
+		delSetupExpStmt = `DELETE ser FROM setup_experience_status_results ser
+			JOIN hosts h ON ser.host_uuid = h.osquery_host_id OR ser.host_uuid = h.uuid
+			WHERE h.uuid = ?`
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
 	)
 
@@ -495,13 +505,25 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 // is committed or none. Used by the ESP finalize path so the dropped-response retry safety net can't end up
 // partially written on a transient DB error -- a partial write followed by a fresh-UUID retry would leave
 // orphan rows in the queue.
+//
+// Returns notFound("MDMWindowsEnrolledDevice") if the identifier resolves to zero enrollments. Without this
+// guard, mdmWindowsInsertCommandForEnrollmentIDsDB would still INSERT each row into windows_mdm_commands and
+// return success while leaving the rows targeted at no host -- the ESP finalize would silently drop the
+// retry safety net.
 func (ds *Datastore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
 	if len(cmds) == 0 {
 		return nil
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		enrollmentIDs, err := ds.getEnrollmentIDsByHostUUIDOrDeviceIDDB(ctx, tx, []string{hostUUIDOrDeviceID})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching enrollment IDs for command queue")
+		}
+		if len(enrollmentIDs) == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithName(hostUUIDOrDeviceID))
+		}
 		for _, cmd := range cmds {
-			if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{hostUUIDOrDeviceID}, cmd); err != nil {
+			if err := ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, enrollmentIDs, cmd); err != nil {
 				return err
 			}
 		}
