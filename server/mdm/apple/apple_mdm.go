@@ -102,6 +102,7 @@ type DEPService struct {
 
 // GetDefaultProfile returns a godep.Profile with default values set.
 func (d *DEPService) GetDefaultProfile() *godep.Profile {
+	// If this definition change, make sure to update the fleetctl new template file
 	return &godep.Profile{
 		ProfileName:    "Fleet default enrollment profile",
 		IsSupervised:   true,
