@@ -1502,6 +1502,86 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, cmds, "should wait while setup experience software is running")
 	})
 
+	t.Run("software failure with require_all=true short-circuits Stage 3 even when other items still running", func(t *testing.T) {
+		// Defense-in-depth: maybeCancelPendingSetupExperienceSteps in the orbit-result reporting path usually
+		// cancels the others on a require_all=true software failure (so by the time Stage 3 runs we'd see them as
+		// Cancelled). But that path can partially fail or run before require_all was flipped to true. Without the
+		// short-circuit, the device hangs on "Working on it..." until the slow sibling install finishes (or the
+		// 3-hour timeout fires). With it, the block fires on the first management session that observes the
+		// failure.
+		ds, svc := newSvc(t)
+		device := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			HostUUID:              hostUUID,
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+				{Name: "Slack", Status: fleet.SetupExperienceStatusRunning},
+				{Name: "Asana", Status: fleet.SetupExperienceStatusPending},
+			}, nil
+		}
+		setRequireAll(ds, true)
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return nil
+		}
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds,
+			"must NOT wait for the still-running siblings when require_all=true and a failure is already observed")
+		// The cancel block runs after the short-circuit; the still-pending rows get torn down there.
+		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"cancel must run after the short-circuit so the still-pending rows are cleaned")
+	})
+
+	t.Run("software failure with require_all=false still waits for siblings to complete", func(t *testing.T) {
+		// Negative case for the short-circuit: when require_all=false the device will release regardless, but we
+		// still want to wait for in-flight installs to finish so the user sees a coherent post-login state. Only
+		// require_all=true triggers the fast-fail.
+		ds, svc := newSvc(t)
+		device := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			HostUUID:              hostUUID,
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+				{Name: "Slack", Status: fleet.SetupExperienceStatusRunning},
+			}, nil
+		}
+		setRequireAll(ds, false)
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		assert.Nil(t, cmds,
+			"require_all=false: must keep waiting until the still-running install finishes")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must NOT commit the Active->None CAS while siblings are still running")
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"must NOT cancel: device will release naturally once siblings complete")
+	})
+
 	t.Run("active treats cancelled setup experience items as terminal", func(t *testing.T) {
 		ds, svc := newSvc(t)
 		device := &fleet.MDMWindowsEnrolledDevice{

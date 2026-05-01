@@ -2117,7 +2117,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 
 	// setupExperienceHostUUID returns the identifier used as setup_experience_status_results.host_uuid for this host.
 	// On Windows that's OsqueryHostID per fleet.HostUUIDForSetupExperience; if it's missing for some reason we fall back
-	// to the Fleet host UUID, which is at least consistent with the manual-test data shape.
+	// to the Fleet host UUID.
 	setupExperienceHostUUID := func() (string, error) {
 		host, err := loadHost()
 		if err != nil {
@@ -2127,6 +2127,38 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			return *host.OsqueryHostID, nil
 		}
 		return device.HostUUID, nil
+	}
+
+	// loadRequireAll memoizes the host -> team's require_all_software_windows lookup. It is consulted at most twice
+	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
+	// (to drive the block/release decision).
+	var (
+		cachedRequireAll bool
+		requireAllLoaded bool
+	)
+	loadRequireAll := func() (bool, error) {
+		if requireAllLoaded {
+			return cachedRequireAll, nil
+		}
+		host, err := loadHost()
+		if err != nil {
+			return false, err
+		}
+		if host.TeamID == nil {
+			ac, err := svc.ds.AppConfig(ctx)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
+			}
+			cachedRequireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
+		} else {
+			team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
+			}
+			cachedRequireAll = team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows
+		}
+		requireAllLoaded = true
+		return cachedRequireAll, nil
 	}
 
 	if !timedOut {
@@ -2209,47 +2241,58 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 			}
 		}
 
+		// Single pass: collect hasSoftwareFailure and "are any rows still in flight". We deliberately do NOT bail
+		// early on the first non-terminal row -- we need to know whether any failure exists in the result set
+		// before deciding whether to wait, so we can short-circuit when require_all=true and we've already
+		// observed a failure. IsTerminalStatus() returns true for success/failure; Cancelled is also a completed
+		// outcome (must not block release).
+		anyInFlight := false
 		for _, r := range results {
-			// IsTerminalStatus() returns true for success/failure. Cancelled is also a completed outcome and must not
-			// block ESP release.
-			if r.Status == fleet.SetupExperienceStatusCancelled {
-				continue
+			switch r.Status {
+			case fleet.SetupExperienceStatusFailure:
+				hasSoftwareFailure = true
+			case fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusCancelled:
+				// terminal, nothing to record
+			default:
+				// pending / running
+				anyInFlight = true
 			}
-			if !r.Status.IsTerminalStatus() {
-				svc.logger.DebugContext(ctx, "ESP: waiting for setup experience item",
-					"name", r.Name, "status", r.Status)
+		}
+		if anyInFlight {
+			if !hasSoftwareFailure {
+				svc.logger.DebugContext(ctx, "ESP: waiting for in-flight setup experience items",
+					"host_uuid", device.HostUUID, "results_count", len(results))
 				return nil, nil
 			}
-			if r.Status == fleet.SetupExperienceStatusFailure {
-				hasSoftwareFailure = true
+			// A software install has already failed. If require_all=true, the device is going to block --
+			// continuing to wait for the remaining installs to finish would just leave the user on
+			// "Working on it..." while the cancel block below tears them down anyway. Short-circuit.
+			//
+			// Defense in depth: maybeCancelPendingSetupExperienceSteps in the orbit-result reporting path
+			// usually cancels the others proactively on require_all=true failures, so this state should be rare
+			// (we'd see them as Cancelled, not Pending). But that path can partially fail, run before
+			// require_all was flipped to true, etc. -- the short-circuit catches all those edge cases.
+			requireAll, err := loadRequireAll()
+			if err != nil {
+				return nil, err
 			}
+			if !requireAll {
+				svc.logger.DebugContext(ctx, "ESP: software failure observed but require_all=false; waiting for rest",
+					"host_uuid", device.HostUUID, "results_count", len(results))
+				return nil, nil
+			}
+			svc.logger.InfoContext(ctx, "ESP: software failure with require_all=true; short-circuiting Stage 3",
+				"host_uuid", device.HostUUID)
 		}
 	}
 
-	// We're past the wait gate or timed out. Look up the team's require_all_software_windows setting to decide between
-	// block and release. Return the error on lookup failure so the device stays Active and retries on the next management
-	// session: failing open here would permanently bypass the policy after the Active->None transition below.
-	//
-	// loadHost memoizes the writer-routed host lookup, so this reuses the fetch from the empty-results disambiguation if
-	// it already ran this checkin. The team-config read (TeamLite/AppConfig) uses the replica/cache because team settings
-	// are stable on the ESP timescale.
-	host, err := loadHost()
+	// We're past the wait gate or timed out. Look up require_all_software_windows (memoized via loadRequireAll if
+	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
+	// device stays Active and retries on the next management session: failing open here would permanently bypass
+	// the policy after the Active->None transition below.
+	requireAll, err := loadRequireAll()
 	if err != nil {
 		return nil, err
-	}
-	var requireAll bool
-	if host.TeamID == nil {
-		ac, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
-		}
-		requireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
-	} else {
-		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
-		}
-		requireAll = team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows
 	}
 
 	failed := timedOut || hasSoftwareFailure
