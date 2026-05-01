@@ -483,7 +483,7 @@ type RequestCertificatePayload struct {
 	IDPOauthURL          *string `json:"idp_oauth_url"`          // OAuth introspection URL for validating IDP Authentication
 	IDPToken             *string `json:"idp_token"`              // Token for IDP Authentication
 	IDPClientID          *string `json:"idp_client_id"`          // Client ID for IDP Authentication
-	ReturnPEMCertificate bool    `json:"return_pem_certificate"` // If true, the issued certificate is returned as a PEM-encoded CERTIFICATE block instead of the raw PKCS7 envelope.
+	ReturnPEMCertificate bool    `json:"return_pem_certificate"` // If true, the issued certificate is returned as a PEM-encoded CERTIFICATE block; if false or omitted, a PEM-encoded PKCS7 block is returned.
 }
 
 func (c *RequestCertificatePayload) AuthzType() string {

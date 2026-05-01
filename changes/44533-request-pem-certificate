@@ -1,1 +1,1 @@
-* Added an option to convert and return a PEM x509 certificate instead of a PEM-encoded PKCS7 envelope from the Request a Certificate endpoint
+* Added an option to convert and return a PEM-encoded X.509 certificate instead of a PEM-encoded PKCS7 envelope from the Request a Certificate endpoint.

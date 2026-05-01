@@ -154,7 +154,8 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 }
 
 // pkcs7EnvelopeToPEM converts a base64-encoded PKCS7 envelope (as returned by an EST
-// /simpleenroll response, per RFC 7030) into one or more PEM-encoded CERTIFICATE blocks.
+// /simpleenroll response, per RFC 7030) into a single PEM-encoded CERTIFICATE block.
+// It returns an error unless the envelope contains exactly one certificate.
 func pkcs7EnvelopeToPEM(envelope []byte) (string, error) {
 	// EST returns base64-encoded PKCS7 with potential whitespace; strip it before decoding.
 	stripped := strings.Map(func(r rune) rune {
