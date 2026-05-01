@@ -1,49 +1,14 @@
 schema: spec-driven
 
 context: |
-  Fleet is an open-source platform for IT and security teams: device management
-  (MDM), vulnerability reporting, osquery fleet management, and security
-  monitoring. Go backend, React/TypeScript frontend.
+  Fleet: Go backend + React/TypeScript frontend for device management and security.
+  Authoritative project guidance lives in `.claude/CLAUDE.md` — read it before drafting.
 
-  Authoritative project guidance lives in `.claude/CLAUDE.md` — read it before
-  drafting proposals or specs. The items below are the minimum that must shape
-  any openspec artifact:
-
-  Architecture layers:
-    - Types/interfaces: `server/fleet/`
-    - Service implementations: `server/service/` (core), `ee/server/service/` (enterprise, license-gated)
-    - Datastore (MySQL): `server/datastore/mysql/`
-    - MDM: `server/mdm/` (Apple, Microsoft, Android)
-    - Frontend: `frontend/pages/`, `frontend/components/`, `frontend/services/`
-    - CLI: `cmd/fleet/`, `cmd/fleetctl/`, `orbit/`
-
-  Terminology (use new terms in new artifacts; do not rename existing code):
-    - "Teams" → "Fleets" (host grouping). Legacy `team_id`, `teams` table remain.
-    - "Queries" → "Reports". "Query" now refers only to the SQL inside a report.
-
-  Go conventions that proposals must respect:
-    - Error wrapping: `ctxerr.Wrap(ctx, err, "...")` — never `pkg/errors`.
-    - Logging: slog `*Context` variants only (`InfoContext`, `ErrorContext`, …).
-    - Pointers: `new(expr)` (Go 1.26). Do not introduce new uses of `server/ptr`.
-    - Authorization: `svc.authz.Authorize(ctx, entity, fleet.ActionX)` at the
-      top of service methods.
-    - Enterprise vs core: gate enterprise features at the service layer with a
-      license check, not via build tags, unless there is a specific reason.
-
-  Change scope:
-    - Cover all entry points for an operation (single + batch/GitOps).
-    - Validate declarative/batch payloads against the incoming payload, not the DB.
-    - When checking duplicates, exclude the current entity (upsert-safe).
-
+# Per-artifact rules. openspec injects these into each artifact's <rules> block
+# when generating it. Empty lists are skipped silently. Add bullet strings to
+# enforce structural conventions, e.g.:
+#   proposal:
+#     - Include a "Non-goals" section.
 rules:
-  proposal:
-    - State the user-visible problem before the solution.
-    - Call out whether the change is core, enterprise, or both.
-    - List affected entry points (API endpoints, fleetctl, GitOps, UI) explicitly.
-    - Include a "Non-goals" section to prevent scope creep.
-  tasks:
-    - Group tasks by layer (datastore → service → endpoint → frontend) so PRs
-      can be split along those seams if needed.
-    - Flag tasks that require a new migration; reference `make migration`.
-    - Flag tasks that change the `Datastore` interface; they require
-      `make generate-mock`.
+  proposal: []
+  tasks: []
