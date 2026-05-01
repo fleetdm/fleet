@@ -283,56 +283,67 @@ const Info = ({
       }
       if (!orgInfoOk) return;
 
-      // Step 2: logo ops. Their own try so a logo failure shows a
-      // logo-specific message and doesn't hide a successful org-info
-      // save behind a misleading flash.
+      // Run sequentially — each op triggers an AppConfig
+      // read-modify-write on the BE, so two parallel writes would race
+      // and one logo URL could be lost.
       const lightDeleted = lightLogo.pendingDelete && !!lightOriginalUrl;
       const darkDeleted = darkLogo.pendingDelete && !!darkOriginalUrl;
-      const logoOps: (() => Promise<unknown>)[] = [];
+      const opsByMode: Partial<
+        Record<IOrgLogoStorableMode, () => Promise<unknown>>
+      > = {};
+      if (lightLogo.pendingUpload) {
+        const f = lightLogo.pendingUpload.file;
+        opsByMode.light = () => logoAPI.upload(f, "light");
+      } else if (lightDeleted) {
+        opsByMode.light = () => logoAPI.delete("light");
+      }
+      if (darkLogo.pendingUpload) {
+        const f = darkLogo.pendingUpload.file;
+        opsByMode.dark = () => logoAPI.upload(f, "dark");
+      } else if (darkDeleted) {
+        opsByMode.dark = () => logoAPI.delete("dark");
+      }
 
-      if (
-        lightDeleted &&
-        darkDeleted &&
-        !lightLogo.pendingUpload &&
-        !darkLogo.pendingUpload
-      ) {
-        logoOps.push(() => logoAPI.delete("all"));
-      } else {
-        if (lightLogo.pendingUpload) {
-          const f = lightLogo.pendingUpload.file;
-          logoOps.push(() => logoAPI.upload(f, "light"));
-        } else if (lightDeleted) {
-          logoOps.push(() => logoAPI.delete("light"));
-        }
-        if (darkLogo.pendingUpload) {
-          const f = darkLogo.pendingUpload.file;
-          logoOps.push(() => logoAPI.upload(f, "dark"));
-        } else if (darkDeleted) {
-          logoOps.push(() => logoAPI.delete("dark"));
+      const failedModes: IOrgLogoStorableMode[] = [];
+      const succeededModes: IOrgLogoStorableMode[] = [];
+      const pendingOps: {
+        mode: IOrgLogoStorableMode;
+        op: () => Promise<unknown>;
+      }[] = [];
+      if (opsByMode.light) {
+        pendingOps.push({ mode: "light", op: opsByMode.light });
+      }
+      if (opsByMode.dark) {
+        pendingOps.push({ mode: "dark", op: opsByMode.dark });
+      }
+      // eslint-disable-next-line no-restricted-syntax
+      for (const { mode, op } of pendingOps) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await op();
+          succeededModes.push(mode);
+        } catch (e) {
+          failedModes.push(mode);
         }
       }
 
-      try {
-        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
-        for (const op of logoOps) {
-          // eslint-disable-next-line no-await-in-loop
-          await op();
-        }
+      if (succeededModes.length > 0) {
+        await queryClient.invalidateQueries(["config"]);
+      }
 
-        // Without this, deleting a logo or uploading the first one would show
-        // a stale URL after reset.
-        if (logoOps.length > 0) {
-          await queryClient.invalidateQueries(["config"]);
-        }
+      const reset = (prev: ILogoModeState) => {
+        if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
+        return { ...prev, pendingUpload: null, pendingDelete: false };
+      };
+      if (succeededModes.includes("light")) setLightLogo(reset);
+      if (succeededModes.includes("dark")) setDarkLogo(reset);
 
-        const reset = (prev: ILogoModeState) => {
-          if (prev.pendingUpload) URL.revokeObjectURL(prev.pendingUpload.url);
-          return { ...prev, pendingUpload: null, pendingDelete: false };
-        };
-        setLightLogo(reset);
-        setDarkLogo(reset);
-      } catch (e) {
-        renderFlash("error", "Couldn't update logo. Please try again.");
+      if (failedModes.length > 0) {
+        const label = failedModes.map((m) => `${m} mode`).join(" and ");
+        renderFlash(
+          "error",
+          `Couldn't update the ${label} logo. Please try again.`
+        );
       }
     } finally {
       setIsSaving(false);
