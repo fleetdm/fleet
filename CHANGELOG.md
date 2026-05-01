@@ -1,3 +1,10 @@
+## Fleet 4.84.1 (Apr 30, 2026)
+
+### Bug fixes
+
+- Fixed Fleet's Docker image failing to start in Kubernetes with an `unknown userid` error, triggered by a fleetctl dependency side effect.
+- Use Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
+
 ## Fleet 4.84.0 (Apr 24, 2026)
 
 ### IT Admins
