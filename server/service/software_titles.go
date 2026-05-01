@@ -263,6 +263,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					PendingInstall: summary.Pending,
 					FailedInstall:  summary.Failed,
 				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping in-house app configuration for response")
+					}
+					meta.Configuration = wrapped
+				}
 			}
 			software.SoftwarePackage = meta
 		}
