@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -140,6 +141,14 @@ type engine struct {
 	pauseMu sync.Mutex
 	paused  bool
 	queued  map[string]struct{} // files seen while paused, deduplicated
+
+	// deferred holds triggers that arrived while a rebuild was in
+	// flight. After the rebuild finishes, anything in here fires one
+	// follow-up rebuild so changes from the in-flight period don't get
+	// dropped.
+	deferredMu      sync.Mutex
+	deferredFiles   map[string]struct{}
+	deferredPending bool // true even if files is empty (e.g. r-press while building)
 }
 
 func newEngine(opts runtimeOpts) *engine {
@@ -278,7 +287,11 @@ func (r *engine) run(ctx context.Context) {
 // on the "trigger:" row. files is the deduplicated list of paths (empty
 // when triggered manually with r).
 //
-// While paused, files accumulate in the queue and no rebuild runs.
+// Behavior:
+//   - paused → accumulate files in r.queued, no rebuild
+//   - rebuild already in flight → accumulate files in r.deferred*, fired
+//     automatically as one follow-up rebuild after the current one ends
+//   - otherwise → spawn a goroutine that owns restartMu for the duration
 func (r *engine) HandleTrigger(reason string, files []string) {
 	r.pauseMu.Lock()
 	if r.paused {
@@ -292,7 +305,70 @@ func (r *engine) HandleTrigger(reason string, files []string) {
 	}
 	r.pauseMu.Unlock()
 
-	go r.runRestart(context.Background(), reason)
+	if !r.restartMu.TryLock() {
+		// A rebuild is already running. Queue this trigger so the
+		// in-flight rebuild's deferred-drain picks it up.
+		r.appendDeferred(files)
+		return
+	}
+
+	go func() {
+		defer r.restartMu.Unlock()
+		r.runRestartLocked(context.Background(), reason)
+
+		// After the rebuild, fire a single follow-up if any triggers
+		// arrived while we were running.
+		if d := r.takeDeferred(); d != nil {
+			go r.HandleTrigger(d.reason, d.files)
+		}
+	}()
+}
+
+// deferredTrigger is what takeDeferred hands back: the merged file set
+// from any HandleTrigger calls that lost the TryLock race during a
+// rebuild, plus the buildReason()-derived label for the dashboard.
+type deferredTrigger struct {
+	files  []string
+	reason string
+}
+
+// appendDeferred records that a trigger arrived during a rebuild. files
+// may be empty for an r-press during a rebuild — pending stays true so a
+// follow-up still fires.
+func (r *engine) appendDeferred(files []string) {
+	r.deferredMu.Lock()
+	defer r.deferredMu.Unlock()
+	if r.deferredFiles == nil {
+		r.deferredFiles = map[string]struct{}{}
+	}
+	for _, f := range files {
+		r.deferredFiles[f] = struct{}{}
+	}
+	r.deferredPending = true
+}
+
+// takeDeferred drains the deferred set and returns it (nil if empty).
+func (r *engine) takeDeferred() *deferredTrigger {
+	r.deferredMu.Lock()
+	defer r.deferredMu.Unlock()
+	if !r.deferredPending {
+		return nil
+	}
+	files := make([]string, 0, len(r.deferredFiles))
+	for f := range r.deferredFiles {
+		files = append(files, f)
+	}
+	sort.Strings(files)
+	r.deferredFiles = nil
+	r.deferredPending = false
+
+	reason := buildReason(files)
+	if len(files) == 0 {
+		// A bare r-press (or pause-resume) during a build queued a
+		// pending bit but no files; surface something readable.
+		reason = "follow-up rebuild"
+	}
+	return &deferredTrigger{files: files, reason: reason}
 }
 
 // TogglePause flips the paused flag. When transitioning from paused →
@@ -313,25 +389,21 @@ func (r *engine) TogglePause() {
 
 	r.emit(pauseChangedMsg{Paused: now, Queued: len(queuedFiles)})
 	if !now && len(queuedFiles) > 0 {
-		go r.runRestart(context.Background(), buildReason(queuedFiles))
+		// Resume fires through HandleTrigger so it picks up the same
+		// "in flight? defer" handling as any other trigger.
+		go r.HandleTrigger(buildReason(queuedFiles), queuedFiles)
 	}
 }
 
-// runRestart executes the hot-rebuild sequence: stop fleet, rebuild,
+// runRestartLocked executes the hot-rebuild sequence: stop fleet, rebuild,
 // re-run prepare db, restart fleet. Webpack and ngrok keep running across
 // the restart. PR 4's snapshot/restore logic will plug in between
 // stepStopFleet and stepPrepareDB.
-func (r *engine) runRestart(ctx context.Context, reason string) {
-	if !r.restartMu.TryLock() {
-		// Another rebuild is already running. The watcher's debounce
-		// makes back-to-back triggers very rare, but this guard keeps
-		// two concurrent rebuilds from racing on the fleet proc.
-		return
-	}
-	defer r.restartMu.Unlock()
-
+//
+// Caller must already hold restartMu — HandleTrigger acquires it before
+// spawning the goroutine that calls this.
+func (r *engine) runRestartLocked(ctx context.Context, reason string) {
 	r.emit(rebuildStartedMsg{Reason: reason})
-
 	r.runSequence(ctx, []seqStep{
 		{stepStopFleet, r.stepStopFleet},
 		{stepMakeBuild, r.stepMakeBuild},
