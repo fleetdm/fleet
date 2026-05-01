@@ -189,6 +189,8 @@ type LabelByNameFunc func(ctx context.Context, name string, filter fleet.TeamFil
 
 type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
+type LabelMembershipHostIDsFunc func(ctx context.Context, labelID uint) ([]uint, error)
+
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error)
 
 type LabelsSummaryFunc func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSummary, error)
@@ -1899,6 +1901,8 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
+type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -2148,6 +2152,9 @@ type DataStore struct {
 
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
+
+	LabelMembershipHostIDsFunc        LabelMembershipHostIDsFunc
+	LabelMembershipHostIDsFuncInvoked bool
 
 	ListLabelsFunc        ListLabelsFunc
 	ListLabelsFuncInvoked bool
@@ -4714,6 +4721,9 @@ type DataStore struct {
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc        MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc
 	MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked bool
 
+	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
+	IsAppleEnrollmentRenewalCommandFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -5296,6 +5306,13 @@ func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFi
 	s.LabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.LabelFunc(ctx, lid, teamFilter)
+}
+
+func (s *DataStore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.LabelMembershipHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.LabelMembershipHostIDsFunc(ctx, labelID)
 }
 
 func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
@@ -11281,4 +11298,11 @@ func (s *DataStore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.C
 	s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc(ctx, deviceId)
+}
+
+func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID string, hostUUID string) (bool, error) {
+	s.mu.Lock()
+	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
 }

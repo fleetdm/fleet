@@ -8,7 +8,7 @@ Use this runbook when Claude Code is unavailable (Anthropic outage, account issu
 Before switching tools, rule out a local issue:
 
 1. Check [status.anthropic.com](https://status.anthropic.com).
-2. Check the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel — someone may have already reported it.
+2. Check the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel. Someone may have already reported it.
 3. If it looks auth-related, try `claude` with a fresh login.
 
 
@@ -26,7 +26,7 @@ Pick the path that matches how you normally use Claude Code.
 
 ### If you use Claude Code in the terminal
 
-Use the GitHub Copilot CLI — it's the closest match for an agentic terminal workflow.
+Use the GitHub Copilot CLI. It's the closest match for an agentic terminal workflow.
 
 ```
 copilot
@@ -41,7 +41,7 @@ Use Copilot Chat in **Agent** mode:
 - **VS Code**: `Cmd+Ctrl+I` opens Copilot Chat. Switch the dropdown from Ask to Agent.
 - **JetBrains**: open the Copilot Chat tool window and switch to Agent.
 
-Plain inline completion or Ask mode won't cover Claude Code-style multi-file work — make sure you're in Agent mode.
+Plain inline completion or Ask mode won't cover Claude Code-style multi-file work, so make sure you're in Agent mode.
 
 
 ## After the outage

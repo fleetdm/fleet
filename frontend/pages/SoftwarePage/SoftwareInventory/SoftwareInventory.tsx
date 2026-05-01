@@ -1,5 +1,5 @@
 /**
- software/titles Software tab
+ software/inventory Software tab
  software/versions Software tab (version toggle on)
  */
 import React from "react";
@@ -18,14 +18,10 @@ import softwareAPI, {
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 
-import SoftwareTable from "./SoftwareTable";
-import {
-  ISoftwareDropdownFilterVal,
-  ISoftwareVulnFilters,
-  buildSoftwareFilterQueryParams,
-} from "./SoftwareTable/helpers";
+import SoftwareInventoryTable from "./SoftwareInventoryTable";
+import { ISoftwareVulnFilters } from "./SoftwareInventoryTable/helpers";
 
-const baseClass = "software-titles";
+const baseClass = "software-inventory";
 
 const DATA_STALE_TIME = 30000;
 const QUERY_OPTIONS = {
@@ -33,33 +29,31 @@ const QUERY_OPTIONS = {
   staleTime: DATA_STALE_TIME,
 };
 
-interface ISoftwareTitlesProps {
+interface ISoftwareInventoryProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  softwareFilter: ISoftwareDropdownFilterVal;
   vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
   onAddFiltersClick: () => void;
 }
 
-const SoftwareTitles = ({
+const SoftwareInventory = ({
   router,
   isSoftwareEnabled,
   query,
   perPage,
   orderDirection,
   orderKey,
-  softwareFilter,
   vulnFilters,
   currentPage,
   teamId,
   onAddFiltersClick,
-}: ISoftwareTitlesProps) => {
+}: ISoftwareInventoryProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
   // for Titles view, request to get software data
@@ -84,14 +78,13 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         ...vulnFilters,
-        ...buildSoftwareFilterQueryParams(softwareFilter),
       },
     ],
     ({ queryKey: [queryKey] }) =>
       softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
     {
       ...QUERY_OPTIONS,
-      enabled: location.pathname === PATHS.SOFTWARE_TITLES,
+      enabled: location.pathname === PATHS.SOFTWARE_INVENTORY,
     }
   );
 
@@ -186,7 +179,7 @@ const SoftwareTitles = ({
 
   return (
     <div className={baseClass}>
-      <SoftwareTable
+      <SoftwareInventoryTable
         router={router}
         data={showVersions ? versionsData : titlesData}
         showVersions={showVersions}
@@ -196,7 +189,6 @@ const SoftwareTitles = ({
         perPage={perPage}
         orderDirection={orderDirection}
         orderKey={orderKey}
-        softwareFilter={softwareFilter}
         currentPage={currentPage}
         teamId={teamId}
         isLoading={
@@ -209,4 +201,4 @@ const SoftwareTitles = ({
   );
 };
 
-export default SoftwareTitles;
+export default SoftwareInventory;
