@@ -40,7 +40,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-32283](https://nvd.nist.gov/vuln/detail/CVE-2026-32283)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.84.1 when it's available.
+- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.84.2+ when it's available.
 - **Products:** `fleet`,`pkg:golang/stdlib`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 15:37:36
@@ -48,7 +48,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 ### [CVE-2026-32281](https://nvd.nist.gov/vuln/detail/CVE-2026-32281)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.84.1+ when it's available.
+- **Status notes:** Fleet connects using TLS to a strict set of URLs (e.g. for vulnerability scanning, Apple VPP features, Google/Android APIs, etc.). Exploiting this vulnerability requires a Fleet administrator to control URLs Fleet connects to (e.g. webhook URLs). This, combined with the fact that the vulnerabilities are DoS (do not affect data confidentiality) we consider this report to be MEDIUM instead of HIGH impact. Nonetheless, we advise upgrading to v4.84.2+ when it's available.
 - **Products:** `fleet`,`pkg:golang/stdlib`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 15:37:25

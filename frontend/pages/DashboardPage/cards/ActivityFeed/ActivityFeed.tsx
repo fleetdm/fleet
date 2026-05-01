@@ -34,6 +34,9 @@ import SoftwareUninstallDetailsModal, {
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -135,6 +138,10 @@ const ActivityFeed = ({
     appStoreDetails,
     setAppStoreDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -284,6 +291,13 @@ const ActivityFeed = ({
             details?.batch_execution_id || ""
           )
         );
+        break;
+      case ActivityType.FailedEnrollmentProfileRenewal:
+        setEnrollmentProfileFailedDetails({
+          command: {
+            command_uuid: details?.command_uuid || "",
+          },
+        });
         break;
       default:
         break;
@@ -438,6 +452,12 @@ const ActivityFeed = ({
         <AppStoreDetailsModal
           details={appStoreDetails}
           onCancel={() => setAppStoreDetails(null)}
+        />
+      )}
+      {enrollmentProfileFailedDetails && (
+        <FailedEnrollmentProfileModal
+          command={enrollmentProfileFailedDetails.command}
+          onDone={() => setEnrollmentProfileFailedDetails(null)}
         />
       )}
     </div>
