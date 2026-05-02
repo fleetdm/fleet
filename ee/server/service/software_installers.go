@@ -2241,6 +2241,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			if err != nil {
 				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
 			}
+			if len(versions) == 0 {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
 
 			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
 			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
