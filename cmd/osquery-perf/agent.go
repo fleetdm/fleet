@@ -548,6 +548,38 @@ type agent struct {
 	entraIDDeviceID          string
 	entraIDUserPrincipalName string
 	installedAdamIDs         []int
+
+	// unknownNodeKeyProb is the per-tick probability of issuing one extra
+	// probe request with a bogus key, to exercise the host-cache
+	// negative-cache plug without inducing real auth failures from real
+	// hosts. Each probe is dispatched to either the osquery side or the orbit side
+	// based on orbitProb. Default 0.0 (disabled) so existing test profiles are
+	// unaffected.
+	unknownNodeKeyProb float64
+
+	// orbitProb is captured per-agent so the probe dispatcher can split
+	// traffic between the two negative-cache families using the same
+	// distribution that decides whether real agents enroll as orbit hosts.
+	orbitProb float64
+}
+
+// bogusNodeKeyPool / bogusOrbitNodeKeyPool are small, process-wide sets of
+// randomly-generated bogus keys shared across all agents. Populated by main
+// only when -unknown_nodekey_prob > 0; otherwise left nil so the default run
+// has no overhead. Pools are intentionally small so multiple agents reuse the
+// same bogus key within the cache's 5s negative-TTL, driving
+// result=negative_hit traffic in addition to result=miss.
+var (
+	bogusNodeKeyPool      []string
+	bogusOrbitNodeKeyPool []string
+)
+
+func makeBogusKeyPool(size int) []string {
+	pool := make([]string, size)
+	for i := range pool {
+		pool[i] = randomString(32)
+	}
+	return pool
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -620,6 +652,7 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	unknownNodeKeyProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -724,6 +757,9 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+
+		unknownNodeKeyProb: unknownNodeKeyProb,
+		orbitProb:          orbitProb,
 	}
 
 	// Initialize host identity client
@@ -843,6 +879,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			if a.unknownNodeKeyProb > 0 && rand.Float64() < a.unknownNodeKeyProb {
+				a.probeUnknownNodeKey()
+			}
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
@@ -2377,6 +2416,57 @@ func selectKernels(kernelList []map[string]string) []map[string]string {
 	return kernels
 }
 
+// probeUnknownNodeKey issues one extra request with a random bogus key to
+// exercise the host-cache negative-cache plug. Fleet's auth path runs
+// LoadHostByNodeKey / LoadHostByOrbitNodeKey before authentication completes,
+// so a bogus key still walks the cache: first hit → miss → DB → NotFound →
+// {nk,onk}_miss:<bogus> set; subsequent hits within the 5s negative-TTL →
+// negative_hit. The 401 response is intentionally ignored.
+//
+// The probe targets the osquery family (/api/osquery/distributed/read with a
+// node_key) or the orbit family (/api/fleet/orbit/config with an
+// orbit_node_key) using the same orbitProb distribution that decides whether
+// real agents enroll as orbit hosts. With orbit_prob=0 only the osquery family
+// is probed; with orbit_prob=1 only the orbit family; with 0.5 the traffic
+// splits evenly.
+func (a *agent) probeUnknownNodeKey() {
+	if a.orbitProb > 0 && rand.Float64() < a.orbitProb {
+		a.probeUnknownOrbitNodeKey()
+		return
+	}
+	a.probeUnknownOsqueryNodeKey()
+}
+
+func (a *agent) probeUnknownOsqueryNodeKey() {
+	bogus := bogusNodeKeyPool[rand.Intn(len(bogusNodeKeyPool))]
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read",
+		bytes.NewReader([]byte(`{"node_key": "`+bogus+`"}`)))
+	if err != nil {
+		return
+	}
+	request.Header.Add("Content-type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return
+	}
+	response.Body.Close()
+}
+
+func (a *agent) probeUnknownOrbitNodeKey() {
+	bogus := bogusOrbitNodeKeyPool[rand.Intn(len(bogusOrbitNodeKeyPool))]
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/fleet/orbit/config",
+		bytes.NewReader([]byte(`{"orbit_node_key": "`+bogus+`"}`)))
+	if err != nil {
+		return
+	}
+	request.Header.Add("Content-type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return
+	}
+	response.Body.Close()
+}
+
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
 	if err != nil {
@@ -3740,6 +3830,7 @@ func main() {
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+		unknownNodeKeyProb          = flag.Float64("unknown_nodekey_prob", 0.0, "Per-tick probability of issuing an extra request with a random unknown node_key, to exercise the Redis host-cache negative-cache plug. The probe targets /api/osquery/distributed/read or /api/fleet/orbit/config, split using orbit_prob (orbit_prob=0 → osquery only; orbit_prob=1 → orbit only). Bogus keys come from process-wide pools sized so concurrent agents reuse them within the 5s negative-TTL. [0, 1]")
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
@@ -3769,6 +3860,14 @@ func main() {
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	// Generate the bogus-key pools only when probing is requested. Pool size
+	// is intentionally small so concurrent agents reuse the same key within
+	// the cache's 5s negative-TTL.
+	if *unknownNodeKeyProb > 0 {
+		bogusNodeKeyPool = makeBogusKeyPool(10)
+		bogusOrbitNodeKeyPool = makeBogusKeyPool(10)
+	}
 
 	// Load software from database if path provided. macOS / Windows / Ubuntu
 	// have embedded fallback fixtures, and RHEL kernels are embedded too — the
@@ -3980,6 +4079,7 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*unknownNodeKeyProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
