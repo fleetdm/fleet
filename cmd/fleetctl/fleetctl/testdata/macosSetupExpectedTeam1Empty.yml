@@ -10,8 +10,8 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
       historical_data:
-        uptime: false
-        vulnerabilities: false
+        uptime: true
+        vulnerabilities: true
     integrations:
       google_calendar: null
       conditional_access_enabled: null
@@ -68,8 +68,8 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
       historical_data:
-        uptime: false
-        vulnerabilities: false
+        uptime: true
+        vulnerabilities: true
     integrations:
       google_calendar: null
       conditional_access_enabled: null

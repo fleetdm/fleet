@@ -45,8 +45,8 @@
       "enable_host_users": true,
       "enable_software_inventory": false,
       "historical_data": {
-        "uptime": false,
-        "vulnerabilities": false
+        "uptime": true,
+        "vulnerabilities": true
       }
     },
     "fleet_desktop": {

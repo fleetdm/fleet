@@ -136,8 +136,8 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
       historical_data:
-        uptime: false
-        vulnerabilities: false
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
@@ -195,8 +195,8 @@ spec:
       enable_host_users: false
       enable_software_inventory: false
       historical_data:
-        uptime: false
-        vulnerabilities: false
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: true
       host_expiry_window: 15
