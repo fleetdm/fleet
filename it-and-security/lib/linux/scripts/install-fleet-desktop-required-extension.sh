@@ -124,7 +124,11 @@ if [ "$extension_installed" = false ]; then
 		fi
 
 		extensions_dir="/home/$username/.local/share/gnome-shell/extensions"
-		tarball_url="https://github.com/ubuntu/gnome-shell-extension-appindicator/archive/refs/heads/master.tar.gz"
+		# Pinned to ubuntu/gnome-shell-extension-appindicator tag v64
+		# (commit below). Immutable archive URL + sha256 verify before extract.
+		appindicator_upstream_commit="c934adc6c97363b8e6bb161ca8d1ac62d1da3d63"
+		appindicator_tarball_sha256="c9e3997abb4d15dd0320b094f64351070f8c156f0eeabf636a55121022b95824"
+		tarball_url="https://github.com/ubuntu/gnome-shell-extension-appindicator/archive/${appindicator_upstream_commit}.tar.gz"
 		tmp_dir=$(mktemp -d /tmp/fleet-appindicator.XXXXXX)
 		tarball="$tmp_dir/extension.tar.gz"
 
@@ -142,7 +146,24 @@ if [ "$extension_installed" = false ]; then
 			fi
 		fi
 
+		tarball_ok=false
 		if [ "$fetched" = true ] && [ -s "$tarball" ]; then
+			actual_sha256=""
+			if command -v sha256sum >/dev/null 2>&1; then
+				actual_sha256=$(sha256sum "$tarball" | awk '{print $1}')
+			elif command -v shasum >/dev/null 2>&1; then
+				actual_sha256=$(shasum -a 256 "$tarball" | awk '{print $1}')
+			fi
+			if [ -z "$actual_sha256" ]; then
+				echo "install-fleet-desktop-required-extension: sha256sum/shasum not found; refusing unverified extension tarball" >&2
+			elif [ "$actual_sha256" != "$appindicator_tarball_sha256" ]; then
+				echo "install-fleet-desktop-required-extension: extension tarball sha256 mismatch (expected ${appindicator_tarball_sha256}, got ${actual_sha256})" >&2
+			else
+				tarball_ok=true
+			fi
+		fi
+
+		if [ "$tarball_ok" = true ]; then
 			# tar isn't part of a minimal openSUSE Leap 16 install, so pull it
 			# in via zypper if it's missing. We're already running as root here
 			# (this whole branch runs from the root-detached script invocation
@@ -153,11 +174,11 @@ if [ "$extension_installed" = false ]; then
 			fi
 
 			if command -v tar >/dev/null 2>&1; then
-				sudo -u $username -H mkdir -p "$extensions_dir"
+				sudo -u "$username" -H mkdir -p "$extensions_dir"
 				# Extract into a staging dir under our root-owned tmp_dir, then
 				# copy the contents into the user's UUID-named extension path
 				# and hand ownership to the user. We do the copy as root rather
-				# than `sudo -u $username` because mktemp's tmp_dir is mode 700
+				# than `sudo -u "$username"` because mktemp's tmp_dir is mode 700
 				# owned by root, which the user can't traverse.
 				staging="$tmp_dir/staging"
 				mkdir -p "$staging"
@@ -166,7 +187,7 @@ if [ "$extension_installed" = false ]; then
 					cp -r "$staging/." "$extension_path/"
 					chown -R "$username":"$username" "$extension_path"
 					if [ -d "$extension_path/schemas" ] && command -v glib-compile-schemas >/dev/null 2>&1; then
-						sudo -u $username -H glib-compile-schemas "$extension_path/schemas/"
+						sudo -u "$username" -H glib-compile-schemas "$extension_path/schemas/"
 					fi
 				fi
 			fi
@@ -175,16 +196,22 @@ if [ "$extension_installed" = false ]; then
 		rm -rf "$tmp_dir"
 	else
 		# Other distributions: prompt the user via gnome-shell's
-		# InstallRemoteExtension and wait indefinitely for them to accept.
-		# This is the previously QA'd behavior on Fedora / Debian / Ubuntu /
-		# openSUSE Tumbleweed.
+		# InstallRemoteExtension and poll for metadata.json. GNOME does not
+		# expose a small, portable D-Bus completion signal for this flow from
+		# shell, so we poll with the same 90s ceiling documented for the Leap
+		# dead-end path (user dismisses prompt / install fails → no hang).
 		run_as_user gdbus call --session \
 			--dest org.gnome.Shell.Extensions \
 			--object-path /org/gnome/Shell/Extensions \
 			--method org.gnome.Shell.Extensions.InstallRemoteExtension \
 			"$extension_name"
 
+		wait_metadata_deadline=$((SECONDS + 90))
 		while [ ! -f "$extension_metadata" ]; do
+			if [ "$SECONDS" -ge "$wait_metadata_deadline" ]; then
+				echo "install-fleet-desktop-required-extension: timed out after 90s waiting for ${extension_metadata} (user may have dismissed the install prompt or the install failed)" >&2
+				exit 1
+			fi
 			sleep 1
 		done
 
