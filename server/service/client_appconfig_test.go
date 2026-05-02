@@ -143,8 +143,8 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 
 	t.Run("both modes set are processed independently", func(t *testing.T) {
 		os := orgSettings(map[string]any{
-			"org_logo_path_dark_mode":  "logo.png",
-			"org_logo_url_light_mode":  "https://example.com/light.png",
+			"org_logo_path_dark_mode": "logo.png",
+			"org_logo_url_light_mode": "https://example.com/light.png",
 		})
 		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
 			OrgLogoURLLightMode: "/api/latest/fleet/logo?mode=light", // current is Fleet-hosted

@@ -232,7 +232,6 @@ func looksLikeOrgLogo(b []byte) bool {
 	return len(b) >= 12 && bytes.Equal(b[0:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WEBP"))
 }
 
-
 // UploadOrgLogo uploads the file at logoPath as the org logo for the given
 // mode (light or dark) via PUT /api/latest/fleet/logo. The endpoint is
 // multipart/form-data with a single "logo" field. Server-side validation
