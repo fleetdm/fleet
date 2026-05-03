@@ -39,7 +39,6 @@ In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because the
 
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
 
-To hide variable values in the API and UI, you can use Fleet's [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles#gitops) in configuration profiles and managed app configuration (iOS and iPadOS).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="marko-lisica">
