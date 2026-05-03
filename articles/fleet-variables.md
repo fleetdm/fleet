@@ -8,7 +8,7 @@ You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scr
 
 For macOS configuration profiles, you can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
-When the variable's value changes, configuration profiles are automatically resent. Managed app configurtaion is applied on next install or update.
+When the variable's value changes, Fleet automatically resends configuration profiles. For managed app configurations, changes apply on next app install or update.
 
 Built-in variables:
 
