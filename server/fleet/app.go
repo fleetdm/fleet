@@ -289,7 +289,24 @@ type GitOpsConfig struct {
 	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
+// Subset of Appconfig to pull out only the serverURL and the MDM.AppleServerURL
+type AppConfigUrls struct {
+	ServerSettings struct {
+		ServerURL string `json:"server_url"`
+	} `json:"server_settings"`
+	MDM struct {
+		AppleServerURL string `json:"apple_server_url"`
+	} `json:"mdm"`
+}
+
 func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
+}
+
+func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
 	}
@@ -1239,6 +1256,12 @@ type HostExpirySettings struct {
 type ActivityExpirySettings struct {
 	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
 	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+
+	// PreserveHostActivitiesOnReenrollment controls whether existing host
+	// activities, MDM commands, etc. are kept when a managed host re-enrolls.
+	// Defaults to true for upgraded installs (preserves prior behavior) and
+	// false for fresh installs.
+	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
 }
 
 type Features struct {

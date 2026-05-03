@@ -83,9 +83,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
-		if err == sql.ErrNoRows {
-			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
-		} else if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
@@ -185,6 +183,9 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
+
+		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
+		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
 
 		return nil
 	}
@@ -332,6 +333,22 @@ func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context, fleet
 		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
 	}
 	return integration.SetupDone, nil
+}
+
+// gitOpsExceptionsList returns the names of enabled GitOps mode exceptions, in a stable order.
+// Always returns a non-nil slice so the payload serializes as [] when empty.
+func gitOpsExceptionsList(e fleet.GitOpsExceptions) []string {
+	exceptions := make([]string, 0, 3)
+	if e.Labels {
+		exceptions = append(exceptions, "labels")
+	}
+	if e.Software {
+		exceptions = append(exceptions, "software")
+	}
+	if e.Secrets {
+		exceptions = append(exceptions, "secrets")
+	}
+	return exceptions
 }
 
 func (ds *Datastore) conditionalAccessEnabledOnATeam(ctx context.Context, teams []*fleet.Team) (bool, error) {
