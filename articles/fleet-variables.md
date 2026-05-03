@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [managed app configurations](TODO). 
+Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [iOS/iPadOS managed app configurations](https://fleetdm.com/guides/install-app-store-apps#ios-and-ipados-managed-configuration). 
 
 You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
