@@ -2,7 +2,9 @@
 
 _Available in Fleet Premium_
 
-You can use Fleet's built-in variables to incorporate IdP or host vitals into a configuration profiles or managed app configurations for deploying-device specific settings. You can also use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) to define your own key-value pairs. Variables prefixed with `$FLEET_VAR_` will be populated by Fleet when sending profiles or app configuration to the host.
+Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host vitals into [configuration profiles](https://fleetdm.com/guides/custom-os-settings) or [managed app configurations](TODO). 
+
+You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
 For macOS configuration profiles, you can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
