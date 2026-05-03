@@ -92,7 +92,9 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 </plist>
 ```
 
-> Fleet variables are automatically escaped in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. Special characters outside of Fleet variables must be manually escaped because they have special meanings in XML.
+> The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
+
+> In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. These characters must be manually escaped outside of the variables.
 
 ## Known limitations and issues
 
