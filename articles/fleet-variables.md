@@ -10,7 +10,7 @@ For macOS configuration profiles, you can also use any of Apple's [built-in vari
 
 When the variable's value changes, configuration profiles are automatically resent. Managed app configurtaion is applied on next install or update.
 
-Supported variables are:
+Built-in variables:
 
 | Name | Configuration profiles | Managed app configuration | Description |
 |---|---|---|---|
