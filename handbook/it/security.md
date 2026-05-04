@@ -234,9 +234,25 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **User experience impacts**
 
-* Laptops lock after 20 minutes of inactivity. To voluntarily pause this, a [hot corner](https://support.apple.com/en-mo/guide/mac-help/mchlp3000/mac) can be configured to disable the screen saver. This is useful if you are, for example, watching an online meeting without moving the mouse and want to be sure the laptop will not lock.
+* Laptops lock after 15 minutes of inactivity. On macOS, once the screen saver has started or the display has slept, there is a one-minute grace period before a password is required to unlock; after that minute, a password is required.
+* On macOS, for a **temporary** stretch when you need the display to stay awake (for example watching a meeting without moving the mouse), you can set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners**. While the pointer rests in that corner, the screen saver will not start; normal timeout applies again when you move the pointer away. This is a self-service workaround for short-term needs only — always lock the machine when you step away.
 * Forgotten passwords can be fixed via MDM instead of relying on potentially dangerous hints.
 * Guest accounts are not available.
+
+**Windows hosts**
+
+The same 15-minute inactivity lock is enforced on Fleet-managed Windows hosts via the `LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit` CSP (the MDM equivalent of the GPO "Interactive logon: Machine inactivity limit"). Compliance is verified by the `Windows - Interactive logon screen lock timeout configured` Fleet policy, which requires the timeout to be 15 minutes or less.
+
+**Requesting an exception**
+
+Before requesting a host-wide screen lock **exception** on macOS, use a hot corner set to **Disable Screen Saver** (see above) when you only need a brief break from automatic lock. Label exceptions remove MDM enforcement from the device and require security approval with a business justification and expiration date; prefer hot corners for ordinary short-term situations (presentations, demos, long-running local jobs).
+
+In rare cases (e.g., a kiosk, a host driving a conference room display, or temporary troubleshooting) a host may need to be excluded from the screen lock profile and policy. We use static manual labels for this:
+
+* macOS hosts: [`macOS screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml)
+* Windows hosts: [`Windows screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml)
+
+Each label is referenced by `labels_exclude_any` on both the policy and the configuration profile, so adding a host's Fleet ID to the label removes the profile and excuses the host from the policy in a single change. See the [Exclude a host from a screen lock policy](https://fleetdm.com/handbook/it#exclude-a-host-from-a-screen-lock-policy) procedure in the IT handbook for the approval and rollout steps.
 
 
 #### iCloud

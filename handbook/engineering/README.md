@@ -96,6 +96,8 @@ If you're assigned a community pull request (PR) for review, it is important to 
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
+If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
+
 Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
 
 **For PRs that change the product:**

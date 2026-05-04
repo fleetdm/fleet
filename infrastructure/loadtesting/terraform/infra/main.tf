@@ -48,12 +48,16 @@ module "loadtest" {
     # VPN
     subnets             = data.terraform_remote_state.shared.outputs.vpc.database_subnets
     allowed_cidr_blocks = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
+    monitoring_interval = 0
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
     }
     db_cluster_parameters = {
       require_secure_transport = "ON"
+    }
+    observability = {
+      database_insights_mode = "standard"
     }
   }
   redis_config = {
@@ -76,6 +80,17 @@ module "loadtest" {
   }
   ecs_cluster = {
     cluster_name = local.customer
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image               = local.fleet_image
