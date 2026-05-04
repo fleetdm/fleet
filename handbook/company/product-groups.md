@@ -235,7 +235,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 > _Goal TBD. Starting point: enable Fleet customers to manage employee-owned (BYOD) devices_
 
-The BYOD working group is the new home for cross-platform BYOD device management. Konstantin moves over from Power to the PC to take ownership of the deliverable, joined by Andrew Mellor (formerly MDM).
+The BYOD working group is the new home for cross-platform BYOD device management. 
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
