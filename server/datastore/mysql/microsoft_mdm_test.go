@@ -4850,7 +4850,7 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 }
 
 // testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that
-// ListMDMWindowsProfilesToRemoveForHosts does not return profiles for hosts
+// ListMDMWindowsProfilesToRemove does not return profiles for hosts
 // whose mdm_windows_enrollments row has been deleted (issue #44369).
 func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -4878,10 +4878,21 @@ func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastor
 		return err
 	})
 
+	wantedHostUUIDs := map[string]struct{}{host1.UUID: {}, host2.UUID: {}}
+	filterToWantedHosts := func(payloads []*fleet.MDMWindowsProfilePayload) []*fleet.MDMWindowsProfilePayload {
+		var out []*fleet.MDMWindowsProfilePayload
+		for _, p := range payloads {
+			if _, ok := wantedHostUUIDs[p.HostUUID]; ok {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+
 	// Sanity check: both hosts should be removal candidates while enrolled.
-	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
+	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemove, 2)
+	require.Len(t, filterToWantedHosts(toRemove), 2)
 
 	// Now delete host1's enrollment to simulate the orphan condition.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -4890,10 +4901,11 @@ func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastor
 	})
 
 	// Only host2 (still enrolled) should be returned; host1 is orphaned.
-	toRemove, err = ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
+	toRemove, err = ds.ListMDMWindowsProfilesToRemove(ctx)
 	require.NoError(t, err)
-	require.Len(t, toRemove, 1)
-	require.Equal(t, host2.UUID, toRemove[0].HostUUID)
+	scoped := filterToWantedHosts(toRemove)
+	require.Len(t, scoped, 1)
+	require.Equal(t, host2.UUID, scoped[0].HostUUID)
 }
 
 // testMDMWindowsInsertCommandSkipsUnenrolledHosts verifies that
