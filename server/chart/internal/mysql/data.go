@@ -22,7 +22,8 @@ const scdUpsertBatch = 200
 
 // scdCleanupBatch caps how many rows CleanupSCDData deletes per statement, so
 // each batch's lock window is short and concurrent writers can interleave.
-const scdCleanupBatch = 1000
+// var (not const) so tests can shrink it to exercise multi-batch behavior.
+var scdCleanupBatch = 1000
 
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
@@ -385,6 +386,7 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 			`DELETE FROM host_scd_data
 			 WHERE valid_to < ?
 			   AND valid_to <> ?
+			 ORDER BY valid_to
 			 LIMIT ?`,
 			cutoff, scdOpenSentinel, scdCleanupBatch)
 		if err != nil {
@@ -394,7 +396,7 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "cleanup SCD data rows affected")
 		}
-		if n < scdCleanupBatch {
+		if n < int64(scdCleanupBatch) {
 			return nil
 		}
 	}

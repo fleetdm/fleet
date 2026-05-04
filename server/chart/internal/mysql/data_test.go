@@ -1,12 +1,16 @@
 package mysql
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/chart/internal/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAggregateBucketAccumulate(t *testing.T) {
@@ -106,4 +110,82 @@ func TestAggregateBucketSnapshotRowClosedExactlyAtBucketEnd(t *testing.T) {
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
 	assert.Equal(t, 2, chart.BlobPopcount(got), "row whose valid_to equals bucketEnd covers bucketEnd-ε")
+}
+
+func TestCleanupSCDData(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, tdb *testutils.TestDB, ds *Datastore)
+	}{
+		{"PreservesOpenAndRecent", testCleanupPreservesOpenAndRecent},
+		{"MultipleBatches", testCleanupMultipleBatches},
+		{"HonorsCtxCancellation", testCleanupHonorsCtxCancellation},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer tdb.TruncateTables(t)
+			c.fn(t, tdb, ds)
+		})
+	}
+}
+
+func testCleanupPreservesOpenAndRecent(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+
+	// Old closed row — should be deleted (valid_to is 40 days ago, retention 30).
+	tdb.InsertSCDRow(t, "cve", "old", now.AddDate(0, 0, -45), now.AddDate(0, 0, -40))
+	// Recent closed row — within retention window, should be preserved.
+	tdb.InsertSCDRow(t, "cve", "recent", now.AddDate(0, 0, -10), now.AddDate(0, 0, -5))
+	// Open row (sentinel valid_to) — must always be preserved.
+	tdb.InsertSCDRow(t, "cve", "open", now.AddDate(0, 0, -45), scdOpenSentinel)
+
+	require.NoError(t, ds.CleanupSCDData(ctx, 30))
+
+	assert.Equal(t, 2, tdb.CountSCDRows(t), "only the old closed row should be deleted")
+
+	var entities []string
+	require.NoError(t, tdb.DB.SelectContext(ctx, &entities, `SELECT entity_id FROM host_scd_data ORDER BY entity_id`))
+	assert.Equal(t, []string{"open", "recent"}, entities)
+}
+
+func testCleanupMultipleBatches(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC()
+
+	// Shrink batch size so we can prove the loop iterates without inserting
+	// thousands of rows.
+	prev := scdCleanupBatch
+	scdCleanupBatch = 3
+	t.Cleanup(func() { scdCleanupBatch = prev })
+
+	// Insert 10 expired closed rows — that's 4 iterations at batch size 3
+	// (3 + 3 + 3 + 1, where the final partial batch terminates the loop).
+	for i := range 10 {
+		validFrom := now.AddDate(0, 0, -45).Add(time.Duration(i) * time.Minute)
+		validTo := now.AddDate(0, 0, -40).Add(time.Duration(i) * time.Minute)
+		tdb.InsertSCDRow(t, "cve", fmt.Sprintf("e%d", i), validFrom, validTo)
+	}
+
+	require.NoError(t, ds.CleanupSCDData(ctx, 30))
+
+	assert.Equal(t, 0, tdb.CountSCDRows(t), "all expired rows should be drained across batches")
+}
+
+func testCleanupHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC()
+
+	// Insert a single expired row so a non-canceled call would have something
+	// to delete — confirms that nothing was removed because of cancellation.
+	tdb.InsertSCDRow(t, "cve", "old", now.AddDate(0, 0, -45), now.AddDate(0, 0, -40))
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := ds.CleanupSCDData(ctx, 30)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 1, tdb.CountSCDRows(t), "no rows should be deleted when ctx was canceled before the first batch")
 }
