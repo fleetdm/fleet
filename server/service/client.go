@@ -803,7 +803,7 @@ func (c *Client) ApplyGroup(
 			if setup.Script.Value != "" {
 				if setup.ManualAgentInstall.Value {
 					return nil, nil, nil, nil, fmt.Errorf(
-						"Couldn't add setup experience script. To add script, first disable macos_manual_agent_install (fleet %q).", k,
+						"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (fleet %q).", k,
 					)
 				}
 				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
@@ -2605,7 +2605,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	if macOSSetup.Script.Value != "" {
 		if macOSSetup.ManualAgentInstall.Value {
 			return nil, nil, errors.New(
-				"Couldn't add setup experience script. To add script, first disable macos_manual_agent_install (unassigned hosts).",
+				"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (unassigned hosts).",
 			)
 		}
 		b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, macOSSetup.Script.Value))
