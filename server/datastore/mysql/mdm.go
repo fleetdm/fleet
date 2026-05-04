@@ -382,6 +382,10 @@ WHERE
 
 	WHERE
 		mwe.host_uuid IN (?)
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results r
+			WHERE r.enrollment_id = wq.enrollment_id AND r.command_uuid = wq.command_uuid
+		)
 
 		%[1]s
 
@@ -3023,14 +3027,6 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
-// renewalFailedRetryBackoff gates how often a permanently-failing managed-cert
-// profile is retried by the renewal cron. Without it, a profile that fails at
-// render time for a non-transient reason (CA deleted, IDP variables missing,
-// premium license downgraded) would loop every cron tick — flip 'failed' →
-// NULL, reconcile re-renders and fails again, status returns to 'failed', repeat.
-// Transient SCEP-server outages still recover within at most this interval.
-const renewalFailedRetryBackoff = 24 * time.Hour
-
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	totalHostCertsToRenew := 0
@@ -3053,29 +3049,20 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				)
 				continue
 			}
-			// This will trigger a resend next time profiles are checked. Restrict to settled
-			// statuses ('verified', 'failed') to avoid re-firing renewal while a previous
-			// delivery is still in flight ('pending', 'verifying') — that would generate a
-			// fresh challenge and InstallProfile command every cron tick for any host that
-			// hasn't yet picked up the renewal (e.g. offline laptop), creating orphan nano
-			// commands and challenge rows hourly. See issue #44111.
-			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IN (?, ?) AND operation_type = ? AND (`
+			// This will trigger a resend next time profiles are checked
+			updateQuery := `UPDATE ` + table + ` SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
 			hostProfileClause := ``
-			values := []any{fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, fleet.MDMOperationTypeInstall}
+			values := []any{fleet.MDMOperationTypeInstall}
 			hostCertsToRenew := []struct {
 				HostUUID       string    `db:"host_uuid"`
 				ProfileUUID    string    `db:"profile_uuid"`
 				NotValidAfter  time.Time `db:"not_valid_after"`
 				ValidityPeriod int       `db:"validity_period"`
 			}{}
-			// Fetch all MDM Managed certificates of the given type that are in a settled
-			// status ('verified' or 'failed') and which
+			// Fetch all MDM Managed certificates of the given type that aren't already queued for
+			// resend(hmap.status=null) and which
 			// * Have a validity period > 30 days and are expiring in the next 30 days
 			// * Have a validity period <= 30 days and are within half the validity period of expiration
-			// 'failed' rows are gated on hp.updated_at being older than renewalFailedRetryBackoff to
-			// avoid hot-looping permanent failures (see comment on the const). 'verified' rows have
-			// no such gate; HAVING IS NOT NULL excludes in-flight renewals via the NULL'd
-			// hmmc.not_valid_* synchronization mechanism.
 			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
 			// we don't actually need them for the update logic.
 			err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
@@ -3090,17 +3077,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		`+table+` hp
 		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
 	WHERE
-		hmmc.type = ?
-		AND hp.operation_type = ?
-		AND (
-			hp.status = ?
-			OR (hp.status = ? AND hp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND))
-		)
+		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed, int(renewalFailedRetryBackoff.Seconds()), limit)
+	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}
