@@ -294,6 +294,11 @@ func testManagedLocalAccountInitiateRotation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	hostUUID := newManagedLocalAccountTestHost(t, ds, "init0002")
 
+	// Pre-seed auto_rotate_at via a view so we can confirm Initiate clears it.
+	rotateAt, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.NoError(t, err)
+	require.False(t, rotateAt.IsZero())
+
 	// Happy path
 	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "new-pending-1", "rot-cmd-1"))
 
@@ -302,6 +307,9 @@ func testManagedLocalAccountInitiateRotation(t *testing.T, ds *Datastore) {
 	assert.True(t, status.PendingRotation)
 	require.NotNil(t, status.Status)
 	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	// auto_rotate_at must be cleared once the command is staged so the API stops
+	// surfacing a stale rotation hint while the device ack is in flight.
+	assert.Nil(t, status.AutoRotateAt)
 
 	// Second initiate while one is pending → typed error.
 	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "nope", "rot-cmd-2")
