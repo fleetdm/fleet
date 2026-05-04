@@ -1,3 +1,25 @@
+## Fleet 4.84.2 (May 01, 2026)
+
+### Bug fixes
+
+- Fixed filtering in `/api/v1/fleet/labels/:id/hosts` endpoint.
+- Fixed a dead SQL condition in `hostVPPInstalls` that was misleading but harmless: Android VPP apps never produce `nano_command_results` entries (they use Google's Android Management API, not nanoMDM), so the previous `(hvsi.platform != 'android' OR ncr.id IS NULL)` guard was a tautology. Replaced with a clarifying comment.
+- Fleet UI > Settings > Variables: Fixed access to not allow adding custom variable while in gitops mode both in the empty state and when a variable already exists
+- Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.
+- Fixed a bug where host environment variables in script-only packages would cause gitops to fail
+- Updated go to 1.26.2
+- Fixed an issue where trying to wipe a device after its certificate was renewed could fail due to a missing bootstrap token. _Note: The device might still have wiped_
+- Fixed a bug where duplicate software installers for linux could be added.
+- Improved validation for invalid `order_key` values in `/api/v1/fleet/commands`, `/api/v1/fleet/mdm/commands` and `/api/v1/fleet/mdm/apple/commands` endpoints.
+- Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.
+
+## Fleet 4.84.1 (Apr 30, 2026)
+
+### Bug fixes
+
+- Fixed Fleet's Docker image failing to start in Kubernetes with an `unknown userid` error, triggered by a fleetctl dependency side effect.
+- Use Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
+
 ## Fleet 4.84.0 (Apr 24, 2026)
 
 ### IT Admins

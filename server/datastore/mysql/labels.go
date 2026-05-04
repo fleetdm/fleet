@@ -753,6 +753,18 @@ func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamF
 	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
+// LabelMembershipHostIDs returns every host_id row in label_membership for the
+// given label ID. Unlike Label, it applies no team filter on the host side, so
+// it returns the true membership including hosts on teams the caller can't see.
+func (ds *Datastore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error) {
+	var hostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT host_id FROM label_membership WHERE label_id = ?`, labelID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting label membership host IDs")
+	}
+	return hostIDs, nil
+}
+
 func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.LabelWithTeamName, []uint, error) {
 	stmt := fmt.Sprintf(`
 		SELECT

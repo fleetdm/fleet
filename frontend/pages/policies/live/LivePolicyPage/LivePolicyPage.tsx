@@ -60,6 +60,7 @@ const LivePolicyPage = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsIncludeAll,
     setLastEditedQueryLabelsExcludeAny,
   } = useContext(PolicyContext);
 
@@ -110,6 +111,9 @@ const LivePolicyPage = ({
         setLastEditedQueryPlatform(returnedPolicy.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedPolicy.labels_include_any || []
+        );
+        setLastEditedQueryLabelsIncludeAll(
+          returnedPolicy.labels_include_all || []
         );
         setLastEditedQueryLabelsExcludeAny(
           returnedPolicy.labels_exclude_any || []

@@ -608,7 +608,7 @@ WHERE
 	}
 
 	for _, upcomingExecution := range upcomingExecutions {
-		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
+		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 		}
 	}
@@ -2711,7 +2711,7 @@ WHERE
 			}
 
 			for _, host := range toCancel {
-				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID); err != nil {
+				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 				}
 			}

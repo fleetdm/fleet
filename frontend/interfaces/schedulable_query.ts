@@ -34,6 +34,7 @@ export interface ISchedulableQuery {
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
   labels_include_any?: ILabelQuery[];
+  labels_include_all?: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
@@ -115,6 +116,7 @@ export interface ICreateQueryRequestBody {
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
   labels_include_any?: string[];
+  labels_include_all?: string[];
 }
 
 // response is ISchedulableQuery
