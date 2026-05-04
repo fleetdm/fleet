@@ -398,21 +398,10 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
-      - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any: # Available in Fleet Premium
-          - Macs on Sequoia
-      - path: ../lib/macos-profile2.json
-        labels_include_all: # Available in Fleet Premium
-          - Macs on Sonoma
-      - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-        labels_include_any: # Available in Fleet Premium
-          - Engineering
-          - Product
-      - paths: ../lib/configuration-profiles/*.json
+      - paths: ../lib/macos/profiles/*.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows-profile.xml
-      - paths: ../lib/windows/profiles/*.xml  # Glob pattern to include all .xml files in directory
+      - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
   android_settings:
