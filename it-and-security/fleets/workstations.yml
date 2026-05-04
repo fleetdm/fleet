@@ -117,6 +117,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-launchagent.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop.app installed"
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
