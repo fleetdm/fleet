@@ -242,8 +242,22 @@ func testCarvesList(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, carves, 2)
 
-	for _, key := range []string{"id", "host_id", "created_at", "name", "block_count", "carve_size"} {
-		t.Run("order_"+key, func(t *testing.T) {
+	for _, key := range []string{
+		"id",
+		"host_id",
+		"created_at",
+		"name",
+		"block_count",
+		"block_size",
+		"carve_size",
+		"carve_id",
+		"request_id",
+		"session_id",
+		"expired",
+		"max_block",
+		"error",
+	} {
+		t.Run("allowed order_"+key, func(t *testing.T) {
 			result, err := ds.ListCarves(context.Background(), fleet.CarveListOptions{
 				Expired:     true,
 				ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10},

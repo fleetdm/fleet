@@ -25,6 +25,7 @@ var carvesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"session_id":  "session_id",
 	"expired":     "expired",
 	"max_block":   "max_block",
+	"error":       "error",
 }
 
 func upsertCarveDB(ctx context.Context, writer sqlx.ExecerContext, metadata *fleet.CarveMetadata) (int64, error) {
