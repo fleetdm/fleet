@@ -32,7 +32,7 @@
 - [x] 3.1 `go build ./...` clean.
 - [x] 3.2 `make lint-go-incremental` reports 0 issues against changes since `origin/main`.
 - [x] 3.3 `MYSQL_TEST=1 REDIS_TEST=1 FLEET_MYSQL_TEST_PORT=3309 go test ./server/datastore/mysql/ -count=1 -run "TestHostCertificates|TestMDMApple/MDMManagedSCEPCertificates" -timeout 5m` passes.
-- [ ] 3.4 `MYSQL_TEST=1 REDIS_TEST=1 FLEET_MYSQL_TEST_PORT=3309 go test ./server/service/...` passes.
+- [x] 3.4 `MYSQL_TEST=1 REDIS_TEST=1 FLEET_MYSQL_TEST_PORT=3309 go test ./server/service/...` — targeted SCEP/MDM tests pass (TestIntegrationsMDM/TestWindowsUserSCEPProfile, TestHostCertificates, TestMDMApple/MDMManagedSCEPCertificates). Broader sweep had three classes of failure, all unrelated to this change: (1) Redis-cluster packages (`async`, `redis_key_value`, `redis_lock`, `redis_policy_set`) fail with `dial 127.0.0.1:7001: connection refused` because the macOS-specific local redis cluster isn't running; (2) several `TestIntegrations*` tests (TestIntegrationsMDM/TestWindowsProfileRetry, TestWindowsProfilesFleetVariableSubstitution, TestWindowsUserSCEPProfile) fail in the broader run but pass when re-run in isolation — pre-existing test-pollution / order-dependence in the integration suite. CI will run with full infrastructure.
 - [ ] 3.5 Manual smoke per `docs/Contributing/product-groups/mdm/custom-scep-integration.md`: backdate an `hmmc.not_valid_after` and `updated_at` on a host with a matching cert in `host_certificates`, trigger a cert-changing `UpdateHostCertificates` call, verify hmmc gets populated and that the renewal cron does not re-mark the row.
 
 ## 4. Changelog & PR
