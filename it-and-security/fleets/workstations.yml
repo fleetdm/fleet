@@ -91,9 +91,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop.app installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
