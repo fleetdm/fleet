@@ -300,5 +300,90 @@ describe("CommandPalette helpers", () => {
       darkMode?.onAction?.();
       expect(mockToggle).toHaveBeenCalled();
     });
+
+    it("hides software add, script, and variable actions on All fleets", () => {
+      const items = buildCommandItems(BASE_CONTEXT);
+      const ids = items.map((i) => i.id);
+
+      expect(ids).not.toContain("add-fleet-maintained-app");
+      expect(ids).not.toContain("add-vpp-app");
+      expect(ids).not.toContain("add-android-app-store-app");
+      expect(ids).not.toContain("add-custom-package");
+      expect(ids).not.toContain("add-script");
+      expect(ids).not.toContain("add-custom-variable");
+    });
+
+    it("shows software add, script, and variable actions on Unassigned", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
+      const ids = items.map((i) => i.id);
+
+      expect(ids).toContain("add-fleet-maintained-app");
+      expect(ids).toContain("add-vpp-app");
+      expect(ids).toContain("add-android-app-store-app");
+      expect(ids).toContain("add-custom-package");
+      expect(ids).toContain("add-script");
+      expect(ids).toContain("add-custom-variable");
+    });
+
+    it("hides Users page for non-admins", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        canAccessSettings: false,
+        canManageSoftwareAutomations: false,
+      });
+
+      expect(items.map((i) => i.id)).not.toContain("users-page");
+    });
+
+    it("shows Software library on Unassigned but not All fleets", () => {
+      const allFleetsItems = buildCommandItems(BASE_CONTEXT);
+      expect(allFleetsItems.map((i) => i.id)).not.toContain("software-library");
+
+      const unassignedItems = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
+      expect(unassignedItems.map((i) => i.id)).toContain("software-library");
+    });
+
+    it("includes Run live report and Run live policy for writers", () => {
+      const items = buildCommandItems(BASE_CONTEXT);
+      const ids = items.map((i) => i.id);
+
+      expect(ids).toContain("run-live-report");
+      expect(ids).toContain("run-live-policy");
+    });
+
+    it("excludes Run live report and Run live policy for observers", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        canWrite: false,
+        canAccessControls: false,
+        canAccessSettings: false,
+        canManagePolicyAutomations: false,
+        canManageSoftwareAutomations: false,
+      });
+
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("run-live-report");
+      expect(ids).not.toContain("run-live-policy");
+    });
+
+    it("shows Create fleet only for admins", () => {
+      const adminItems = buildCommandItems(BASE_CONTEXT);
+      expect(adminItems.map((i) => i.id)).toContain("create-fleet");
+
+      const nonAdminItems = buildCommandItems({
+        ...BASE_CONTEXT,
+        canAccessSettings: false,
+        canManageSoftwareAutomations: false,
+      });
+      expect(nonAdminItems.map((i) => i.id)).not.toContain("create-fleet");
+    });
   });
 });

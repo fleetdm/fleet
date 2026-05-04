@@ -357,7 +357,7 @@ export const buildCommandItems = (
       label: "Software inventory",
       group: "Software",
       path: withTeamId(paths.SOFTWARE_INVENTORY),
-      keywords: ["installed", "inventory", "titles", "detected"],
+      keywords: ["installed", "inventory", "software titles", "detected"],
       subItems: [
         {
           id: "software-versions",
@@ -373,25 +373,6 @@ export const buildCommandItems = (
         },
       ],
     },
-    // Library is available for any team including unassigned, but not "All fleets"
-    ...(isPremiumTier && currentTeam?.id !== -1
-      ? [
-          {
-            id: "software-library",
-            label: "Software library",
-            group: "Software",
-            path: withTeamId(paths.SOFTWARE_LIBRARY),
-            keywords: [
-              "managed",
-              "installable",
-              "packages",
-              "self-service",
-              "library",
-            ],
-            teamName,
-          },
-        ]
-      : []),
     {
       id: "software-os",
       label: "Operating systems",
@@ -415,6 +396,25 @@ export const buildCommandItems = (
       path: withTeamId(paths.SOFTWARE_VULNERABILITIES),
       keywords: ["cve", "cvss", "exploit", "vulnerable software"],
     },
+    // Library is available for any team including unassigned, but not "All fleets"
+    ...(isPremiumTier && hasTeamOrUnassigned
+      ? [
+          {
+            id: "software-library",
+            label: "Software library",
+            group: "Software",
+            path: withTeamId(paths.SOFTWARE_LIBRARY),
+            keywords: [
+              "managed",
+              "installable",
+              "packages",
+              "self-service",
+              "library",
+            ],
+            teamName,
+          },
+        ]
+      : []),
 
     // Settings — global admins only
     ...(canAccessSettings
