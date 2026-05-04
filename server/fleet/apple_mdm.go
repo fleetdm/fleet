@@ -1203,6 +1203,11 @@ type MDMManagedCertificate struct {
 	Type                 CAConfigAssetType `db:"type"`
 	CAName               string            `db:"ca_name"`
 	Serial               *string           `db:"serial"`
+	// UpdatedAt is the last time the row in host_mdm_managed_certificates
+	// was touched. Used by the matcher in UpdateHostCertificates to
+	// distinguish in-flight renewals (recently NULL'd) from stuck rows
+	// (NULL longer than the grace window).
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {

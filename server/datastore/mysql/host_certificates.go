@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,6 +23,30 @@ var hostCertificateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"not_valid_after": "hc.not_valid_after",
 	"common_name":     "hc.common_name",
 }
+
+// isSettledStatus reports whether a per-platform profile delivery status is
+// in a terminal ('verified' or 'failed') state. A NULL pointer (no row in the
+// platform-specific table) is treated as not-settled. Used by the matcher in
+// UpdateHostCertificates to decide whether a stuck-NULL hmmc row is a
+// candidate for wide-pool recovery.
+func isSettledStatus(s *fleet.MDMDeliveryStatus) bool {
+	if s == nil {
+		return false
+	}
+	return *s == fleet.MDMDeliveryVerified || *s == fleet.MDMDeliveryFailed
+}
+
+// hmmcBackfillGrace is the in-flight grace window after which a NULL
+// host_mdm_managed_certificates row is considered stuck and eligible for the
+// matcher's wide-pool recovery path. Within the grace window, a NULL row is
+// treated as a renewal in flight (reconcile just NULL'd the validity columns
+// and is awaiting the new cert) — the matcher must not match against the
+// pre-renewal cert that may still be present in host_certificates. Beyond
+// the grace window, the matcher widens its search to incomingBySHA1 to
+// recover hmmc rows that were never repopulated by the original toInsert
+// match (replica lag, transaction race, cert landed in existingBySHA1
+// instead of toInsert). See issue #44111.
+const hmmcBackfillGrace = 4 * time.Hour
 
 func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
@@ -86,6 +109,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	}
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
+	toInsertBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(incomingBySHA1))
 	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
@@ -112,43 +136,129 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
+			toInsertBySHA1[sha1] = incoming
 		}
 	}
 
-	// Check if any of the certs to insert are managed by Fleet; if so, update the associated host_mdm_managed_certificates rows
+	// Check if any of the certs to insert are managed by Fleet; if so, update
+	// the associated host_mdm_managed_certificates rows.
+	//
+	// Each hmmc row picks one of two cert pools to search:
+	//   - Steady state (hmmc has values, OR is NULL but freshly NULL'd within
+	//     hmmcBackfillGrace): iterate toInsertBySHA1 only — same semantics as
+	//     the original matcher, react only to NEW certs in this report. This
+	//     prevents matching against a pre-renewal cert still in
+	//     host_certificates while a renewal is in flight.
+	//   - Stuck (hmmc.not_valid_* is NULL AND updated_at is older than
+	//     hmmcBackfillGrace): widen to incomingBySHA1 (full reported
+	//     inventory) so a renewed cert that was missed by an earlier match
+	//     (replica lag, race, cert was in existingBySHA1) gets a second
+	//     chance. Safe because the device is currently online and reporting
+	//     fresh state (we're inside UpdateHostCertificates).
+	//
+	// Per hmmc row we pick the most recently issued currently-valid cert,
+	// then apply a monotonic-forward predicate so a stale match cannot
+	// regress already-fresh hmmc data. See issue #44111.
 	hostMDMManagedCertsToUpdate := make([]*fleet.MDMManagedCertificate, 0, len(toInsert))
 	if len(toInsert) > 0 {
-		hostMDMManagedCerts, err := ds.ListHostMDMManagedCertificates(ctx, hostUUID)
-		if err != nil {
+		// Single SELECT joining hmmc to the per-platform profile tables so we
+		// know each row's delivery status without an extra round-trip. The
+		// status is needed by the stuck-recovery branch to avoid widening the
+		// match pool while a renewal is still legitimately in flight
+		// ('pending'/'verifying' must keep the original toInsert-only
+		// semantics).
+		type hmmcRow struct {
+			fleet.MDMManagedCertificate
+			AppleStatus   *fleet.MDMDeliveryStatus `db:"apple_status"`
+			WindowsStatus *fleet.MDMDeliveryStatus `db:"windows_status"`
+		}
+		var hostMDMManagedCerts []*hmmcRow
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostMDMManagedCerts, `
+			SELECT
+				hmmc.profile_uuid, hmmc.host_uuid, hmmc.challenge_retrieved_at,
+				hmmc.not_valid_before, hmmc.not_valid_after, hmmc.type,
+				hmmc.ca_name, hmmc.serial, hmmc.updated_at,
+				hmap.status AS apple_status,
+				hwmp.status AS windows_status
+			FROM host_mdm_managed_certificates hmmc
+			LEFT JOIN host_mdm_apple_profiles hmap
+				ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid AND hmap.operation_type = ?
+			LEFT JOIN host_mdm_windows_profiles hwmp
+				ON hwmp.host_uuid = hmmc.host_uuid AND hwmp.profile_uuid = hmmc.profile_uuid AND hwmp.operation_type = ?
+			WHERE hmmc.host_uuid = ?
+		`, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "list host mdm managed certs for update")
 		}
-		for _, hostMDMManagedCert := range hostMDMManagedCerts {
+		now := time.Now()
+		for _, row := range hostMDMManagedCerts {
+			hostMDMManagedCert := &row.MDMManagedCertificate
 			// Note that we only care about proxied SCEP certificates because DigiCert are requested
 			// by Fleet and stored in the DB directly, so we need not fetch them via osquery/MDM
-			if !hostMDMManagedCert.Type.SupportsRenewalID() { // TODO(SCA): Will this not cause issues? It now includes DigiCert, which it didn't do previously.
+			if !hostMDMManagedCert.Type.SupportsRenewalID() {
 				continue
 			}
-			for _, certToInsert := range toInsert {
-				renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
-				if strings.Contains(certToInsert.SubjectCommonName, renewalIDString) || strings.Contains(certToInsert.SubjectOrganizationalUnit, renewalIDString) {
-					managedCertToUpdate := &fleet.MDMManagedCertificate{
-						ProfileUUID:          hostMDMManagedCert.ProfileUUID,
-						HostUUID:             hostMDMManagedCert.HostUUID,
-						ChallengeRetrievedAt: hostMDMManagedCert.ChallengeRetrievedAt,
-						NotValidBefore:       &certToInsert.NotValidBefore,
-						NotValidAfter:        &certToInsert.NotValidAfter,
-						Type:                 hostMDMManagedCert.Type,
-						CAName:               hostMDMManagedCert.CAName,
-						Serial:               ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
-					}
-					// To reduce DB load, we only write to datastore if the managed cert is different
-					// However, they should never be the same because we check the certificate SHA1 above and only insert new certs
-					if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
-						hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
-					}
-					// We found a matching cert from host certs; move on to the next managed cert
-					break
+
+			// Pick the cert pool. Widen to incomingBySHA1 only when this row
+			// looks stuck:
+			//   - hmmc.not_valid_* is NULL (no successful ingest yet), AND
+			//   - hmmc.updated_at is older than hmmcBackfillGrace (we've
+			//     given the natural toInsert match a fair shake), AND
+			//   - the related profile is in a settled state ('verified' or
+			//     'failed') — the renewal is no longer legitimately in flight.
+			//
+			// Otherwise (steady state, or genuinely in-flight renewal): use
+			// toInsertBySHA1 only, matching the original matcher's "react to
+			// NEW certs" semantics. This prevents an old pre-renewal cert
+			// still present in host_certificates from clobbering hmmc while
+			// the device is mid-renewal.
+			var pool map[string]*fleet.HostCertificateRecord
+			settled := isSettledStatus(row.AppleStatus) || isSettledStatus(row.WindowsStatus)
+			stuck := hostMDMManagedCert.NotValidAfter == nil &&
+				now.Sub(hostMDMManagedCert.UpdatedAt) > hmmcBackfillGrace &&
+				settled
+			if stuck {
+				pool = incomingBySHA1
+			} else {
+				pool = toInsertBySHA1
+			}
+
+			renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
+			var bestMatch *fleet.HostCertificateRecord
+			for _, cert := range pool {
+				if !strings.Contains(cert.SubjectCommonName, renewalIDString) && !strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
+					continue
 				}
+				// Skip certs that are not currently valid.
+				if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+					continue
+				}
+				if bestMatch == nil || cert.NotValidBefore.After(bestMatch.NotValidBefore) {
+					bestMatch = cert
+				}
+			}
+			if bestMatch == nil {
+				continue
+			}
+
+			// Monotonic-forward: never regress hmmc with an older cert.
+			if hostMDMManagedCert.NotValidAfter != nil && !hostMDMManagedCert.NotValidAfter.Before(bestMatch.NotValidAfter) {
+				continue
+			}
+
+			managedCertToUpdate := &fleet.MDMManagedCertificate{
+				ProfileUUID:          hostMDMManagedCert.ProfileUUID,
+				HostUUID:             hostMDMManagedCert.HostUUID,
+				ChallengeRetrievedAt: hostMDMManagedCert.ChallengeRetrievedAt,
+				NotValidBefore:       &bestMatch.NotValidBefore,
+				NotValidAfter:        &bestMatch.NotValidAfter,
+				Type:                 hostMDMManagedCert.Type,
+				CAName:               hostMDMManagedCert.CAName,
+				Serial:               ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+			}
+			// Skip the write if the proposed update is identical to the
+			// current row (idempotency for already-correct rows).
+			if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
+				hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
 			}
 		}
 	}
@@ -160,7 +270,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := insertHostCertsDB(ctx, tx, toInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
@@ -195,17 +305,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-
-	// Safety net for the renewal flow: if the toInsert matcher above missed
-	// updating an hmmc row (replica lag, transaction race, or a profile that
-	// reached a settled state without a corresponding new cert in toInsert),
-	// look up the matching cert in host_certificates and backfill. Gated to
-	// preserve the natural in-flight synchronization between reconcile and
-	// the renewal cron. See issue #44111.
-	return ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, hostID, hostUUID)
+	})
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints
@@ -536,119 +636,3 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 	return nil
 }
 
-// hmmcBackfillGrace controls how long we wait after a managed-cert profile
-// lands in a settled state ('verified' / 'failed') before falling back to
-// looking up the cert in host_certificates. The primary path
-// (toInsert matcher in UpdateHostCertificates above) updates hmmc when the
-// device first reports the renewed cert via osquery / MDM CertificateList.
-// The backfill is the safety net for the cases where that primary path
-// missed the cert — replica lag, a transaction race, or a profile that
-// reached 'verified' without a corresponding new cert. The grace gives the
-// primary path time to fire before we fall back. See issue #44111.
-const hmmcBackfillGrace = 4 * time.Hour
-
-// backfillHostMDMManagedCertsFromHostCertsDB fills in
-// host_mdm_managed_certificates rows whose validity columns are stale or
-// NULL by looking up the matching cert in host_certificates. It runs after
-// the primary toInsert matcher in UpdateHostCertificates and is gated to
-// avoid clobbering the in-flight synchronization that the renewal cron
-// relies on (reconcile NULLs hmmc → cron's HAVING IS NOT NULL excludes
-// the row until ingest repopulates).
-func (ds *Datastore) backfillHostMDMManagedCertsFromHostCertsDB(ctx context.Context, hostID uint, hostUUID string) error {
-	supportedTypes := fleet.ListCATypesWithRenewalIDSupport()
-	if len(supportedTypes) == 0 {
-		return nil
-	}
-
-	type eligibleHMMCRow struct {
-		ProfileUUID   string     `db:"profile_uuid"`
-		CAName        string     `db:"ca_name"`
-		NotValidAfter *time.Time `db:"not_valid_after"`
-	}
-
-	// Eligible: managed-cert row on this host, type supports renewal IDs
-	// (excludes DigiCert — it's populated server-side at issuance), the
-	// related profile is in a settled delivery state ('verified' or
-	// 'failed') for the install operation, and the row hasn't been touched
-	// in the grace window.
-	eligibleStmt, eligibleArgs, err := sqlx.In(`
-		SELECT hmmc.profile_uuid, hmmc.ca_name, hmmc.not_valid_after
-		FROM host_mdm_managed_certificates hmmc
-		LEFT JOIN host_mdm_apple_profiles hmap
-			ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid AND hmap.operation_type = ?
-		LEFT JOIN host_mdm_windows_profiles hwmp
-			ON hwmp.host_uuid = hmmc.host_uuid AND hwmp.profile_uuid = hmmc.profile_uuid AND hwmp.operation_type = ?
-		WHERE hmmc.host_uuid = ?
-		  AND hmmc.type IN (?)
-		  AND hmmc.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
-		  AND (hmap.status IN (?, ?) OR hwmp.status IN (?, ?))
-	`,
-		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall,
-		hostUUID,
-		supportedTypes,
-		int(hmmcBackfillGrace.Seconds()),
-		fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed,
-		fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build hmmc backfill eligibility query")
-	}
-
-	var eligible []eligibleHMMCRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &eligible, eligibleStmt, eligibleArgs...); err != nil {
-		return ctxerr.Wrap(ctx, err, "select eligible hmmc rows for backfill")
-	}
-	if len(eligible) == 0 {
-		return nil
-	}
-
-	// For each eligible row, find the most recently issued currently-valid
-	// host_certificates row whose subject CN or OU contains the renewal-ID
-	// substring `fleet-<profile_uuid>` (per FleetVarSCEPRenewalID). Update
-	// hmmc only if the candidate is strictly fresher than what's there
-	// (monotonic forward, idempotent).
-	for _, row := range eligible {
-		renewalIDPattern := "%fleet-" + row.ProfileUUID + "%"
-		var match struct {
-			NotValidBefore time.Time `db:"not_valid_before"`
-			NotValidAfter  time.Time `db:"not_valid_after"`
-			Serial         string    `db:"serial"`
-		}
-		err := sqlx.GetContext(ctx, ds.reader(ctx), &match, `
-			SELECT hc.not_valid_before, hc.not_valid_after, hc.serial
-			FROM host_certificates hc
-			WHERE hc.host_id = ?
-			  AND hc.deleted_at IS NULL
-			  AND (hc.subject_common_name LIKE ? OR hc.subject_org_unit LIKE ?)
-			  AND hc.not_valid_before < NOW()
-			  AND hc.not_valid_after > NOW()
-			ORDER BY hc.not_valid_before DESC
-			LIMIT 1
-		`, hostID, renewalIDPattern, renewalIDPattern)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			return ctxerr.Wrap(ctx, err, "find matching host cert for hmmc backfill")
-		}
-
-		if row.NotValidAfter != nil && !row.NotValidAfter.Before(match.NotValidAfter) {
-			continue
-		}
-
-		if _, err := ds.writer(ctx).ExecContext(ctx, `
-			UPDATE host_mdm_managed_certificates
-			SET not_valid_before = ?, not_valid_after = ?, serial = ?
-			WHERE host_uuid = ? AND profile_uuid = ? AND ca_name = ?
-		`,
-			match.NotValidBefore,
-			match.NotValidAfter,
-			fmt.Sprintf("%040s", match.Serial),
-			hostUUID, row.ProfileUUID, row.CAName,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "backfill host mdm managed certificate from host cert")
-		}
-	}
-
-	return nil
-}
