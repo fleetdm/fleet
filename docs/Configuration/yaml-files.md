@@ -401,14 +401,10 @@ controls:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
-<<<<<<< AdamBaali-Gitops-YAML-globs-update
       - path: ../lib/macos-profile2.json
         labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-=======
-      - path: ../lib/macos-profile3.mobileconfig
->>>>>>> main
         labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
