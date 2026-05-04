@@ -6961,8 +6961,17 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID str
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	// TODO(IB): Validate that the IdpUUID should be populated based on the criteria for showing the SSO in the first place
-	// Should be added with the work of #30660 or afterwars.
+	requiresIDPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, cfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if IDP UUID is required for OTA enrollment")
+	}
+	if requiresIDPUUID && idpUUID == "" {
+		return nil, ctxerr.Wrap(
+			ctx,
+			authz.ForbiddenWithInternal("required idp uuid to be set, but none found", nil, nil, nil),
+			"missing required idp uuid",
+		)
+	}
 
 	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID)
 	if err != nil {
