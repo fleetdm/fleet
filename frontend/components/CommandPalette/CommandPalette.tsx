@@ -81,7 +81,6 @@ const CommandPalette = (): JSX.Element | null => {
 
   // Whether a specific team is selected (not "All teams")
   const hasTeamSelected = currentTeam && currentTeam.id > 0;
-  const teamName = hasTeamSelected ? currentTeam?.name : undefined;
 
   // Append fleet_id to a path so navigation preserves the current team context
   const withTeamId = useCallback(
@@ -196,7 +195,6 @@ const CommandPalette = (): JSX.Element | null => {
     isAndroidMdmEnabledAndConfigured,
     isVppEnabled,
     hasTeamSelected,
-    teamName,
     withTeamId,
     onToggleDarkMode: () => {
       toggleDarkMode();

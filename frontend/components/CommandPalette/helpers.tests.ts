@@ -18,7 +18,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   isAndroidMdmEnabledAndConfigured: false,
   isVppEnabled: false,
   hasTeamSelected: false,
-  teamName: undefined,
+
   withTeamId: (path: string) => path,
   onToggleDarkMode: jest.fn(),
 };
@@ -109,7 +109,6 @@ describe("CommandPalette helpers", () => {
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
-        teamName: "Engineering",
         currentTeam: { id: 1, name: "Engineering" },
       });
 
@@ -120,11 +119,32 @@ describe("CommandPalette helpers", () => {
       expect(addReport?.teamName).toBe("Engineering");
     });
 
-    it("does not show team name when no team is selected", () => {
+    it("shows 'Unassigned' on add-hosts and manage-enroll-secrets when no team is selected", () => {
       const items = buildCommandItems(BASE_CONTEXT);
 
       const addHosts = items.find((i) => i.id === "add-hosts");
-      expect(addHosts?.teamName).toBeUndefined();
+      expect(addHosts?.teamName).toBe("Unassigned");
+
+      const enrollSecrets = items.find((i) => i.id === "manage-enroll-secrets");
+      expect(enrollSecrets?.teamName).toBe("Unassigned");
+    });
+
+    it("shows 'All fleets' on non-host actions when no team is selected", () => {
+      const items = buildCommandItems(BASE_CONTEXT);
+
+      const addReport = items.find((i) => i.id === "add-report");
+      expect(addReport?.teamName).toBe("All fleets");
+    });
+
+    it("shows 'Unassigned' when unassigned team is selected", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
+
+      const addHosts = items.find((i) => i.id === "add-hosts");
+      expect(addHosts?.teamName).toBe("Unassigned");
     });
 
     it("shows 'Turn on' MDM when not configured", () => {
@@ -160,7 +180,10 @@ describe("CommandPalette helpers", () => {
 
     it("shows 'Add ABM' when Apple MDM on but ABM not configured", () => {
       const configNoAbm = createMockConfig();
-      configNoAbm.mdm.apple_bm_enabled_and_configured = false;
+      configNoAbm.mdm = {
+        ...configNoAbm.mdm,
+        apple_bm_enabled_and_configured: false,
+      };
 
       const items = buildCommandItems({
         ...BASE_CONTEXT,
@@ -195,7 +218,6 @@ describe("CommandPalette helpers", () => {
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
-        teamName: "Engineering",
         currentTeam: { id: 1, name: "Engineering" },
       });
 
@@ -251,7 +273,6 @@ describe("CommandPalette helpers", () => {
         ...BASE_CONTEXT,
         withTeamId: mockWithTeamId,
         hasTeamSelected: true,
-        teamName: "Eng",
         currentTeam: { id: 5, name: "Eng" },
       });
 

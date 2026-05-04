@@ -28,19 +28,18 @@ export interface ICommandPaletteContext {
   search: string;
   currentTeam?: ITeamSummary;
   config: IConfig | null;
-  canAccessControls: boolean;
-  canWrite: boolean;
-  canAccessSettings: boolean;
-  canManagePolicyAutomations: boolean;
-  canManageSoftwareAutomations: boolean;
-  isTechnician: boolean;
+  canAccessControls?: boolean;
+  canWrite?: boolean;
+  canAccessSettings?: boolean;
+  canManagePolicyAutomations?: boolean;
+  canManageSoftwareAutomations?: boolean;
+  isTechnician?: boolean;
   isPremiumTier?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
   isAndroidMdmEnabledAndConfigured?: boolean;
   isVppEnabled?: boolean;
-  hasTeamSelected: boolean;
-  teamName?: string;
+  hasTeamSelected?: boolean;
   withTeamId: (path: string) => string;
   onToggleDarkMode: () => void;
 }
@@ -74,12 +73,26 @@ export const buildCommandItems = (
     isAndroidMdmEnabledAndConfigured,
     isVppEnabled,
     hasTeamSelected,
-    teamName,
     withTeamId,
     onToggleDarkMode,
   } = ctx;
 
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
+
+  // Compute teamName from currentTeam — single source of truth
+  const isUnassigned = currentTeam?.id === 0;
+  // eslint-disable-next-line no-nested-ternary
+  const teamName = hasTeamSelected
+    ? currentTeam?.name
+    : isUnassigned
+    ? "Unassigned"
+    : "All fleets";
+
+  // Actions that target the unassigned team when no team is selected
+  const teamOrUnassigned = hasTeamSelected ? teamName : "Unassigned";
+
+  // Whether a specific team OR unassigned is selected (not "All fleets")
+  const hasTeamOrUnassigned = hasTeamSelected || isUnassigned;
 
   return [
     // Pages — always visible
@@ -112,15 +125,15 @@ export const buildCommandItems = (
       id: "software-page",
       label: "Software",
       group: "Pages",
-      path: withTeamId(paths.SOFTWARE_TITLES),
-      keywords: ["installed", "inventory", "titles"],
+      path: withTeamId(paths.SOFTWARE_INVENTORY),
+      keywords: ["installed", "inventory", "titles", "library", "managed"],
     },
     {
       id: "reports",
       label: "Reports",
       group: "Pages",
       path: withTeamId(paths.MANAGE_REPORTS),
-      keywords: ["report", "sql", "gather data"],
+      keywords: ["report", "sql", "gather data", "live query"],
     },
     {
       id: "policies",
@@ -147,26 +160,30 @@ export const buildCommandItems = (
       path: paths.MANAGE_LABELS,
       keywords: ["group hosts", "filter", "dynamic", "manual"],
     },
-    {
-      id: "users-page",
-      label: "Users",
-      group: "Pages",
-      path: paths.ADMIN_USERS,
-      keywords: [
-        "accounts",
-        "admins",
-        "invite",
-        "add user",
-        "edit user",
-        "delete user",
-      ],
-    },
+    ...(canAccessSettings
+      ? [
+          {
+            id: "users-page",
+            label: "Users",
+            group: "Pages",
+            path: paths.ADMIN_USERS,
+            keywords: [
+              "accounts",
+              "admins",
+              "invite",
+              "add user",
+              "edit user",
+              "delete user",
+            ],
+          },
+        ]
+      : []),
     {
       id: "my-account",
       label: "My account",
       group: "Pages",
       path: paths.ACCOUNT,
-      keywords: ["profile", "password", "api token"],
+      keywords: ["profile", "password", "api token", "settings"],
     },
 
     // Packs — only visible when searching for specific terms
@@ -205,6 +222,7 @@ export const buildCommandItems = (
               "windows",
               "ios",
               "ipados",
+              "patch",
             ],
           },
           // OS settings sub-pages
@@ -225,7 +243,13 @@ export const buildCommandItems = (
                 id: "controls-custom-settings",
                 label: "Configuration profiles",
                 path: withTeamId(paths.CONTROLS_CUSTOM_SETTINGS),
-                keywords: ["custom profiles", "mobileconfig", "deploy"],
+                keywords: [
+                  "custom profiles",
+                  "mobileconfig",
+                  "deploy",
+                  "ddm",
+                  "windows csp",
+                ],
               },
               // Certificates and Passwords — not available to technicians
               ...(!isTechnician
@@ -234,7 +258,15 @@ export const buildCommandItems = (
                       id: "controls-certificates",
                       label: "Certificates",
                       path: withTeamId(paths.CONTROLS_CERTIFICATES),
-                      keywords: ["scep", "est", "pki", "digicert", "ndes"],
+                      keywords: [
+                        "scep",
+                        "est",
+                        "pki",
+                        "digicert",
+                        "ndes",
+                        "certificate authority",
+                        "ca",
+                      ],
                     },
                     {
                       id: "controls-passwords",
@@ -255,9 +287,9 @@ export const buildCommandItems = (
             keywords: ["customize", "end user", "enrollment"],
             subItems: [
               {
-                id: "controls-end-user-auth",
-                label: "End user authentication",
-                path: withTeamId(paths.CONTROLS_END_USER_AUTHENTICATION),
+                id: "controls-users",
+                label: "Users",
+                path: withTeamId(paths.CONTROLS_USERS),
                 keywords: ["idp", "login", "sso"],
               },
               {
@@ -322,10 +354,10 @@ export const buildCommandItems = (
     // Software
     {
       id: "software",
-      label: "Software",
+      label: "Software inventory",
       group: "Software",
-      path: withTeamId(paths.SOFTWARE_TITLES),
-      keywords: ["installed", "inventory", "titles"],
+      path: withTeamId(paths.SOFTWARE_INVENTORY),
+      keywords: ["installed", "inventory", "titles", "detected"],
       subItems: [
         {
           id: "software-versions",
@@ -336,11 +368,30 @@ export const buildCommandItems = (
         {
           id: "software-vulnerable",
           label: "Vulnerable software",
-          path: withTeamId(`${paths.SOFTWARE_TITLES}?vulnerable=true`),
+          path: withTeamId(`${paths.SOFTWARE_INVENTORY}?vulnerable=true`),
           keywords: ["cve", "exploited", "security"],
         },
       ],
     },
+    // Library is available for any team including unassigned, but not "All fleets"
+    ...(isPremiumTier && currentTeam?.id !== -1
+      ? [
+          {
+            id: "software-library",
+            label: "Software library",
+            group: "Software",
+            path: withTeamId(paths.SOFTWARE_LIBRARY),
+            keywords: [
+              "managed",
+              "installable",
+              "packages",
+              "self-service",
+              "library",
+            ],
+            teamName,
+          },
+        ]
+      : []),
     {
       id: "software-os",
       label: "Operating systems",
@@ -584,14 +635,14 @@ export const buildCommandItems = (
             group: "Actions",
             path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
             keywords: ["enroll", "install", "fleetd", "device"],
-            teamName,
+            teamName: teamOrUnassigned,
           },
           {
             id: "add-report",
             label: "Add report",
             group: "Actions",
             path: withTeamId(paths.NEW_REPORT),
-            keywords: ["create", "new", "report", "sql"],
+            keywords: ["create report", "new report", "sql"],
             teamName,
           },
           {
@@ -599,77 +650,148 @@ export const buildCommandItems = (
             label: "Add policy",
             group: "Actions",
             path: withTeamId(paths.NEW_POLICY),
-            keywords: ["create", "new", "compliance", "device health"],
-            teamName,
-          },
-          {
-            id: "add-fleet-maintained-app",
-            label: "Add Fleet-maintained app",
-            group: "Actions",
-            path: withTeamId(paths.SOFTWARE_ADD_FLEET_MAINTAINED),
-            keywords: ["install", "software", "managed app", "fma"],
-            teamName,
-          },
-          {
-            id: "add-app-store-app",
-            label: "Add App Store app",
-            group: "Actions",
-            path: withTeamId(paths.SOFTWARE_ADD_APP_STORE),
             keywords: [
-              "install",
-              "software",
-              "vpp",
-              "apple",
-              "ios",
-              "ipados",
-              "android",
+              "create policy",
+              "new policy",
+              "compliance",
+              "device health",
             ],
             teamName,
           },
-          {
-            id: "add-custom-package",
-            label: "Add custom package",
-            group: "Actions",
-            path: withTeamId(paths.SOFTWARE_ADD_PACKAGE),
-            keywords: [
-              "install",
-              "upload",
-              "software",
-              "pkg",
-              "ipa",
-              "msi",
-              "exe",
-              "ps1",
-              "deb",
-              "rpm",
-              "tar.gz",
-              "tarballs",
-              "sh",
-            ],
-            teamName,
-          },
-          {
-            id: "add-script",
-            label: "Add script",
-            group: "Actions",
-            path: withTeamId(paths.CONTROLS_SCRIPTS_LIBRARY),
-            keywords: ["upload", "shell", "sh", "ps1"],
-            teamName,
-          },
-          {
-            id: "add-custom-variable",
-            label: "Add custom variable",
-            group: "Actions",
-            path: withTeamId(`${paths.CONTROLS_VARIABLES}?add_variable=1`),
-            keywords: ["secret", "scripts", "profiles"],
-            teamName,
-          },
+          // Software add actions require a team or unassigned (not "All fleets")
+          ...(hasTeamOrUnassigned
+            ? [
+                {
+                  id: "add-fleet-maintained-app",
+                  label: "Add Fleet-maintained app",
+                  group: "Actions",
+                  path: withTeamId(paths.SOFTWARE_ADD_FLEET_MAINTAINED),
+                  keywords: [
+                    "install",
+                    "software",
+                    "managed app",
+                    "fma",
+                    "add app",
+                  ],
+                  teamName,
+                },
+                {
+                  id: "add-vpp-app",
+                  label: "Add VPP app",
+                  group: "Actions",
+                  path: withTeamId(
+                    `${paths.SOFTWARE_ADD_APP_STORE}?platform=apple`
+                  ),
+                  keywords: [
+                    "app store",
+                    "volume purchase",
+                    "apple",
+                    "ios",
+                    "ipados",
+                    "macos",
+                    "add app",
+                  ],
+                  teamName,
+                },
+                {
+                  id: "add-android-app-store-app",
+                  label: "Add Android app store app",
+                  group: "Actions",
+                  path: withTeamId(
+                    `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
+                  ),
+                  keywords: ["google play", "android", "play store", "add app"],
+                  teamName,
+                },
+                {
+                  id: "add-custom-package",
+                  label: "Add custom package",
+                  group: "Actions",
+                  path: withTeamId(paths.SOFTWARE_ADD_PACKAGE),
+                  keywords: [
+                    "install",
+                    "upload",
+                    "software",
+                    "add package",
+                    "pkg",
+                    "ipa",
+                    "msi",
+                    "exe",
+                    "ps1",
+                    "deb",
+                    "rpm",
+                    "tar.gz",
+                    "tarballs",
+                    "sh",
+                  ],
+                  teamName,
+                },
+              ]
+            : []),
+          // Script and variable actions require a team or unassigned (not "All fleets")
+          ...(hasTeamOrUnassigned
+            ? [
+                {
+                  id: "add-script",
+                  label: "Add script",
+                  group: "Actions",
+                  path: withTeamId(paths.CONTROLS_SCRIPTS_LIBRARY),
+                  keywords: [
+                    "upload script",
+                    "shell",
+                    "sh",
+                    "ps1",
+                    "create script",
+                  ],
+                  teamName: teamOrUnassigned,
+                },
+                {
+                  id: "add-custom-variable",
+                  label: "Add custom variable",
+                  group: "Actions",
+                  path: withTeamId(
+                    `${paths.CONTROLS_VARIABLES}?add_variable=1`
+                  ),
+                  keywords: [
+                    "secret",
+                    "scripts",
+                    "profiles",
+                    "add variable",
+                    "create variable",
+                  ],
+                  teamName: teamOrUnassigned,
+                },
+              ]
+            : []),
           {
             id: "manage-enroll-secrets",
             label: "Manage enroll secrets",
             group: "Actions",
             path: withTeamId(paths.MANAGE_HOSTS),
-            keywords: ["enrollment", "token", "fleetd"],
+            keywords: ["enrollment", "token", "fleetd", "enroll secret"],
+            teamName: teamOrUnassigned,
+          },
+          {
+            id: "run-live-report",
+            label: "Run live report",
+            group: "Actions",
+            path: withTeamId(paths.NEW_REPORT),
+            keywords: [
+              "osquery",
+              "sql",
+              "live",
+              "ad hoc",
+              "query",
+              "run report",
+            ],
+            teamName,
+          },
+          {
+            id: "run-live-policy",
+            label: "Run live policy",
+            group: "Actions",
+            path: withTeamId(paths.NEW_POLICY),
+            keywords: ["check", "compliance", "live", "ad hoc", "run policy"],
             teamName,
           },
           {
@@ -677,8 +799,26 @@ export const buildCommandItems = (
             label: "Add label",
             group: "Actions",
             path: paths.NEW_LABEL,
-            keywords: ["create", "group hosts", "filter", "dynamic", "manual"],
+            keywords: [
+              "create label",
+              "new label",
+              "group hosts",
+              "filter",
+              "dynamic",
+              "manual",
+            ],
           },
+          ...(canAccessSettings
+            ? [
+                {
+                  id: "create-fleet",
+                  label: "Create fleet",
+                  group: "Actions",
+                  path: paths.ADMIN_FLEETS,
+                  keywords: ["new fleet", "add fleet", "team"],
+                },
+              ]
+            : []),
           {
             id: "toggle-dark-mode",
             label: isDarkMode()
@@ -782,14 +922,16 @@ export const buildCommandItems = (
         ]
       : []),
 
-    // Manage automations — software (global admin, all fleets only)
+    // Manage automations — software (global admin, all fleets only).
+    // Hardcoded "All fleets" because software automations are global-only
+    // and don't use the team-scoped teamName.
     ...(canManageSoftwareAutomations
       ? [
           {
             id: "manage-software-automations",
             label: "Manage software automations",
             group: "Automations",
-            path: `${paths.SOFTWARE_TITLES}?manage_automations=1`,
+            path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
             keywords: ["vulnerability", "webhook", "jira", "zendesk"],
             teamName: "All fleets",
           },
