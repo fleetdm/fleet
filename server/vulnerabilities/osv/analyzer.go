@@ -51,6 +51,92 @@ type OSVVulnerability struct {
 	Versions   []string  `json:"versions,omitempty"`
 }
 
+type softwareMatcher func(software []fleet.Software) []fleet.SoftwareVulnerability
+
+func analyzeOSV(
+	ctx context.Context,
+	ds fleet.Datastore,
+	ver fleet.OSVersion,
+	source fleet.VulnerabilitySource,
+	matcher softwareMatcher,
+	collectVulns bool,
+	logger *slog.Logger,
+) ([]fleet.SoftwareVulnerability, error) {
+	// Get distinct software for this OS version (replaces per-host ListSoftwareForVulnDetection).
+	softwareStart := time.Now().UTC()
+	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver)
+	if err != nil {
+		return nil, fmt.Errorf("listing software for OS version: %w", err)
+	}
+	softwareTime := time.Since(softwareStart)
+
+	if len(software) == 0 {
+		logger.DebugContext(ctx, "no software found for os version",
+			"platform", ver.Platform, "version", ver.Version)
+		return nil, nil
+	}
+
+	// Match all software against the artifact in a single pass.
+	matchStart := time.Now().UTC()
+	found := matcher(software)
+	matchTime := time.Since(matchStart)
+
+	// Collect distinct software IDs to scope the existing vulns query.
+	softwareIDs := make([]uint, len(software))
+	for i, sw := range software {
+		softwareIDs[i] = sw.ID
+	}
+
+	// Get existing vulns for these software IDs + source (replaces per-batch host join).
+	existingStart := time.Now().UTC()
+	existing, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, softwareIDs, source)
+	if err != nil {
+		return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
+	}
+	existingTime := time.Since(existingStart)
+
+	// Compute delta.
+	toInsert, toDelete := utils.VulnsDelta(found, existing)
+
+	logger.DebugContext(ctx, "osv analysis completed",
+		"platform", ver.Platform,
+		"version", ver.Version,
+		"distinct_software", len(software),
+		"software_query_time", softwareTime,
+		"match_time", matchTime,
+		"existing_query_time", existingTime,
+		"found_vulns", len(found),
+		"existing_vulns", len(existing),
+		"to_insert", len(toInsert),
+		"to_delete", len(toDelete),
+	)
+
+	// Delete stale vulnerabilities.
+	if len(toDelete) > 0 {
+		toDeleteMap := make(map[string]fleet.SoftwareVulnerability, len(toDelete))
+		for _, v := range toDelete {
+			toDeleteMap[v.Key()] = v
+		}
+		if err := utils.BatchProcess(toDeleteMap, func(v []fleet.SoftwareVulnerability) error {
+			return ds.DeleteSoftwareVulnerabilities(ctx, v)
+		}, vulnBatchSize); err != nil {
+			return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
+		}
+	}
+
+	// Insert new vulnerabilities.
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, toInsert, source)
+	if err != nil {
+		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
+	}
+
+	if !collectVulns {
+		return nil, nil
+	}
+
+	return newVulns, nil
+}
+
 // Analyze scans all hosts for vulnerabilities based on the OSV artifacts for their platform
 func Analyze(
 	ctx context.Context,
@@ -70,85 +156,9 @@ func Analyze(
 		return nil, fmt.Errorf("loading OSV artifact: %w", err)
 	}
 
-	source := fleet.UbuntuOSVSource
-	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
-	toDeleteSet := make(map[string]fleet.SoftwareVulnerability)
-	totalHosts := 0
-
-	// Paginate through all hosts with this OS version
-	var offset int
-	for {
-		hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
-		if err != nil {
-			return nil, fmt.Errorf("getting host IDs: %w", err)
-		}
-
-		if len(hostIDs) == 0 {
-			break
-		}
-
-		totalHosts += len(hostIDs)
-		offset += hostsBatchSize
-
-		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
-		for _, hostID := range hostIDs {
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
-				HostID: &hostID,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
-			}
-
-			foundInBatch[hostID] = matchSoftwareToOSV(software, artifact)
-		}
-
-		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
-		if err != nil {
-			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
-		}
-
-		for _, hostID := range hostIDs {
-			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
-			for _, i := range insrt {
-				toInsertSet[i.Key()] = i
-			}
-			for _, d := range del {
-				toDeleteSet[d.Key()] = d
-			}
-		}
-	}
-
-	if totalHosts == 0 {
-		logger.DebugContext(ctx, "no hosts found for os version", "platform", ver.Platform, "version", ver.Version)
-		return nil, nil
-	}
-
-	logger.DebugContext(ctx, "processed hosts for osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", totalHosts)
-
-	// Delete stale vulnerabilities
-	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
-		return ds.DeleteSoftwareVulnerabilities(ctx, v)
-	}, vulnBatchSize)
-	if err != nil {
-		return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
-	}
-
-	// Insert new vulnerabilities
-	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	for _, v := range toInsertSet {
-		allVulns = append(allVulns, v)
-	}
-
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
-	if err != nil {
-		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
-	}
-
-	if !collectVulns {
-		return nil, nil
-	}
-
-	return newVulns, nil
+	return analyzeOSV(ctx, ds, ver, fleet.UbuntuOSVSource, func(sw []fleet.Software) []fleet.SoftwareVulnerability {
+		return matchSoftwareToOSV(sw, artifact)
+	}, collectVulns, logger)
 }
 
 // findLatestOSVArtifactForVersion finds the most recent OSV artifact for a specific Ubuntu version
@@ -520,82 +530,9 @@ func AnalyzeRHEL(
 		return nil, fmt.Errorf("loading RHEL OSV artifact: %w", err)
 	}
 
-	source := fleet.RHELOSVSource
-	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
-	toDeleteSet := make(map[string]fleet.SoftwareVulnerability)
-	totalHosts := 0
-
-	var offset int
-	for {
-		hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
-		if err != nil {
-			return nil, fmt.Errorf("getting host IDs: %w", err)
-		}
-
-		if len(hostIDs) == 0 {
-			break
-		}
-
-		totalHosts += len(hostIDs)
-		offset += hostsBatchSize
-
-		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
-		for _, hostID := range hostIDs {
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
-				HostID: &hostID,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
-			}
-
-			foundInBatch[hostID] = matchSoftwareToRHELOSV(software, artifact)
-		}
-
-		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
-		if err != nil {
-			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
-		}
-
-		for _, hostID := range hostIDs {
-			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
-			for _, i := range insrt {
-				toInsertSet[i.Key()] = i
-			}
-			for _, d := range del {
-				toDeleteSet[d.Key()] = d
-			}
-		}
-	}
-
-	if totalHosts == 0 {
-		logger.DebugContext(ctx, "no hosts found for os version", "platform", ver.Platform, "version", ver.Version)
-		return nil, nil
-	}
-
-	logger.DebugContext(ctx, "processed hosts for rhel osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", totalHosts)
-
-	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
-		return ds.DeleteSoftwareVulnerabilities(ctx, v)
-	}, vulnBatchSize)
-	if err != nil {
-		return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
-	}
-
-	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	for _, v := range toInsertSet {
-		allVulns = append(allVulns, v)
-	}
-
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
-	if err != nil {
-		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
-	}
-
-	if !collectVulns {
-		return nil, nil
-	}
-
-	return newVulns, nil
+	return analyzeOSV(ctx, ds, ver, fleet.RHELOSVSource, func(sw []fleet.Software) []fleet.SoftwareVulnerability {
+		return matchSoftwareToRHELOSV(sw, artifact)
+	}, collectVulns, logger)
 }
 
 // findLatestRHELOSVArtifactForVersion finds the most recent RHEL OSV artifact for a major version.
