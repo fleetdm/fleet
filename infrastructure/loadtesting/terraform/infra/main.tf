@@ -55,6 +55,9 @@ module "loadtest" {
     db_cluster_parameters = {
       require_secure_transport = "ON"
     }
+    observability = {
+      performance_insights_enabled = false
+    }
   }
   redis_config = {
     name                          = local.customer
