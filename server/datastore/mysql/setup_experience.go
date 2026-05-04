@@ -77,8 +77,35 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-			ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
-			return false, nil
+			// On Windows, the 24h-old-host guard races with last_enrolled_at on re-Autopilot:
+			// orbit calls SetupExperienceInit before the new last_enrolled_at lands, so a
+			// previously-enrolled host that's mid-Autopilot-OOBE looks "old" and gets skipped
+			// even though it IS in ESP and we DO want setup-experience to run. Fall back to a
+			// direct check of mdm_windows_enrollments.awaiting_configuration: if the host is
+			// in Pending/Active, it's actively in ESP, bypass the age guard.
+			if hostPlatform == "windows" {
+				var awaiting fleet.WindowsMDMAwaitingConfiguration
+				stmtAwaiting := `
+				SELECT awaiting_configuration
+				FROM mdm_windows_enrollments
+				WHERE host_uuid = ?
+				ORDER BY created_at DESC, id DESC
+				LIMIT 1
+				`
+				if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmtAwaiting, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return false, ctxerr.Wrap(ctx, err, "checking windows awaiting_configuration for setup experience age guard")
+				} else if err == nil && awaiting != fleet.WindowsMDMAwaitingConfigurationNone {
+					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but is in awaiting_configuration; running setup experience for re-Autopilot",
+						"host_uuid", hostUUID, "awaiting_configuration", awaiting)
+					// fall through to enqueue
+				} else {
+					ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+					return false, nil
+				}
+			} else {
+				ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+				return false, nil
+			}
 		}
 	}
 
