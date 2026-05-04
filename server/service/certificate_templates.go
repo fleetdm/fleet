@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -50,10 +51,11 @@ func validateCertificateTemplateFleetVariables(subjectName string) error {
 
 // validateCertificateTemplateSubjectAlternativeName performs lightweight format-only validation
 // of the SAN string. Empty / whitespace-only input is permitted (means no SAN). For non-empty
-// values it checks the length cap, that each non-empty comma-separated token contains '=', and
-// that each KEY is in the allow-list (DNS, EMAIL, UPN, IP, URI). The value (right of '=') is
-// not validated; value content is parsed by the Android agent at delivery time, where any
-// $FLEET_VAR_* references have already been expanded.
+// values it checks the length cap, that each non-empty comma-separated token contains '=' with
+// non-empty content on both sides, that each KEY is in the allow-list (DNS, EMAIL, UPN, IP,
+// URI), and that at least one valid token is present (rejects separator-only inputs like ",").
+// The value (right of '=') is otherwise not validated; value content is parsed by the Android
+// agent at delivery time, where any $FLEET_VAR_* references have already been expanded.
 func validateCertificateTemplateSubjectAlternativeName(san string) error {
 	if strings.TrimSpace(san) == "" {
 		return nil
@@ -62,11 +64,13 @@ func validateCertificateTemplateSubjectAlternativeName(san string) error {
 		return fmt.Errorf("subject_alternative_name is too long. Maximum is %d bytes.",
 			maxCertificateTemplateSubjectAlternativeNameLength)
 	}
+	tokensSeen := 0
 	for raw := range strings.SplitSeq(san, ",") {
 		token := strings.TrimSpace(raw)
 		if token == "" {
 			continue
 		}
+		tokensSeen++
 		eqIdx := strings.Index(token, "=")
 		if eqIdx <= 0 {
 			return fmt.Errorf("subject_alternative_name token %q is missing '='", token)
@@ -77,10 +81,15 @@ func validateCertificateTemplateSubjectAlternativeName(san string) error {
 				"subject_alternative_name has unsupported key %q. Allowed keys are DNS, EMAIL, UPN, IP, URI.",
 				key)
 		}
+		if strings.TrimSpace(token[eqIdx+1:]) == "" {
+			return fmt.Errorf("subject_alternative_name token %q has an empty value", token)
+		}
+	}
+	if tokensSeen == 0 {
+		return errors.New("subject_alternative_name contains no entries")
 	}
 	return nil
 }
-
 
 // replaceCertificateVariables replaces FLEET_VAR_* variables in the subject name with actual host values
 func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName string, host *fleet.Host) (string, error) {

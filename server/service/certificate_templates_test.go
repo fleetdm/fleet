@@ -266,8 +266,8 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		svc, ctx, _ := makePremiumService(t)
 
 		cases := []struct {
-			name   string
-			san    string
+			name     string
+			san      string
 			fragment string
 		}{
 			{"missing equals", "DNS=ok, OOPS", "missing '='"},
@@ -318,6 +318,11 @@ func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		{"RFC822 is not a synonym", "RFC822=user@x", true, "unsupported key"},
 		{"length cap", strings.Repeat("DNS=a,", 1024), true, "too long"},
 		{"empty key with equals only", "=value", true, "missing '='"},
+		{"empty value DNS=", "DNS=", true, "empty value"},
+		{"empty value EMAIL= mixed", "DNS=ok.example.com, EMAIL=", true, "empty value"},
+		{"separator only", ",", true, "no entries"},
+		{"separator only with whitespace", " , ", true, "no entries"},
+		{"only commas", ",,,", true, "no entries"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

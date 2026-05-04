@@ -12,7 +12,8 @@ func init() {
 func Up_20260504193725(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE certificate_templates
-		ADD COLUMN subject_alternative_name TEXT NULL
+		ADD COLUMN subject_alternative_name TEXT
+		CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL
 	`)
 	if err != nil {
 		return fmt.Errorf("add subject_alternative_name column to certificate_templates: %w", err)

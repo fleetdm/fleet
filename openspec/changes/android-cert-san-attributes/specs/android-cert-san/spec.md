@@ -344,16 +344,25 @@ light up required fields").
 - **WHEN** the admin fills the required fields and clicks "Add" again
 - **THEN** the create API SHALL be called and the modal SHALL close on success
 
-### Requirement: Premium gating
+### Requirement: Premium gating for SAN
 
-The `subject_alternative_name` capability is part of the Premium-only certificate templates feature. The server SHALL reject any
-create or update of a certificate template (including any payload that sets `subject_alternative_name`) when the deployment is
-not Fleet Premium, with a 402 / payment-required-style error consistent with how the rest of the certificate template feature
-already gates Premium.
+The `subject_alternative_name` capability itself is Premium-only. The server SHALL reject any create or apply of a certificate
+template whose payload sets a non-empty `subject_alternative_name` when the deployment is not Fleet Premium, returning the
+standard `ErrMissingLicense` error.
+
+This requirement is intentionally scoped to SAN-bearing payloads only. The broader certificate templates feature is currently
+not Premium-gated at the service layer (the Premium-only positioning is enforced upstream by the UI and documentation). A
+follow-up may extend the gate to all certificate template writes; that is out of scope here.
 
 #### Scenario: Non-Premium attempts to set SAN
 
-- **WHEN** a non-Premium tenant POSTs a certificate template with `subject_alternative_name` set
-- **THEN** the server SHALL reject the request with the same Premium-required error returned for the certificate templates
-  feature today
+- **WHEN** a non-Premium tenant POSTs a certificate template with `subject_alternative_name` set to a non-empty value
+- **THEN** the server SHALL reject the request with `ErrMissingLicense`
 - **AND** no row SHALL be written to `certificate_templates`
+
+#### Scenario: Non-Premium creates a template with no SAN
+
+- **WHEN** a non-Premium tenant POSTs a certificate template with no `subject_alternative_name` (or an empty / whitespace-only
+  value)
+- **THEN** the request SHALL be accepted (no Premium check fires for SAN-less payloads)
+- **AND** the resulting template SHALL be stored with NULL `subject_alternative_name`

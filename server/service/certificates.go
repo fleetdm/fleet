@@ -276,6 +276,9 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 			return nil, err
 		}
 		certificate.Status = fleet.CertificateTemplateFailed
+		// Active challenges from the prior delivered status must not ride along on a failed response.
+		certificate.SCEPChallenge = nil
+		certificate.FleetChallenge = nil
 		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
@@ -295,6 +298,8 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 				return nil, err
 			}
 			certificate.Status = fleet.CertificateTemplateFailed
+			certificate.SCEPChallenge = nil
+			certificate.FleetChallenge = nil
 			return certificate, nil
 		}
 		certificate.SubjectAlternativeName = san
