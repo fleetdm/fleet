@@ -376,7 +376,6 @@ func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy a
 func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 	// Compute the cutoff in Go (UTC) so the retention boundary doesn't depend
 	// on the MySQL session time zone — all valid_to writes are UTC.
-	fmt.Println("Starting SCD data cleanup...")
 	cutoff := time.Now().UTC().AddDate(0, 0, -days)
 	for {
 		if err := ctx.Err(); err != nil {
