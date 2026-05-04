@@ -1301,6 +1301,57 @@ Can only be configured for "All fleets" (`org_settings`).
 
 Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
+## dismissed_vulnerabilities
+
+Dismissed vulnerabilities can be specified inline in your `default.yml` or `fleets/fleet-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Dismissed vulnerabilities support `path:` (single file) and `paths:` (glob pattern) references. See `path:` vs `paths:` for details.
+- `cve` (string): Required. The CVE identifier (e.g. `"CVE-2024-7521"`).
+- `reason` (string): Required. Must be one of: `false_positive`, `acceptable_risk`, `mitigated_by_other_controls`, `pending_vendor_fix`, `not_applicable`, `other`.
+- `comment` (string): Optional context. Max 500 characters.
+
+
+> dismissed_vulnerabilities is an optional key. If omitted, existing dismissals are preserved. If included, CVEs listed will be dismissed and CVEs not listed that were previously dismissed via YAML will be restored to active status. Dismissals made through the UI or API are not affected by YAML sync.
+
+
+##### Example
+##### Inline
+
+`default.yml` or `fleets/fleet-name.yml`
+```yaml
+dismissed_vulnerabilities:
+  - cve: CVE-2024-7521
+    reason: acceptable_risk
+    comment: "Reviewed with security team. Firefox will be force-updated in next maintenance window."
+  - cve: CVE-2024-3094
+    reason: not_applicable
+    comment: "xz-utils version on our hosts is not affected per vendor advisory."
+  - cve: CVE-2024-1086
+    reason: mitigated_by_other_controls
+  - cve: CVE-2023-44487
+    reason: false_positive
+```
+
+##### Separate file
+
+`lib/dismissed-vulns.yml`
+
+```yaml
+- cve: CVE-2024-7521
+  reason: acceptable_risk
+  comment: "Reviewed with security team."
+- cve: CVE-2024-3094
+  reason: not_applicable
+- cve: CVE-2024-1086
+  reason: mitigated_by_other_controls
+```
+
+`default.yml` or `fleets/fleet-name.yml`
+
+```yaml
+dismissed_vulnerabilities:
+  - path: ../lib/dismissed-vulns.yml
+```
+
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
