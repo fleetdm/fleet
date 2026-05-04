@@ -76,11 +76,6 @@ func (c *Client) Version() (*version.Info, error) {
 	return responseBody.Info, err
 }
 
-// orgLogoMaxFileSizeBytes mirrors the server-side limit so we can fail fast
-// before uploading. Server-side validation in server/service/org_logo.go is the
-// authoritative check.
-const orgLogoMaxFileSizeBytes = 100 * 1024
-
 type orgLogoAction struct {
 	mode       fleet.OrgLogoMode
 	uploadPath string
@@ -209,40 +204,25 @@ func (c *Client) doGitOpsOrgLogos(
 	return nil
 }
 
-// validateOrgLogoFile mirrors server-side checks (size cap and PNG/JPEG/WebP
-// magic bytes) so dry-run and apply both fail at the YAML source rather than
-// at the upload call.
+// validateOrgLogoFile reads the file at path and runs the canonical
+// fleet.ValidateOrgLogoBytes check on its contents, so a YAML referencing
+// an invalid image fails fast at gitops apply time rather than mid-PATCH.
+// The LimitReader caps the read at the file-size cap so a mis-pointed
+// huge file doesn't get slurped into memory before being rejected.
 func validateOrgLogoFile(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("reading file at %q: %w", path, err)
-	}
-	if info.Size() > orgLogoMaxFileSizeBytes {
-		return fmt.Errorf("file at %q is %d bytes; max allowed is %d", path, info.Size(), orgLogoMaxFileSizeBytes)
-	}
 	f, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("opening file at %q: %w", path, err)
+		return fmt.Errorf("opening logo file %q: %w", path, err)
 	}
 	defer f.Close()
-	head := make([]byte, 12)
-	n, err := io.ReadFull(f, head)
-	if err != nil && err != io.ErrUnexpectedEOF {
-		return fmt.Errorf("reading magic bytes from %q: %w", path, err)
+	body, err := io.ReadAll(io.LimitReader(f, fleet.OrgLogoMaxFileSize+1))
+	if err != nil {
+		return fmt.Errorf("reading logo file %q: %w", path, err)
 	}
-	if !looksLikeOrgLogo(head[:n]) {
-		return fmt.Errorf("file at %q is not a PNG, JPEG, or WebP image", path)
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
+		return fmt.Errorf("logo file at %q: %w", path, err)
 	}
 	return nil
-}
-
-func looksLikeOrgLogo(b []byte) bool {
-	pngMagic := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-	jpegMagic := []byte{0xFF, 0xD8, 0xFF}
-	if bytes.HasPrefix(b, pngMagic) || bytes.HasPrefix(b, jpegMagic) {
-		return true
-	}
-	return len(b) >= 12 && bytes.Equal(b[0:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WEBP"))
 }
 
 // UploadOrgLogo uploads the file at logoPath as the org logo for the given

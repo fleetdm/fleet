@@ -5,9 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 	"net/http"
 	"time"
@@ -18,40 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/gorilla/mux"
-	_ "golang.org/x/image/webp"
 )
 
 const orgLogoMaxFileSize = fleet.OrgLogoMaxFileSize
-
-// Magic-byte signatures used to identify accepted image formats. We compare
-// against raw upload bytes rather than trusting the multipart Content-Type
-// header.
-var (
-	pngMagic  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-	jpegMagic = []byte{0xFF, 0xD8, 0xFF}
-)
-
-// hasWebPMagic reports whether b begins with a WebP RIFF container header
-// ("RIFF" at bytes 0-3, "WEBP" at bytes 8-11). WebP isn't a simple prefix
-// check because the 4 bytes between the two markers carry the file size.
-func hasWebPMagic(b []byte) bool {
-	return len(b) >= 12 && bytes.Equal(b[0:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WEBP"))
-}
-
-// contentTypeForBytes returns the HTTP Content-Type for the accepted
-// formats (PNG, JPEG, WebP) and "" for anything else. Used by the GET
-// HijackRender to set the correct response header.
-func contentTypeForBytes(b []byte) string {
-	switch {
-	case bytes.HasPrefix(b, pngMagic):
-		return "image/png"
-	case bytes.HasPrefix(b, jpegMagic):
-		return "image/jpeg"
-	case hasWebPMagic(b):
-		return "image/webp"
-	}
-	return ""
-}
 
 // PUT /api/v1/fleet/logo
 
@@ -90,7 +56,7 @@ func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any,
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "failed to read uploaded logo", InternalErr: err}
 	}
-	if err := validateOrgLogoBytes(body); err != nil {
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
 		return nil, err
 	}
 	return putOrgLogoRequest{Mode: mode, Body: body}, nil
@@ -149,7 +115,7 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	if r.Err != nil {
 		return
 	}
-	contentType := contentTypeForBytes(r.Body)
+	contentType := fleet.ContentTypeForOrgLogo(r.Body)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -202,24 +168,6 @@ func parseLogoModeQuery(raw string) (fleet.OrgLogoMode, error) {
 		}
 	}
 	return m, nil
-}
-
-func validateOrgLogoBytes(b []byte) error {
-	if int64(len(b)) > orgLogoMaxFileSize {
-		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
-	}
-	_, format, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return &fleet.BadRequestError{
-			Message:     "logo must be a valid PNG, JPEG, or WebP image",
-			InternalErr: err,
-		}
-	}
-	switch format {
-	case "png", "jpeg", "webp":
-		return nil
-	}
-	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, or WebP file"}
 }
 
 // Service implementation
@@ -356,7 +304,7 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if int64(len(body)) > orgLogoMaxFileSize {
 		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
 	}
-	if contentTypeForBytes(body) == "" {
+	if fleet.ContentTypeForOrgLogo(body) == "" {
 		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
 	}
 	return body, int64(len(body)), nil

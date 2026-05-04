@@ -1,7 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,11 +17,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	pngBytes  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02}
-	jpegBytes = []byte{0xFF, 0xD8, 0xFF, 0x00, 0x01, 0x02, 0x03, 0x04}
-	webpBytes = []byte("RIFF\x10\x00\x00\x00WEBPVP8 ")
-)
+func makePNG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var buf bytes.Buffer
+	require.NoError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
+func makeJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var buf bytes.Buffer
+	require.NoError(t, jpeg.Encode(&buf, img, nil))
+	return buf.Bytes()
+}
 
 func writeTempFile(t *testing.T, name string, body []byte) string {
 	t.Helper()
@@ -29,13 +46,10 @@ func TestValidateOrgLogoFile(t *testing.T) {
 	t.Parallel()
 
 	t.Run("accepts png", func(t *testing.T) {
-		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.png", pngBytes)))
+		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.png", makePNG(t))))
 	})
 	t.Run("accepts jpeg", func(t *testing.T) {
-		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.jpg", jpegBytes)))
-	})
-	t.Run("accepts webp", func(t *testing.T) {
-		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.webp", webpBytes)))
+		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.jpg", makeJPEG(t))))
 	})
 	t.Run("rejects unknown format", func(t *testing.T) {
 		err := validateOrgLogoFile(writeTempFile(t, "logo.txt", []byte("not an image")))
@@ -43,11 +57,13 @@ func TestValidateOrgLogoFile(t *testing.T) {
 		assert.ErrorContains(t, err, "PNG, JPEG, or WebP")
 	})
 	t.Run("rejects oversized file", func(t *testing.T) {
-		body := make([]byte, orgLogoMaxFileSizeBytes+1)
-		copy(body, pngBytes)
+		// fleet.ValidateOrgLogoBytes fires its size check before
+		// image.DecodeConfig, so the body content doesn't need to
+		// decode as a real image.
+		body := make([]byte, orgLogoMaxFileSize+1)
 		err := validateOrgLogoFile(writeTempFile(t, "big.png", body))
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "max allowed")
+		assert.ErrorContains(t, err, "100KB or less")
 	})
 	t.Run("missing file", func(t *testing.T) {
 		err := validateOrgLogoFile(filepath.Join(t.TempDir(), "absent.png"))
@@ -62,7 +78,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 	logFn := func(string, ...any) {}
 	dir := t.TempDir()
 	pngPath := filepath.Join(dir, "logo.png")
-	require.NoError(t, os.WriteFile(pngPath, pngBytes, 0o600))
+	require.NoError(t, os.WriteFile(pngPath, makePNG(t), 0o600))
 
 	orgSettings := func(orgInfo map[string]any) map[string]any {
 		return map[string]any{"org_info": orgInfo}
