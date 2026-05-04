@@ -3341,15 +3341,24 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
+		// Normalize whitespace-only SAN to "" so the value we send matches the server's
+		// read-back (the server stores whitespace-only as NULL and COALESCEs reads to ""). Without
+		// this, hand-authored YAML like `subject_alternative_name: "  "` would mismatch on every
+		// apply and trigger an infinite delete+recreate cycle.
+		san := certificates[i].SubjectAlternativeName
+		if strings.TrimSpace(san) == "" {
+			san = ""
+		}
+
 		// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
 		// reaches the server. Server re-validates as the source of truth.
-		if certificates[i].SubjectAlternativeName != "" {
-			if err := validateCertificateTemplateSubjectAlternativeName(certificates[i].SubjectAlternativeName); err != nil {
+		if san != "" {
+			if err := validateCertificateTemplateSubjectAlternativeName(san); err != nil {
 				return newGitOpsValidationError(
 					fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
 				)
 			}
-			if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectAlternativeName); err != nil {
+			if err := validateCertificateTemplateFleetVariables(san); err != nil {
 				return newGitOpsValidationError(
 					fmt.Sprintf(`Invalid Fleet variable in subject_alternative_name of certificate %q: %s`,
 						certificates[i].Name, err.Error()),
@@ -3372,7 +3381,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			Team:                   teamName,
 			CertificateAuthorityId: ca.ID,
 			SubjectName:            certificates[i].SubjectName,
-			SubjectAlternativeName: certificates[i].SubjectAlternativeName,
+			SubjectAlternativeName: san,
 		}
 		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
 			return newGitOpsValidationError(

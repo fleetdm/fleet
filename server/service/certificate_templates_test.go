@@ -317,7 +317,7 @@ func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		{"unknown key FOO", "FOO=bar", true, "unsupported key"},
 		{"RFC822 is not a synonym", "RFC822=user@x", true, "unsupported key"},
 		{"length cap", strings.Repeat("DNS=a,", 1024), true, "too long"},
-		{"empty key with equals only", "=value", true, "missing '='"},
+		{"empty key with equals only", "=value", true, "empty key"},
 		{"empty value DNS=", "DNS=", true, "empty value"},
 		{"empty value EMAIL= mixed", "DNS=ok.example.com, EMAIL=", true, "empty value"},
 		{"separator only", ",", true, "no entries"},

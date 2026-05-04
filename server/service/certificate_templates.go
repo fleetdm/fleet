@@ -72,8 +72,11 @@ func validateCertificateTemplateSubjectAlternativeName(san string) error {
 		}
 		tokensSeen++
 		eqIdx := strings.Index(token, "=")
-		if eqIdx <= 0 {
+		if eqIdx == -1 {
 			return fmt.Errorf("subject_alternative_name token %q is missing '='", token)
+		}
+		if eqIdx == 0 {
+			return fmt.Errorf("subject_alternative_name token %q has an empty key", token)
 		}
 		key := strings.ToUpper(strings.TrimSpace(token[:eqIdx]))
 		if _, ok := subjectAlternativeNameAllowedKeys[key]; !ok {
