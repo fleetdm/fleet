@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.22.1",
+      "version": "0.23.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama' AND version_compare(bundle_short_version, '0.22.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama' AND version_compare(bundle_short_version, '0.23.0') < 0);"
       },
-      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.22.1/Ollama-darwin.zip",
+      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.23.0/Ollama-darwin.zip",
       "install_script_ref": "9a7b2cb2",
       "uninstall_script_ref": "f60ddfee",
-      "sha256": "387536bd3462fbf8a976932eefd97005d4917d284137bf9de5ad5006c061065b",
+      "sha256": "519cfd6b05be012746ee4f5e1f9316214ac245af63be44f0ff36a68da4fd2a60",
       "default_categories": [
         "Developer tools"
       ]

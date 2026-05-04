@@ -30,8 +30,16 @@ At a high level, Fleet consists of:
    - **TUF Server**: Provides secure updates for the agent components
    - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
    - **External Logging**: Optional integration with external logging systems
+   - **MDM Clients**: Consume APIs exposed by Fleet server to configure and control MDM (Mobile Device Management)-enrolled host devices. Generally provided by vendors like Apple, Microsoft, and Google as a component of the Operating System
+   - **Apple Business (AB) / DEP**: Apple cloud service Fleet syncs with to retrieve device assignments and deliver automatic enrollment profiles before first boot (i.e. before Fleet can directly interact with the device)
+   - **Windows Autopilot**: Microsoft cloud service Windows devices check in with at first boot to retrieve their MDM server info (Fleet's URL). Fleet does not communicate with Autopilot directly — the device is redirected to Fleet by Autopilot
+   - **Google Android Management API**: Google cloud service Fleet uses to manage Android Enterprise devices, policies, and managed apps. Device-originated notifications (enrollment, status, commands) are delivered back to Fleet via Google Cloud Pub/Sub
+   - **APNS (Apple Push Notification Service)**: Used by Fleet to wake Apple MDM clients so they check in for pending commands
+   - **Certificate Authority / SCEP proxy**: Fleet acts as a SCEP proxy to external CAs — NDES, DigiCert, Smallstep, Hydrant, or a custom SCEP server — so that MDM-enrolled hosts can obtain identity/Wi-Fi/VPN certificates
+   - **Azure AD (Entra ID)**: Issues JWTs to Windows devices during Autopilot sign-in; the device then presents that JWT as part of its enrollment request to Fleet. Fleet fetches Entra's JWKS to verify the token signature — it does not otherwise communicate with Entra
+   - **Apple VPP (Volume Purchase Program)**: App Store API Fleet syncs with to discover and manage licensed apps for MDM-enrolled Apple devices
 
-The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, and vulnerability management.
+The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, MDM and vulnerability management.
 
 ## Main system components
 
@@ -49,6 +57,7 @@ graph LR;
             desktop[Fleet Desktop];
         end
         desktop_browser["Host details<br>[browser]"];
+        mdm_client["OS MDM Client"]
     end
 
     subgraph Customer Cloud
@@ -77,6 +86,26 @@ graph LR;
         fleetctl[fleetctl CLI]
     end
 
+    subgraph "Apple cloud services"
+        abm["Apple Business<br>Manager / DEP"]
+        APNS["APNS"]
+        vpp["Apple VPP /<br>App Store API"]
+    end
+
+    subgraph "Microsoft cloud services"
+        autopilot["Windows Autopilot"]
+        azure_ad["Azure AD<br>(Entra ID)"]
+    end
+
+    subgraph "Google cloud services"
+        android_mgmt["Android Management<br>API"]
+        google_pubsub["Google Cloud<br>Pub/Sub"]
+    end
+
+    subgraph "Certificate Authority"
+        scep_ca["NDES / DigiCert /<br>Smallstep / Hydrant /<br>Custom SCEP"]
+    end
+
 
     fleet_release_owner -- "Release Process" --> tuf;
 
@@ -88,6 +117,9 @@ graph LR;
     orbit -- "starts" --> osqueryd
     desktop -- "opens" -->desktop_browser
     desktop_browser -- "My Device API" --> fleet_server;
+    mdm_client -- "MDM Protocol<br>(OS Specific)" --> fleet_server;
+    osqueryd -- "mdm_bridge table<br>(Windows)" --> mdm_client
+    orbit -- "Calls MDM<br>Registration APIs<br>(Windows)"-->mdm_client
 
     heroku -- "Metrics from all customers" --> datadog;
 
@@ -98,6 +130,20 @@ graph LR;
     fleet_server -- "metrics" --> heroku;
     fleet_server -- "fleetdm API" --> fleetdm
     fleet_server -- "queries/log results" --> log;
+
+    fleet_server -- "DEP sync<br>(poll device assignments<br>&amp; push profiles)" --> abm
+    fleet_server -- "Push notifications" --> APNS
+    fleet_server -- "App metadata sync" --> vpp
+    fleet_server -- "Policies / devices /<br>managed apps" --> android_mgmt
+    google_pubsub -- "Enrollment, status,<br>command notifications" --> fleet_server
+    fleet_server -- "SCEP proxy<br>(GetCACert / GetCert)" --> scep_ca
+    fleet_server -- "Fetch JWKS<br>(verify enrollment JWT)" --> azure_ad
+
+    mdm_client -- "Check in at first boot,<br>receive MDM server info" --> autopilot
+    mdm_client -- "User sign-in,<br>receive JWT" --> azure_ad
+    mdm_client -- "Requests config<br>during OS install" --> abm
+    APNS -- "Push notifications" --> mdm_client
+    mdm_client -- "SCEP enroll<br>(proxied via Fleet)" --> fleet_server
 
     Customer == "API" ==> fleet_server;
 

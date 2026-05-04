@@ -237,14 +237,14 @@ const Sso = ({
           />
           <InputField
             label="Entity ID"
-            helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
+            helpText="The URI you provide here must exactly match the Entity ID field used in the identity provider configuration."
             onChange={onInputChange}
             name="entityId"
             value={entityId}
             parseTarget
             onBlur={onInputBlur}
             error={formErrors.entity_id}
-            tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
+            tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
             label="IdP image URL"

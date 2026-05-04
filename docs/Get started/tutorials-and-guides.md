@@ -55,3 +55,4 @@ A collection of guides to help you with Fleet.
 
 <meta name="description" value="Links to deployment tutorials and guides for using Fleet.">
 <meta name="pageOrderInSection" value="300">
+<meta name="keywordsForDocsearch" value="fleet tutorials, getting started, learning resources, fleet guides, walkthroughs">
