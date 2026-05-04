@@ -215,10 +215,11 @@ func TestOsqueryHeaderPreAuthHostIdentityCert(t *testing.T) {
 
 	assert.False(t, nextCalled, "downstream handler must not run when httpsig verification fails")
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	// httpsig failure comes back as an OsqueryError with StatusCode=401 and
-	// nodeInvalid=false (see osquery.go AuthenticateHost), so the response
-	// body should NOT contain node_invalid:true.
-	assert.NotContains(t, rec.Body.String(), "node_invalid")
+	// Pre-auth normalizes every authentication failure (missing header,
+	// wrong scheme, invalid token, httpsig failure, etc.) into a uniform
+	// node_invalid:true response so the underlying reason is not exposed
+	// to clients.
+	assert.Contains(t, rec.Body.String(), `"node_invalid": true`)
 }
 
 // TestOsqueryCarveBlockHeaderPreAuth covers the strict-mode behavior of

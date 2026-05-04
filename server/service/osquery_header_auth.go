@@ -79,7 +79,7 @@ func osqueryHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Hand
 				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectMissing))
 				logger.WarnContext(ctx, "osquery request rejected: missing or malformed Authorization header",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr)
-				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: missing or malformed Authorization header"), w)
+				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: invalid authorization header"), w)
 				return
 			}
 
@@ -88,7 +88,7 @@ func osqueryHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Hand
 				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectInvalidToken))
 				logger.WarnContext(ctx, "osquery request rejected: invalid Authorization header token",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr, "err", err)
-				encodeError(ctx, err, w)
+				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: invalid authorization header"), w)
 				return
 			}
 
@@ -152,7 +152,7 @@ func osqueryCarveBlockHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func
 				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectMissing))
 				logger.WarnContext(ctx, "osquery carve/block rejected: missing or malformed Authorization header",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr)
-				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: missing or malformed Authorization header"), w)
+				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: invalid authorization header"), w)
 				return
 			}
 			host, _, err := svc.AuthenticateHost(ctx, nodeKey)
@@ -160,7 +160,7 @@ func osqueryCarveBlockHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func
 				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectInvalidToken))
 				logger.WarnContext(ctx, "osquery carve/block rejected: invalid Authorization header token",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr, "err", err)
-				encodeError(ctx, err, w)
+				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: invalid authorization header"), w)
 				return
 			}
 			// Stash the host so carveBlockEndpoint can enforce the

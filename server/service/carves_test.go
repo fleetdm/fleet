@@ -457,18 +457,19 @@ func TestCarveBlockHostOwnershipMismatch(t *testing.T) {
 
 	err = svc.CarveBlock(ctx, payload)
 	require.Error(t, err)
-	// Ownership failure must surface as an OsqueryError with 401 status
-	// (not an AuthFailedError) so the osquery client receives the
-	// expected response shape.
-	var ose *OsqueryError
-	require.ErrorAs(t, err, &ose)
+	// Ownership failure must surface as a top-level *OsqueryError with
+	// 401 status — top-level (no ctxerr.Wrap) is required because
+	// FleetErrorEncoder uses a type switch on err that does not unwrap.
+	// Wrapping would cause the encoder to fall through to the generic
+	// JSON error shape instead of the osquery-style response.
+	ose, ok := err.(*OsqueryError)
+	require.True(t, ok, "ownership-failure must be returned as *OsqueryError directly, not wrapped via ctxerr.Wrap (else FleetErrorEncoder type switch can't see it)")
 	assert.Equal(t, http.StatusUnauthorized, ose.Status())
 	assert.False(t, ose.NodeInvalid(), "node_invalid must be false on ownership failure — the node_key is valid")
 	// The response body uses a generic message to avoid disclosing carve
-	// existence/ownership to callers. The specific reason lives in the
-	// server log via ctxerr.Wrap.
+	// existence/ownership to callers; the specific reason is recorded in
+	// the server log via logging.WithExtras.
 	assert.Equal(t, "authentication error", ose.Error())
-	assert.Contains(t, err.Error(), "carve host ownership mismatch")
 	// NewBlock must NOT be called when ownership fails.
 	assert.False(t, ms.NewBlockFuncInvoked)
 }

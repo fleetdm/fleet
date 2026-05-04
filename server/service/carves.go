@@ -471,10 +471,11 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	}
 
 	if host, ok := hostctx.FromContext(ctx); ok && host.ID != carve.HostId {
-		logging.WithExtras(ctx, "carve_host_id", carve.HostId, "authed_host_id", host.ID)
+		logging.WithExtras(ctx, "carve_host_id", carve.HostId, "authed_host_id", host.ID,
+			"reason", "carve host ownership mismatch")
 		ose := newOsqueryError("authentication error")
 		ose.StatusCode = http.StatusUnauthorized
-		return ctxerr.Wrap(ctx, ose, "carve host ownership mismatch: authed host does not own carve session")
+		return ose
 	}
 
 	// Request is now authenticated

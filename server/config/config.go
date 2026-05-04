@@ -1329,7 +1329,7 @@ func (man Manager) addConfigs() {
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
 		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
-		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key auth is used. When false, the nodey key header is required and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
+		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
