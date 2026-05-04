@@ -5,6 +5,17 @@
     margin: 0 0 $pad-medium !important;
   }
 
+  // The bar chart's plot height is set inline to match the checkerboard's
+  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx). The
+  // min-height + centering mirrors .chart-card__chart-container so the bar
+  // chart sits in the same vertical band as the checkerboard cells.
+  &__chart-container {
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   // Theme-aware axis tick text. CSS fill overrides the inline fill attribute
   // recharts adds to its default <text> elements. Font size stays inline
   // (recharts measures it via getComputedStyle to lay out the axis).

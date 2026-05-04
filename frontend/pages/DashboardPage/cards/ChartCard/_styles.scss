@@ -146,8 +146,33 @@
     min-width: 0;
     overflow-x: auto;
 
+    // Mac users with "Show scroll bars: Always" set in System Settings see a
+    // permanent scrollbar gutter that overlaps the cells. Force overlay-style
+    // behaviour: the track stays transparent and the thumb only appears when
+    // the user hovers the chart.
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      height: 6px;
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
     svg {
       display: block;
+    }
+  }
+
+  &:hover &__scroll-wrapper {
+    scrollbar-color: $ui-fleet-black-25 transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: $ui-fleet-black-25;
     }
   }
 

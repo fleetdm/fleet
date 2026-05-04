@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
 import {
   BarChart,
@@ -22,6 +22,14 @@ const baseClass = "hosts-enrolled-card";
 // up the themed values for the SVG fills.
 const BAR_COLOR = "var(--core-fleet-green)";
 const BAR_HOVER_COLOR = "var(--core-fleet-green-over)";
+
+// Match the checkerboard's cell-grid height so the bar plot lines up with the
+// cells next to it (excluding the checkerboard's x-axis labels and legend).
+// Values come from CheckerboardViz: cellH * numRows + CELL_GAP * (numRows - 1)
+// for the 30-day view (numRows = 8).
+const CHART_HEIGHT_NARROW = 190; // 19 * 8 + 2 * 7
+const CHART_HEIGHT_WIDE = 242; // 28.5 * 8 + 2 * 7
+const WIDE_THRESHOLD = 700; // mirror CheckerboardViz
 
 export interface IHostPlatformCounts {
   darwin: number;
@@ -93,6 +101,7 @@ interface IYAxisTickProps {
   x?: number;
   y?: number;
   payload?: { value: string; index: number };
+  fontSize: number;
   isClickable: (index: number) => boolean;
   onLabelClick: (index: number) => void;
 }
@@ -101,6 +110,7 @@ const ClickableYAxisTick = ({
   x = 0,
   y = 0,
   payload,
+  fontSize,
   isClickable,
   onLabelClick,
 }: IYAxisTickProps): JSX.Element => {
@@ -116,7 +126,7 @@ const ClickableYAxisTick = ({
         y={0}
         dy={4}
         textAnchor="end"
-        fontSize={14}
+        fontSize={fontSize}
         className={clickable ? `${baseClass}__tick--clickable` : undefined}
       >
         {payload.value}
@@ -170,63 +180,92 @@ const HostsEnrolledCard = ({
     return getLabelId(datum.platform) !== undefined;
   };
 
+  // Mirror CheckerboardViz's wide-mode detection so the bar chart's plot area
+  // matches the cell grid height in both layouts.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isWide, setIsWide] = useState(false);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+    setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const chartHeight = isWide ? CHART_HEIGHT_WIDE : CHART_HEIGHT_NARROW;
+  // 7 platforms in ~166px (narrow) leaves ~23px per row, so the default 14px
+  // ticks crowd. Step down a couple sizes when narrow.
+  const tickFontSize = isWide ? 14 : 11;
+  // ChromeOS is the widest label and just barely doesn't fit at 80/60, so add
+  // a bit of breathing room.
+  const yAxisWidth = isWide ? 90 : 68;
+
   return (
-    <div className={baseClass}>
+    <div className={baseClass} ref={containerRef}>
       <h2 className={`${baseClass}__title`}>Hosts enrolled</h2>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
-          barCategoryGap="25%"
-        >
-          <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-          <CartesianGrid vertical={false} />
-          <XAxis
-            type="number"
-            tickFormatter={formatTick}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 14 }}
-          />
-          <YAxis
-            type="category"
-            dataKey="label"
-            axisLine={false}
-            tickLine={false}
-            width={80}
-            tick={
-              <ClickableYAxisTick
-                isClickable={isTickClickable}
-                onLabelClick={handleTickClick}
-              />
-            }
-          />
-          <Tooltip
-            content={<HostsEnrolledTooltip />}
-            cursor={false}
-            isAnimationActive={false}
-          />
-          <Bar
-            dataKey="count"
-            radius={[0, 4, 4, 0]}
-            barSize={16}
-            isAnimationActive={false}
-            activeBar={{ fill: BAR_HOVER_COLOR }}
-            onClick={(d) => handleBarClick(d.payload as IPlatformDatum)}
+      <div className={`${baseClass}__chart-container`}>
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
+            barCategoryGap="25%"
           >
-            {data.map((entry) => (
-              <Cell
-                key={entry.label}
-                fill={BAR_COLOR}
-                className={
-                  entry.count > 0 ? `${baseClass}__bar--clickable` : undefined
-                }
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+            <CartesianGrid vertical={false} />
+            <XAxis
+              type="number"
+              tickFormatter={formatTick}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: tickFontSize }}
+            />
+            <YAxis
+              type="category"
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              width={yAxisWidth}
+              interval={0}
+              tick={
+                <ClickableYAxisTick
+                  fontSize={tickFontSize}
+                  isClickable={isTickClickable}
+                  onLabelClick={handleTickClick}
+                />
+              }
+            />
+            <Tooltip
+              content={<HostsEnrolledTooltip />}
+              cursor={false}
+              isAnimationActive={false}
+            />
+            <Bar
+              dataKey="count"
+              radius={[0, 4, 4, 0]}
+              barSize={16}
+              isAnimationActive={false}
+              activeBar={{ fill: BAR_HOVER_COLOR }}
+              onClick={(d) => handleBarClick(d.payload as IPlatformDatum)}
+            >
+              {data.map((entry) => (
+                <Cell
+                  key={entry.label}
+                  fill={BAR_COLOR}
+                  className={
+                    entry.count > 0 ? `${baseClass}__bar--clickable` : undefined
+                  }
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 };
