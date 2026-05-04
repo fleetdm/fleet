@@ -4575,19 +4575,6 @@ WHERE %s`
 	}
 	hid = hostIDs[0]
 
-	// host_scim_user has host_id as its primary key, so a host can only be mapped to one SCIM
-	// user at a time. If the matched host already has a mapping, skip rather than fail with a
-	// duplicate-key error. This mirrors the host-driven path in MaybeAssociateHostWithScimUser.
-	var existingScimUserID uint
-	err := sqlx.GetContext(ctx, tx, &existingScimUserID, `SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, hid)
-	switch {
-	case err == nil:
-		logger.InfoContext(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: host already has scim user mapping; skipping", "host_id", hid, "existing_scim_user_id", existingScimUserID, "new_scim_user_id", user.ID)
-		return nil
-	case !errors.Is(err, sql.ErrNoRows):
-		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: check existing scim user for host")
-	}
-
 	if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
 	}
@@ -4682,6 +4669,13 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 		hostID, scimUserID,
 	)
 	if err != nil {
+		// host_scim_user has host_id as its sole primary key. A duplicate means the host already
+		// has a SCIM mapping (this user or another). Treat it as a no-op so concurrent SCIM
+		// creates and replica-lag pre-checks don't surface as 5XXs, and skip the profile resend
+		// since no new association was actually created.
+		if IsDuplicate(err) {
+			return nil
+		}
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
 	// resend profiles that depend on the user now associated with that host
