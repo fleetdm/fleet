@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -33,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	logtestutils "github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -16218,23 +16218,21 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}
 }
 
-// TestOsqueryBodySizeLimit verifies that /api/osquery/log and
-// /api/osquery/distributed/write inherit the global request body size limit
-// (platform_http.MaxRequestBodySize, currently 1 MiB).
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	t := s.T()
 
 	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
 
-	limit := int(platform_http.MaxRequestBodySize)
+	logLimit := int(fleet.DefaultMaxOsqueryLogWriteSize)
+	distLimit := int(fleet.DefaultMaxOsqueryDistributedWriteSize)
 
-	// Body over the global limit must be rejected with 413. The padding
+	// Body over the per-route default must be rejected with 413. The padding
 	// is inside a JSON string value so the body is syntactically valid up to
 	// the point where the reader is cut off.
 	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
 	logSuffix := `"]}`
-	logPadSize := limit + 1 - len(logPrefix) - len(logSuffix)
-	require.Positive(t, logPadSize, "padding must be positive; MaxRequestBodySize may be too small")
+	logPadSize := logLimit + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive")
 	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
 
@@ -16254,11 +16252,11 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
 	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
 
-	// Body over the global limit must be rejected with 413.
+	// Body over the per-route default must be rejected with 413.
 	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
 	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
-	distPadSize := limit + 1 - len(distPrefix) - len(distSuffix)
-	require.Positive(t, distPadSize, "padding must be positive; MaxRequestBodySize may be too small")
+	distPadSize := distLimit + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive")
 	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
 
@@ -16277,6 +16275,71 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	// io.ErrUnexpectedEOF from the bodyDecoder path is now wrapped as BadRequestErr → 400.
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
+
+	s.Run("config overrides take effect in body-auth mode", func() {
+		// Spin up a second server with custom per-route limits and
+		// confirm bodies above the override are rejected while bodies
+		// below are accepted.
+		const customLimit = 2 * units.MiB
+
+		cfg := config.TestConfig()
+		cfg.Osquery.MaxLogWriteBodySize = customLimit
+		cfg.Osquery.MaxDistributedWriteBodySize = customLimit
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
+		s.Require().Positive(logPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", logPad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
+		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
+
+		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
+		s.Require().Positive(distPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(distPrefix+strings.Repeat("x", distPad)+distSuffix),
+			http.StatusRequestEntityTooLarge)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+
+	s.Run("header-auth mode imposes no body size limit", func() {
+		// In header-auth mode the per-route configs are intentionally
+		// ignored AND no body size limit applies. A body well above the
+		// global default (and well above any per-route default) must
+		// succeed when authenticated via header.
+		cfg := config.TestConfig()
+		cfg.Osquery.AllowBodyAuthFallback = false
+		cfg.Osquery.MaxLogWriteBodySize = 1 * units.MiB         // ignored
+		cfg.Osquery.MaxDistributedWriteBodySize = 1 * units.MiB // ignored
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// 12 MiB body — over both the global limit (1 MiB) and any
+		// per-route default. Must succeed because header-auth mode
+		// applies no body size constraint.
+		oversizedLog, err := json.Marshal(submitLogsRequest{
+			NodeKey: *host.NodeKey,
+			LogType: "status",
+			Data:    []json.RawMessage{json.RawMessage(`"` + strings.Repeat("x", 12*1024*1024) + `"`)},
+		})
+		s.Require().NoError(err)
+		ts.DoRawWithHeaders("POST", "/api/osquery/log", oversizedLog,
+			http.StatusOK,
+			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
+	})
 }
 
 func (s *integrationTestSuite) TestListHostReports() {

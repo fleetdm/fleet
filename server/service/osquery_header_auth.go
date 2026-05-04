@@ -1,18 +1,17 @@
 package service
 
 import (
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Rejection reasons for the osquery pre-auth counter.
@@ -23,41 +22,29 @@ const (
 
 // osqueryPreAuthRejections counts osquery pre-auth rejections by reason and
 // route. Operators can alert on sustained growth of the "invalid_token" or
-// "missing" buckets.
-var (
-	osqueryPreAuthRejections     *prometheus.CounterVec
-	osqueryPreAuthRejectionsOnce sync.Once
-)
+// "missing" buckets. Initialized at package load; package panics if the OTEL
+// counter cannot be created, so the var is always non-nil at use.
+var osqueryPreAuthRejections = mustNewPreAuthRejectionsCounter()
 
-func getOsqueryPreAuthRejections() *prometheus.CounterVec {
-	osqueryPreAuthRejectionsOnce.Do(func() {
-		cv := prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Namespace: "fleet",
-				Subsystem: "osquery",
-				Name:      "preauth_rejections_total",
-				Help:      "Total number of osquery requests rejected by the HTTP-level header pre-auth (before the request body is read).",
-			},
-			[]string{"route", "reason"},
-		)
-		if err := prometheus.DefaultRegisterer.Register(cv); err != nil {
-			var are prometheus.AlreadyRegisteredError
-			if errors.As(err, &are) {
-				existing, ok := are.ExistingCollector.(*prometheus.CounterVec)
-				if !ok {
-					panic(fmt.Sprintf("metric fleet_osquery_preauth_rejections_total is registered as %T, expected *prometheus.CounterVec",
-						are.ExistingCollector))
-				}
-				osqueryPreAuthRejections = existing
-				return
-			}
-			// Registration errors on metric init are fatal: fail loudly
-			// so misconfiguration is caught in tests rather than in prod.
-			panic(err)
-		}
-		osqueryPreAuthRejections = cv
-	})
-	return osqueryPreAuthRejections
+func mustNewPreAuthRejectionsCounter() metric.Int64Counter {
+	c, err := otel.Meter("fleet").Int64Counter(
+		"fleet.osquery.preauth_rejections",
+		metric.WithDescription("Count of osquery requests rejected by the HTTP-level header pre-auth by route and reason"),
+		metric.WithUnit("{request}"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
+// preAuthRejectionAttrs returns the metric attributes for the pre-auth
+// rejection counter.
+func preAuthRejectionAttrs(route, reason string) metric.AddOption {
+	return metric.WithAttributes(
+		attribute.String("http.route", route),
+		attribute.String("reason", reason),
+	)
 }
 
 // osqueryHeaderAuthScheme is the canonical Authorization-header scheme used
@@ -89,16 +76,16 @@ func osqueryHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Hand
 			nodeKey := extractNodeKeyFromHeader(r)
 
 			if nodeKey == "" {
-				getOsqueryPreAuthRejections().WithLabelValues(r.URL.Path, preAuthRejectMissing).Inc()
+				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectMissing))
 				logger.WarnContext(ctx, "osquery request rejected: missing or malformed Authorization header",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr)
 				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: missing or malformed Authorization header"), w)
 				return
 			}
 
-			host, _, err := svc.AuthenticateHost(ctx, nodeKey)
+			host, debug, err := svc.AuthenticateHost(ctx, nodeKey)
 			if err != nil {
-				getOsqueryPreAuthRejections().WithLabelValues(r.URL.Path, preAuthRejectInvalidToken).Inc()
+				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectInvalidToken))
 				logger.WarnContext(ctx, "osquery request rejected: invalid Authorization header token",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr, "err", err)
 				encodeError(ctx, err, w)
@@ -113,6 +100,9 @@ func osqueryHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Hand
 			ctx = hostctx.NewContext(ctx, host)
 			ctx = ctxerr.AddErrorContextProvider(ctx, &hostctx.HostAttributeProvider{Host: host})
 			ctx = osqueryauth.NewPreAuthedContext(ctx)
+			if debug {
+				ctx = osqueryauth.NewDebugContext(ctx)
+			}
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -159,7 +149,7 @@ func osqueryCarveBlockHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func
 			ctx := r.Context()
 			nodeKey := extractNodeKeyFromHeader(r)
 			if nodeKey == "" {
-				getOsqueryPreAuthRejections().WithLabelValues(r.URL.Path, preAuthRejectMissing).Inc()
+				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectMissing))
 				logger.WarnContext(ctx, "osquery carve/block rejected: missing or malformed Authorization header",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr)
 				encodeError(ctx, newOsqueryErrorWithInvalidNode("authentication error: missing or malformed Authorization header"), w)
@@ -167,7 +157,7 @@ func osqueryCarveBlockHeaderPreAuth(svc fleet.Service, logger *slog.Logger) func
 			}
 			host, _, err := svc.AuthenticateHost(ctx, nodeKey)
 			if err != nil {
-				getOsqueryPreAuthRejections().WithLabelValues(r.URL.Path, preAuthRejectInvalidToken).Inc()
+				osqueryPreAuthRejections.Add(ctx, 1, preAuthRejectionAttrs(r.URL.Path, preAuthRejectInvalidToken))
 				logger.WarnContext(ctx, "osquery carve/block rejected: invalid Authorization header token",
 					"path", r.URL.Path, "remote_addr", r.RemoteAddr, "err", err)
 				encodeError(ctx, err, w)

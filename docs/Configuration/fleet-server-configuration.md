@@ -1314,6 +1314,34 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by `/api/osquery/log`. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (10MiB).
+
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
+
+- Default value: `0` (use built-in default of 10MiB)
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by `/api/osquery/distributed/write`. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (5MiB).
+
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
+
+- Default value: `0` (use built-in default of 5MiB)
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
+  ```
+
 ### osquery_allow_body_auth_fallback
 
 Selects how host-authenticated osquery requests are authenticated.

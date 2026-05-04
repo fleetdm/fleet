@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -176,16 +177,16 @@ func (s *integrationTestSuite) TestIntegrationsOsqueryHeaderAuth() {
 		})
 
 		t.Run("invalid header rejects before body is read", func(t *testing.T) {
-			// Send a body larger than the global request size limit
-			// (platform_http.MaxRequestBodySize, 1 MiB). If pre-auth rejects
-			// before reading the body, we get a clean 401. If the body were
-			// read, we'd get a 413 PayloadTooLarge.
+			// Send a body well above the global request size limit. If pre-auth
+			// rejects before reading the body, we get a clean 401. If the body
+			// were read, we'd get a 413 PayloadTooLarge.
+			padSize := int(platform_http.MaxRequestBodySize) * 2
 			var buf bytes.Buffer
 			buf.WriteByte('{')
 			buf.WriteString(`"node_key":"`)
 			buf.WriteString(nodeKey)
 			buf.WriteString(`","log_type":"status","data":["`)
-			buf.WriteString(strings.Repeat("A", 11*1024*1024)) // 11 MiB
+			buf.WriteString(strings.Repeat("A", padSize))
 			buf.WriteString(`"]}`)
 
 			resp := ts.DoRawWithHeaders("POST", "/api/osquery/log", buf.Bytes(),

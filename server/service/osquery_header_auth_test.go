@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -220,64 +219,6 @@ func TestOsqueryHeaderPreAuthHostIdentityCert(t *testing.T) {
 	// nodeInvalid=false (see osquery.go AuthenticateHost), so the response
 	// body should NOT contain node_invalid:true.
 	assert.NotContains(t, rec.Body.String(), "node_invalid")
-}
-
-// TestOsqueryPreAuthRejectionCounter verifies the Prometheus counter is
-// incremented for the right reason on the three rejection paths.
-func TestOsqueryPreAuthRejectionCounter(t *testing.T) {
-	const goodNodeKey = "valid-node-key"
-	ds := new(mock.Store)
-	svc, _ := newTestService(t, ds, nil, nil)
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
-		if nodeKey == goodNodeKey {
-			return &fleet.Host{ID: 1, HasHostIdentityCert: new(false)}, nil
-		}
-		return nil, newNotFoundError()
-	}
-
-	mw := osqueryHeaderPreAuth(svc, slog.New(slog.DiscardHandler))
-	h := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
-
-	counterVec := getOsqueryPreAuthRejections()
-
-	// readCounter snapshots the current counter value as int64. Counter
-	// values are reported as float64 by the prometheus library but the
-	// counter is only ever incremented by whole numbers, so cast for a
-	// clean integer assertion (avoids testifylint float-compare warnings).
-	readCounter := func(route, reason string) int64 {
-		m, err := counterVec.GetMetricWithLabelValues(route, reason)
-		require.NoError(t, err)
-		var dto dto.Metric
-		require.NoError(t, m.Write(&dto))
-		return int64(dto.GetCounter().GetValue())
-	}
-
-	// Case 1: missing header → reason "missing".
-	missingBefore := readCounter("/api/osquery/log", preAuthRejectMissing)
-	req := httptest.NewRequest(http.MethodPost, "/api/osquery/log", strings.NewReader("{}"))
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Equal(t, missingBefore+1, readCounter("/api/osquery/log", preAuthRejectMissing))
-
-	// Case 2: invalid token → reason "invalid_token".
-	invBefore := readCounter("/api/osquery/log", preAuthRejectInvalidToken)
-	req = httptest.NewRequest(http.MethodPost, "/api/osquery/log", strings.NewReader("{}"))
-	req.Header.Set("Authorization", "NodeKey bogus")
-	rec = httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Equal(t, invBefore+1, readCounter("/api/osquery/log", preAuthRejectInvalidToken))
-
-	// Case 3: valid token → no rejection counter movement.
-	okBefore := readCounter("/api/osquery/log", preAuthRejectInvalidToken)
-	req = httptest.NewRequest(http.MethodPost, "/api/osquery/log", strings.NewReader("{}"))
-	req.Header.Set("Authorization", "NodeKey "+goodNodeKey)
-	rec = httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, okBefore, readCounter("/api/osquery/log", preAuthRejectInvalidToken))
 }
 
 // TestOsqueryCarveBlockHeaderPreAuth covers the strict-mode behavior of

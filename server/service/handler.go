@@ -953,11 +953,36 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
 	heHeader.WithAltPaths("/api/v1/osquery/distributed/read").
 		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
-	heHeader.WithAltPaths("/api/v1/osquery/distributed/write").
+		// /distributed/write and /log accept large payloads. The body-size
+		// policy depends on which auth scheme is in effect:
+		//   - body-auth mode: per-route limit (operator-tunable via
+		//     MaxLogWriteBodySize / MaxDistributedWriteBodySize, defaulting to
+		//     the historical DefaultMaxOsquery* constants).
+		//   - header-auth mode: no per-route limit. Once pre-auth accepts the
+		//     request via Authorization: NodeKey, the agent is authenticated
+		//     and the body can be any size.
+	distWriteReg, logWriteReg := heHeader, heHeader
+	if config.Osquery.AllowBodyAuthFallback {
+		distLimit := config.Osquery.MaxDistributedWriteBodySize
+		if distLimit == 0 {
+			distLimit = fleet.DefaultMaxOsqueryDistributedWriteSize
+		}
+		distWriteReg = heHeader.WithRequestBodySizeLimit(distLimit)
+
+		logLimit := config.Osquery.MaxLogWriteBodySize
+		if logLimit == 0 {
+			logLimit = fleet.DefaultMaxOsqueryLogWriteSize
+		}
+		logWriteReg = heHeader.WithRequestBodySizeLimit(logLimit)
+	} else {
+		distWriteReg = heHeader.SkipRequestBodySizeLimit()
+		logWriteReg = heHeader.SkipRequestBodySizeLimit()
+	}
+	distWriteReg.WithAltPaths("/api/v1/osquery/distributed/write").
 		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
 	heHeader.WithAltPaths("/api/v1/osquery/carve/begin").
 		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
-	heHeader.WithAltPaths("/api/v1/osquery/log").
+	logWriteReg.WithAltPaths("/api/v1/osquery/log").
 		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 	he.WithAltPaths("/api/v1/osquery/yara/{name}").
 		POST("/api/osquery/yara/{name}", getYaraEndpoint, getYaraRequest{})

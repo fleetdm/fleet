@@ -154,7 +154,20 @@ func authenticatedHost(svc fleet.Service, logger *slog.Logger, next endpoint.End
 			if ac, ok := authz_ctx.FromContext(ctx); ok {
 				ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
 			}
-			return next(ctx, request)
+			debug := osqueryauth.IsDebug(ctx)
+			var hlogger *slog.Logger
+			if debug {
+				hlogger = logger.With("host_id", host.ID)
+				logJSON(ctx, hlogger, request, "request")
+			}
+			resp, err := next(ctx, request)
+			if err != nil {
+				return nil, err
+			}
+			if debug {
+				logJSON(ctx, hlogger, resp, "response")
+			}
+			return resp, nil
 		}
 
 		nodeKey, err := getNodeKey(request)

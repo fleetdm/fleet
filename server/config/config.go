@@ -212,6 +212,17 @@ type OsqueryConfig struct {
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 
+	// MaxLogWriteBodySize overrides the default request body size limit
+	// for the /api/osquery/log endpoint. A value of 0 means use the
+	// built-in default (DefaultMaxOsqueryLogWriteSize). This setting
+	// only takes effect when allow_body_auth_fallback is true (legacy
+	// body-auth mode). When allow_body_auth_fallback is false (header-
+	// auth mode) the route is not subject to any body size limit.
+	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
+	// MaxDistributedWriteBodySize is the equivalent of MaxLogWriteBodySize
+	// for /api/osquery/distributed/write.
+	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
+
 	// AllowBodyAuthFallback selects which authentication scheme is in
 	// effect for host-authenticated osquery requests.
 	//
@@ -1313,6 +1324,10 @@ func (man Manager) addConfigs() {
 		"Batch size to scan redis keys in async collection")
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key auth is used. When false, the nodey key header is required and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -1764,6 +1779,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
