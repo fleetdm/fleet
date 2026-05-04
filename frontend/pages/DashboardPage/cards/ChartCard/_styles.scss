@@ -265,6 +265,15 @@
     --level-3: #82d2b9;
     --level-4: #009a7d;
     --level-5: #005b4a;
+
+    body.dark-mode & {
+      --level-0: #515256;
+      --level-1: #2E363D;
+      --level-2: #2B4747;
+      --level-3: #006246;
+      --level-4: #008B64;
+      --level-5: #00C28B;
+    }
   }
 
   &--theme-red {
