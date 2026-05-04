@@ -89,10 +89,7 @@ func analyzeOSV(
 	)
 
 	for i := 0; i < len(software); i += softwareBatchSize {
-		end := i + softwareBatchSize
-		if end > len(software) {
-			end = len(software)
-		}
+		end := min(i+softwareBatchSize, len(software))
 		chunk := software[i:end]
 
 		// Match this chunk against the artifact.
