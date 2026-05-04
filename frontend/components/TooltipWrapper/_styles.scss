@@ -13,6 +13,7 @@
   &__underline {
     width: fit-content;
     text-decoration: underline dashed $ui-fleet-black-50;
+    text-decoration-thickness: 0.9px;
     text-underline-offset: 3px;
   }
 
