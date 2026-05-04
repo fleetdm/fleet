@@ -723,6 +723,11 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
+						// Platform is only meaningful for dynamic labels; strip it
+						// for other types so the output can be re-applied cleanly.
+						if label.LabelMembershipType != fleet.LabelMembershipTypeDynamic {
+							label.Platform = ""
+						}
 						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
@@ -759,6 +764,9 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
+			if label.LabelMembershipType != fleet.LabelMembershipTypeDynamic {
+				label.Platform = ""
+			}
 			printLabel(c, label) //nolint:errcheck
 			return nil
 		},

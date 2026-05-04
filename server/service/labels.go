@@ -94,14 +94,14 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	label.Description = p.Description
 
 	// Validate field combinations for the inferred membership type
-	if errs := fleet.ValidateLabelMembershipFields(&fleet.LabelSpec{
+	if err := fleet.ValidateLabelMembershipFields(&fleet.LabelSpec{
 		Name:                label.Name,
 		Query:               label.Query,
 		Platform:            label.Platform,
 		LabelMembershipType: label.LabelMembershipType,
 		HostVitalsCriteria:  label.HostVitalsCriteria,
-	}); len(errs) > 0 {
-		return nil, nil, fleet.NewInvalidArgumentError("label", errs[0].Error())
+	}); err != nil {
+		return nil, nil, err
 	}
 
 	for name := range fleet.ReservedLabelNames() {
@@ -623,9 +623,9 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 
 	for _, spec := range specs {
 		// Validate mutually exclusive field combinations per label membership type
-		if errs := fleet.ValidateLabelMembershipFields(spec); len(errs) > 0 {
+		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
 			return fleet.NewUserMessageError(
-				ctxerr.Wrap(ctx, errs[0], "invalid label spec"), http.StatusUnprocessableEntity,
+				ctxerr.Wrap(ctx, err, "invalid label spec"), http.StatusUnprocessableEntity,
 			)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
