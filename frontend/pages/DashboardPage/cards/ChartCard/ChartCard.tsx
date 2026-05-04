@@ -63,6 +63,7 @@ const DATASETS: IDataSet[] = [
         <br />({total ? `${value} / ${total}` : 0} hosts)
       </>
     ),
+    relativeScale: true,
   },
   {
     name: "cve",
@@ -240,6 +241,7 @@ const ChartCard = ({
       selectedDays: CHART_DAYS,
       theme: currentDataset.theme,
       tooltipFormatter: currentDataset.tooltipFormatter,
+      relativeScale: currentDataset.relativeScale,
     };
 
     switch (currentDataset.defaultChartType) {
