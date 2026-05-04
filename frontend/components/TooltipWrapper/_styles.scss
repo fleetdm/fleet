@@ -10,11 +10,12 @@
     line-height: inherit; // Same line height as parent
   }
 
+  // text-decoration dashed cannot be used as it's not firefox compatible so must use border-bottom
+  // margin-bottom -1px is to compensate for the 1px height of the underline using border-bottom
   &__underline {
     width: fit-content;
-    text-decoration: underline dashed $ui-fleet-black-50;
-    text-decoration-thickness: 0.9px;
-    text-underline-offset: 3px;
+    border-bottom: 1px dashed $ui-fleet-black-50;
+    margin-bottom: -1px;
   }
 
   &__tip-text {
