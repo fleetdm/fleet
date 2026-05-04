@@ -133,6 +133,7 @@ These organizations may need multiple AB and VPP tokens:
 - Managed Service Providers (MSPs)
 - Enterprises that acquire new businesses and as a result inherit new hosts
 - Umbrella organizations that preside over entities with separated purchasing authority (i.e. a hospital or university)
+- International companies
 
 For **MSPs**, the best practice is to have one AB and VPP connection per client.
 
