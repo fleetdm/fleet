@@ -2509,6 +2509,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil
 	}
 
+	ds.GetWindowsMDMDefaultTeamFunc = func(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+		return &fleet.WindowsMDMDefaultTeam{TeamName: fleet.TeamNameNoTeam}, nil
+	}
+
 	testCases := []struct {
 		name                                                 string
 		rows                                                 []map[string]string
@@ -2633,6 +2637,152 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDirectIngestMDMDeviceIDWindowsDefaultTeam(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	autopilotRows := []map[string]string{
+		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+	}
+
+	newDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, _ string, _ string) (bool, error) {
+			return true, nil
+		}
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:     deviceID,
+				MDMEnrollUserID: "autopilot@example.com", // valid UPN → Autopilot path
+			}, nil
+		}
+		ds.ReplaceHostDeviceMappingFunc = func(_ context.Context, _ uint, _ []*fleet.HostDeviceMapping, _ string) error {
+			return nil
+		}
+		ds.ScimUserByUserNameOrEmailFunc = func(_ context.Context, _ string, _ string) (*fleet.ScimUser, error) {
+			return nil, common_mysql.NotFound("SCIMUser")
+		}
+		ds.DeleteHostSCIMUserMappingFunc = func(_ context.Context, _ uint) error { return nil }
+		ds.UpdateMDMInstalledFromDEPFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
+		return ds
+	}
+
+	teamID := uint(42)
+
+	t.Run("assigns host to default team when host has no team", func(t *testing.T) {
+		ds := newDS()
+		host := &fleet.Host{ID: 1, UUID: "uuid-1", TeamID: nil}
+
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return &fleet.WindowsMDMDefaultTeam{TeamID: &teamID}, nil
+		}
+		var addedTeamID *uint
+		ds.AddHostsToTeamFunc = func(_ context.Context, params *fleet.AddHostsToTeamParams) error {
+			addedTeamID = params.TeamID
+			require.Equal(t, []uint{host.ID}, params.HostIDs)
+			return nil
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.True(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.True(t, ds.AddHostsToTeamFuncInvoked)
+		require.Equal(t, &teamID, addedTeamID)
+	})
+
+	t.Run("skips default team assignment when host already has a team", func(t *testing.T) {
+		ds := newDS()
+		existingTeam := uint(99)
+		host := &fleet.Host{ID: 2, UUID: "uuid-2", TeamID: &existingTeam}
+
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return &fleet.WindowsMDMDefaultTeam{TeamID: &teamID}, nil
+		}
+		ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error {
+			return nil
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.False(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("skips AddHostsToTeam when configured default team is nil", func(t *testing.T) {
+		ds := newDS()
+		host := &fleet.Host{ID: 3, UUID: "uuid-3", TeamID: nil}
+
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return &fleet.WindowsMDMDefaultTeam{TeamID: nil, TeamName: fleet.TeamNameNoTeam}, nil
+		}
+		ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error {
+			return nil
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.True(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("continues without error when GetWindowsMDMDefaultTeam fails", func(t *testing.T) {
+		ds := newDS()
+		host := &fleet.Host{ID: 4, UUID: "uuid-4", TeamID: nil}
+
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return nil, errors.New("db error")
+		}
+		ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error {
+			return nil
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.True(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("continues without error when AddHostsToTeam fails", func(t *testing.T) {
+		ds := newDS()
+		host := &fleet.Host{ID: 5, UUID: "uuid-5", TeamID: nil}
+
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return &fleet.WindowsMDMDefaultTeam{TeamID: &teamID}, nil
+		}
+		ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error {
+			return errors.New("team assignment failed")
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.True(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.True(t, ds.AddHostsToTeamFuncInvoked)
+	})
+
+	t.Run("skips default team logic for non-Autopilot enrollment", func(t *testing.T) {
+		ds := newDS()
+		host := &fleet.Host{ID: 6, UUID: "uuid-6", TeamID: nil}
+
+		// non-UPN device ID means it's not Autopilot
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:     deviceID,
+				MDMEnrollUserID: "a1b2c3d4e5f6g7h8i9j0", // not a valid UPN
+			}, nil
+		}
+		ds.GetWindowsMDMDefaultTeamFunc = func(_ context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+			return &fleet.WindowsMDMDefaultTeam{TeamID: &teamID}, nil
+		}
+		ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error {
+			return nil
+		}
+
+		err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, autopilotRows)
+		require.NoError(t, err)
+		require.False(t, ds.GetWindowsMDMDefaultTeamFuncInvoked)
+		require.False(t, ds.AddHostsToTeamFuncInvoked)
+	})
 }
 
 func TestShouldRemoveSoftware(t *testing.T) {

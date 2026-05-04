@@ -335,6 +335,10 @@ func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
 	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
 }
 
+func (MockClient) GetWindowsMDMDefaultTeam() (*fleet.WindowsMDMDefaultTeam, error) {
+	return nil, nil
+}
+
 func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
 	return []fleet.MaintainedApp{
 		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},

@@ -186,6 +186,165 @@ b1xn1jGQd/o0xFf9ojpDNy6vNojidQGHh6E3h0GYvxbnQmVNq5U=
 // private key in code.
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
+func TestWindowsMDMDefaultTeamAuth(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	ctx := context.Background()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := Service{ds: ds, authz: authorizer}
+
+	ds.GetWindowsMDMDefaultTeamFunc = func(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+		return &fleet.WindowsMDMDefaultTeam{TeamName: fleet.TeamNameNoTeam}, nil
+	}
+	ds.SetWindowsMDMDefaultTeamFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+
+	t.Run("GetWindowsMDMDefaultTeam", func(t *testing.T) {
+		cases := []struct {
+			desc               string
+			user               *fleet.User
+			shouldFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"observer", test.UserObserver, true},
+			{"observer+", test.UserObserverPlus, true},
+			{"maintainer", test.UserMaintainer, true},
+			{"gitops", test.UserGitOps, true},
+			{"team admin", test.UserTeamAdminTeam1, true},
+			{"admin can read", test.UserAdmin, false},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				_, err := svc.GetWindowsMDMDefaultTeam(test.UserContext(ctx, c.user))
+				checkAuthErr(t, c.shouldFailWithAuth, err)
+			})
+		}
+	})
+
+	t.Run("UpdateWindowsMDMDefaultTeam", func(t *testing.T) {
+		cases := []struct {
+			desc               string
+			user               *fleet.User
+			shouldFailWithAuth bool
+		}{
+			{"no role", test.UserNoRoles, true},
+			{"observer", test.UserObserver, true},
+			{"observer+", test.UserObserverPlus, true},
+			{"maintainer", test.UserMaintainer, true},
+			{"gitops", test.UserGitOps, true},
+			{"team admin", test.UserTeamAdminTeam1, true},
+			{"admin can write", test.UserAdmin, false},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				_, err := svc.UpdateWindowsMDMDefaultTeam(test.UserContext(ctx, c.user), nil)
+				checkAuthErr(t, c.shouldFailWithAuth, err)
+			})
+		}
+	})
+}
+
+func TestUpdateWindowsMDMDefaultTeam(t *testing.T) {
+	t.Parallel()
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+
+	t.Run("clears default team when teamID is nil", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := Service{ds: ds, authz: authorizer}
+
+		ds.SetWindowsMDMDefaultTeamFunc = func(_ context.Context, teamID *uint) error {
+			require.Nil(t, teamID)
+			return nil
+		}
+
+		result, err := svc.UpdateWindowsMDMDefaultTeam(ctx, nil)
+		require.NoError(t, err)
+		require.Nil(t, result.TeamID)
+		require.Equal(t, fleet.TeamNameNoTeam, result.TeamName)
+		require.True(t, ds.SetWindowsMDMDefaultTeamFuncInvoked)
+	})
+
+	t.Run("clears default team when teamID is zero", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := Service{ds: ds, authz: authorizer}
+
+		ds.SetWindowsMDMDefaultTeamFunc = func(_ context.Context, teamID *uint) error {
+			return nil
+		}
+
+		zero := uint(0)
+		result, err := svc.UpdateWindowsMDMDefaultTeam(ctx, &zero)
+		require.NoError(t, err)
+		require.Nil(t, result.TeamID)
+		require.Equal(t, fleet.TeamNameNoTeam, result.TeamName)
+	})
+
+	t.Run("sets default team when valid team ID provided", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := Service{ds: ds, authz: authorizer}
+
+		teamID := uint(7)
+		ds.TeamLiteFunc = func(_ context.Context, tid uint) (*fleet.TeamLite, error) {
+			require.Equal(t, teamID, tid)
+			return &fleet.TeamLite{ID: teamID, Name: "Engineering"}, nil
+		}
+		ds.SetWindowsMDMDefaultTeamFunc = func(_ context.Context, id *uint) error {
+			require.NotNil(t, id)
+			require.Equal(t, teamID, *id)
+			return nil
+		}
+
+		result, err := svc.UpdateWindowsMDMDefaultTeam(ctx, &teamID)
+		require.NoError(t, err)
+		require.NotNil(t, result.TeamID)
+		require.Equal(t, teamID, *result.TeamID)
+		require.Equal(t, "Engineering", result.TeamName)
+		require.True(t, ds.TeamLiteFuncInvoked)
+		require.True(t, ds.SetWindowsMDMDefaultTeamFuncInvoked)
+	})
+
+	t.Run("returns bad request error when team does not exist", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := Service{ds: ds, authz: authorizer}
+
+		teamID := uint(999)
+		ds.TeamLiteFunc = func(_ context.Context, _ uint) (*fleet.TeamLite, error) {
+			return nil, errors.New("not found")
+		}
+
+		_, err = svc.UpdateWindowsMDMDefaultTeam(ctx, &teamID)
+		require.Error(t, err)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.False(t, ds.SetWindowsMDMDefaultTeamFuncInvoked)
+	})
+
+	t.Run("propagates datastore error from SetWindowsMDMDefaultTeam", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := Service{ds: ds, authz: authorizer}
+
+		ds.SetWindowsMDMDefaultTeamFunc = func(_ context.Context, _ *uint) error {
+			return errors.New("db write error")
+		}
+
+		_, err = svc.UpdateWindowsMDMDefaultTeam(ctx, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db write error")
+	})
+}
+
 func TestCountABMTokensAuth(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)

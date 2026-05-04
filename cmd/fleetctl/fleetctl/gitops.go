@@ -146,6 +146,7 @@ func gitopsCommand() *cli.Command {
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 			var abmTeams, vppTeams, missingVPPTeams []string
 			var hasMissingABMTeam, usesLegacyABMConfig bool
+			var windowsAutopilotDefaultTeam string
 			type missingVPPTeamWithApps struct {
 				config   *spec.GitOps
 				vppApps  []*fleet.TeamSpecAppStoreApp
@@ -533,6 +534,17 @@ func gitopsCommand() *cli.Command {
 							}
 						}
 					}
+
+					// Extract Windows Autopilot default team - it is applied via a dedicated
+					// endpoint after teams are created, not through the app config endpoint.
+					if mdm, ok := config.OrgSettings["mdm"]; ok {
+						if mdmMap, ok := mdm.(map[string]any); ok {
+							if v, ok := mdmMap["windows_autopilot_default_team"]; ok {
+								windowsAutopilotDefaultTeam, _ = v.(string)
+								delete(mdmMap, "windows_autopilot_default_team")
+							}
+						}
+					}
 				}
 
 				// Teams need a VPP token before VPP apps can be applied. When some VPP
@@ -625,6 +637,11 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 			}
+			if windowsAutopilotDefaultTeam != "" && appConfig.License.IsPremium() {
+				if err = applyWindowsAutopilotDefaultTeamIfNeeded(c, teamNames, windowsAutopilotDefaultTeam, flDryRun, fleetClient); err != nil {
+					return err
+				}
+			}
 			// Now that VPP tokens have been assigned, we can apply VPP apps to the new team.
 			// For simplicity, we simply re-apply the entire config. This only happens once when the team is created.
 			for _, teamWithApps := range missingVPPTeamsWithApps {
@@ -663,6 +680,9 @@ func gitopsCommand() *cli.Command {
 						}
 						if slices.Contains(vppTeams, team.Name) {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
+						}
+						if windowsAutopilotDefaultTeam != "" && team.Name == windowsAutopilotDefaultTeam {
+							return fmt.Errorf("windows_autopilot_default_team %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
@@ -1182,4 +1202,26 @@ func applyVPPTokenAssignmentIfNeeded(
 		return fmt.Errorf("applying fleet config for volume_purchasing_program teams: %w", err)
 	}
 	return nil
+}
+
+func applyWindowsAutopilotDefaultTeamIfNeeded(
+	ctx *cli.Context,
+	teamNames []string,
+	teamName string,
+	flDryRun bool,
+	fleetClient *service.Client,
+) error {
+	if !slices.Contains(teamNames, teamName) {
+		return fmt.Errorf("windows_autopilot_default_team team %q not found in team configs", teamName)
+	}
+	if flDryRun {
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows Autopilot default team\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying Windows Autopilot default team\n")
+	allTeams, err := fleetClient.ListTeams("")
+	if err != nil {
+		return fmt.Errorf("listing teams: %w", err)
+	}
+	return fleetClient.UpdateWindowsMDMDefaultTeam(teamName, allTeams)
 }

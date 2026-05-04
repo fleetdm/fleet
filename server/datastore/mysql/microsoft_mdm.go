@@ -3439,3 +3439,24 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 	)
 	return err
 }
+
+func (ds *Datastore) GetWindowsMDMDefaultTeam(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+	var result fleet.WindowsMDMDefaultTeam
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, `
+SELECT
+  w.team_id,
+  COALESCE(t.name, ?) AS team_name
+FROM windows_mdm_default_team w
+LEFT OUTER JOIN teams t ON t.id = w.team_id
+WHERE w.id = 1`, fleet.TeamNameNoTeam)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm default team")
+	}
+	return &result, nil
+}
+
+func (ds *Datastore) SetWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE windows_mdm_default_team SET team_id = ? WHERE id = 1`, teamID)
+	return ctxerr.Wrap(ctx, err, "set windows mdm default team")
+}

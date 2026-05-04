@@ -1,8 +1,9 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
+import mdmService from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
@@ -14,6 +15,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import CustomLink from "components/CustomLink";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import { getErrorMessage } from "./helpers";
 
@@ -66,8 +69,11 @@ interface IWindowsMdmPageProps {
   router: InjectedRouter;
 }
 
+const NO_TEAM_VALUE = "";
+
 const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, availableTeams } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [mdmOn, setMdmOn] = useState(
@@ -84,6 +90,51 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
       ? "manual"
       : "automatic";
   });
+
+  const [defaultTeamName, setDefaultTeamName] = useState<string>(NO_TEAM_VALUE);
+  const [isSavingDefaultTeam, setIsSavingDefaultTeam] = useState(false);
+
+  useEffect(() => {
+    if (!isPremiumTier) return;
+
+    mdmService
+      .getWindowsAutopilotDefaultTeam()
+      .then((res) => {
+        setDefaultTeamName(
+          res?.windows_mdm_default_team?.team_name ?? NO_TEAM_VALUE
+        );
+      })
+      .catch(() => {
+        // silently ignore — default team stays as "No team"
+      });
+  }, [isPremiumTier]);
+
+  const defaultTeamOptions = useMemo(() => {
+    const teamOptions = (availableTeams ?? [])
+      .filter((t) => t.name !== "All fleets")
+      .map((t) => ({ value: t.name, label: t.name }));
+    return [{ value: NO_TEAM_VALUE, label: "No team" }, ...teamOptions];
+  }, [availableTeams]);
+
+  const onSaveDefaultTeam = async () => {
+    setIsSavingDefaultTeam(true);
+    try {
+      const team = (availableTeams ?? []).find(
+        (t) => t.name === defaultTeamName
+      );
+      const teamId =
+        defaultTeamName === NO_TEAM_VALUE ? null : team?.id ?? null;
+      await mdmService.updateWindowsAutopilotDefaultTeam(teamId);
+      renderFlash(
+        "success",
+        "Windows Autopilot default team updated successfully."
+      );
+    } catch (e) {
+      renderFlash("error", getErrorMessage(e));
+    } finally {
+      setIsSavingDefaultTeam(false);
+    }
+  };
 
   const updateWindowsMdm = useSetWindowsMdm({
     enableMdm: mdmOn,
@@ -202,6 +253,35 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             )}
           />
         </form>
+        {isPremiumTier && (
+          <div className={`${baseClass}__autopilot-section`}>
+            <h2>Windows Autopilot</h2>
+            <p>
+              Hosts that automatically enroll via Windows Autopilot are added to
+              this fleet.
+            </p>
+            <Dropdown
+              searchable={false}
+              options={defaultTeamOptions}
+              onChange={(value: string) => setDefaultTeamName(value)}
+              value={defaultTeamName}
+              label="Default fleet"
+              wrapperClassName={`${baseClass}__autopilot-team-dropdown`}
+            />
+            <GitOpsModeTooltipWrapper
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <Button
+                  isLoading={isSavingDefaultTeam}
+                  onClick={onSaveDefaultTeam}
+                  disabled={disableChildren}
+                >
+                  Save
+                </Button>
+              )}
+            />
+          </div>
+        )}
       </>
     </MainContent>
   );

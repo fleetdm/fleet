@@ -906,6 +906,17 @@ allow {
 }
 
 ##
+# Windows MDM Autopilot
+##
+
+# Global admins can read and write Windows MDM Autopilot default team configuration.
+allow {
+  object.type == "mdm_windows_autopilot"
+  subject.global_role == admin
+  action == [read, write][_]
+}
+
+##
 # Apple MDM
 ##
 

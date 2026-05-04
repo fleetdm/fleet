@@ -634,6 +634,10 @@ type CountABMTokensFunc func(ctx context.Context) (int, error)
 
 type UpdateABMTokenTeamsFunc func(ctx context.Context, tokenID uint, macOSTeamID *uint, iOSTeamID *uint, iPadOSTeamID *uint) (*fleet.ABMToken, error)
 
+type GetWindowsMDMDefaultTeamFunc func(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error)
+
+type UpdateWindowsMDMDefaultTeamFunc func(ctx context.Context, teamID *uint) (*fleet.WindowsMDMDefaultTeam, error)
+
 type DeleteABMTokenFunc func(ctx context.Context, tokenID uint) error
 
 type RenewABMTokenFunc func(ctx context.Context, token io.Reader, tokenID uint) (*fleet.ABMToken, error)
@@ -1839,6 +1843,12 @@ type Service struct {
 
 	UpdateABMTokenTeamsFunc        UpdateABMTokenTeamsFunc
 	UpdateABMTokenTeamsFuncInvoked bool
+
+	GetWindowsMDMDefaultTeamFunc        GetWindowsMDMDefaultTeamFunc
+	GetWindowsMDMDefaultTeamFuncInvoked bool
+
+	UpdateWindowsMDMDefaultTeamFunc        UpdateWindowsMDMDefaultTeamFunc
+	UpdateWindowsMDMDefaultTeamFuncInvoked bool
 
 	DeleteABMTokenFunc        DeleteABMTokenFunc
 	DeleteABMTokenFuncInvoked bool
@@ -4416,6 +4426,20 @@ func (s *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTe
 	s.UpdateABMTokenTeamsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateABMTokenTeamsFunc(ctx, tokenID, macOSTeamID, iOSTeamID, iPadOSTeamID)
+}
+
+func (s *Service) GetWindowsMDMDefaultTeam(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+	s.mu.Lock()
+	s.GetWindowsMDMDefaultTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsMDMDefaultTeamFunc(ctx)
+}
+
+func (s *Service) UpdateWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) (*fleet.WindowsMDMDefaultTeam, error) {
+	s.mu.Lock()
+	s.UpdateWindowsMDMDefaultTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateWindowsMDMDefaultTeamFunc(ctx, teamID)
 }
 
 func (s *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {

@@ -55,6 +55,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
+		{"TestWindowsMDMDefaultTeam", testWindowsMDMDefaultTeam},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
@@ -4611,6 +4612,56 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
 	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
 	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
+}
+
+func testWindowsMDMDefaultTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Initially the default team should be "No team" (nil TeamID).
+	result, err := ds.GetWindowsMDMDefaultTeam(ctx)
+	require.NoError(t, err)
+	require.Nil(t, result.TeamID)
+	require.Equal(t, fleet.TeamNameNoTeam, result.TeamName)
+
+	// Create a team to use as default.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Windows Default"})
+	require.NoError(t, err)
+
+	// Set the default team.
+	err = ds.SetWindowsMDMDefaultTeam(ctx, &team.ID)
+	require.NoError(t, err)
+
+	// Read back — should have the team ID and name.
+	result, err = ds.GetWindowsMDMDefaultTeam(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, result.TeamID)
+	require.Equal(t, team.ID, *result.TeamID)
+	require.Equal(t, "Windows Default", result.TeamName)
+
+	// Set back to "No team".
+	err = ds.SetWindowsMDMDefaultTeam(ctx, nil)
+	require.NoError(t, err)
+
+	result, err = ds.GetWindowsMDMDefaultTeam(ctx)
+	require.NoError(t, err)
+	require.Nil(t, result.TeamID)
+	require.Equal(t, fleet.TeamNameNoTeam, result.TeamName)
+
+	// Test ON DELETE SET NULL: set a team, then delete that team.
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Will Be Deleted"})
+	require.NoError(t, err)
+
+	err = ds.SetWindowsMDMDefaultTeam(ctx, &team2.ID)
+	require.NoError(t, err)
+
+	err = ds.DeleteTeam(ctx, team2.ID)
+	require.NoError(t, err)
+
+	// After team deletion, FK ON DELETE SET NULL should have set team_id to NULL.
+	result, err = ds.GetWindowsMDMDefaultTeam(ctx)
+	require.NoError(t, err)
+	require.Nil(t, result.TeamID)
+	require.Equal(t, fleet.TeamNameNoTeam, result.TeamName)
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {

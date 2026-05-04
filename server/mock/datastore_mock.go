@@ -1229,6 +1229,10 @@ type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 
 type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
+type GetWindowsMDMDefaultTeamFunc func(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error)
+
+type SetWindowsMDMDefaultTeamFunc func(ctx context.Context, teamID *uint) error
+
 type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
 type GetMDMAppleEnrolledDeviceDeletedFromFleetFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error)
@@ -3714,6 +3718,12 @@ type DataStore struct {
 
 	GetABMTokenOrgNamesAssociatedWithTeamFunc        GetABMTokenOrgNamesAssociatedWithTeamFunc
 	GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked bool
+
+	GetWindowsMDMDefaultTeamFunc        GetWindowsMDMDefaultTeamFunc
+	GetWindowsMDMDefaultTeamFuncInvoked bool
+
+	SetWindowsMDMDefaultTeamFunc        SetWindowsMDMDefaultTeamFunc
+	SetWindowsMDMDefaultTeamFuncInvoked bool
 
 	ClearMDMUpcomingActivitiesDBFunc        ClearMDMUpcomingActivitiesDBFunc
 	ClearMDMUpcomingActivitiesDBFuncInvoked bool
@@ -8951,6 +8961,20 @@ func (s *DataStore) GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, t
 	s.GetABMTokenOrgNamesAssociatedWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetABMTokenOrgNamesAssociatedWithTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetWindowsMDMDefaultTeam(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+	s.mu.Lock()
+	s.GetWindowsMDMDefaultTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetWindowsMDMDefaultTeamFunc(ctx)
+}
+
+func (s *DataStore) SetWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.SetWindowsMDMDefaultTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetWindowsMDMDefaultTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {

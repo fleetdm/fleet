@@ -199,6 +199,20 @@ type ABMTokenTeam struct {
 	ID   uint   `json:"team_id" renameto:"fleet_id"`
 }
 
+// WindowsMDMDefaultTeam holds the default team for Windows Autopilot enrollment.
+type WindowsMDMDefaultTeam struct {
+	TeamID   *uint  `db:"team_id" json:"team_id"`
+	TeamName string `db:"team_name" json:"team_name"`
+}
+
+// WindowsMDMAutopilot is the authorization type for Windows Autopilot default
+// team configuration.
+type WindowsMDMAutopilot struct{}
+
+func (w WindowsMDMAutopilot) AuthzType() string {
+	return "mdm_windows_autopilot"
+}
+
 type AppleCSR struct {
 	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
 	APNsKey  []byte `json:"apns_key"`

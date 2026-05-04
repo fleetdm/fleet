@@ -1013,6 +1013,12 @@ type Service interface {
 	// UpdateABMTokenTeams updates the default macOS, iOS, and iPadOS team IDs for a given ABM token.
 	UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*ABMToken, error)
 
+	// GetWindowsMDMDefaultTeam returns the default team for Windows Autopilot enrollment.
+	GetWindowsMDMDefaultTeam(ctx context.Context) (*WindowsMDMDefaultTeam, error)
+
+	// UpdateWindowsMDMDefaultTeam sets the default team for Windows Autopilot enrollment.
+	UpdateWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) (*WindowsMDMDefaultTeam, error)
+
 	// DeleteABMToken deletes the given ABM token.
 	DeleteABMToken(ctx context.Context, tokenID uint) error
 

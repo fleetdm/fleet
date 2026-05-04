@@ -4,6 +4,7 @@ import {
   IHostMdmProfile,
   IMdmProfile,
   IMdmSSOReponse,
+  IWindowsMDMDefaultTeam,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -440,6 +441,22 @@ const mdmService = {
     })}`;
 
     return sendRequest("DELETE", path);
+  },
+
+  getWindowsAutopilotDefaultTeam: (): Promise<{
+    windows_mdm_default_team: IWindowsMDMDefaultTeam;
+  }> => {
+    const { MDM_WINDOWS_AUTOPILOT_DEFAULT_TEAM } = endpoints;
+    return sendRequest("GET", MDM_WINDOWS_AUTOPILOT_DEFAULT_TEAM);
+  },
+
+  updateWindowsAutopilotDefaultTeam: (
+    teamId: number | null
+  ): Promise<{ windows_mdm_default_team: IWindowsMDMDefaultTeam }> => {
+    const { MDM_WINDOWS_AUTOPILOT_DEFAULT_TEAM } = endpoints;
+    return sendRequest("PATCH", MDM_WINDOWS_AUTOPILOT_DEFAULT_TEAM, {
+      team_id: teamId,
+    });
   },
 };
 

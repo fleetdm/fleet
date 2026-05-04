@@ -3344,3 +3344,54 @@ func truncateString(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Windows MDM Default Team endpoints
+////////////////////////////////////////////////////////////////////////////////
+
+type getWindowsMDMDefaultTeamResponse struct {
+	DefaultTeam *fleet.WindowsMDMDefaultTeam `json:"windows_mdm_default_team,omitempty"`
+	Err         error                        `json:"error,omitempty"`
+}
+
+func (r getWindowsMDMDefaultTeamResponse) Error() error { return r.Err }
+
+func getWindowsMDMDefaultTeamEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	result, err := svc.GetWindowsMDMDefaultTeam(ctx)
+	if err != nil {
+		return &getWindowsMDMDefaultTeamResponse{Err: err}, nil
+	}
+	return &getWindowsMDMDefaultTeamResponse{DefaultTeam: result}, nil
+}
+
+func (svc *Service) GetWindowsMDMDefaultTeam(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return nil, fleet.ErrMissingLicense
+}
+
+type updateWindowsMDMDefaultTeamRequest struct {
+	TeamID *uint `json:"team_id"`
+}
+
+type updateWindowsMDMDefaultTeamResponse struct {
+	DefaultTeam *fleet.WindowsMDMDefaultTeam `json:"windows_mdm_default_team,omitempty"`
+	Err         error                        `json:"error,omitempty"`
+}
+
+func (r updateWindowsMDMDefaultTeamResponse) Error() error { return r.Err }
+
+func updateWindowsMDMDefaultTeamEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateWindowsMDMDefaultTeamRequest)
+	result, err := svc.UpdateWindowsMDMDefaultTeam(ctx, req.TeamID)
+	if err != nil {
+		return &updateWindowsMDMDefaultTeamResponse{Err: err}, nil
+	}
+	return &updateWindowsMDMDefaultTeamResponse{DefaultTeam: result}, nil
+}
+
+func (svc *Service) UpdateWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) (*fleet.WindowsMDMDefaultTeam, error) {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return nil, fleet.ErrMissingLicense
+}

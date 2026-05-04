@@ -1789,6 +1789,44 @@ func (svc *Service) decryptUploadedABMToken(ctx context.Context, token io.Reader
 	return encryptedToken, decryptedToken, nil
 }
 
+func (svc *Service) GetWindowsMDMDefaultTeam(ctx context.Context) (*fleet.WindowsMDMDefaultTeam, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.WindowsMDMAutopilot{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	result, err := svc.ds.GetWindowsMDMDefaultTeam(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm default team")
+	}
+	return result, nil
+}
+
+func (svc *Service) UpdateWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) (*fleet.WindowsMDMDefaultTeam, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.WindowsMDMAutopilot{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	result := &fleet.WindowsMDMDefaultTeam{TeamName: fleet.TeamNameNoTeam}
+
+	if teamID != nil && *teamID != 0 {
+		team, err := svc.ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     fmt.Sprintf("team with ID %d not found", *teamID),
+				InternalErr: ctxerr.Wrap(ctx, err, "checking existence of Windows MDM default team"),
+			}
+		}
+		result.TeamID = teamID
+		result.TeamName = team.Name
+	}
+
+	if err := svc.ds.SetWindowsMDMDefaultTeam(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating windows mdm default team")
+	}
+
+	return result, nil
+}
+
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
 		return nil, err

@@ -3045,6 +3045,18 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 		}
 		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+			// This is an automatic (Autopilot) enrollment — apply the
+			// configured default team if the host is not yet on a team.
+			if host.TeamID == nil {
+				defaultTeam, err := ds.GetWindowsMDMDefaultTeam(ctx)
+				if err != nil {
+					logger.WarnContext(ctx, "failed to get windows mdm default team for autopilot enrollment", "err", err)
+				} else if defaultTeam.TeamID != nil {
+					if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(defaultTeam.TeamID, []uint{host.ID})); err != nil {
+						logger.WarnContext(ctx, "failed to assign autopilot host to default team", "err", err, "team_id", *defaultTeam.TeamID)
+					}
+				}
+			}
 			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
 			// it taking two full refreshes to show this
 			if device.MDMNotInOOBE {

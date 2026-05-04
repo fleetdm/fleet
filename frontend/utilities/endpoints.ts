@@ -165,6 +165,9 @@ export default {
   MDM_VPP_TOKEN_TEAMS: (id: number) =>
     `/${API_VERSION}/fleet/vpp_tokens/${id}/fleets`,
 
+  // Windows Autopilot endpoints
+  MDM_WINDOWS_AUTOPILOT_DEFAULT_TEAM: `/${API_VERSION}/fleet/windows_mdm/default_team`,
+
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,

@@ -49,6 +49,7 @@ integrations:
   zendesk: []
 mdm:
   apple_bm_default_team: ""
+  windows_autopilot_default_team: ""
   end_user_authentication:
     entity_id: ""
     idp_name: ""

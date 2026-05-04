@@ -1892,6 +1892,14 @@ type Datastore interface {
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
 
+	// GetWindowsMDMDefaultTeam returns the configured default team for Windows
+	// Autopilot enrollment. Returns a nil TeamID if "No team" is configured.
+	GetWindowsMDMDefaultTeam(ctx context.Context) (*WindowsMDMDefaultTeam, error)
+
+	// SetWindowsMDMDefaultTeam sets the default team for Windows Autopilot
+	// enrollment. A nil teamID means "No team".
+	SetWindowsMDMDefaultTeam(ctx context.Context, teamID *uint) error
+
 	// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
 	// require MDM to be processed, for when MDM is turned off for the host (or
 	// when it turns on again, e.g. after removing the enrollment profile - it may

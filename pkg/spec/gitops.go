@@ -313,7 +313,8 @@ type Software struct {
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
 type GitOpsMDM struct {
 	fleet.MDM
-	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+	EndUserLicenseAgreement     any    `json:"end_user_license_agreement,omitempty"`
+	WindowsAutopilotDefaultTeam string `json:"windows_autopilot_default_team,omitempty"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
