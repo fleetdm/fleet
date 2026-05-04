@@ -171,6 +171,7 @@ jobs:
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
+            terraform apply -target='module.loadtest.module.byo-db.module.ecs.aws_iam_role.execution' -target='module.loadtest.module.byo-db.module.ecs.aws_iam_role.main[0]'
             terraform apply -auto-approve
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
