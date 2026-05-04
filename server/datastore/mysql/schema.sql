@@ -365,7 +365,7 @@ CREATE TABLE `certificate_templates` (
   `subject_name` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `subject_alternative_name` text COLLATE utf8mb4_unicode_ci,
+  `subject_alternative_name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_cert_team_name` (`team_id`,`name`),
   KEY `certificate_authority_id` (`certificate_authority_id`),
