@@ -624,9 +624,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	for _, spec := range specs {
 		// Validate mutually exclusive field combinations per label membership type
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
-			return fleet.NewUserMessageError(
-				ctxerr.Wrap(ctx, err, "invalid label spec"), http.StatusUnprocessableEntity,
-			)
+			return err.WithStatus(http.StatusUnprocessableEntity)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.
