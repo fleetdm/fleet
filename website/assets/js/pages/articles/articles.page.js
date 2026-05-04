@@ -73,7 +73,7 @@ parasails.registerPage('articles', {
           debug: false,
           clickAnalytics: true,
           searchParameters: {
-            facetFilters: ['section:articles']
+            facetFilters: ['section:guides']
           },
         });
       }
