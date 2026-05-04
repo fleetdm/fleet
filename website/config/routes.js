@@ -480,16 +480,7 @@ module.exports.routes = {
     action: 'docs/view-app-details',// Meta title and description set in view action
   },
 
-  'GET /meetups': {
-    action: 'view-meetups',
-    locals: {
-      pageTitleForMeta: 'Meetups',
-      pageDescriptionForMeta: 'See upcoming meetup locations.',
-      currentSection: 'more',
-    }
-  },
-
-  'GET /report-generator': {
+  'GET /query-generator': {
     action: 'query-generator/view-query-generator',
     locals: {
       showAdminLinks: true,
@@ -1082,12 +1073,12 @@ module.exports.routes = {
   'GET /handbook/finance/security': '/handbook/it/security',
   'GET /fleet-gitops': '/infrastructure-as-code',
   'GET /queries': '/reports',
-  'GET /query-generator': '/report-generator',
   'GET /queries/:slug': {
     fn: (req, res) => {
       return res.redirect(301, '/reports/' + req.param('slug'));
     }
   },
+  'GET /meetups': '/gitops-workshop',
 
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
