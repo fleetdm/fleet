@@ -6410,6 +6410,19 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.NotContains(t, string(b), "idp_uuid=")
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
 	})
+
+	t.Run("returns 403 if no idp_uuid is set when required by config", func(t *testing.T) {
+		// update config to require idp_uuid
+		cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		err := s.ds.SaveAppConfig(ctx, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			cfg.MDM.MacOSSetup.EnableEndUserAuthentication = false
+			err := s.ds.SaveAppConfig(ctx, cfg)
+			require.NoError(t, err)
+		})
+		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
+	})
 }
 
 // TestAppleDDMSecretVariablesUpload tests uploading DDM profiles with secrets via the /configuration_profiles endpoint

@@ -106,6 +106,8 @@ labels:
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
   - path: ./lib/all/labels/keynote-14-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/macos-screen-lock-exclusions.yml
+  - path: ./lib/all/labels/windows-screen-lock-exclusions.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/team-g-software.yml
   - path: ./lib/all/labels/nudge-test-devices.yml

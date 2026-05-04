@@ -947,6 +947,10 @@ func (h *Host) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
+func (h *HostLite) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+}
+
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
@@ -1590,10 +1594,12 @@ type HostMacOSProfile struct {
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
+	ComputerName        string    `db:"computer_name"`
 	Hostname            string    `db:"hostname"`
 	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
+	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`

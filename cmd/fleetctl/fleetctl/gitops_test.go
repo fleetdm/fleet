@@ -243,6 +243,36 @@ queries:
 	assert.ErrorContains(t, err, "Fleet Premium")
 }
 
+func TestGitOpsDryRunRejectsInvalidLabelPlatform(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+queries:
+labels:
+  - name: Test - Linux invalid platform
+    query: SELECT 1;
+    platform: linux
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.ErrorContains(t, err, "invalid platform")
+	require.ErrorContains(t, err, "linux")
+}
+
 func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
