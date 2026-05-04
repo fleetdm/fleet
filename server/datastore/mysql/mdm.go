@@ -392,6 +392,10 @@ WHERE
 
 	WHERE
 		mwe.host_uuid IN (?)
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results r
+			WHERE r.enrollment_id = wq.enrollment_id AND r.command_uuid = wq.command_uuid
+		)
 
 		%[1]s
 
