@@ -1,5 +1,4 @@
 import React from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
@@ -87,7 +86,7 @@ const isIdPConfigured = ({
   );
 };
 
-const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
+const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
