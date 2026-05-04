@@ -164,7 +164,7 @@ func ValidateLabelMembershipFields(spec *LabelSpec) []error {
 			errs = append(errs, fmt.Errorf("label %q is declared as manual but contains a platform", spec.Name))
 		}
 	case LabelMembershipTypeDynamic:
-		if spec.Query == "" {
+		if strings.TrimSpace(spec.Query) == "" {
 			errs = append(errs, fmt.Errorf("label %q is declared as dynamic but is missing a query", spec.Name))
 		}
 		if spec.HostVitalsCriteria != nil {
