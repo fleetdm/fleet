@@ -4,12 +4,13 @@ import { noop, pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 const baseClass = "fleet-checkbox";
 
-export interface ICheckboxProps {
+interface ICheckboxPropsBase {
   children?: ReactNode;
   className?: string;
   /** readOnly displays a non-editable field */
@@ -17,13 +18,10 @@ export interface ICheckboxProps {
   /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
-  /** Called with a boolean when used directly, or { name, value } when parseTarget is set */
-  onChange?: ((value: boolean) => void) | ((target: { name?: string; value: boolean }) => void);
   onBlur?: (event: React.FocusEvent<HTMLDivElement>) => void;
   value?: boolean | null;
   wrapperClassName?: string;
   indeterminate?: boolean;
-  parseTarget?: boolean;
   /** to display over the checkbox label */
   labelTooltipContent?: React.ReactNode;
   /** to allow hovering over the tooltip e.g. links within it, default: false to not block form */
@@ -36,6 +34,21 @@ export interface ICheckboxProps {
    * Do not use on forms as enter key reserved for submit */
   enableEnterToCheck?: boolean;
 }
+
+/** When parseTarget is true, onChange receives { name, value }.
+ * Uses IInputFieldParseTarget for compatibility with shared input change handlers. */
+interface ICheckboxParseTargetProps extends ICheckboxPropsBase {
+  parseTarget: true;
+  onChange?: (target: IInputFieldParseTarget<boolean>) => void;
+}
+
+/** When parseTarget is false/unset, onChange receives a boolean */
+interface ICheckboxDirectProps extends ICheckboxPropsBase {
+  parseTarget?: false;
+  onChange?: (value: boolean) => void;
+}
+
+export type ICheckboxProps = ICheckboxParseTargetProps | ICheckboxDirectProps;
 
 const Checkbox = (props: ICheckboxProps) => {
   const {

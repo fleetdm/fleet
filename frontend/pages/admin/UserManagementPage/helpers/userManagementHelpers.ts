@@ -7,7 +7,7 @@ import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
   IUser,
-  "global_role" | "teams" | "name" | "email" | "sso_enabled"
+  "global_role" | "teams" | "name" | "email" | "sso_enabled" | "mfa_enabled"
 >;
 
 export interface IRoleOptionsParams {
