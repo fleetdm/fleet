@@ -596,6 +596,35 @@ A value of 0 means no timeout.
     write_timeout: 5s
   ```
 
+### redis_host_cache_enabled
+
+Enables a Redis-backed cache that fronts host lookups on the osquery and orbit auth paths.
+When enabled, Fleet caches authenticated host records in Redis to reduce MySQL load on
+high-volume check-in endpoints. Disable to bypass the cache and serve every check-in directly
+from MySQL.
+
+- Default value: true
+- Environment variable: `FLEET_REDIS_HOST_CACHE_ENABLED`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_enabled: true
+  ```
+
+### redis_host_cache_ttl
+
+Base TTL for entries in the Redis-backed host lookup cache. Each entry's actual TTL is jittered
+by ±10% to avoid synchronized expiry waves. Must be greater than 0 when `redis_host_cache_enabled`
+is true; to disable the cache, set `redis_host_cache_enabled=false` instead of zeroing this value.
+
+- Default value: 60s
+- Environment variable: `FLEET_REDIS_HOST_CACHE_TTL`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_ttl: 60s
+  ```
+
 ## Server
 
 ### server_address
