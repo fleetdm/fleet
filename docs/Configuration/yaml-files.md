@@ -771,8 +771,8 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
-  - `uptime` — host activity samples that drive the Hosts Active dashboard chart.
-  - `vulnerabilities` — per-host software vulnerability data that drive the Vulnerability Exposure dashboard chart.
+  - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
+  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart.
 
   A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
