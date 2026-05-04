@@ -48,7 +48,7 @@ If the software install still fails after all attempts, you can reset a software
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*
 
-App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
 
 Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 

@@ -38,6 +38,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
+	"github.com/macadmins/osquery-extension/tables/networkquality"
 	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
@@ -107,6 +108,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
 		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
+		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

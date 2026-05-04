@@ -1,0 +1,1 @@
+* Added generation of activities when users create, edit, or delete labels (`created_label`, `edited_label`, and `deleted_label` respectively).

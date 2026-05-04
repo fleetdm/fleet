@@ -134,6 +134,19 @@ We utilize two general event plans, which act as templates depending on the scal
 2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
 3. **Meetups/Happy Hours** ...wip
 
+
+
+### Partner Involvement at GitOps Workshops
+
+It is a best practice and a goal for Fleet to have channel partner involvement in every   
+GitOps workshop we host. Partner involvement strengthens the workshop's reach, reinforces   
+Fleet's channel relationships, and increases qualified attendance.
+
+#### There are three defined partner engagement types for GitOps workshops:
+1. **Dedicated Partner Workshop:** Fleet hosts the workshop exclusively for a single partner, typically at the partner's office. The audience is the partner's internal staff only — no customers, prospects, or other partners are included. This format is used for partner enablement and training.  
+2. **Partner Co-Sponsored Workshop** *(most common):* A single channel partner co-sponsors the workshop alongside Fleet. Only one partner sponsor is permitted per event, and no other partners may attend. Fleet and the co-sponsoring partner each invite from their combined customer and prospect base to drive attendance.  
+3. **Fleet-Led Open Workshop:** Fleet runs and owns the workshop independently, with no dedicated local partner. This format is used when there is no established partner presence in the workshop's metro area. Any partner is welcome to attend. To drive registration, the channel manager and account executives run a targeted LinkedIn campaign inviting prospects and customers within the workshop's metro area.
+
 ### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.

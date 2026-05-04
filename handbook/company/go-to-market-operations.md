@@ -258,11 +258,7 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
 
-8. Once the quote is approved, navigate back to the opportunity and advance the stage to **"Justification"**.
-
-9. Navigate to the approved quote record and click **"Start Sync"**. Confirm the prompt. Syncing is required before the opportunity can advance past **"Justification"**.
-
-10. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then click **"Save and Email Quote"**.
+8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
 
    | Template | When to use |
    | -------- | ----------- |
@@ -271,6 +267,15 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
    | Authorized partner | Selling through an authorized channel partner |
    | Unauthorized partner | Selling through a channel partner pending authorization |
    | 3eye distributorship | Selling through the 3EYE distributor |
+
+
+
+### Remove a contact from the "Top contacts" list in Salesforce
+
+1. Navigate to the contact.
+2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
+
+<img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
 
 
 

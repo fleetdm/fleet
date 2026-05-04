@@ -39,6 +39,8 @@ locals {
       FLEET_FILESYSTEM_RESULT_LOG_FILE               = "/dev/null"
       FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
       FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
+      FLEET_MYSQL_CONN_MAX_LIFETIME                  = "14400"
+      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "14400"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
       FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
       FLEET_REDIS_MAX_IDLE_CONNS                     = "500"

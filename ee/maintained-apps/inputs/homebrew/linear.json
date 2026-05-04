@@ -1,0 +1,8 @@
+{
+  "name": "Linear",
+  "unique_identifier": "com.linear",
+  "token": "linear",
+  "installer_format": "zip",
+  "slug": "linear/darwin",
+  "default_categories": ["Developer tools"]
+}
