@@ -145,7 +145,7 @@ for system in $SYSTEMS; do
       GOARCH=$goarch_value \
       go build \
       -race=$race_value \
-      -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+      -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
         -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
       -o $orbit_target ./orbit/cmd/orbit
     fi

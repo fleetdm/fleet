@@ -259,12 +259,14 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error-outline", // Match update available icon and not failed install icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
     iconName: "error-outline", // Match update available icon and not failed uninstall icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,
@@ -542,7 +544,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
@@ -576,7 +578,12 @@ const InstallStatusCell = ({
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
+          <Spinner
+            size="x-small"
+            includeContainer={false}
+            centered={false}
+            delay={0}
+          />
         ) : (
           displayConfig?.iconName && (
             <Icon

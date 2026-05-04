@@ -28,7 +28,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
- -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+ -  Forward any emails from customers about paying Fleet to the Finance department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Process the CEO's calendar
@@ -78,14 +78,17 @@ To check for pending connect requests, perform the following steps:
 ### Add LinkedIn connections to CRM
 
 To add the most recent connections from Linkedin to our CRM, follow these steps:
-  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
-  2. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
-  3. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
-  4. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
-  5. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
-  6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
-  7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
-  8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+  1. Log into the CEO's LinkedIn (if you're not already).
+  2. Click "My Network".
+  3. Click "Connections".
+  4. Open each person's LinkedIn page in a new tab.
+  5. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
+  6. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
+  7. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
+  8. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  9. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  10. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
+  11. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
 
 ### Connect with active community members
@@ -115,11 +118,11 @@ The CEO's calendar should reflect the following schedule for travel:
   - 45 minutes
   - Calendar event name: Pack
 - Travel time to the airport the CEO is going to,
-  - Check the time it takes from where the CEO is to the airport the CEO needs to get to, even if it's to his home airport. (e.g. If the CEO is leaving thier hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave their hotel.)
+  - Check the time it takes from where the CEO is to the airport the CEO needs to get to, even if it's to his home airport. (e.g. If the CEO is leaving their hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave their hotel.)
   - Calendar event name: Travel to NAME_OF_AIRPORT
   - Location: Address of the airport the CEO needs to go to.
 - Time block to go through security,
-  - 30 minuites for domestic and international flights
+  - 30 minutes for domestic and international flights
   - Calendar event name: Security
   - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
 - Time block to get water and boarding,
@@ -142,8 +145,11 @@ The CEO's calendar should reflect the following schedule for travel:
  - Location: Address to destination
  - Calendar event name if CEO is going home: Travel home
 - If the CEO is checking into a hotel, they need a time block to check-in,
+ - If the CEO will arrive to the hotel before their check-in time, call the hotel ahead of time to request early check-in. If early check-in is not available, schedule the check-in time block at the hotel's check-in time.
+ - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
  - 30 minutes
  - Calendar event: Check-in at hotel
+ - Calendar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview
@@ -174,7 +180,7 @@ The Executive Assistant (EA) will use the following steps to book an analyst bri
 Every Monday, the Executive Assistant will use the following steps to confirm CEO shadow dates:
 1. Edit the "All day", "Free" event on the CEO's calendar named "CEO shadow program (TODO_OR_DELETE)" to add the names of all people in the "@onboarding" Google group (group members are visible from the calendar event). E.g. "CEO shadow program (Froto Baggins, Samwise Gamgee)". 
 
-> If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed thier CEO shadow period), delete the calendar event for that week.
+> If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed their CEO shadow period), delete the calendar event for that week.
 
 2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) durring the 3-day CEO shadow period  have "[no shadows]" in the event title.
 

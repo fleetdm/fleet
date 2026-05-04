@@ -321,7 +321,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false)
+	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
 	require.NoError(t, err)
 	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 	ds.RecordPolicyQueryExecutionsFuncInvoked = false
@@ -373,7 +373,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false)
+	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 
@@ -435,7 +435,7 @@ func testRecordPolicyQueryExecutionsNoPoliciesSync(t *testing.T, ds *mock.Store,
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
 	require.NoError(t, err)
 	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 	ds.RecordPolicyQueryExecutionsFuncInvoked = false
@@ -485,7 +485,7 @@ func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 

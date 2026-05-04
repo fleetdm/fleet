@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -705,3 +706,52 @@ var (
 			</Item>
 		</Exec>`
 )
+
+func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return nil, &fleet.BadRequestError{
+			Message: "Host is not a macOS device.",
+		}
+	}
+
+	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, &fleet.BadRequestError{
+				Message: "Host does not have a managed account.",
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host managed account status")
+	}
+	if acct.Status == nil || *acct.Status != string(fleet.MDMDeliveryVerified) {
+		return nil, &fleet.BadRequestError{
+			Message: "Host's managed account password is not yet verified.",
+		}
+	}
+
+	pwd, err := svc.ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
+	return pwd, nil
+}

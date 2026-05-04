@@ -241,8 +241,8 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
 		}
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil // Only 1 admin
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		handler := mocks.newTestHandler()
@@ -253,7 +253,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		assert.Contains(t, err.Error(), "cannot delete last global admin")
 
 		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.True(t, mocks.ds.CountGlobalAdminsFuncInvoked)
+		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
@@ -268,10 +268,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
 		}
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil // Multiple admins
-		}
-		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -284,7 +281,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("matches on scim_user_emails when userName is not email", func(t *testing.T) {
@@ -418,8 +415,8 @@ func TestUserHandlerDelete(t *testing.T) {
 			return fleetUser, nil
 		}
 		// Last admin - Fleet user deletion will fail
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 		// SCIM user deletion should still succeed
 		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {

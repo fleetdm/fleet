@@ -3,7 +3,8 @@
     {
       "version": "2.6.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Asana' AND publisher = 'Asana, Inc.' AND version_compare(version, '2.6.0') < 0);"
       },
       "installer_url": "https://desktop-downloads.asana.com/win32_x64/prod/v2.6.0/AsanaSetup.exe",
       "install_script_ref": "7d7fdd9d",

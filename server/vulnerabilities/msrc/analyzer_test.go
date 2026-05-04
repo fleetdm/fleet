@@ -60,7 +60,7 @@ func TestIsVulnPatched(t *testing.T) {
 
 func TestIsOSVulnerable(t *testing.T) {
 	b := parsed.SecurityBulletin{
-		Vulnerabities: map[string]parsed.Vulnerability{
+		Vulnerabilities: map[string]parsed.Vulnerability{
 			"CVE-Win11": {
 				RemediatedBy: map[uint]bool{
 					123: true,
@@ -201,7 +201,7 @@ func TestIsOSVulnerable(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			isVuln, resolvedIn := isOSVulnerable(t.Context(), c.os, &b, b.Vulnerabities[c.feed], map[string]bool{"123": true}, c.feed, slog.New(slog.DiscardHandler))
+			isVuln, resolvedIn := isOSVulnerable(t.Context(), c.os, &b, b.Vulnerabilities[c.feed], map[string]bool{"123": true}, c.feed, slog.New(slog.DiscardHandler))
 			require.Equal(t, c.isVulnerable, isVuln)
 			require.Equal(t, c.resolvedIn, resolvedIn)
 		})

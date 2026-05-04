@@ -3,7 +3,8 @@
     {
       "version": "4.15.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Airtame 4.15.0' AND publisher = 'Airtame';"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Airtame %' AND publisher = 'Airtame' AND version_compare(version, '4.15.0') < 0);"
       },
       "installer_url": "https://downloads.airtame.com/app/latest/win/Airtame-4.15.0-setup.exe",
       "install_script_ref": "8a919fae",

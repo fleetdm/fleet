@@ -51,6 +51,7 @@
       "pending_action": "",
       "server_url": null
     },
+    "mdm_enrollment_hardware_attested": false,
     "memory": 0,
     "orbit_version": null,
     "os_version": "",

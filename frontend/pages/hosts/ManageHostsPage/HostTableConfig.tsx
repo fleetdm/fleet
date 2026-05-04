@@ -3,7 +3,6 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { CellProps, Column } from "react-table";
-import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import {
@@ -34,7 +33,6 @@ import {
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import { COLORS } from "styles/var/colors";
 import {
   IHeaderProps,
   IStringCellProps,

@@ -59,6 +59,24 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 	return info, nil
 }
 
+func (ds *Datastore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	info := &fleet.AppConfigUrls{}
+	var bytes []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "selecting app config urls")
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return &fleet.AppConfigUrls{}, nil
+	}
+
+	err = json.Unmarshal(bytes, info)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling config urls")
+	}
+	return info, nil
+}
+
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		configBytes, err := json.Marshal(info)

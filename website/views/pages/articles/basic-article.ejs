@@ -125,6 +125,16 @@
         </div>
         <div purpose="article-content" parasails-has-no-page-script>
           <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+
+          <div purpose="about-fleet-section" v-if="articleCategorySlug === 'customers'">
+            <h2>About Fleet</h2>
+
+            <p>Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.</p>
+
+            <p>By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.</p>
+
+            <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
+          </div>
         </div>
       </div>
     </div>

@@ -161,7 +161,9 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 		{".ps1", "windows", false},
 		{"ps1", "windows", false},
 
-		// Unsupported extensions
+		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
+		{".msix", "", true},
+		{"msix", "", true},
 		{".txt", "", true},
 		{"", "", true},
 	}
@@ -211,7 +213,9 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{".ps1", "script.ps1", "ps1_packages", false},
 		{"ps1", "setup.ps1", "ps1_packages", false},
 
-		// Unsupported extensions
+		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
+		{".msix", "app.msix", "", true},
+		{"msix", "app.msix", "", true},
 		{".txt", "readme.txt", "", true},
 		{"", "noext", "", true},
 	}

@@ -198,6 +198,17 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			return nil, ctxerr.Wrap(ctx, &eeservice.NotFoundError{})
 		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			for _, team := range teamStore {
+				if team.ID == excludeID {
+					continue
+				}
+				if strings.EqualFold(team.Name, name) {
+					return team, nil
+				}
+			}
+			return nil, nil
+		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamStore[id]
 			if !ok {
@@ -235,7 +246,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}

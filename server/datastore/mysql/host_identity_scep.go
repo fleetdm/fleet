@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -70,14 +70,14 @@ func (ds *Datastore) GetHostIdentityCertByName(ctx context.Context, name string)
 // certificate-based authentication on the My Device page.
 //
 // This query uses the nano_cert_auth_associations table which maps device IDs to
-// certificate hashes. The serial number lookup in scep_certificates provides
+// certificate hashes. The serial number lookup in identity_certificates provides
 // the raw certificate data, but we need the nanomdm association to get the device UUID.
 func (ds *Datastore) GetMDMSCEPCertBySerial(ctx context.Context, serialNumber uint64) (deviceUUID string, err error) {
 	// First get the certificate by serial
 	var certPEM string
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &certPEM, `
 		SELECT certificate_pem
-		FROM scep_certificates
+		FROM identity_certificates
 		WHERE serial = ?
 			AND not_valid_after > NOW()
 			AND revoked = 0`, serialNumber)

@@ -31,6 +31,10 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 30
+    preserve_host_activities_on_reenrollment: true
   certificate_authorities:
     custom_est_proxy:
     - name: some-est-name
@@ -200,4 +204,4 @@ reports:
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;

@@ -1,0 +1,369 @@
+import React, {
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { size } from "lodash";
+import classNames from "classnames";
+
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
+
+import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { ILabelSummary } from "interfaces/label";
+import { IPolicyFormData } from "interfaces/policy";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import useDeepEffect from "hooks/useDeepEffect";
+
+import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import Icon from "components/Icon";
+
+export interface ISaveNewPolicyModalProps {
+  baseClass: string;
+  queryValue: string;
+  onCreatePolicy: (formData: IPolicyFormData) => void;
+  setIsSaveNewPolicyModalOpen: (isOpen: boolean) => void;
+  backendValidators: { [key: string]: string };
+  platformSelector: IPlatformSelector;
+  isUpdatingPolicy: boolean;
+  aiFeaturesDisabled?: boolean;
+  isFetchingAutofillDescription: boolean;
+  isFetchingAutofillResolution: boolean;
+  onClickAutofillDescription: () => Promise<void>;
+  onClickAutofillResolution: () => Promise<void>;
+  labels: ILabelSummary[];
+}
+
+const validatePolicyName = (name: string) => {
+  const errors: { [key: string]: string } = {};
+
+  if (!name) {
+    errors.name = "Policy name must be present";
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
+
+const SaveNewPolicyModal = ({
+  baseClass,
+  queryValue,
+  onCreatePolicy,
+  setIsSaveNewPolicyModalOpen,
+  backendValidators,
+  platformSelector,
+  isUpdatingPolicy,
+  aiFeaturesDisabled,
+  isFetchingAutofillDescription,
+  isFetchingAutofillResolution,
+  onClickAutofillDescription,
+  onClickAutofillResolution,
+  labels,
+}: ISaveNewPolicyModalProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
+  const {
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryResolution,
+    lastEditedQueryCritical,
+    setLastEditedQueryName,
+    setLastEditedQueryPlatform,
+    // TODO: Keep last edited query platform from resetting when cancelling out of modal and clicking save again
+    setLastEditedQueryDescription,
+    setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
+  } = useContext(PolicyContext);
+
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
+    [isPremiumTier]
+  );
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
+
+  const disableForm =
+    isFetchingAutofillDescription || isFetchingAutofillResolution;
+  const disableSave =
+    !platformSelector.isAnyPlatformSelected ||
+    disableForm ||
+    (selectedTargetType === "Custom" &&
+      !Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
+
+  useDeepEffect(() => {
+    if (lastEditedQueryName) {
+      setErrors({});
+    }
+  }, [lastEditedQueryName]);
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
+
+  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString;
+    setLastEditedQueryPlatform(newPlatformString);
+
+    const { valid: validName, errors: newErrors } = validatePolicyName(
+      lastEditedQueryName
+    );
+    setErrors({
+      ...errors,
+      ...newErrors,
+    });
+
+    if (!disableSave && validName) {
+      const payload: IPolicyFormData = {
+        description: lastEditedQueryDescription,
+        name: lastEditedQueryName,
+        query: queryValue,
+        resolution: lastEditedQueryResolution,
+        platform: newPlatformString,
+        critical: lastEditedQueryCritical,
+      };
+      if (isPremiumTier) {
+        const customLabelNames =
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [];
+        payload.labels_include_any =
+          selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
+        payload.labels_include_all =
+          selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
+        payload.labels_exclude_any =
+          selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+      }
+      onCreatePolicy(payload);
+    }
+  };
+
+  const renderAutofillButton = useCallback(
+    (labelName: "Description" | "Resolution") => {
+      const isFetchingButton =
+        (labelName === "Description" && isFetchingAutofillDescription) ||
+        (labelName === "Resolution" && isFetchingAutofillResolution);
+
+      return (
+        <TooltipWrapper
+          tipContent={
+            aiFeaturesDisabled ? (
+              "AI features are disabled in organization settings"
+            ) : (
+              <>
+                Policy queries (SQL) will be sent to a <br />
+                large language model (LLM). Fleet <br />
+                doesn&apos;t use this data to train models.
+              </>
+            )
+          }
+          position="top"
+          disableTooltip={disableForm}
+          underline={false}
+        >
+          <div className="autofill-tooltip-wrapper">
+            <Button
+              variant="inverse"
+              disabled={aiFeaturesDisabled || disableForm}
+              onClick={
+                labelName === "Description"
+                  ? onClickAutofillDescription
+                  : onClickAutofillResolution
+              }
+              size="small"
+            >
+              {isFetchingButton ? (
+                "Thinking..."
+              ) : (
+                <>
+                  <Icon name="sparkles" /> Autofill
+                </>
+              )}
+            </Button>
+          </div>
+        </TooltipWrapper>
+      );
+    },
+    [isFetchingAutofillDescription, isFetchingAutofillResolution, disableForm]
+  );
+
+  const renderAutofillLabel = useCallback(
+    (labelName: "Description" | "Resolution") => {
+      const labelClassName = classNames(`${baseClass}__autofill-label`, {
+        [`${baseClass}__label--${labelName}`]: !!labelName,
+      });
+
+      return (
+        <div className={labelClassName}>
+          {labelName}
+          {renderAutofillButton(labelName)}
+        </div>
+      );
+    },
+    [renderAutofillButton]
+  );
+
+  return (
+    <Modal
+      title="Save policy"
+      onExit={() => setIsSaveNewPolicyModalOpen(false)}
+    >
+      <>
+        <form
+          onSubmit={handleSavePolicy}
+          className={`${baseClass}__save-modal-form`}
+          autoComplete="off"
+        >
+          <InputField
+            name="name"
+            onChange={(value: string) => setLastEditedQueryName(value)}
+            value={lastEditedQueryName}
+            error={errors.name}
+            inputClassName={`${baseClass}__policy-save-modal-name`}
+            label="Name"
+            autofocus
+            ignore1password
+            disabled={disableForm}
+          />
+          <InputField
+            name="description"
+            onChange={(value: string) => setLastEditedQueryDescription(value)}
+            value={lastEditedQueryDescription}
+            inputClassName={`${baseClass}__policy-save-modal-description`}
+            label={renderAutofillLabel("Description")}
+            helpText="How does this policy's failure put the organization at risk?"
+            type="textarea"
+            disabled={disableForm}
+          />
+          <InputField
+            name="resolution"
+            onChange={(value: string) => setLastEditedQueryResolution(value)}
+            value={lastEditedQueryResolution}
+            inputClassName={`${baseClass}__policy-save-modal-resolution`}
+            label={renderAutofillLabel("Resolution")}
+            type="textarea"
+            helpText="If this policy fails, what should the end user expect?"
+            disabled={disableForm}
+          />
+          {platformSelector.render()}
+          {isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              customTargetOptions={customTargetOptions}
+              onSelectCustomTarget={(val) =>
+                setSelectedCustomTarget(val as LabelScope)
+              }
+              selectedLabels={selectedLabels}
+              className={`${baseClass}__target`}
+              onSelectTargetType={setSelectedTargetType}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              suppressTitle
+              disableOptions={disableForm}
+            />
+          )}
+          {isPremiumTier && (
+            <div className="critical-checkbox-wrapper">
+              <Checkbox
+                name="critical-policy"
+                onChange={(value: boolean) => setLastEditedQueryCritical(value)}
+                value={lastEditedQueryCritical}
+                disabled={disableForm}
+              >
+                <TooltipWrapper
+                  tipContent={
+                    <p>
+                      If automations are turned on, this information is
+                      included. If Okta conditional access is configured, end
+                      users can never bypass critical policies.
+                    </p>
+                  }
+                >
+                  Critical
+                </TooltipWrapper>
+              </Checkbox>
+            </div>
+          )}
+          <div className="modal-cta-wrap">
+            <TooltipWrapper
+              tipContent={
+                <>
+                  Select the platforms this
+                  <br />
+                  policy will be checked on
+                  <br />
+                  to save the policy.
+                </>
+              }
+              tooltipClass={`${baseClass}__button--modal-save-tooltip`}
+              position="top"
+              disableTooltip={!disableSave}
+              underline={false}
+              showArrow
+              tipOffset={8}
+            >
+              <span className={`${baseClass}__button-wrap--modal-save`}>
+                <Button
+                  type="submit"
+                  onClick={handleSavePolicy}
+                  disabled={disableSave}
+                  className="save-policy-loading"
+                  isLoading={isUpdatingPolicy}
+                >
+                  Save
+                </Button>
+              </span>
+            </TooltipWrapper>
+            <Button
+              className={`${baseClass}__button--modal-cancel`}
+              onClick={() => setIsSaveNewPolicyModalOpen(false)}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </>
+    </Modal>
+  );
+};
+
+export default SaveNewPolicyModal;

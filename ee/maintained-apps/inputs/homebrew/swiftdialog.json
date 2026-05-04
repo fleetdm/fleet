@@ -1,0 +1,8 @@
+{
+  "name": "swiftDialog",
+  "unique_identifier": "au.csiro.dialog",
+  "token": "swiftdialog",
+  "installer_format": "pkg",
+  "slug": "swiftdialog/darwin",
+  "default_categories": ["Developer tools"]
+}

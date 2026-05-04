@@ -1,0 +1,128 @@
+// Mixins for feature-block layout patterns.
+// These handle LAYOUT only — typography, icons, and text alignment inside each
+// feature are page-specific. Add those overrides on the selectors after calling
+// the mixin.
+
+// Side-by-side: an image paired with a text block (headline + paragraph +
+// checklist or similar). Collapses to a single column below 992px.
+//
+// Expected markup:
+//   <div purpose='feature-with-image'>              (or add `class='reverse'`)
+//     <div purpose='feature-image'>...</div>
+//     <div purpose='feature-text'>...</div>
+//   </div>
+//
+// `feature-image` can contain img OR video — both get `border-radius: 16px` and
+// scale to fit the parent. Pages set the exact desktop width on the image.
+.feature-with-image() {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 64px;
+  &.reverse {
+    flex-direction: row-reverse;
+  }
+  [purpose='feature-image'] {
+    // Cap the image at half the container in row layout so both sides shrink
+    // proportionally on narrow viewports.
+    max-width: 50%;
+    img, video {
+      // Use max-width (not width) so images scale DOWN to fit narrower
+      // containers but never stretch beyond their natural source size.
+      // This avoids blurry upscaling in column mode at ≤768px, where the
+      // container width can exceed the image's intrinsic dimensions.
+      max-width: 100%;
+      height: auto;
+      border-radius: 16px;
+    }
+  }
+  [purpose='feature-text'] {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  @media (max-width: 991px) {
+    gap: 48px;
+  }
+  @media (max-width: 768px) {
+    flex-direction: column;
+    &.reverse {
+      flex-direction: column;
+    }
+    [purpose='feature-image'] {
+      max-width: 100%;
+    }
+  }
+}
+
+// Responsive 3-column grid of feature items.
+// Expected markup: a parent with [purpose='feature'] children.
+// Flex-wraps, so any multiple of 3 works (3, 6, 9, etc.).
+// Stays 3-column down to 768px, then collapses straight to 1-column.
+// Skipping a 2-column intermediate state avoids orphaned items
+// (e.g. 3 items → 2 + 1 centered) at tablet widths.
+.three-column-features() {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 64px;
+  max-width: @content-max-width;
+  margin-left: auto;
+  margin-right: auto;
+  [purpose='feature'] {
+    flex: 0 1 ~'calc((100% - 2 * 64px) / 3)';
+    min-width: 0;
+  }
+  @media (max-width: 991px) {
+    gap: 48px;
+    [purpose='feature'] {
+      flex-basis: ~'calc((100% - 2 * 48px) / 3)';
+    }
+  }
+  @media (max-width: 767px) {
+    gap: 40px;
+    [purpose='feature'] {
+      flex-basis: 100%;
+    }
+  }
+}
+
+// Responsive feature-row: like .three-column-features(), but with a 2-column
+// intermediate state. Best for grids of 6 (or any multiple of 6) where the
+// layout divides cleanly at each step, and when individual items are content-
+// heavy enough that 3-across at tablet widths feels cramped.
+//
+// Breakpoints: 3 cols → 2 cols at ≤991px → 1 col (centered) at ≤575px.
+// Expected markup: same as .three-column-features() — parent with
+// [purpose='feature'] children.
+.responsive-feature-row() {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 64px;
+  max-width: @content-max-width;
+  margin-left: auto;
+  margin-right: auto;
+  [purpose='feature'] {
+    flex: 0 1 ~'calc((100% - 2 * 64px) / 3)';
+    min-width: 0;
+  }
+  @media (max-width: 991px) {
+    gap: 48px;
+    [purpose='feature'] {
+      flex-basis: ~'calc((100% - 48px) / 2)';
+    }
+  }
+  @media (max-width: 575px) {
+    gap: 40px;
+    [purpose='feature'] {
+      flex-basis: 100%;
+      text-align: center;
+      img {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+  }
+}

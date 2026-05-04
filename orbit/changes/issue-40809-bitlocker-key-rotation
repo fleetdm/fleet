@@ -1,0 +1,1 @@
+- When a Windows disk is already encrypted and Fleet needs the recovery key, orbit now rotates the recovery key (adds a new Fleet-managed protector and removes old ones) instead of decrypting and re-encrypting the entire disk. This avoids the FVE_E_AUTOUNLOCK_ENABLED error loop on machines with secondary drives using auto-unlock.

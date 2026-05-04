@@ -51,85 +51,22 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
   }, [tokenFile, renderFlash, onAdded, onCancel]);
 
   return (
-    <Modal
-      className={baseClass}
-      title="Add ABM"
-      onExit={onCancel}
-      width="large"
-    >
-      <ol className={`${baseClass}__setup-list`}>
-        <li>
-          <span>1.</span>
-          <p>
-            Download your public key. <DownloadABMKey baseClass={baseClass} />
-          </p>
-        </li>
-        <li>
-          <span>2.</span>
-          <span>
-            <span>
-              Sign in to{" "}
-              <CustomLink
-                newTab
-                text="Apple Business Manager"
-                url="https://business.apple.com"
-              />
-              <br />
-              If your organization doesn&apos;t have an account, select{" "}
-              <b>Enroll now</b>.
-            </span>
-          </span>
-        </li>
-        <li>
-          <span>3.</span>
-          <span>
-            Select your <b>account name</b> at the bottom left of the screen,
-            then select <b>Preferences</b>.
-          </span>
-        </li>
-        <li>
-          <span>4.</span>
-          <span>
-            In the <b>Your MDM Servers</b> section, select <b>Add</b>.
-          </span>
-        </li>
-        <li>
-          <span>5.</span>
-          <span>Enter a name for the server such as &quot;Fleet&quot;.</span>
-        </li>
-        <li>
-          <span>6.</span>
-          <span>
-            Under <b>MDM Server Settings</b>, upload the public key downloaded
-            in the first step and select <b>Save</b>.
-          </span>
-        </li>
-        <li>
-          <span>7.</span>
-          <span>
-            In the <b>Default Device Assignment</b> section, select{" "}
-            <b>Change</b>, then assign the newly created server as the default
-            for your Macs, iPhones, and iPads. Then select <b>Done</b>.
-          </span>
-        </li>
-        <li>
-          <span>8.</span>
-          <span>
-            Select newly created server in the sidebar, then select{" "}
-            <b>Download MDM Server Token</b> on the top.
-          </span>
-        </li>
-        <li>
-          <span>9.</span>
-          <span>Upload the downloaded token (.p7m file).</span>
-        </li>
-      </ol>
+    <Modal className={baseClass} title="Add AB" onExit={onCancel} width="large">
+      <p>
+        Follow the step-by-step guide to connect Fleet to Apple Business
+        Manager.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/setup-abm"
+          text="Learn how"
+          newTab
+        />
+      </p>
       <FileUploader
         className={`${baseClass}__file-uploader ${
           isUploading ? `${baseClass}__file-uploader--loading` : ""
         }`}
         accept=".p7m"
-        message="ABM token (.p7m)"
+        message="AB token (.p7m)"
         graphicName="file-p7m"
         buttonType="brand-inverse-icon"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
@@ -142,8 +79,9 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           isLoading={isUploading}
           disabled={!tokenFile || isUploading}
         >
-          Add ABM
+          Add AB
         </Button>
+        <DownloadABMKey baseClass={baseClass} />
       </div>
     </Modal>
   );

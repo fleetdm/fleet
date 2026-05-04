@@ -82,6 +82,13 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err
 		}
+
+		if user.APIOnly && user.APIEndpoints != nil {
+			if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -109,6 +116,10 @@ func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal i
 
 	if err := ds.loadTeamsForUsers(ctx, []*fleet.User{user}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load teams")
+	}
+
+	if err := ds.loadAPIEndpointsForUsers(ctx, []*fleet.User{user}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load api endpoints")
 	}
 
 	// When SSO is enabled, we can ignore forced password resets
@@ -172,6 +183,10 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 
 	if err := ds.loadTeamsForUsers(ctx, users); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load teams")
+	}
+
+	if err := ds.loadAPIEndpointsForUsers(ctx, users); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load api endpoints")
 	}
 
 	return users, nil
@@ -238,8 +253,7 @@ func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
 func (ds *Datastore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		for _, user := range users {
-			err := saveUserDB(ctx, tx, user)
-			if err != nil {
+			if err := saveUserDB(ctx, tx, user); err != nil {
 				return err
 			}
 		}
@@ -301,6 +315,56 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		return err
 	}
 
+	if user.APIOnly {
+		if err := replaceUserAPIEndpoints(ctx, tx, user.ID, user.APIEndpoints); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// loadAPIEndpointsForUsers loads api_endpoints for any API-only users in the slice.
+func (ds *Datastore) loadAPIEndpointsForUsers(ctx context.Context, users []*fleet.User) error {
+	var apiOnlyIDs []uint
+	for _, u := range users {
+		if u.APIOnly {
+			apiOnlyIDs = append(apiOnlyIDs, u.ID)
+		}
+	}
+	if len(apiOnlyIDs) == 0 {
+		return nil
+	}
+
+	query, args, err := sqlx.In(
+		`SELECT user_id, method, path FROM user_api_endpoints WHERE user_id IN (?) ORDER BY method, path`,
+		apiOnlyIDs,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build load api endpoints query")
+	}
+
+	var rows []struct {
+		UserID uint   `db:"user_id"`
+		Method string `db:"method"`
+		Path   string `db:"path"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "load api endpoints for users")
+	}
+
+	byUserID := make(map[uint][]fleet.APIEndpointRef, len(apiOnlyIDs))
+	for _, row := range rows {
+		byUserID[row.UserID] = append(byUserID[row.UserID], fleet.APIEndpointRef{
+			Method: row.Method,
+			Path:   row.Path,
+		})
+	}
+	for _, u := range users {
+		if u.APIOnly {
+			u.APIEndpoints = byUserID[u.ID]
+		}
+	}
 	return nil
 }
 
@@ -396,13 +460,65 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 
-func (ds *Datastore) CountGlobalAdmins(ctx context.Context) (int, error) {
-	var count int
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &count, `SELECT COUNT(*) FROM users WHERE global_role = 'admin'`)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "count global admins")
-	}
-	return count, nil
+// DeleteUserIfNotLastAdmin atomically checks that the user being deleted is not the
+// last global admin before deleting. It uses SELECT ... FOR UPDATE to prevent concurrent
+// requests from bypassing the check (TOCTOU race condition).
+func (ds *Datastore) DeleteUserIfNotLastAdmin(ctx context.Context, id uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Lock the admin rows to prevent concurrent modifications.
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count,
+			`SELECT COUNT(*) FROM users WHERE global_role = 'admin' FOR UPDATE`); err != nil {
+			return ctxerr.Wrap(ctx, err, "count global admins for delete")
+		}
+		if count <= 1 {
+			return fleet.ErrLastGlobalAdmin
+		}
+
+		// Transfer user data to deleted_users table for audit/activity purposes.
+		stmt := `
+			INSERT INTO users_deleted (id, name, email)
+			SELECT u.id, u.name, u.email
+			FROM users AS u
+			WHERE u.id = ?
+			ON DUPLICATE KEY UPDATE
+				name       = u.name,
+				email      = u.email`
+		if _, err := tx.ExecContext(ctx, stmt, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "populate users_deleted entry")
+		}
+
+		res, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete user")
+		}
+		rows, _ := res.RowsAffected()
+		if rows != 1 {
+			return ctxerr.Wrap(ctx, notFound("User").WithID(id))
+		}
+		return nil
+	})
+}
+
+// SaveUserIfNotLastAdmin atomically checks that there's more than one admin
+// before saving the user. Returns ErrLastGlobalAdmin if there's only one last global admin.
+//
+// It uses SELECT ... FOR UPDATE to prevent concurrent requests from bypassing
+// the check (TOCTOU race condition).
+func (ds *Datastore) SaveUserIfNotLastAdmin(ctx context.Context, user *fleet.User) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Lock the admin rows to prevent concurrent modifications.
+		var count int
+		if err := sqlx.GetContext(ctx, tx, &count,
+			`SELECT COUNT(*) FROM users WHERE global_role = 'admin' FOR UPDATE`); err != nil {
+			return ctxerr.Wrap(ctx, err, "count global admins for save")
+		}
+		if count <= 1 {
+			return fleet.ErrLastGlobalAdmin
+		}
+
+		return saveUserDB(ctx, tx, user)
+	})
 }
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {
@@ -454,4 +570,25 @@ func (ds *Datastore) UserSettings(ctx context.Context, userID uint) (*fleet.User
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling user settings")
 	}
 	return settings, nil
+}
+
+// replaceUserAPIEndpoints replaces all API endpoint permissions for the given user.
+func replaceUserAPIEndpoints(ctx context.Context, tx sqlx.ExtContext, userID uint, endpoints []fleet.APIEndpointRef) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM user_api_endpoints WHERE user_id = ?`, userID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete user api endpoints")
+	}
+	if len(endpoints) == 0 {
+		return nil
+	}
+	placeholders := strings.Repeat("(?, ?, ?),", len(endpoints))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, 0, len(endpoints)*3)
+	for _, ep := range endpoints {
+		args = append(args, userID, ep.Path, ep.Method)
+	}
+	_, err := tx.ExecContext(ctx,
+		`INSERT INTO user_api_endpoints (user_id, path, method) VALUES `+placeholders,
+		args...,
+	)
+	return ctxerr.Wrap(ctx, err, "insert user api endpoints")
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 
 import { size } from "lodash";
@@ -7,6 +7,11 @@ import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
+
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -23,7 +28,6 @@ import {
 } from "interfaces/schedulable_query";
 
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -95,8 +99,15 @@ const SaveNewQueryModal = ({
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
+    "labelsIncludeAny"
+  );
   const [selectedLabels, setSelectedLabels] = useState({});
   const [discardData, setDiscardData] = useState(false);
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions({ entity: "report", isPremiumTier }),
+    [isPremiumTier]
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -173,6 +184,21 @@ const SaveNewQueryModal = ({
       .join(",") as CommaSeparatedPlatformString;
 
     if (valid) {
+      const customLabelNames =
+        isPremiumTier && selectedTargetType === "Custom"
+          ? Object.entries(selectedLabels)
+              .filter(([, selected]) => selected)
+              .map(([labelName]) => labelName)
+          : [];
+      const labelsForScope = (scope: LabelScope) => {
+        if (!isPremiumTier) {
+          return undefined;
+        }
+        return selectedCustomTarget === scope ? customLabelNames : [];
+      };
+      const labelsIncludeAny = labelsForScope("labelsIncludeAny");
+      const labelsIncludeAll = labelsForScope("labelsIncludeAll");
+
       saveQuery({
         // from modal fields
         name: trimmedName,
@@ -188,12 +214,8 @@ const SaveNewQueryModal = ({
         query: queryValue,
         // from doubly previous ManageQueriesPage
         fleet_id: apiTeamIdForQuery,
-        labels_include_any:
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
+        labels_include_any: labelsIncludeAny,
+        labels_include_all: labelsIncludeAll,
       });
     }
   };
@@ -295,16 +317,16 @@ const SaveNewQueryModal = ({
         {isPremiumTier && (
           <TargetLabelSelector
             selectedTargetType={selectedTargetType}
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            onSelectCustomTarget={(val) =>
+              setSelectedCustomTarget(val as LabelScope)
+            }
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
             onSelectTargetType={setSelectedTargetType}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
-            customHelpText={
-              <span className="form-field__help-text">
-                Report will target hosts that <b>have any</b> of these labels:
-              </span>
-            }
             suppressTitle
           />
         )}

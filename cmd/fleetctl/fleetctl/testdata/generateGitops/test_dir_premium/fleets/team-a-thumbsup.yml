@@ -82,6 +82,31 @@ policies:
   resolution: Install the app
   type: dynamic
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with FMA install automation
+  install_software:
+    fleet_maintained_app_slug: fma1/darwin
+  name: Team FMA install policy
+  platform: darwin
+  query: SELECT 1 FROM filevault_status WHERE status LIKE '%on%';
+  resolution: Install the FMA
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with custom package install automation
+  install_software:
+    hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
+  name: Team package install policy
+  platform: linux,windows
+  query: SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL)
+    / blocks > 0.10;
+  resolution: Install the package
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a team query
@@ -92,7 +117,7 @@ reports:
   name: Team Query
   observer_can_run: false
   platform: linux,windows
-  query: SELECT * FROM team_query WHERE id = 1
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
 settings:
   features:
     enable_host_users: true
@@ -171,6 +196,8 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+  - self_service: true
+    slug: fma3/windows
   packages:
   - categories:
     - Browsers

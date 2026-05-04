@@ -114,6 +114,7 @@ const FleetAppDetailsForm = ({
       />
       <div className={`${baseClass}__action-buttons`}>
         <GitOpsModeTooltipWrapper
+          entityType="software"
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent={softwareAlreadyAddedTipContent(

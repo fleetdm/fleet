@@ -78,7 +78,7 @@ const ResetPasswordForm = ({
     const valid = validate();
 
     if (valid) {
-      return handleSubmit(formData);
+      handleSubmit(formData);
     }
   };
 

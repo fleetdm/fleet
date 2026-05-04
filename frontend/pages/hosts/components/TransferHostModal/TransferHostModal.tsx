@@ -3,9 +3,8 @@ import React, { useCallback, useState } from "react";
 import PATHS from "router/paths";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import CustomLink from "components/CustomLink";
 import { ITeam } from "interfaces/team";
 
@@ -15,9 +14,7 @@ interface ITransferHostModal {
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
   isUpdating: boolean;
-  /** Manage host page only */
   multipleHosts?: boolean;
-  /** Selected team's id on manage host page, or host detail's team id */
   hostsTeamId?: number | null;
 }
 
@@ -43,50 +40,70 @@ const TransferHostModal = ({
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
+  const getDropdownValue = () => {
+    if (!selectedTeam) {
+      return undefined;
+    }
+
+    if ("id" in selectedTeam && selectedTeam.id === "no-team") {
+      return "no-team";
+    }
+
+    return String((selectedTeam as ITeam).id);
+  };
+
   const onChangeSelectTeam = useCallback(
-    (teamId: number | string) => {
-      if (teamId === "no-team") {
-        setSelectedTeam({ id: NO_TEAM_OPTION.value });
-      } else {
-        const teamWithId = teams.find((team) => team.id === teamId);
-        setSelectedTeam(teamWithId as ITeam);
+    (newValue: CustomOptionType | null) => {
+      if (!newValue) {
+        setSelectedTeam(undefined);
+        return;
       }
+
+      if (newValue.value === "no-team") {
+        setSelectedTeam({ id: NO_TEAM_OPTION.value });
+        return;
+      }
+
+      // newValue.value is a string; team.id is number, so coerce
+      const teamId = Number(newValue.value);
+      const teamWithId = teams.find((team) => team.id === teamId);
+      setSelectedTeam(teamWithId as ITeam);
     },
-    [teams, setSelectedTeam]
+    [teams]
   );
 
   const onSubmitTransferHost = useCallback(() => {
     onSubmit(selectedTeam as ITeam);
   }, [onSubmit, selectedTeam]);
 
-  const createTeamDropdownOptions = () => {
-    const teamOptions = teams
-      .filter((team) => team.id !== hostsTeamId) // Remove current team from options
-      .map((team) => {
-        return {
-          value: team.id,
-          label: team.name,
-        };
-      });
+  const createTeamDropdownOptions = (): CustomOptionType[] => {
+    const teamOptions: CustomOptionType[] = teams
+      .filter((team) => team.id !== hostsTeamId)
+      .map((team) => ({
+        value: String(team.id),
+        label: team.name,
+      }));
 
     // Hosts on no team cannot transfer to no team again
     const canTransferToNoTeam = hostsTeamId !== 0 && hostsTeamId !== null;
 
-    return canTransferToNoTeam ? [NO_TEAM_OPTION, ...teamOptions] : teamOptions;
+    return canTransferToNoTeam
+      ? [NO_TEAM_OPTION as CustomOptionType, ...teamOptions]
+      : teamOptions;
   };
 
   return (
     <Modal onExit={onCancel} title="Transfer" className={baseClass}>
       <form className={`${baseClass}__form`}>
-        <Dropdown
-          wrapperClassName={`${baseClass}__team-dropdown-wrapper`}
+        <DropdownWrapper
+          name="transfer-team"
+          wrapperClassname={`${baseClass}__team-dropdown-wrapper`}
           label={`Transfer ${multipleHosts ? "selected hosts" : "host"} to:`}
-          value={selectedTeam && selectedTeam.id}
+          value={getDropdownValue()}
           options={createTeamDropdownOptions()}
           onChange={onChangeSelectTeam}
           placeholder="Select a fleet"
-          searchable
-          autoFocus
+          isSearchable
         />
         {isGlobalAdmin ? (
           <p>

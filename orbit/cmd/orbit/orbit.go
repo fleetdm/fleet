@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
@@ -60,7 +61,6 @@ import (
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
 	httpsig "github.com/remitly-oss/httpsig-go"
@@ -227,6 +227,12 @@ func main() {
 			Hidden:  true, // experimental feature, we don't want to show it for now
 			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
 			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
+		},
+		&cli.StringFlag{
+			Name:    "eua-token",
+			Hidden:  true,
+			Usage:   "EUA token from Windows MDM enrollment, used during orbit enrollment to link IdP account",
+			EnvVars: []string{"ORBIT_EUA_TOKEN"},
 		},
 		&cli.BoolFlag{
 			Name:    "disable-keystore",
@@ -1017,7 +1023,7 @@ func orbitAction(c *cli.Context) error {
 	var (
 		signerWrapper               func(*http.Client) *http.Client
 		hostIdentityCertificatePath string
-		orbitClient                 *service.OrbitClient
+		orbitClient                 *fleetclient.OrbitClient
 	)
 	if c.Bool("fleet-managed-host-identity-certificate") {
 		commonName := osqueryHostInfo.HardwareUUID
@@ -1117,7 +1123,7 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
-	orbitClient, err = service.NewOrbitClient(
+	orbitClient, err = fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
 		c.String("fleet-certificate"),
@@ -1125,7 +1131,7 @@ func orbitAction(c *cli.Context) error {
 		enrollSecret,
 		fleetClientCertificate,
 		orbitHostInfo,
-		&service.OnGetConfigErrFuncs{
+		&fleetclient.OnGetConfigErrFuncs{
 			DebugErrFunc: func(err error) {
 				log.Debug().Err(err).Msg("get config")
 			},
@@ -1150,6 +1156,12 @@ func orbitAction(c *cli.Context) error {
 		return nil
 	})
 
+	// Set the EUA token from the MSI installer (Windows MDM enrollment).
+	// Must be set before any authenticated request triggers enrollment.
+	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != unusedFlagKeyword {
+		orbitClient.SetEUAToken(euaToken)
+	}
+
 	// If the server can't be reached, we want to fail quickly on any blocking network calls
 	// so that desktop can be launched as soon as possible.
 	serverIsReachable := orbitClient.Ping() == nil
@@ -1168,11 +1180,11 @@ func orbitAction(c *cli.Context) error {
 	orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
 	var trw *token.ReadWriter
-	var deviceClient *service.DeviceClient
+	var deviceClient *fleetclient.DeviceClient
 	// Note that the deviceClient used by orbit must not define a retry on
 	// invalid token, because its goal is to detect invalid tokens when
 	// making requests with this client.
-	deviceClient, err = service.NewDeviceClient(
+	deviceClient, err = fleetclient.NewDeviceClient(
 		fleetURL,
 		c.Bool("insecure"),
 		c.String("fleet-certificate"),
@@ -1366,7 +1378,7 @@ func orbitAction(c *cli.Context) error {
 	}
 	addSubsystem(&g, "osqueryd runner", r)
 
-	checkerClient, err := service.NewOrbitClient(
+	checkerClient, err := fleetclient.NewOrbitClient(
 		c.String("root-dir"),
 		fleetURL,
 		c.String("fleet-certificate"),
@@ -1374,7 +1386,7 @@ func orbitAction(c *cli.Context) error {
 		enrollSecret,
 		fleetClientCertificate,
 		orbitHostInfo,
-		&service.OnGetConfigErrFuncs{
+		&fleetclient.OnGetConfigErrFuncs{
 			DebugErrFunc: func(err error) {
 				log.Debug().Err(err).Msg("get config")
 			},
@@ -1575,7 +1587,7 @@ func orbitAction(c *cli.Context) error {
 	return nil
 }
 
-func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -1603,7 +1615,7 @@ func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, op
 		switch {
 		case err == nil:
 			// OK, continue
-		case errors.Is(err, service.ErrMissingLicense):
+		case errors.Is(err, fleetclient.ErrMissingLicense):
 			// Setup experience is a premium feature.
 			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
 			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
@@ -2144,12 +2156,12 @@ func (s *serviceChecker) Interrupt(err error) {
 //
 // This struct and its methods are designed to play nicely with `oklog.Group`.
 type capabilitiesChecker struct {
-	client        *service.OrbitClient
+	client        *fleetclient.OrbitClient
 	interruptCh   chan struct{} // closed when interrupt is triggered
 	executeDoneCh chan struct{} // closed when execute returns
 }
 
-func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+func newCapabilitiesChecker(client *fleetclient.OrbitClient) *capabilitiesChecker {
 	return &capabilitiesChecker{
 		client:        client,
 		interruptCh:   make(chan struct{}),

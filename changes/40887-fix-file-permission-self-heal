@@ -1,1 +1,0 @@
-* Fixed `secure.OpenFile` to self-heal incorrect file permissions via `chmod` instead of returning a fatal error.

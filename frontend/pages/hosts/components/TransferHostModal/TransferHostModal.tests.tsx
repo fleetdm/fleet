@@ -2,7 +2,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import paths from "router/paths";
 
 import TransferHostModal from "./TransferHostModal";
 
@@ -115,11 +114,16 @@ describe("TransferHostModal", () => {
     const { user, onSubmit } = setup({ hostsTeamId: 1 });
 
     const dropdown = screen.getByText(/Select a fleet/i);
-
     await user.click(dropdown);
-    const noTeamOption = await screen.findByRole("option", {
-      name: "Unassigned",
-    });
+    const options = await screen.findAllByTestId("dropdown-option");
+    const noTeamOption = options.find((el) =>
+      /Unassigned/i.test(el.textContent || "")
+    );
+
+    if (!noTeamOption) {
+      throw new Error("Unassigned option not found in dropdown");
+    }
+
     await user.click(noTeamOption);
 
     const transferButton = screen.getByRole("button", { name: "Transfer" });

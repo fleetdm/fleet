@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +17,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
+	scep_server "github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -66,6 +72,8 @@ func (s *integrationMDMTestSuite) verifyCertificateStatusWithSubject(
 	require.NotNil(t, profile, "Profile %s not found in host MDM profiles", certTemplateName)
 	require.NotNil(t, profile.Status)
 	require.Equal(t, string(expectedStatus), *profile.Status)
+	require.NotNil(t, profile.CertificateTemplateID, "certificate_template_id should not be nil for Android certificate profiles")
+	require.Equal(t, certificateTemplateID, *profile.CertificateTemplateID, "certificate_template_id should match")
 	if expectedDetail != "" {
 		require.Equal(t, expectedDetail, profile.Detail)
 	}
@@ -641,6 +649,17 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplatePending, "", "CN="+host.HardwareSerial)
 
+	// Step: Simulate the certificate being successfully installed on the device (status = verified).
+	// This is critical for testing that verified records are cleared on unenroll (issue #42600).
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ?, uuid = UUID_TO_BIN(UUID(), true) WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplateID)
+		return err
+	})
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+		fleet.CertificateTemplateVerified, "", "CN="+host.HardwareSerial)
+
 	// Step: Unenroll the host (simulates pubsub DELETED message)
 	unenrolled, err := s.ds.SetAndroidHostUnenrolled(ctx, host.ID)
 	require.NoError(t, err)
@@ -664,20 +683,24 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateUnenrollReenroll() {
 	require.NotZero(t, createResp.ID)
 	certTemplateID2 := createResp.ID
 
-	// Step: Verify that the unenrolled host did NOT get a host_certificate_templates record for the second template.
-	// The host API only returns profiles that have host_certificate_templates records, so the second
-	// template should not appear in the profiles list.
+	// Step: Verify that unenrolling cleared all certificate template records for this host.
+	// Neither the previously verified first template nor the newly created second template should appear.
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	require.Len(t, *getHostResp.Host.MDM.Profiles, 1, "Only first template should appear (second was created while host was unenrolled)")
-	profile := (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, certTemplateName, profile.Name, "First certificate template should be present")
-	require.NotNil(t, profile.Status)
-	require.Equal(t, string(fleet.CertificateTemplatePending), *profile.Status)
+	require.Nil(t, getHostResp.Host.MDM.Profiles, "All certificate template records should be cleared on unenroll")
 
-	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true)
+	// Step: Re-enroll the host (simulates pubsub status report triggering UpdateAndroidHost with fromEnroll=true).
+	// The full re-enrollment sequence in Service.updateHost is: UpdateAndroidHost, then delete stale certificate
+	// templates (no-op here since SetAndroidHostUnenrolled already removed them), then create fresh pending ones.
 	err = s.ds.UpdateAndroidHost(ctx, createdAndroidHost, true, false)
+	require.NoError(t, err)
+	err = s.ds.DeleteAllHostCertificateTemplates(ctx, host.UUID)
+	require.NoError(t, err)
+	teamIDForCerts := uint(0)
+	if createdAndroidHost.Host.TeamID != nil {
+		teamIDForCerts = *createdAndroidHost.Host.TeamID
+	}
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, teamIDForCerts)
 	require.NoError(t, err)
 
 	// Verify host is re-enrolled
@@ -1367,11 +1390,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 // TestCertificateTemplateResend tests the resend endpoint for Android certificate templates:
 // 1. After a certificate reaches 'verified' status, calling resend resets it to 'pending'
 // 2. The UUID changes after resend (signals the device to re-fetch)
-// 3. The reconcile cron picks up the pending template and re-delivers it
+// 3. The fleet_challenge is cleared after resend and regenerated on next delivery
+// 4. The reconcile cron picks up the pending template and re-delivers it
+// 5. The SCEP proxy accepts the refreshed fleet challenge
 func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	t := s.T()
 	ctx := t.Context()
 	enterpriseID := s.enableAndroidMDM(t)
+
+	// Start a test SCEP server so the SCEP proxy can forward requests
+	testSCEPServer := scep_server.StartTestSCEPServer(t)
 
 	// Create a test team
 	teamName := t.Name() + "-team"
@@ -1383,8 +1411,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	}, http.StatusOK, &createTeamResp)
 	teamID := createTeamResp.Team.ID
 
-	// Create a test certificate authority
-	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	// Create a certificate authority pointing to the real test SCEP server.
+	// Use a name without slashes since it appears in the SCEP proxy URL path.
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(strings.ReplaceAll(t.Name(), "/", "-") + "-CA"),
+		URL:       ptr.String(testSCEPServer.URL + "/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
 
 	// Create an enrolled Android host in the team
 	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
@@ -1412,24 +1448,48 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplateDelivered, "")
 
-	// Simulate device reporting certificate enrollment as verified
+	// Fetch via fleetd API to trigger on-demand fleet_challenge creation
+	// (challenge is created lazily on first fetch in delivered status)
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certTemplateID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	var preResendCertResp getDeviceCertificateTemplateResponse
+	err = json.NewDecoder(resp.Body).Decode(&preResendCertResp)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.NotNil(t, preResendCertResp.Certificate.FleetChallenge, "fleet_challenge should be created on-demand")
+	originalFleetChallenge := *preResendCertResp.Certificate.FleetChallenge
+
+	// Simulate device reporting certificate enrollment as verified, with validity info
+	certNotBefore := time.Now().UTC().Truncate(time.Second)
+	certNotAfter := certNotBefore.Add(365 * 24 * time.Hour)
+	certSerial := "AB:CD:EF:01:23:45"
+	certDetail := "enrollment succeeded"
 	updateReq, err := json.Marshal(updateCertificateStatusRequest{
-		Status: string(fleet.CertificateTemplateVerified),
+		Status:         string(fleet.CertificateTemplateVerified),
+		NotValidBefore: &certNotBefore,
+		NotValidAfter:  &certNotAfter,
+		Serial:         &certSerial,
+		Detail:         &certDetail,
 	})
 	require.NoError(t, err)
-	resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
+	resp = s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
 		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
 	})
 	_ = resp.Body.Close()
 
-	// Verify status is 'verified'
+	// Verify status is 'verified' and validity fields are populated
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplateVerified, "")
+	verifiedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+	require.NoError(t, err)
+	require.NotNil(t, verifiedRecord.NotValidBefore, "not_valid_before should be set after verified")
+	require.NotNil(t, verifiedRecord.NotValidAfter, "not_valid_after should be set after verified")
+	require.NotNil(t, verifiedRecord.Serial, "serial should be set after verified")
+	require.NotNil(t, verifiedRecord.Detail, "detail should be set after verified")
 
 	// Record UUID before resend
-	originalRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
-	require.NoError(t, err)
-	originalUUID := originalRecord.UUID
+	originalUUID := verifiedRecord.UUID
 
 	// Call the resend endpoint
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
@@ -1447,11 +1507,16 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 		),
 		0)
 
-	// Verify status is reset to 'pending' and UUID changed
+	// Verify status is reset to 'pending', UUID changed, and all certificate fields cleared
 	updatedRecord, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.CertificateTemplatePending, updatedRecord.Status)
 	require.NotEqual(t, originalUUID, updatedRecord.UUID, "UUID should change after resend")
+	require.Nil(t, updatedRecord.FleetChallenge, "fleet_challenge should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidBefore, "not_valid_before should be cleared after resend")
+	require.Nil(t, updatedRecord.NotValidAfter, "not_valid_after should be cleared after resend")
+	require.Nil(t, updatedRecord.Serial, "serial should be cleared after resend")
+	require.Nil(t, updatedRecord.Detail, "detail should be cleared after resend")
 
 	// Verify the host API reflects pending status
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
@@ -1464,6 +1529,53 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
 		fleet.CertificateTemplateDelivered, "")
 
+	// Fetch via fleetd API again to trigger new fleet_challenge creation
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certTemplateID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	var postResendCertResp getDeviceCertificateTemplateResponse
+	err = json.NewDecoder(resp.Body).Decode(&postResendCertResp)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	require.NotNil(t, postResendCertResp.Certificate.FleetChallenge, "fleet_challenge should be regenerated after resend and re-delivery")
+	require.NotEqual(t, originalFleetChallenge, *postResendCertResp.Certificate.FleetChallenge, "fleet_challenge should differ from the original after resend")
+
+	// Use the SCEP proxy with the refreshed fleet_challenge to fetch CA capabilities.
+	// Android identifier format: {hostUUID},g{certificateTemplateID},{caName},{fleetChallenge}
+	newFleetChallenge := *postResendCertResp.Certificate.FleetChallenge
+	caName := *ca.Name
+	identifier := url.PathEscape(fmt.Sprintf("%s,g%d,%s,%s", host.UUID, certTemplateID, caName, newFleetChallenge))
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	_ = scepRes.Body.Close()
+	require.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// Verify the new fleet_challenge exists in the challenges table (GetCACaps doesn't consume it)
+	checkChallengeExists := func(challenge string, expectFound bool) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var found string
+			err := sqlx.GetContext(ctx, q, &found, "SELECT challenge FROM challenges WHERE challenge = ?", challenge)
+			if errors.Is(err, sql.ErrNoRows) {
+				require.False(t, expectFound, "expected challenge to exist in DB but it was not found")
+				return nil
+			}
+			require.NoError(t, err)
+			require.True(t, expectFound, "found challenge in DB but expected it to be absent")
+			return nil
+		})
+	}
+	checkChallengeExists(newFleetChallenge, true)
+
+	// Consume the new challenge (simulates what PKIOperation does)
+	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
+	require.NoError(t, err)
+
+	// Verify the challenge is gone after consumption — a second consume must fail
+	checkChallengeExists(newFleetChallenge, false)
+	err = s.ds.ConsumeChallenge(ctx, newFleetChallenge)
+	require.Error(t, err, "consuming the same challenge twice should fail")
+
 	// Resend for a non-existent host should return 404
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", 99999, certTemplateID),
 		nil, http.StatusNotFound, &struct{}{})
@@ -1471,4 +1583,333 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 	// Resend for a non-existent template returns 404
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, 99999),
 		nil, http.StatusNotFound, &struct{}{})
+
+	// ---- Automatic retry tests (reusing same host/cert/CA setup) ----
+	t.Run("automatic retry", func(t *testing.T) {
+
+		// Reset the certificate to pending with retry_count=0 for a fresh retry test
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+
+		// Helper: report a certificate status from the device
+		reportCertStatus := func(status string, detail *string) {
+			req, err := json.Marshal(updateCertificateStatusRequest{Status: status, Detail: detail})
+			require.NoError(t, err)
+			resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), req, http.StatusOK, map[string]string{
+				"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+			})
+			_ = resp.Body.Close()
+		}
+
+		// Helper: deliver (pending -> delivered) via cron and verify
+		deliverCert := func() {
+			s.awaitTriggerAndroidProfileSchedule(t)
+			s.verifyCertificateStatus(t, host, orbitNodeKey, certTemplateID, certTemplateName, caID,
+				fleet.CertificateTemplateDelivered, "")
+		}
+
+		// Fail MaxCertificateInstallRetries times -- each should auto-retry (status resets to pending)
+		for i := range fleet.MaxCertificateInstallRetries {
+			deliverCert()
+			detail := fmt.Sprintf("SCEP failure %d", i+1)
+			reportCertStatus(string(fleet.MDMDeliveryFailed), &detail)
+
+			record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CertificateTemplatePending, record.Status, "retry %d should auto-retry", i+1)
+			require.Equal(t, i+1, record.RetryCount)
+		}
+
+		// One more failure with retry_count at max -- should be terminal
+		deliverCert()
+		terminalDetail := "final failure"
+		reportCertStatus(string(fleet.MDMDeliveryFailed), &terminalDetail)
+
+		record, err := s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after max retries")
+
+		// Verify terminal failure activity was logged on the host with correct details
+		var hostActivitiesResp listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK,
+			&hostActivitiesResp, "per_page", "10")
+		foundTerminalFailActivity := false
+		for _, act := range hostActivitiesResp.Activities {
+			if act.Type == (fleet.ActivityTypeInstalledCertificate{}).ActivityName() && act.Details != nil {
+				var details map[string]any
+				err = json.Unmarshal(*act.Details, &details)
+				require.NoError(t, err)
+				if details["status"] == "failed_install" && details["detail"] == terminalDetail {
+					foundTerminalFailActivity = true
+					break
+				}
+			}
+		}
+		require.True(t, foundTerminalFailActivity, "expected installed_certificate activity with status=failed_install and terminal detail")
+
+		// Resend after terminal failure -- gets exactly one attempt (retry_count set to max)
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/certificates/%d/resend", host.ID, certTemplateID),
+			nil, http.StatusOK, &struct{}{})
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MaxCertificateInstallRetries, record.RetryCount, "resend should set retry_count to max")
+
+		// Deliver and fail once more -- terminal immediately (no auto-retry after resend)
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("post-resend failure"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateFailed, record.Status, "should be terminal after resend failure")
+
+		// Success on retry: reset to fresh, fail once, then succeed
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_certificate_templates SET status = ?, retry_count = 0 WHERE host_uuid = ? AND certificate_template_id = ?`,
+				fleet.CertificateTemplatePending, host.UUID, certTemplateID)
+			return err
+		})
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryFailed), ptr.String("transient error"))
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+
+		deliverCert()
+		reportCertStatus(string(fleet.MDMDeliveryVerified), nil)
+		record, err = s.ds.GetHostCertificateTemplateRecord(ctx, host.UUID, certTemplateID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplateVerified, record.Status, "should succeed on retry")
+	}) // end "automatic retry" subtest
+}
+
+// TestONCProfileWithheldUntilCertReady tests the end-to-end flow where an
+// Android ONC profile referencing a certificate via ClientCertKeyPairAlias is
+// withheld during profile reconciliation until the certificate reaches a
+// terminal state (verified or failed). It uses the real PubSub enrollment path
+// to verify that cert template records are created automatically during enrollment,
+// ensuring the ONC withholding logic works for newly enrolled devices.
+func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
+
+	// Create team with enroll secret
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
+	require.NoError(t, err)
+
+	// Create certificate authority and certificate template BEFORE enrolling the host.
+	// This ensures CreatePendingCertificateTemplatesForNewHost finds it during enrollment.
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   "wifi-cert",
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	// Get the certificate template ID
+	var certTemplateID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &certTemplateID,
+			"SELECT id FROM certificate_templates WHERE name = ? AND team_id = ?", "wifi-cert", team.ID)
+	})
+	require.NotZero(t, certTemplateID)
+
+	// Enroll the Android host through the real PubSub enrollment path.
+	// This exercises CreatePendingCertificateTemplatesForNewHost automatically.
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+
+	// Set orbit_node_key so the host can authenticate to the cert status API.
+	// In production, Orbit enrollment sets this; PubSub enrollment only sets node_key.
+	orbitNodeKey := "android/" + host.UUID
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Verify that enrollment created the cert template record for this host.
+	var certStatus string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &certStatus,
+			"SELECT status FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?",
+			host.UUID, certTemplateID)
+	})
+	require.Equal(t, string(fleet.CertificateTemplatePending), certStatus,
+		"enrollment should have created a pending cert template record")
+
+	// Create ONC profile referencing the certificate + a non-ONC profile
+	oncProfileJSON, cameraProfileJSON := s.oncWithholdingProfiles()
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "onc-wifi", Contents: oncProfileJSON},
+		{Name: "camera-policy", Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	// Trigger profile reconciliation
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Verify: ONC profile withheld (pending with detail), camera profile applied
+	s.assertONCProfileWithheld(t, host.UUID)
+
+	// Report certificate as verified through the real API endpoint.
+	// After the first reconciliation, reconcileCertificateTemplates transitioned the cert
+	// to "delivered", so the status API will accept the update.
+	updateReq, err := json.Marshal(updateCertificateStatusRequest{
+		Status: string(fleet.CertificateTemplateVerified),
+		Detail: new("Certificate installed successfully"),
+	})
+	require.NoError(t, err)
+	resp := s.DoRawWithHeaders("PUT", fmt.Sprintf("/api/fleetd/certificates/%d/status", certTemplateID), updateReq, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	resp.Body.Close()
+
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	// Both profiles should now be applied (included in policy)
+	s.assertONCProfilesReleased(t, host.UUID, "cert verified")
+}
+
+// TestONCProfileReleasedAfterCertTemplateDeleted tests that when a certificate
+// template is deleted, any ONC profiles that were withheld waiting for that
+// certificate are released by the reconciler on the next run. The reconciler's
+// filterProfilesWithPendingCerts treats a missing cert status as "no cert
+// template assigned" and considers the profile ready.
+func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
+
+	// Create team with enroll secret
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
+	require.NoError(t, err)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   "wifi-cert",
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	var certTemplateID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &certTemplateID,
+			"SELECT id FROM certificate_templates WHERE name = ? AND team_id = ?", "wifi-cert", team.ID)
+	})
+	require.NotZero(t, certTemplateID)
+
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-delete-test", &team.ID, true)
+
+	oncProfileJSON, cameraProfileJSON := s.oncWithholdingProfiles()
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "onc-wifi", Contents: oncProfileJSON},
+		{Name: "camera-policy", Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+	s.awaitTriggerAndroidProfileSchedule(t)
+	s.assertONCProfileWithheld(t, host.UUID)
+
+	// Delete the certificate template via API
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", certTemplateID), nil, http.StatusOK)
+
+	// Trigger reconciliation -- ONC should now be released since the cert template
+	// no longer exists and filterProfilesWithPendingCerts treats missing statuses
+	// as "no cert template assigned to host".
+	s.awaitTriggerAndroidProfileSchedule(t)
+
+	s.assertONCProfilesReleased(t, host.UUID, "cert template deleted")
+}
+
+// oncWithholdingProfiles returns ONC and camera profile JSON payloads for ONC
+// withholding tests. The ONC profile references a "wifi-cert" certificate alias.
+func (s *integrationMDMTestSuite) oncWithholdingProfiles() (oncJSON, cameraJSON []byte) {
+	oncJSON = fmt.Appendf(nil, `{
+		"openNetworkConfiguration": {
+			"NetworkConfigurations": [{
+				"GUID": "corp-wifi",
+				"Name": "Corporate WiFi",
+				"Type": "WiFi",
+				"WiFi": {
+					"SSID": "CorpNet",
+					"Security": "WPA-EAP",
+					"EAP": {
+						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
+						"ClientCertKeyPairAlias": %q
+					}
+				}
+			}]
+		}
+	}`, "wifi-cert")
+	cameraJSON = []byte(`{"cameraDisabled": true}`)
+	return oncJSON, cameraJSON
+}
+
+// assertONCProfileWithheld verifies that the ONC profile is withheld and the
+// camera profile is applied for the given host.
+func (s *integrationMDMTestSuite) assertONCProfileWithheld(t *testing.T, hostUUID string) {
+	t.Helper()
+	ctx := t.Context()
+	var profileStatuses []struct {
+		ProfileName string  `db:"profile_name"`
+		Status      string  `db:"status"`
+		Detail      *string `db:"detail"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &profileStatuses,
+			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
+			hostUUID)
+	})
+	require.Len(t, profileStatuses, 2)
+
+	require.Equal(t, "camera-policy", profileStatuses[0].ProfileName)
+	require.Equal(t, "pending", profileStatuses[0].Status)
+	if profileStatuses[0].Detail != nil {
+		require.NotContains(t, *profileStatuses[0].Detail, "Waiting for certificate")
+	}
+
+	require.Equal(t, "onc-wifi", profileStatuses[1].ProfileName)
+	require.Equal(t, "pending", profileStatuses[1].Status)
+	require.NotNil(t, profileStatuses[1].Detail)
+	require.Contains(t, *profileStatuses[1].Detail, `Waiting for certificate "wifi-cert"`)
+}
+
+// assertONCProfilesReleased verifies that all profiles for the host are pending
+// without any "Waiting for certificate" detail, meaning the ONC profile has
+// been released from withholding.
+func (s *integrationMDMTestSuite) assertONCProfilesReleased(t *testing.T, hostUUID, context string) {
+	t.Helper()
+	ctx := t.Context()
+	var profileStatuses []struct {
+		ProfileName string  `db:"profile_name"`
+		Status      string  `db:"status"`
+		Detail      *string `db:"detail"`
+	}
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &profileStatuses,
+			"SELECT profile_name, status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY profile_name",
+			hostUUID)
+	})
+	require.Len(t, profileStatuses, 2)
+	for _, ps := range profileStatuses {
+		require.Equal(t, "pending", ps.Status, "profile %s should be pending (delivered to AMAPI)", ps.ProfileName)
+		if ps.Detail != nil {
+			require.NotContains(t, *ps.Detail, "Waiting for certificate",
+				"profile %s should not have waiting detail after %s", ps.ProfileName, context)
+		}
+	}
 }

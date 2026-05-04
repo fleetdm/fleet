@@ -66,7 +66,7 @@ func TestListHostReports(t *testing.T) {
 	}
 
 	var capturedTeamID *uint
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedTeamID = tID
 		return sampleReports, len(sampleReports), nil, nil
 	}
@@ -154,7 +154,9 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 	ds := new(mock.Store)
 
 	teamID := uint(5)
-	host := &fleet.Host{ID: 7, TeamID: &teamID}
+	// Platform is "ubuntu" so PlatformFromHost maps it to "linux" — a non-trivial
+	// conversion that would be missed if the service passed host.Platform raw.
+	host := &fleet.Host{ID: 7, TeamID: &teamID, Platform: "ubuntu"}
 
 	admin := &fleet.User{
 		ID:         1,
@@ -171,11 +173,13 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 
 	capturedHostID := uint(0)
 	capturedTeamID := (*uint)(nil)
+	capturedPlatform := ""
 	capturedOpts := fleet.ListHostReportsOptions{}
 
-	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
+	ds.ListHostReportsFunc = func(ctx context.Context, hostID uint, tID *uint, hostPlatform string, opts fleet.ListHostReportsOptions, maxQueryReportRows int) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
 		capturedHostID = hostID
 		capturedTeamID = tID
+		capturedPlatform = hostPlatform
 		capturedOpts = opts
 		return nil, 0, nil, nil
 	}
@@ -199,6 +203,7 @@ func TestListHostReportsDatastorePassthrough(t *testing.T) {
 
 	assert.Equal(t, host.ID, capturedHostID)
 	assert.Equal(t, &teamID, capturedTeamID)
+	assert.Equal(t, fleet.PlatformFromHost(host.Platform), capturedPlatform)
 	assert.True(t, capturedOpts.IncludeReportsDontStoreResults)
 	assert.Equal(t, uint(1), capturedOpts.ListOptions.Page)
 	assert.Equal(t, uint(10), capturedOpts.ListOptions.PerPage)

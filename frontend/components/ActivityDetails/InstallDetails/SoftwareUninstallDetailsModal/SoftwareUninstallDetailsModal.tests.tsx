@@ -119,7 +119,7 @@ describe("SoftwareUninstallDetailsModal - ModalButtons component", () => {
     expect(onCancel).toHaveBeenCalledTimes(2); // first from retry, second from cancel
   });
 
-  it("from pending uninstall activity or software library of an offline host, shows only Done button", () => {
+  it("from pending uninstall activity or software library of an offline host, shows only Close button", () => {
     const onCancel = jest.fn();
 
     render(

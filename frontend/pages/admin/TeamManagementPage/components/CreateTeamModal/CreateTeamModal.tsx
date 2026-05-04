@@ -4,8 +4,7 @@ import { ITeamFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
+
 import InputField from "components/forms/fields/InputField";
 
 const baseClass = "create-team-modal";
@@ -41,7 +40,7 @@ const CreateTeamModal = ({
   );
 
   const onFormSubmit = useCallback(
-    (evt: any) => {
+    (evt: React.FormEvent<HTMLFormElement>) => {
       evt.preventDefault();
       onSubmit({
         name: name.trim(),

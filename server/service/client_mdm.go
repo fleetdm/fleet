@@ -32,12 +32,20 @@ func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
 	return responseBody.AppleMDM, err
 }
 
-// GetAppleBM retrieves the Apple Business Manager information.
+// GetAppleBM retrieves the Apple Business information.
 func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
 	var responseBody getAppleBMResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.AppleBM, err
+}
+
+// GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
+func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
+	var responseBody getVPPTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
 }
 
 func (c *Client) CountABMTokens() (int, error) {
@@ -137,7 +145,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
-	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
+	if err := c.ParseResponse(verb, path, response, &bpResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -396,7 +404,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 }
 
 func (c *Client) MDMLockHost(hostID uint) error {
-	var response lockHostResponse
+	var response fleet.LockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
 		return fmt.Errorf("lock host request: %w", err)
 	}
@@ -404,7 +412,7 @@ func (c *Client) MDMLockHost(hostID uint) error {
 }
 
 func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
-	var response unlockHostResponse
+	var response fleet.UnlockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
@@ -412,7 +420,7 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 }
 
 func (c *Client) MDMWipeHost(hostID uint) error {
-	var response wipeHostResponse
+	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
 	}
@@ -548,7 +556,7 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	defer resp.Body.Close()
 
 	var eulaResponse createMDMEULAResponse
-	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+	if err := c.ParseResponse(verb, path, resp, &eulaResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 

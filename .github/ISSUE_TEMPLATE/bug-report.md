@@ -19,8 +19,8 @@ assignees: ''
 <!-- What did you see?  Paste a screenshot, include a 30s video, or write 1-2 sentences describing the issue you observed. -->
 TODO
 
-### 🛠️ To fix
-<!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
+### 🛠️ Expected behavior
+<!-- Add the expected behavior here. If you're not sure, you can leave this blank for the Product Designer (PD) to specify. -->
 TODO
 
 ### 🧑‍💻  Steps to reproduce

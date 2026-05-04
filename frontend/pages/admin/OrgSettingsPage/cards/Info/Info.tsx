@@ -7,7 +7,6 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -130,89 +129,84 @@ const Info = ({
         }
       />
       <form onSubmit={onFormSubmit} autoComplete="off">
-        {/* "form" class applies global form styling to fields for free */}
-        <div
-          className={`form ${
-            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-          }`}
-        >
-          <div className={`${cardClass}__logo-field-set`}>
-            <InputField
-              label="Logo URL for dark background"
-              onChange={onInputChange}
-              name="orgLogoURL"
-              value={orgLogoURL}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_logo_url}
-              inputWrapperClass={`${cardClass}__logo-field`}
-              tooltip="Logo is displayed in Fleet on top of dark backgrounds."
-            />
-            <div
-              className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
-            >
-              <OrgLogoIcon
-                className={`${cardClass}__icon-img`}
-                src={orgLogoURL}
-              />
-            </div>
-          </div>
-          <div className={`${cardClass}__logo-field-set`}>
-            <InputField
-              label="Logo URL for light background"
-              onChange={onInputChange}
-              name="orgLogoURLLightBackground"
-              value={orgLogoURLLightBackground}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_logo_url_light_background}
-              inputWrapperClass={`${cardClass}__logo-field`}
-              tooltip="Logo is displayed in Fleet on top of light backgrounds.
-"
-            />
-            <div
-              className={`${cardClass}__icon-preview ${cardClass}__light-background`}
-            >
-              <OrgLogoIcon
-                className={`${cardClass}__icon-img`}
-                src={orgLogoURLLightBackground}
-              />
-            </div>
-          </div>
+        <div className={`${cardClass}__logo-field-set`}>
           <InputField
-            label="Organization name"
+            label="Logo URL for dark background"
             onChange={onInputChange}
-            name="orgName"
-            value={orgName}
+            name="orgLogoURL"
+            value={orgLogoURL}
             parseTarget
             onBlur={validateForm}
-            error={formErrors.org_name}
+            error={formErrors.org_logo_url}
+            inputWrapperClass={`${cardClass}__logo-field`}
+            tooltip="Logo is displayed in Fleet on top of dark backgrounds."
+            disabled={gitOpsModeEnabled}
           />
-          <InputField
-            label={
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    URL is used in &quot;Reach out to IT&quot; links shown to
-                    the end
-                    <br />
-                    user (e.g. self-service and during MDM migration).
-                  </>
-                }
-              >
-                Organization support URL
-              </TooltipWrapper>
-            }
-            onChange={onInputChange}
-            name="orgSupportURL"
-            value={orgSupportURL}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.org_support_url}
-          />
+          <div
+            className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
+          >
+            <OrgLogoIcon
+              className={`${cardClass}__icon-img`}
+              src={orgLogoURL}
+            />
+          </div>
         </div>
+        <div className={`${cardClass}__logo-field-set`}>
+          <InputField
+            label="Logo URL for light background"
+            onChange={onInputChange}
+            name="orgLogoURLLightBackground"
+            value={orgLogoURLLightBackground}
+            parseTarget
+            onBlur={validateForm}
+            error={formErrors.org_logo_url_light_background}
+            inputWrapperClass={`${cardClass}__logo-field`}
+            tooltip="Logo is displayed in Fleet on top of light backgrounds."
+            disabled={gitOpsModeEnabled}
+          />
+          <div
+            className={`${cardClass}__icon-preview ${cardClass}__light-background`}
+          >
+            <OrgLogoIcon
+              className={`${cardClass}__icon-img`}
+              src={orgLogoURLLightBackground}
+            />
+          </div>
+        </div>
+        <InputField
+          label="Organization name"
+          onChange={onInputChange}
+          name="orgName"
+          value={orgName}
+          parseTarget
+          onBlur={validateForm}
+          error={formErrors.org_name}
+          disabled={gitOpsModeEnabled}
+        />
+        <InputField
+          label={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  URL is used in &quot;Reach out to IT&quot; links shown to the
+                  end
+                  <br />
+                  user (e.g. self-service and during MDM migration).
+                </>
+              }
+            >
+              Organization support URL
+            </TooltipWrapper>
+          }
+          onChange={onInputChange}
+          name="orgSupportURL"
+          value={orgSupportURL}
+          parseTarget
+          onBlur={validateForm}
+          error={formErrors.org_support_url}
+          disabled={gitOpsModeEnabled}
+        />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

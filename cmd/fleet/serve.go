@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -35,10 +37,16 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
 	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	"github.com/fleetdm/fleet/v4/server/acl/chartacl"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/chart"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
+	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
@@ -59,6 +67,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/mdm/acme"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
+	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
@@ -67,6 +78,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
@@ -76,6 +88,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -105,7 +118,7 @@ import (
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -286,7 +299,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	//
 	// For example:
 	// platform_logging.DisableTopic("deprecated-api-keys")
-	platform_logging.DisableTopic(platform_logging.DeprecatedFieldTopic)
 
 	// Apply log topic overrides from config. Enables run first, then
 	// disables, so disable wins on conflict.
@@ -488,6 +500,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}
+	if config.Redis.HostCacheEnabled {
+		if config.Redis.HostCacheTTL <= 0 {
+			initFatal(
+				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
+				"validate host cache configuration",
+			)
+		}
+		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
+		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
+			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
+	}
 	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 	ds = redisWrapperDS
 
@@ -680,7 +703,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		return true, nil
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM APNs and SCEP assets"),
@@ -761,7 +784,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}
 
-	// reconcile Apple Business Manager configuration environment variables with the database
+	// reconcile Apple Business configuration environment variables with the database
 	if config.MDM.IsAppleBMSet() {
 		if len(config.Server.PrivateKey) == 0 {
 			initFatal(errors.New("inserting MDM ABM assets"),
@@ -849,7 +872,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
-		logger.InfoContext(cmd.Context(), "Apple Business Manager enabled")
+		logger.InfoContext(cmd.Context(), "Apple Business enabled")
 	}
 
 	// register the Microsoft MDM services
@@ -1098,6 +1121,27 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
+	// Bootstrap ACME service module
+	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
+	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
+	// Inject the ACME service module into the main service
+	svc.SetACMEService(acmeSvc)
+
+	// Bootstrap chart bounded context
+	chartSvc, chartRoutes := createChartBoundedContext(dbConns, svc, logger)
+
+	if os.Getenv("FLEET_SKIP_CHART_DATA_COLLECTION") == "" {
+		if err := cronSchedules.StartCronSchedule(
+			func() (fleet.CronSchedule, error) {
+				return newChartDataCollectionSchedule(ctx, instanceID, ds, chartSvc, logger)
+			},
+		); err != nil {
+			initFatal(err, "failed to register chart_data_collection schedule")
+		}
+	} else {
+		logger.InfoContext(ctx, "skipping chart data collection cron (FLEET_SKIP_CHART_DATA_COLLECTION is set)")
+	}
+
 	// Perform a cleanup of cron_stats outside of the cronSchedules because the
 	// schedule package uses cron_stats entries to decide whether a schedule will
 	// run or not (see https://github.com/fleetdm/fleet/issues/9486).
@@ -1157,7 +1201,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc,
+				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
 			)
 		},
 	); err != nil {
@@ -1235,7 +1279,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		vppInstaller := svc.(fleet.AppleMDMVPPInstaller)
-		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller)
+		return newAppleMDMWorkerSchedule(ctx, instanceID, ds, logger, commander, bootstrapPackageStore, vppInstaller, svc.NewActivity)
 	}); err != nil {
 		initFatal(err, "failed to register apple_mdm_worker schedule")
 	}
@@ -1258,6 +1302,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			instanceID,
 			ds,
 			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+			redis_key_value.New(redisPool),
 			logger,
 			config.MDM.CertificateProfilesLimit,
 		)
@@ -1356,7 +1401,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger)
+			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
 		}); err != nil {
 			initFatal(err, "failed to register recovery lock password schedule")
 		}
@@ -1467,7 +1512,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
-			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes}, extra...)
+			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
+
+		if err := apiendpoints.Init(apiHandler); err != nil {
+			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
+		}
+		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
@@ -1482,7 +1532,24 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		// By performing the same check inside main, we can make server startups
 		// more efficient after the first startup.
 		if setupRequired {
-			apiHandler = service.WithSetup(svc, logger, apiHandler)
+			// Pass in a closure to run the fleetctl command, so that the service layer
+			// doesn't need to import the CLI package.
+			// When Primo mode is enabled, skip the starter library.
+			var applyStarterLibrary func(ctx context.Context, serverURL, token string) error
+			if config.Partnerships.EnablePrimo {
+				applyStarterLibrary = func(ctx context.Context, _, _ string) error {
+					logger.DebugContext(ctx, "Skipping starter library application in Primo mode")
+					return nil
+				}
+			} else {
+				applyStarterLibrary = func(ctx context.Context, serverURL, token string) error {
+					return service.ApplyStarterLibrary(ctx, serverURL, token, logger, func(args []string) error {
+						_, err := fleetctl.RunApp(args)
+						return err
+					})
+				}
+			}
+			apiHandler = service.WithSetup(svc, logger, applyStarterLibrary, apiHandler)
 			frontendHandler = service.RedirectLoginToSetup(svc, logger, frontendHandler, config.Server.URLPrefix)
 		} else {
 			frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
@@ -1870,6 +1937,42 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	logger.InfoContext(ctx, "terminated", "err", <-errs)
 }
 
+// acmeCSRSigner adapts a depot.Signer to the acme.CSRSigner interface.
+type acmeCSRSigner struct {
+	signer *scepdepot.Signer
+}
+
+func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	return a.signer.Signx509CSR(csr)
+}
+
+func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
+	providers := acmeacl.NewFleetDatastoreAdapter(ds, csrSigner)
+	acmeSvc, acmeRoutesFn := acme_bootstrap.New(dbConns, redisPool, providers, logger)
+	acmeRoutes := acmeRoutesFn(log.Logged)
+	return acmeSvc, acmeRoutes
+}
+
+func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Service, logger *slog.Logger) (chart_api.Service, endpointer.HandlerRoutesFunc) {
+	legacyAuthorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		initFatal(err, "initializing chart authorizer")
+	}
+	chartAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
+	chartViewer := chartacl.NewFleetViewerAdapter()
+	chartSvc, chartRoutesFn := chart_bootstrap.New(dbConns, chartAuthorizer, chartViewer, logger)
+	// Register all chart types here. The registry is used to validate chart types in the API
+	// and to iterate over all chart types when generating chart data.
+	chartSvc.RegisterDataset(&chart.UptimeDataset{})
+	chartSvc.RegisterDataset(&chart.CVEDataset{})
+	// Create auth middleware for chart bounded context
+	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return auth.AuthenticatedUser(svc, next)
+	}
+	chartRoutes := chartRoutesFn(chartAuthMiddleware)
+	return chartSvc, chartRoutes
+}
+
 func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -1883,9 +1986,10 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 		activityACLAdapter,
 		logger,
 	)
-	// Create auth middleware for activity bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on activity routes.
 	activityAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	activityRoutes := activityRoutesFn(activityAuthMiddleware)
 	return activitySvc, activityRoutes

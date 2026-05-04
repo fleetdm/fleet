@@ -11,28 +11,28 @@
 #     Add markdown content to this field.
 ################################################
 #
-# - jobTitle: 🚀 Customer Support Engineer
-#   department: Sales
+# - jobTitle: 🚀 Sr. Customer Support Engineer
+#   department: Customers
 #   hiringManagerName: Zay Hanlon
 #   hiringManagerGithubUsername: zayhanlon
 #   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-#   onTargetEarnings: '$75,000 - $150,000'
+#   onTargetEarnings: "$75,000 - $130,000"
 #   responsibilities: |
-#       - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo.
-#       - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works.
-#       - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
-#       - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
-#       - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-#       - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
-#       - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+#     - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo.
+#     - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works.
+#     - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+#     - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+#     - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+#     - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+#     - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
 #   experience: |
-#       - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery.
-#       - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
-#       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-#       - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-#       - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-#       - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
-#       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+#     - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery.
+#     - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+#     - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+#     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
+#     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 - jobTitle: 🐋 Channel Account Manager
   department: Sales
@@ -89,63 +89,64 @@
 - jobTitle: 🚀 Software Engineer
   department: Engineering
   hiringManagerName: Luke Heath
-  hiringManagerGithubUsername: LukeHeath
+  hiringManagerGithubUsername: lukeheath
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
   onTargetEarnings: "$80,000 - $225,000+"
   responsibilities: |
     - 🧑‍🔬 Design, develop, test, and maintain a state-of-the-art Golang application that includes robust APIs to support mobile and desktop clients.
     - 🛠 Write code and tests, build prototypes, resolve issues, and profile and analyze bottlenecks.
     - 💭 Manage and optimize scalable distributed systems in the cloud.
-    - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
-    - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-    - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features .
+    - 🤝 Collaborate closely with product designers to understand requirements and translate them into actionable specifications.
+    - 🚀 Participate in engineering workflows including daily standups, demos, and continuous planning.
+    - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features frequently.
   experience: |
-    - 💭 3-5 years of experience in backend/SaaS development.
-    - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
+    - 💭 3+ years of experience in backend/SaaS development.
+    - 🦉 Proficient in Go or a similar language. You write well-structured, maintainable backend code using interfaces, composition, and clear abstractions.
     - 🦉 Translate requirements into well-designed and functional software.
-    - 🤝 Communicate regularly with stakeholders, project managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
-    - 🧪 Collaborate with QA team for testing software features.
-    - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+    - 🤝 Communicate regularly with stakeholders, product managers, quality assurance teams, and other developers regarding progress on long-term technology roadmap.
+    - 🧪 Collaborate with Quality Assurance Engineers to ship high quality changes.
+    - 🤖 Use AI tools (Claude, Copilot, etc.) as part of your daily engineering workflow to move faster and produce higher-quality work.
+    - 🏃‍♂️ Comfortable working in a lean, continuous-flow development environment.
     - 🛠️ Produce quality code, raising the bar for team performance and speed.
     - 📖 Mentor junior team members.
     - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+    - 🚀 Iterative: You embrace speed and failure as we iterate towards the right solution. You're comfortable accepting suboptimal first passes in favor of learning and shipping.
     - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-    - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - 🟢 Results: You prioritize keeping it simple and avoid preemptive structure.
     - ➕ Bonus: Cybersecurity or IT background.
 
-- jobTitle: 🐋 Account Executive (EMEA)
-  department: Sales
-  hiringManagerName: Chaz MacLaughlin
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
-  hiringManagerGithubUsername: chazmac6
-  onTargetEarnings: "$200,000 - $350,000"
-  responsibilities: |
-    - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
-    - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
-    - 🛩️ Meet current and future customers where they are, literaly. Be proactive about meeting face to face to help understand them as people.
-    - 🧠 Work with Solutions Consultants to understand where prospects are technically, and remove any blockers to providing value to the organizations that work with Fleet.
-    - 📈 Use available data to identify opportunities and trends with individual prospects.
-    - 📣 Actively promote Fleet's product and services on social media and at in-person events and meetups.
-    - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
-    - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
-    - 🕴️ Utilize systems and tools such as Salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
-    - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
-    - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
-    - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
-  experience: |
-    - 🦉 5+ years of experience selling to enterprise customers.
-    - 📣 Have excellent communication and interpersonal skills.
-    - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
-    - 🧑‍💻 Love technology and can explain how things work in detail.
-    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-    - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
-    - 📈 Shift gears between thinking and doing quickly to partner with various teams and stakeholders to drive sales.  
-    - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
-    - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
-    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+#- jobTitle: 🐋 Account Executive (EMEA)
+#  department: Sales
+#  hiringManagerName: Chaz MacLaughlin
+#  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
+#  hiringManagerGithubUsername: chazmac6
+#  onTargetEarnings: "$200,000 - $350,000"
+#  responsibilities: |
+#    - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
+#    - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
+#    - 🛩️ Meet current and future customers where they are, literaly. Be proactive about meeting face to face to help understand them as people.
+#    - 🧠 Work with Solutions Consultants to understand where prospects are technically, and remove any blockers to providing value to the organizations that work with Fleet.
+#    - 📈 Use available data to identify opportunities and trends with individual prospects.
+#    - 📣 Actively promote Fleet's product and services on social media and at in-person events and meetups.
+#    - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
+#    - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
+#    - 🕴️ Utilize systems and tools such as Salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
+#    - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
+#    - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
+#    - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
+#  experience: |
+#    - 🦉 5+ years of experience selling to enterprise customers.
+#    - 📣 Have excellent communication and interpersonal skills.
+#    - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
+#    - 🧑‍💻 Love technology and can explain how things work in detail.
+#    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
+#    - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
+#    - 📈 Shift gears between thinking and doing quickly to partner with various teams and stakeholders to drive sales.
+#    - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
+#    - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
+#    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+#    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
 - jobTitle: 🚀 Quality Assurance Engineer
   department: Engineering
@@ -175,33 +176,33 @@
     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
     - ➕ Bonus: Cybersecurity or IT background.
 
-- jobTitle: 🐋 Customer Solutions Architect
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: "$115,000 - $140,000"
-  responsibilities: |
-    - ⏫ Own post-sales components of customer onboarding and deployment, and own post-sales components of solutions consulting
-    - 📣 Manage multiple customer deployments and 'feature' escalations simultaneously
-    - 🪴 Promote existing product best practices in lieu of engineering-led product changes whenever possible
-    - 🌡️ Work alongside the customer and internal teams to expediate processes when product changes may be required
-    - 🕴️ Have the ability to guide the customer rather than be guided, be the subject matter expert
-    - 🚀 Work collaboratively with product, engineering, and customer support to creatively solve problems outside the normal scope of product use
-    - 📈 Proactively engage with customers to identify areas where product adoption can be increased, or areas where product best practices are not in place
-    - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives
-    - 🧪 Extensive experience with GitHub, no code solutions like Tines/Torq, cloud environments, and/or configuring log pipelines to a SIEM or data cloud platform
-  experience: |
-    - 💭 Cybersecurity or IT background in solutions consulting/ services consulting/ or solutions architecture. Experience with cloud environments like AWS and Azure or device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-    - 💖 You know how to do a lot with little time and limited resources
-    - ✍🏾 You have the ability to effectively communicate with key stakeholders, from senior executives to day-to-day engineering contacts, to influence decision making
-    - 🧬 You have extensive experience using and designing REST API's
-    - 🧑‍🔬 Experience working with self-managed/self-hosted products with complex and varying customer environments (understanding of semantic versioning and the config surface of a deployable product)
-    - 🤝 Experience with enterprise customer environments and trends and the technologies that plug-in to them (SIEM's, EDR solutions, data visualization solutions, no-code automation)
-    - 🦉 5+ years of work experience in post-sales solutions architecture, services consulting, or technical account management.
-    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving and creatively architechting new solutions while assisting external stakeholders.
-    - ➕ Familiarity with osquery, SQLite, and GitOps workflows. Experience working with IT, SRE,CPE, or SecOps teams.
-    - ✨ Nice to have: Ability to read and understand server-side code (GO), experience with Terraform or other infrastructure as code, experience with Tines/Torq or other no-code tool,
+#- jobTitle: 🐋 Customer Solutions Architect
+#  department: Customers
+#  hiringManagerName: Zay Hanlon
+#  hiringManagerGithubUsername: zayhanlon
+#  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#  onTargetEarnings: "$115,000 - $140,000"
+#  responsibilities: |
+#    - ⏫ Own post-sales components of customer onboarding and deployment, and own post-sales components of solutions consulting
+#    - 📣 Manage multiple customer deployments and 'feature' escalations simultaneously
+#    - 🪴 Promote existing product best practices in lieu of engineering-led product changes whenever possible
+#    - 🌡️ Work alongside the customer and internal teams to expediate processes when product changes may be required
+#    - 🕴️ Have the ability to guide the customer rather than be guided, be the subject matter expert
+#    - 🚀 Work collaboratively with product, engineering, and customer support to creatively solve problems outside the normal scope of product use
+#    - 📈 Proactively engage with customers to identify areas where product adoption can be increased, or areas where product best practices are not in place
+#    - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives
+#    - 🧪 Extensive experience with GitHub, no code solutions like Tines/Torq, cloud environments, and/or configuring log pipelines to a SIEM or data cloud platform
+#  experience: |
+#    - 💭 Cybersecurity or IT background in solutions consulting/ services consulting/ or solutions architecture. Experience with cloud environments like AWS and Azure or device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+#    - 💖 You know how to do a lot with little time and limited resources
+#    - ✍🏾 You have the ability to effectively communicate with key stakeholders, from senior executives to day-to-day engineering contacts, to influence decision making
+#    - 🧬 You have extensive experience using and designing REST API's
+#    - 🧑‍🔬 Experience working with self-managed/self-hosted products with complex and varying customer environments (understanding of semantic versioning and the config surface of a deployable product)
+#    - 🤝 Experience with enterprise customer environments and trends and the technologies that plug-in to them (SIEM's, EDR solutions, data visualization solutions, no-code automation)
+#    - 🦉 5+ years of work experience in post-sales solutions architecture, services consulting, or technical account management.
+#    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving and creatively architechting new solutions while assisting external stakeholders.
+#    - ➕ Familiarity with osquery, SQLite, and GitOps workflows. Experience working with IT, SRE,CPE, or SecOps teams.
+#    - ✨ Nice to have: Ability to read and understand server-side code (GO), experience with Terraform or other infrastructure as code, experience with Tines/Torq or other no-code tool,
 
 - jobTitle: 🚀 Customer Support Engineer (APAC)
   department: Customers
@@ -224,6 +225,62 @@
     - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+
+# - jobTitle: 🐋 Customer Success Manager
+#   department: Customers
+#   hiringManagerName: Zay Hanlon
+#   hiringManagerGithubUsername: zayhanlon
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#   onTargetEarnings: "$120,000 - $160,000"
+#   responsibilities: |
+#     - ⏫ Own post-sales relationships with a portfolio of customers and be responsible for advocating for their desired outcomes.
+#     - 📣 Manage multiple customer deployments and escalations simultaneously.
+#     - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+#     - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+#     - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
+#     - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
+#     - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
+#     - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives are top of mind.
+#     - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+#   experience: |
+#     - 💭 Customer success management background supporting IT/MDM solutions like Fleet, Intune, Workspace One, etc.
+#     - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
+#     - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
+#     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+#     - 🧑‍🔬 Experience working with customers to coordinate resolution of complex technical issues and project manage deployment initiatives.
+#     - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
+#     - 🦉 3+ years of work experience managing relationships with customers in the device management space. Experience with executing and tracking results tied to customer escalations, renewals, and expansion opportunities.
+#     - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
+
+- jobTitle: 🦢 Product Designer
+  department: Product Design
+  hiringManagerName: Noah Talerman
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
+  hiringManagerGithubUsername: noahtalerman
+  onTargetEarnings: "$125,000 - $160,000"
+  responsibilities: |
+    - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
+    - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
+    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
+    - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
+    - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
+  experience: |
+    - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
+    - ⚙️ Technical chops: You either have professional engineering experience or you're a designer who builds on the side.
+    - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
+    - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
+    - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
+    - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
+    - 💖 Proficient in visual design and wireframing tools (we use Figma).
+    - ✍️ Experienced in writing clear, concise product specs for engineering teams.
+    - 📖 Maintain a design system that enables speed for designers and engineers.
+    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
+    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+    - ➕ Bonus: B2B SaaS background
 
 #- jobTitle: 🌐 Solutions Consultant
 # department: IT & Enablement
@@ -382,7 +439,7 @@
 # experience: |
 #    - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
 #    - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
-#    - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+#    - 🍎 Experience with Apple Business (AB) and Apple Device Enrollment (ADE) for device procurement and management.
 #    - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
 #    - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
 #    - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -42,6 +43,7 @@ class ApiClientReenrollTest {
         mockWebServer.start()
 
         ApiClient.initialize(context)
+        ApiClient.useActiveNetworkBinding = false
         clearDataStore()
 
         // Set up enrollment credentials pointing to mock server
@@ -98,10 +100,15 @@ class ApiClientReenrollTest {
         assertTrue("First call should succeed", firstResult.isSuccess)
         assertEquals(2, mockWebServer.requestCount) // enroll + config
 
-        // Verify first enrollment used the enroll secret
+        // Verify first enrollment used the enroll secret and sent platform="android" on the wire
         val firstEnroll = mockWebServer.takeRequest()
         assertEquals("/api/fleet/orbit/enroll", firstEnroll.path)
-        assertTrue(firstEnroll.body.readUtf8().contains("test-enroll-secret"))
+        val firstEnrollBody = firstEnroll.body.readUtf8()
+        assertTrue(firstEnrollBody.contains("test-enroll-secret"))
+        assertTrue(
+            "Expected platform=\"android\" in enroll body, got: $firstEnrollBody",
+            firstEnrollBody.contains("\"platform\":\"android\""),
+        )
 
         // Verify first config used first-node-key
         val firstConfig = mockWebServer.takeRequest()
@@ -186,6 +193,14 @@ class ApiClientReenrollTest {
         assertTrue(
             "Expected second-node-key in Authorization header",
             retryRequest.getHeader("Authorization")?.contains("second-node-key") == true,
+        )
+
+        // GET requests should not send Content-Type since they have no body.
+        // A Content-Type header on a bodyless GET can cause intermediaries (proxies, CDNs)
+        // to reject the request, which surfaces as misleading DNS errors on Android.
+        assertNull(
+            "GET request should not have Content-Type header",
+            retryRequest.getHeader("Content-Type"),
         )
     }
 

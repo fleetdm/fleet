@@ -605,27 +605,24 @@ func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fle
 		return nil
 	}
 
-	// Check if user is a global admin - if so, ensure we're not deleting the last one
-	if fleetUser.GlobalRole != nil && *fleetUser.GlobalRole == fleet.RoleAdmin {
-		count, err := u.ds.CountGlobalAdmins(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "count global admins")
-		}
-
-		if count <= 1 {
-			u.logger.WarnContext(ctx, "cannot delete last global admin via SCIM",
-				"user_id", fleetUser.ID, "email", fleetUser.Email)
-			return ctxerr.New(ctx, "cannot delete last global admin")
-		}
-	}
-
 	u.logger.InfoContext(ctx, "deleting fleet user via SCIM deletion",
 		"user_id", fleetUser.ID, "email", fleetUser.Email)
 
 	// TODO: Ideally this should go through a Users service/module instead of directly accessing
 	// the datastore. We're in the SCIM domain but accessing the Users datastore which belongs
 	// to the Users domain. This would require a larger refactor to introduce a Users module.
-	if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
+
+	// Use atomic check+delete to prevent TOCTOU race when deleting the last admin.
+	if fleetUser.GlobalRole != nil && *fleetUser.GlobalRole == fleet.RoleAdmin {
+		if err := u.ds.DeleteUserIfNotLastAdmin(ctx, fleetUser.ID); err != nil {
+			if errors.Is(err, fleet.ErrLastGlobalAdmin) {
+				u.logger.WarnContext(ctx, "cannot delete last global admin via SCIM",
+					"user_id", fleetUser.ID, "email", fleetUser.Email)
+				return ctxerr.New(ctx, "cannot delete last global admin")
+			}
+			return ctxerr.Wrap(ctx, err, "delete fleet admin user")
+		}
+	} else if err := u.ds.DeleteUser(ctx, fleetUser.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete fleet user")
 	}
 

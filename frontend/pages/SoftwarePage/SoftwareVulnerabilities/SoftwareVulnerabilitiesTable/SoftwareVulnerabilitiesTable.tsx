@@ -161,7 +161,7 @@ const SoftwareVulnerabilitiesTable = ({
       },
       teamId
     );
-  }, [data, router, teamId]);
+  }, [data, isPremiumTier, router, teamId]);
 
   const handleExploitedVulnFilterDropdownChange = (
     isFilterExploited: string

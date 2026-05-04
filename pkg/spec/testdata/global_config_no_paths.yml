@@ -31,6 +31,7 @@ controls: # Controls added to "No team"
   windows_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
+  apple_require_hardware_attestation: false
   windows_updates:
     deadline_days: null
     grace_period_days: null

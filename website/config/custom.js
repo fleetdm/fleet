@@ -162,8 +162,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/scripts': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',// (catch-all)
 
     // Handbook
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
@@ -183,7 +183,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
     'handbook/company/why-this-way.md': 'mikermcneil',
-    'handbook/company/communications.md': 'mikermcneil',
+    'handbook/company/communications.md': 'ireedy',
     'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
     'handbook/company/go-to-market-operations.md': 'sampfluger88',
@@ -226,7 +226,7 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -263,8 +263,8 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
     'ee/vulnerability-dashboard/package.json': 'eashaw',
 
-    // 🫧 Bulk operations dashboard
-    'ee/bulk-operations-dashboard': 'eashaw',
+    // 🫧 Fleet agent downloader app
+    'ee/fleet-agent-downloader': 'eashaw',
 
     // FMA and icons
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
@@ -299,7 +299,7 @@ module.exports.custom = {
     'handbook/ceo': 'mikermcneil',
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
-    'handbook/company/communications.md': ['mikermcneil', 'sampfluger88'],
+    'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],
     'handbook/company/writing.md': ['mike-j-thomas', 'mikermcneil', 'sampfluger88'],
     'handbook/company/go-to-market-operations.md': ['sampfluger88', 'mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88', 'mikermcneil', 'ireedy'],
@@ -414,11 +414,13 @@ module.exports.custom = {
     'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
     'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
     'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
-    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl',
+    'email.tst',
   ],
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'email.tst',
     'example.com',
     'gmail.com',
     'hotmail.ca',
@@ -439,13 +441,14 @@ module.exports.custom = {
     'yahoo.com',
     'yahoo.co.uk',
     'yandex.ru',
-    'ymail.com'
+    'ymail.com',
   ],
 
   // For contact form submissions.
   // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
   bannedEmailDomainsForContactFormSubmissions: [
-    'example.com'
+    'email.tst',
+    'example.com',
   ],
 
   /***************************************************************************

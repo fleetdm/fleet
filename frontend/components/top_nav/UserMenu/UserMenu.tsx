@@ -150,25 +150,31 @@ const UserMenu = ({
   dropdownItems.unshift(manageLabelsMenuItem);
 
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
-    const sortedTeams = getSortedTeamOptions(userAdminTeams);
-
     let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
     if (currentUser.global_role !== "admin") {
+      const userAdminTeams = currentUser.teams.filter(
+        (thisTeam: ITeam) => thisTeam.role === "admin"
+      );
       clickHandler = () => {
-        const targetTeam = sortedTeams[0];
-        if (currentTeam && currentTeam.id !== targetTeam.value) {
-          const msg = (
-            <>
-              You&apos;re not authorized to view this page for{" "}
-              <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>.
-            </>
-          );
-          renderFlash("warning-filled", msg);
+        const currentTeamIsAdmin =
+          currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
+        if (currentTeamIsAdmin) {
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
+        } else {
+          // Sort and pick the first team the user is admin of to display.
+          const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
+          if (currentTeam) {
+            const msg = (
+              <>
+                You&apos;re not authorized to view this page for{" "}
+                <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>
+                .
+              </>
+            );
+            renderFlash("warning-filled", msg);
+          }
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
         }
-        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
       };
     }
 
@@ -218,7 +224,8 @@ const UserMenu = ({
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       marginTop: "7px",
@@ -244,7 +251,7 @@ const UserMenu = ({
       padding: "10px 8px",
       fontSize: "15px",
       backgroundColor: getOptionBackgroundColor(state),
-      color: COLORS["tooltip-bg"],
+      color: COLORS["core-fleet-black"],
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-fleet-black-5"],

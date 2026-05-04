@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -26,10 +27,11 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
+	kv := new(mock.AdvancedKVStore)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger, 0)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, kv, logger, 0)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -132,4 +134,117 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, hosts)
+}
+
+func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	ds := mysql.CreateMySQLDS(t)
+
+	// Create test software
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg1", Version: "1.0", Source: "apps"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	// Insert vulnerabilities from both sources
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0001",
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0002",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+
+	t.Run("OSV enabled - does not delete OSV vulnerabilities", func(t *testing.T) {
+		cleanupStaleOSVVulnerabilities(ctx, ds, logger, true)
+
+		// Both vulnerabilities should still exist
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Len(t, osvVulns[host.ID], 1)
+
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Len(t, ovalVulns[host.ID], 1)
+	})
+
+	t.Run("OSV disabled - deletes only UbuntuOSVSource vulnerabilities", func(t *testing.T) {
+		cleanupStaleOSVVulnerabilities(ctx, ds, logger, false)
+
+		// OSV vulnerabilities should be deleted
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Empty(t, osvVulns[host.ID])
+
+		// OVAL vulnerability should remain
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Len(t, ovalVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0002", ovalVulns[host.ID][0].CVE)
+	})
+}
+
+func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.DiscardHandler)
+	ds := mysql.CreateMySQLDS(t)
+
+	// Create test software
+	host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg2", Version: "2.0", Source: "apps"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	// Insert vulnerabilities from multiple sources
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0003",
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0004",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0005",
+	}, fleet.RHELOVALSource)
+	require.NoError(t, err)
+
+	t.Run("deletes only UbuntuOVALSource vulnerabilities, preserves others", func(t *testing.T) {
+		cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
+		// Ubuntu OVAL vulnerabilities should be deleted
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Empty(t, ovalVulns[host.ID])
+
+		// OSV vulnerabilities should remain
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Len(t, osvVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0003", osvVulns[host.ID][0].CVE)
+
+		// RHEL OVAL vulnerabilities should remain
+		rhelVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.RHELOVALSource)
+		require.NoError(t, err)
+		require.Len(t, rhelVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0005", rhelVulns[host.ID][0].CVE)
+	})
 }

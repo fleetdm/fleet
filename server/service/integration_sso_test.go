@@ -303,9 +303,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginDisallowedWithPremiumRoles() {
 				Email:      "sso_user2@example.com",
 				GlobalRole: ptr.String(role),
 				SSOEnabled: true,
+				Password:   []byte{},
 			}
-			password := test.GoodPassword
-			require.NoError(t, u.SetPassword(password, 10, 10))
 			u, err := s.ds.NewUser(t.Context(), u)
 			require.NoError(t, err)
 
@@ -446,9 +445,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 		Email:      "sso_user2@example.com",
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		SSOEnabled: true,
+		Password:   []byte{},
 	}
-	password := test.GoodPassword
-	require.NoError(t, u.SetPassword(password, 10, 10))
 	_, _ = s.ds.NewUser(context.Background(), u)
 
 	body := s.LoginSSOUser("sso_user2", "user123#")
@@ -487,9 +485,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 		Email:      "sso_user2@example.com",
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		SSOEnabled: true,
+		Password:   []byte{},
 	}
-	password := test.GoodPassword
-	require.NoError(t, u.SetPassword(password, 10, 10))
 	_, _ = s.ds.NewUser(context.Background(), u)
 
 	body := s.LoginSSOUser("sso_user2", "user123#")
@@ -526,9 +523,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 		Email:      "sso_user2@example.com",
 		GlobalRole: ptr.String(fleet.RoleObserver),
 		SSOEnabled: true,
+		Password:   []byte{},
 	}
-	password := test.GoodPassword
-	require.NoError(t, u.SetPassword(password, 10, 10))
 	_, _ = s.ds.NewUser(context.Background(), u)
 
 	var (

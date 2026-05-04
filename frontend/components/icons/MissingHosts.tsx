@@ -1,28 +1,37 @@
 import React from "react";
 
-const MissingHosts = () => {
+import { COLORS, Colors } from "styles/var/colors";
+
+interface IMissingHostsProps {
+  color?: Colors;
+}
+
+const MissingHosts = ({ color = "ui-fleet-black-75" }: IMissingHostsProps) => {
+  const fillColor = COLORS[color];
+  const bgColor = COLORS["core-fleet-white"];
+
   return (
     <svg width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M19.5 13c0 1.215-.385 2.715-1.05 4.328-.658 1.599-1.563 3.242-2.536 4.726-.974 1.485-1.998 2.782-2.883 3.695-.443.458-.832.799-1.143 1.017-.214.15-.34.204-.388.224a1.946 1.946 0 0 1-.388-.224c-.311-.218-.7-.559-1.144-1.017-.884-.913-1.908-2.21-2.882-3.695-.973-1.484-1.878-3.127-2.536-4.726C3.885 15.715 3.5 14.215 3.5 13c0-2.553.904-4.533 2.315-5.878C7.233 5.77 9.226 5 11.5 5c2.274 0 4.267.77 5.685 2.122C18.595 8.467 19.5 10.447 19.5 13Z"
-        fill="#515774"
-        stroke="#515774"
+        fill={fillColor}
+        stroke={fillColor}
         strokeWidth="2"
       />
-      <path d="M11.5 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" fill="#fff" />
+      <path d="M11.5 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" fill={bgColor} />
       <path
         d="M22.498 26.857a6.857 6.857 0 1 0 0-13.714 6.857 6.857 0 0 0 0 13.714Z"
-        fill="#fff"
-        stroke="#515774"
+        fill={bgColor}
+        stroke={fillColor}
         strokeWidth="2.286"
       />
       <path
         d="M25.395 18.39a.857.857 0 0 0-1.212-1.213l-4.445 4.445a.857.857 0 1 0 1.212 1.212l4.445-4.445Z"
-        fill="#515774"
+        fill={fillColor}
       />
       <path
         d="M20.888 17.108a.857.857 0 1 0-1.212 1.212l4.445 4.445a.857.857 0 1 0 1.212-1.212l-4.445-4.445Z"
-        fill="#515774"
+        fill={fillColor}
       />
     </svg>
   );

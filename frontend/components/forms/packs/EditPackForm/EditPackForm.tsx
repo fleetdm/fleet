@@ -6,7 +6,6 @@ import Button from "components/buttons/Button";
 import { IQuery } from "interfaces/query";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
@@ -83,10 +82,11 @@ const EditPackForm = ({
     evt.preventDefault();
 
     if (packName === "") {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "Pack name must be present",
       });
+      return;
     }
 
     handleSubmit({

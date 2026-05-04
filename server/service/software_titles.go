@@ -203,7 +203,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 			// Populate FleetMaintainedVersions if this is an FMA
 			if meta != nil && meta.FleetMaintainedAppID != nil {
-				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 				}

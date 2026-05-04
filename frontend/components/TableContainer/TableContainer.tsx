@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
 import { Row } from "react-table";
-import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
 import { noop } from "lodash";
 
@@ -10,8 +9,6 @@ import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
-
-import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
@@ -76,7 +73,7 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
-  searchToolTipText?: string;
+  searchToolTipText?: JSX.Element;
   // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
   // TODO - consolidate this functionality within `filters`
@@ -97,8 +94,6 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element | null;
-  /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
-  customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
   /** This is called when you click on a row. This was added as `onSelectSingleRow`
@@ -125,6 +120,7 @@ interface ITableContainerProps<T = any> {
   onClearSelection?: () => void;
   /** don't show the Clear selection button and selected item count when items are selected */
   suppressHeaderActions?: boolean;
+  getRowId?: (row: any, index: number) => string;
 }
 
 const baseClass = "table-container";
@@ -175,7 +171,6 @@ const TableContainer = <T,>({
   hideFooter,
   onQueryChange,
   customControl,
-  customFiltersButton,
   stackControls,
   onSelectSingleRow,
   onClickRow,
@@ -187,6 +182,7 @@ const TableContainer = <T,>({
   persistSelectedRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId,
 }: ITableContainerProps<T>) => {
   const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -320,6 +316,10 @@ const TableContainer = <T,>({
   const renderFilterActionButton = () => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
+      const resolvedButtonText =
+        typeof actionButton.buttonText === "function"
+          ? actionButton.buttonText(actionButton.targetIds ?? [])
+          : actionButton.buttonText;
       const button = (
         <Button
           disabled={
@@ -330,7 +330,7 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            {actionButton.buttonText}
+            {resolvedButtonText}
             {actionButton.iconSvg && (
               <Icon
                 name={actionButton.iconSvg}
@@ -384,31 +384,28 @@ const TableContainer = <T,>({
             {customControl && customControl()}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
-                <div
-                  className={`${baseClass}__search-input`}
-                  data-tip
-                  data-for="search-tooltip"
-                  data-tip-disable={!searchToolTipText}
+                <TooltipWrapper
+                  tipContent={
+                    <span className={`tooltip ${baseClass}__tooltip-text`}>
+                      {searchToolTipText}
+                    </span>
+                  }
+                  disableTooltip={!searchToolTipText}
+                  underline={false}
+                  position="top"
+                  tipOffset={8}
+                  showArrow
                 >
-                  <SearchField
-                    placeholder={inputPlaceHolder}
-                    defaultValue={searchQuery}
-                    onChange={onSearchQueryChange}
-                  />
-                </div>
-                <ReactTooltip
-                  effect="solid"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                  id="search-tooltip"
-                  data-html
-                >
-                  <span className={`tooltip ${baseClass}__tooltip-text`}>
-                    {searchToolTipText}
-                  </span>
-                </ReactTooltip>
+                  <div className={`${baseClass}__search-input`}>
+                    <SearchField
+                      placeholder={inputPlaceHolder}
+                      defaultValue={searchQuery}
+                      onChange={onSearchQueryChange}
+                    />
+                  </div>
+                </TooltipWrapper>
               </div>
             )}
-            {customFiltersButton && customFiltersButton()}
           </div>
         </div>
       );
@@ -457,30 +454,30 @@ const TableContainer = <T,>({
             {/* Render search bar only if not empty component */}
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
-                <div
-                  className={`${baseClass}__search-input ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  data-tip
-                  data-for="search-tooltip"
-                  data-tip-disable={!searchToolTipText}
+                <TooltipWrapper
+                  tipContent={
+                    <span className={`tooltip ${baseClass}__tooltip-text`}>
+                      {searchToolTipText}
+                    </span>
+                  }
+                  disableTooltip={!searchToolTipText}
+                  underline={false}
+                  position="top"
+                  tipOffset={8}
+                  showArrow
                 >
-                  <SearchField
-                    placeholder={inputPlaceHolder}
-                    defaultValue={searchQuery}
-                    onChange={onSearchQueryChange}
-                  />
-                </div>
-                <ReactTooltip
-                  effect="solid"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                  id="search-tooltip"
-                  data-html
-                >
-                  <span className={`tooltip ${baseClass}__tooltip-text`}>
-                    {searchToolTipText}
-                  </span>
-                </ReactTooltip>
+                  <div
+                    className={`${baseClass}__search-input ${
+                      stackControls ? "stack-table-controls" : ""
+                    }`}
+                  >
+                    <SearchField
+                      placeholder={inputPlaceHolder}
+                      defaultValue={searchQuery}
+                      onChange={onSearchQueryChange}
+                    />
+                  </div>
+                </TooltipWrapper>
               </div>
             )}
           </div>
@@ -490,7 +487,6 @@ const TableContainer = <T,>({
   }, [
     actionButton,
     customControl,
-    customFiltersButton,
     disableActionButton,
     disableCount,
     disableTableHeader,
@@ -583,6 +579,7 @@ const TableContainer = <T,>({
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
                 suppressHeaderActions={suppressHeaderActions}
+                getRowId={getRowId}
                 persistSelectedRows={persistSelectedRows}
                 hideFooter={hideFooter}
               />

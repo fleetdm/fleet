@@ -29,7 +29,8 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
@@ -107,7 +108,7 @@ const InstallSoftware = ({
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isValidPlatform && currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const handleTabChange = useCallback(
@@ -137,6 +138,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 
@@ -159,14 +161,17 @@ const InstallSoftware = ({
 
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      // Only Apple and Android setup experience require MDM
+      // Only Apple and Android setup experience require MDM. Windows admins can
+      // pre-stage setup-experience software without MDM, but the
+      // require_all_software_windows option does require Windows MDM to be on
+      // (gated at the checkbox level inside InstallSoftwareForm).
       const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
       return (
         <SetupExperienceContentContainer>
           <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
           {turnOnMdm ? (
-            <GenericMsgWithNavButton
+            <EmptyState
               header={
                 platform === "android"
                   ? "Turn on Android MDM"
@@ -177,9 +182,13 @@ const InstallSoftware = ({
                   ? "Turn on MDM to install software during setup experience."
                   : "Turn on MDM and automatic enrollment to install software during setup experience."
               }
-              buttonText="Turn on"
-              path={PATHS.ADMIN_INTEGRATIONS_MDM}
-              router={router}
+              primaryButton={
+                <Button
+                  onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+                >
+                  Turn on
+                </Button>
+              }
             />
           ) : (
             <InstallSoftwareForm
@@ -189,9 +198,19 @@ const InstallSoftware = ({
               platform={platform}
               savedRequireAllSoftwareMacOS={
                 currentTeamId
-                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
+                  ? teamConfig?.mdm?.setup_experience
+                      ?.require_all_software_macos
+                  : globalConfig?.mdm?.setup_experience
+                      ?.require_all_software_macos
               }
+              savedRequireAllSoftwareWindows={
+                currentTeamId
+                  ? teamConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+                  : globalConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+              }
+              isWindowsMdmEnabled={!!isWindowsMdmEnabled}
               router={router}
               refetchSoftwareTitles={refetchSoftwareTitles}
             />

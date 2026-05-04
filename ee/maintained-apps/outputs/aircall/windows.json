@@ -3,7 +3,8 @@
     {
       "version": "3.1.66",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Aircall' AND publisher = 'Aircall';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Aircall' AND publisher = 'Aircall';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Aircall' AND publisher = 'Aircall' AND version_compare(version, '3.1.66') < 0);"
       },
       "installer_url": "https://download-electron.aircall.io/Aircall-3.1.66.msi",
       "install_script_ref": "8959087b",

@@ -11,18 +11,104 @@
     "allow": [
       "Read(~/.fleet/claude-projects/**)",
       "Write(~/.fleet/claude-projects/**)",
-      "Edit(~/.fleet/claude-projects/**)"
+      "Edit(~/.fleet/claude-projects/**)",
+      "Bash(go test*)",
+      "Bash(go vet*)",
+      "Bash(go build*)",
+      "Bash(go fmt*)",
+      "Bash(gofmt*)",
+      "Bash(golangci-lint *)",
+      "Bash(MYSQL_TEST=1 go test*)",
+      "Bash(MYSQL_TEST=1 REDIS_TEST=1 go test*)",
+      "Bash(FLEET_INTEGRATION_TESTS_DISABLE_LOG=1 *)",
+      "Bash(yarn test*)",
+      "Bash(yarn lint*)",
+      "Bash(npx prettier*)",
+      "Bash(npx eslint*)",
+      "Bash(npx tsc*)",
+      "Bash(npx jest*)",
+      "Bash(make test*)",
+      "Bash(make lint*)",
+      "Bash(make build*)",
+      "Bash(make mock*)",
+      "Bash(make generate*)",
+      "Bash(make serve*)",
+      "Bash(make up*)",
+      "Bash(make db-*)",
+      "Bash(make migration*)",
+      "Bash(make deps*)",
+      "Bash(make e2e-*)",
+      "Bash(make run-go-tests*)",
+      "Bash(make fleet-dev*)",
+      "Bash(make fleetctl-dev*)",
+      "Bash(make clean*)",
+      "Bash(make doc*)",
+      "Bash(make dump-test-schema*)",
+      "Bash(make analyze-go*)",
+      "Bash(make update-go*)",
+      "Bash(make check-go*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "Bash(openspec *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~*)"
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-dangerous-commands.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
+        "if": "Edit(**/*.go) || Write(**/*.go)",
         "hooks": [
           {
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/goimports.sh",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(frontend/**) || Write(frontend/**)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prettier-frontend.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "if": "Edit(**/*.go) || Edit(**/*.ts) || Edit(**/*.tsx) || Write(**/*.go) || Write(**/*.ts) || Write(**/*.tsx)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/lint-on-save.sh",
+            "timeout": 60
           }
         ]
       }

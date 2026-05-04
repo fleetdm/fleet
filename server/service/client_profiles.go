@@ -57,7 +57,7 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
@@ -97,7 +97,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 
 	request, err := http.NewRequest(
 		"POST",
-		c.baseURL.String()+"/api/latest/fleet/mdm/apple/profiles",
+		c.BaseURL.String()+"/api/latest/fleet/mdm/apple/profiles",
 		body,
 	)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, err
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	response, err := c.http.Do(request)
+	response, err := c.HTTP.Do(request)
 	if err != nil {
 		return 0, err
 	}
