@@ -113,6 +113,7 @@ labels:
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-desktop-installed.yml
+  - path: ./lib/all/labels/macs-with-fleet-desktop-launch-agent-profile.yml
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
   - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml
