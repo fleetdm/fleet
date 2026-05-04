@@ -11,6 +11,7 @@ export interface IDataSet {
   description?: ReactNode;
   tooltipFormatter?: TooltipFormatter;
   theme?: ChartTheme;
+  relativeScale?: boolean;
 }
 
 export interface IFormattedDataPoint {

@@ -6,17 +6,6 @@ import { ChartTheme, IFormattedDataPoint, TooltipFormatter } from "./types";
 
 const baseClass = "checkerboard-viz";
 
-// Returns a CSS class suffix for the color level (0-5). Buckets match the
-// six legend swatches declared in _styles.scss (level-0 is the no-data swatch).
-const getColorLevel = (percentage: number): number => {
-  if (percentage === 0) return 0;
-  if (percentage <= 20) return 1;
-  if (percentage <= 40) return 2;
-  if (percentage <= 60) return 3;
-  if (percentage <= 80) return 4;
-  return 5;
-};
-
 const formatHourLabel = (hourVal: number): string => {
   if (hourVal === 0) return "12am";
   if (hourVal < 12) return `${hourVal}am`;
@@ -39,6 +28,7 @@ interface ICheckerboardVizProps {
   selectedDays: number;
   theme?: ChartTheme;
   tooltipFormatter?: TooltipFormatter;
+  relativeScale?: boolean;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -56,6 +46,7 @@ const CheckerboardViz = ({
   selectedDays,
   theme = "green",
   tooltipFormatter,
+  relativeScale = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
@@ -64,6 +55,31 @@ const CheckerboardViz = ({
   const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
     "center"
   );
+
+  let getColorLevel;
+  if (!relativeScale) {
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      if (percentage <= 20) return 1;
+      if (percentage <= 40) return 2;
+      if (percentage <= 60) return 3;
+      if (percentage <= 80) return 4;
+      return 5;
+    };
+  } else {
+    // When relativeScale is true, the color ramp is based on the min/max in
+    // this dataset, not fixed percentage thresholds. This surfaces more
+    // variation when values are generally low or generally high.
+    const minPerc = Math.min(...data.map((d) => d.percentage));
+    const maxPerc = Math.max(...data.map((d) => d.percentage));
+    const range = maxPerc - minPerc || 1; // avoid divide-by-zero
+
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      const scaled = ((percentage - minPerc) / range) * 5;
+      return Math.min(5, Math.ceil(scaled));
+    };
+  }
 
   useEffect(() => {
     const node = containerRef.current;
