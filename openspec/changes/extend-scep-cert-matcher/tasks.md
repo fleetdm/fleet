@@ -38,4 +38,4 @@
 ## 4. Changelog & PR
 
 - [x] 4.1 `changes/44111-scep-autorenew-fail` already exists with the customer-facing wording approved earlier: `Fixed SCEP certificates failing to auto-renew, including on devices that go offline between profile push and SCEP request.` Kept as-is.
-- [ ] 4.2 In the PR description, briefly explain the matcher-extension shape (one paragraph) and link to this OpenSpec change for the full design rationale.
+- [x] 4.2 PR #44691 opened (draft) targeting `revert-44250-scep-autorenew`. Description summarizes the matcher-extension shape, the in-flight gate, the offline-after-renewal safety, and links to this OpenSpec change for design rationale.
