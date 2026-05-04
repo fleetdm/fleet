@@ -21,6 +21,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 15:03:59
 
+### [CVE-2026-34040](https://nvd.nist.gov/vuln/detail/CVE-2026-34040)
+- **Author:** @claude[agent]
+- **Status:** `not_affected`
+- **Status notes:** The github.com/docker/docker dependency is only used in test/upgrade/fleet_test.go for integration testing with Docker Compose. This test code is not included in any production binaries (fleet server, fleetctl CLI, or orbit agent). The vulnerable AuthZ plugin bypass cannot be exploited through Fleet's test infrastructure as it does not use Docker's authorization plugin system.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker@v28.5.2+incompatible`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-04 21:32:47
+
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
