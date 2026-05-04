@@ -573,6 +573,136 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
 }
 
+// TestCertificateTemplateWithSANIDPVariable tests that subject_alternative_name supports the
+// same $FLEET_VAR_HOST_* expansion as subject_name, end to end:
+//  1. Premium tenant creates a cert template with subject_alternative_name containing
+//     $FLEET_VAR_HOST_END_USER_IDP_USERNAME.
+//  2. Android host with no team is enrolled and associated with an IdP account.
+//  3. The fleetd certificate API returns the rendered SAN with the IdP username substituted.
+func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	// Step: Create a test certificate authority.
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String(t.Name() + "-CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+	caID := ca.ID
+
+	// Step: Insert an IdP account that the Android host will be associated with.
+	idpUsername := fmt.Sprintf("san.idp.%s@example.com", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	idpAccount := &fleet.MDMIdPAccount{
+		Username: idpUsername,
+		Fullname: "SAN Test User",
+		Email:    idpUsername,
+	}
+	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, idpAccount))
+	insertedIdP, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpUsername)
+	require.NoError(t, err)
+	require.NotNil(t, insertedIdP)
+
+	// Step: Create the cert template with both subject_name and subject_alternative_name using
+	// the IdP-username variable. Both should expand at delivery time.
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	subjectAlternativeName := "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 0,
+		CertificateAuthorityId: caID,
+		SubjectName:            subjectName,
+		SubjectAlternativeName: subjectAlternativeName,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	require.Equal(t, subjectAlternativeName, createResp.SubjectAlternativeName)
+	certificateTemplateID := createResp.ID
+
+	// Step: Create an enrolled Android host with no team.
+	hostUUID := uuid.NewString()
+	androidHostInput := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       t.Name() + "-host",
+			ComputerName:   t.Name() + "-device",
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build1",
+			Memory:         1024,
+			TeamID:         nil,
+			HardwareSerial: uuid.NewString(),
+			UUID:           hostUUID,
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(enterpriseID),
+			AppliedPolicyID:      ptr.String("1"),
+		},
+	}
+	androidHostInput.SetNodeKey(enterpriseID)
+	createdAndroidHost, err := s.ds.NewAndroidHost(ctx, androidHostInput, false)
+	require.NoError(t, err)
+	host := createdAndroidHost.Host
+
+	orbitNodeKey := *host.NodeKey
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Mark host as enrolled in host_mdm.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server)
+			VALUES (?, 1, 'https://example.com', 0, 0)
+			ON DUPLICATE KEY UPDATE enrolled = 1
+		`, host.ID)
+		return err
+	})
+
+	// Associate host with the IdP account so $FLEET_VAR_HOST_END_USER_IDP_USERNAME can resolve.
+	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+
+	// Create pending certificate templates for the host (simulating what the pubsub handler does
+	// during enrollment).
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, 0)
+	require.NoError(t, err)
+
+	// AMAPI mock succeeds.
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Run the Android setup-experience worker so the template moves to delivered.
+	enterpriseName := "enterprises/" + enterpriseID
+	err = worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName)
+	require.NoError(t, err)
+	s.runWorker()
+
+	// Step: Fetch the certificate via the fleetd API. Both SN and SAN should have the IdP
+	// username substituted.
+	resp := s.DoRawWithHeaders("GET",
+		fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID),
+		nil,
+		http.StatusOK,
+		map[string]string{"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey)},
+	)
+	var getCertResp getDeviceCertificateTemplateResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	_ = resp.Body.Close()
+
+	require.NotNil(t, getCertResp.Certificate)
+	require.Equal(t, fleet.CertificateTemplateDelivered, getCertResp.Certificate.Status)
+
+	expectedSubjectName := fmt.Sprintf("CN=%s", idpUsername)
+	expectedSAN := fmt.Sprintf("DNS=wifi.example.com, UPN=%s, EMAIL=%s", idpUsername, idpUsername)
+	require.Equal(t, expectedSubjectName, getCertResp.Certificate.SubjectName)
+	require.Equal(t, expectedSAN, getCertResp.Certificate.SubjectAlternativeName)
+}
+
 // TestCertificateTemplateUnenrollReenroll tests:
 // 1. Host with existing certificate templates is unenrolled
 // 2. A new certificate template is added while host is unenrolled (should NOT be marked for this host)
