@@ -684,6 +684,58 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
   });
 
+  it("renders a 'rotated_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedManagedLocalAccountPassword,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "triggered rotation of the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a Fleet-initiated 'rotated_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedManagedLocalAccountPassword,
+      fleet_initiated: true,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "triggered rotation of the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a 'failed_to_rotate_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FailedToRotateManagedLocalAccountPassword,
+      fleet_initiated: true,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "failed to rotate the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
   it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledRecoveryLockPasswords,

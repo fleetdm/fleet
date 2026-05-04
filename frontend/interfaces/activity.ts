@@ -170,6 +170,7 @@ export enum ActivityType {
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
   RotatedManagedLocalAccountPassword = "rotated_managed_local_account_password",
+  FailedToRotateManagedLocalAccountPassword = "failed_to_rotate_managed_local_account_password",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -196,7 +197,8 @@ export type IHostPastActivityType =
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
   | ActivityType.CreatedManagedLocalAccount
-  | ActivityType.RotatedManagedLocalAccountPassword;
+  | ActivityType.RotatedManagedLocalAccountPassword
+  | ActivityType.FailedToRotateManagedLocalAccountPassword;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -488,5 +490,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
   [ActivityType.RotatedManagedLocalAccountPassword]:
-    "Rotated managed local account password",
+    "Triggered managed local account password rotation",
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]:
+    "Failed to rotate managed local account password",
 };
