@@ -40,10 +40,11 @@ Non-goals:
 - iOS/macOS SAN support (Apple SCEP profile already supports SANs through the configuration profile payload — out of scope here).
 - SAN attribute types beyond DNS, EMAIL, UPN, IP, URI. Exotic types (directoryName, registeredID, x400Address, ediPartyName)
   are out of scope — they are not used in modern enterprise authentication.
-- Server-side validation of the SAN string format. Per the Figma dev note, the server lets the SAN string through unvalidated;
-  if parsing or signing fails, the failure surfaces in the host's "OS settings" modal (host details). The server still
-  validates `$FLEET_VAR_*` references against the existing cert-template variable allow-list, since that check is shared with
-  `subject_name`.
+- Server-side validation of SAN *value content* (e.g. is the IP literal a valid IP address, does the URI parse, does the
+  email have an `@`). Values can contain unexpanded `$FLEET_VAR_*` at create time, so server-side content checks would
+  false-positive; value parsing belongs in the agent at delivery time. The server still performs **format-only** validation
+  (token shape, KEY allow-list, variable allow-list, length cap) at create time — see "Lightweight server-side validation"
+  in design.md, conditional on designer confirmation.
 - Exposing the X.509 SAN-extension `critical` flag to admins. The agent always emits the SAN extension as **non-critical** per
   RFC 5280 §4.2.1.6 (subject DN is non-empty, so SHOULD non-critical) — admins do not configure this.
 - Changes to `fleetd` (the cross-platform osquery agent). Android certificate delivery uses the Android Fleet agent in this

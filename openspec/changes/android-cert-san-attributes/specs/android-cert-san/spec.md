@@ -3,27 +3,38 @@
 ### Requirement: Persist optional subject alternative name on certificate templates
 
 The certificate template entity SHALL include an optional `subject_alternative_name` field of type string. The field SHALL be
-persisted to the `certificate_templates` table as a nullable column. An empty or whitespace-only value SHALL be stored as NULL
-and treated equivalently to "no SAN".
+persisted to the `certificate_templates` table as a nullable `TEXT` column (matching the existing `subject_name TEXT` column).
+A whitespace-only value SHALL be stored as NULL and treated equivalently to "no SAN". A non-empty value SHALL be stored
+**verbatim** — no per-token trimming, no leading/trailing-whitespace mutation — to preserve admin intent and keep GitOps
+round-trips idempotent. JSON serialization uses Go's `omitempty`, so the response **deterministically omits** the
+`subject_alternative_name` key when the stored value is NULL or empty.
 
-#### Scenario: Create with SAN value
+#### Scenario: Create with SAN value, stored verbatim
 
 - **WHEN** an admin POSTs a certificate template with
   `subject_alternative_name = "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"`
-- **THEN** the template is stored with that exact string in the `subject_alternative_name` column
-- **AND** the response body echoes the same value under the same key
+- **THEN** the template SHALL be stored with that exact string (byte-identical) in the `subject_alternative_name` column
+- **AND** the response body SHALL echo the same value under the same key
+
+#### Scenario: Create with surrounding whitespace, stored verbatim
+
+- **WHEN** an admin POSTs `subject_alternative_name = "  DNS=a.example.com  ,  UPN=marko@x  "` (deliberate whitespace)
+- **THEN** the persisted value SHALL be the exact original string, byte-identical, with no per-token or outer trimming on
+  the server
+- **AND** GitOps round-trip (apply -> store -> generate-gitops -> apply) SHALL preserve the exact same bytes
 
 #### Scenario: Create without SAN value (existing behavior preserved)
 
 - **WHEN** an admin POSTs a certificate template with no `subject_alternative_name` field, or with an empty string
-- **THEN** the template is stored with NULL in `subject_alternative_name`
-- **AND** the response body either omits the key or returns an empty string, with no validation error
+- **THEN** the template SHALL be stored with NULL in `subject_alternative_name`
+- **AND** the response body SHALL omit the `subject_alternative_name` key entirely (matching `json:",omitempty"`), with no
+  validation error
 
-#### Scenario: Whitespace-only SAN normalized
+#### Scenario: Whitespace-only SAN treated as NULL
 
-- **WHEN** an admin POSTs a certificate template with `subject_alternative_name = "   "`
-- **THEN** the value SHALL be normalized to NULL on store
-- **AND** the response SHALL reflect the normalized value
+- **WHEN** an admin POSTs a certificate template with `subject_alternative_name = "   "` (whitespace only, no other content)
+- **THEN** the value SHALL be stored as NULL (using `strings.TrimSpace(value) == ""` as the test)
+- **AND** the response body SHALL omit the `subject_alternative_name` key entirely
 
 ### Requirement: Lightweight SAN format validation at create time
 
@@ -114,9 +125,9 @@ expansion of `subject_name`.
 
 #### Scenario: Empty SAN passes through unchanged
 
-- **WHEN** the template has no `subject_alternative_name`
-- **THEN** the device-facing response SHALL omit the field or return it as the empty string, and delivery SHALL behave exactly
-  as it does today for templates without SAN
+- **WHEN** the template has no `subject_alternative_name` (NULL in storage)
+- **THEN** the device-facing response SHALL omit the `subject_alternative_name` key entirely (per `omitempty`), and delivery
+  SHALL behave exactly as it does today for templates without SAN
 
 ### Requirement: Android Fleet agent includes SAN extension in PKCS#10 CSR
 

@@ -76,10 +76,18 @@ the host has no associated IdP user. The IdP-to-Android-host association is wire
 
 ### Storage shape: nullable column, mirror `subject_name`'s type
 
-- **Decision:** New migration adds `subject_alternative_name VARCHAR(1024) NULL` (or whatever type `subject_name` already uses;
-  match it). NULL means "no SAN", which is the existing default behavior.
-- The Go struct field is a plain `string` with `json:"subject_alternative_name,omitempty"`. Empty string and NULL are treated
-  equivalently on read; on write the datastore translates `""` -> NULL.
+- **Decision:** New migration adds `subject_alternative_name TEXT NULL`, matching the existing `subject_name TEXT` column on
+  `certificate_templates` (verified in `server/datastore/mysql/migrations/tables/20251124140138_CreateTableCertifcatesTemplates.go`
+  and `server/datastore/mysql/schema.sql`). NULL means "no SAN", which is the existing default behavior. The spec's 4096-byte
+  length cap is enforced at the service layer (see "Lightweight server-side validation"), not by the column type — `TEXT`
+  comfortably accommodates 4096 bytes plus headroom.
+- The Go struct field is a plain `string` with `json:"subject_alternative_name,omitempty"`. The JSON response deterministically
+  omits the key when empty/NULL (per `omitempty`). On the request side, both an omitted key and an empty string deserialize
+  to `""` and store as NULL.
+- **Whitespace policy:** `strings.TrimSpace(value) == ""` -> store NULL. Non-empty values are stored verbatim — no per-token
+  trimming, no leading/trailing-whitespace mutation. This preserves admin intent and keeps GitOps idempotent (no churn). The
+  Android agent applies its own whitespace tolerance at parse time (see the agent decision below); the two layers are
+  independent.
 - **Alternative considered:** A separate join table (one row per SAN attribute). Rejected — the format is already a single
   human-authored string, not structured data; the parsing happens once at delivery time.
 

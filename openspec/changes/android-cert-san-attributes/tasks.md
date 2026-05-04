@@ -4,19 +4,21 @@
       `CertificateTemplateResponseSummary`, `CertificateTemplateResponse`, and `CertificateTemplateResponseForHost` in
       `server/fleet/certificate_templates.go` with `json:"subject_alternative_name,omitempty"` and `db:"subject_alternative_name"`
 - [ ] 1.2 Run `make migration name=AddSubjectAlternativeNameToCertificateTemplates`, edit the generated migration to add a
-      nullable `subject_alternative_name` column to `certificate_templates` matching the type/length of the existing
-      `subject_name` column
+      nullable `subject_alternative_name TEXT` column to `certificate_templates` (matching the existing `subject_name TEXT`
+      column type, per `server/datastore/mysql/migrations/tables/20251124140138_CreateTableCertifcatesTemplates.go`)
 - [ ] 1.3 Add a unit test for the migration in the generated `_test.go` file using the standard Fleet migration test pattern
 - [ ] 1.4 Update the datastore layer (`server/datastore/mysql/certificate_templates.go`) to read and write
-      `subject_alternative_name` in the create / get-by-id / list / get-for-host queries; trim whitespace and store empty as NULL
+      `subject_alternative_name` in the create / get-by-id / list / get-for-host queries. **Whitespace policy:** if
+      `strings.TrimSpace(value) == ""`, store NULL; otherwise store the original (non-trimmed) value verbatim — preserves
+      admin intent and keeps GitOps round-trips idempotent.
 
 ## 2. Service layer: validation, variable expansion, Premium gate
 
 - [ ] 2.1 In `server/service/certificates.go`, add `SubjectAlternativeName *string` to `createCertificateTemplateRequest`
       (pointer so we can distinguish "omitted" from "empty") and pass it into the service method
 - [ ] 2.2 Update `Service.CreateCertificateTemplate` to accept the SAN argument, call
-      `validateCertificateTemplateFleetVariables` on it, normalize empty/whitespace to "" before persistence, and pass through
-      to the datastore
+      `validateCertificateTemplateFleetVariables` on it, and pass through to the datastore. The service does **not** mutate
+      non-empty values; whitespace-only input is normalized to NULL at the datastore layer (see 1.4).
 - [ ] 2.2a Implement lightweight SAN format validation per the "Lightweight server-side validation" decision in design.md:
       every non-empty comma-separated token contains exactly one `=`; KEY (case-insensitive) is in the allow-list
       `{DNS, EMAIL, UPN, IP, URI}`; total SAN string is under 4096 bytes. Failures return a 422 invalid-argument error against
@@ -42,35 +44,35 @@
 
 ## 4. Android Fleet agent (Kotlin, `android/app/src/main/`)
 
-- [ ] 4.1 In `java/com/fleetdm/agent/ApiClient.kt`, add `@SerialName("subject_alternative_name") val subjectAlternativeName:
+- [ ] 4.1 In `android/app/src/main/java/com/fleetdm/agent/ApiClient.kt`, add `@SerialName("subject_alternative_name") val subjectAlternativeName:
       String? = null` to `GetCertificateTemplateResponse` (around line 588-626). Confirm `Json` is configured with
       `ignoreUnknownKeys = true` so older agents on newer servers continue to deserialize.
-- [ ] 4.2 Create `java/com/fleetdm/agent/scep/SubjectAlternativeNameParser.kt` with a single public function
+- [ ] 4.2 Create `android/app/src/main/java/com/fleetdm/agent/scep/SubjectAlternativeNameParser.kt` with a single public function
       `parse(sanString: String?): GeneralNames?` per the "Android agent" decision in design.md. Returns `null` for
       null/empty/whitespace; throws
       `IllegalArgumentException` (caller wraps to `ScepCsrException`) for unknown KEY, malformed tokens, or unparseable IP
       values. Supports five KEYs: `DNS` (`dNSName`), `EMAIL` (`rfc822Name`), `URI` (`uniformResourceIdentifier`), `IP`
       (`iPAddress`, parse via `InetAddress.getByName` to 4-/16-byte octet string), `UPN` (`otherName` with OID
       `1.3.6.1.4.1.311.20.2.3`, value as `DERUTF8String` wrapped in `[0] EXPLICIT` per Microsoft KB258605).
-- [ ] 4.3 Update `java/com/fleetdm/agent/scep/ScepClientImpl.kt#buildCsr` (around line 168-179) to call the parser and, when it
+- [ ] 4.3 Update `android/app/src/main/java/com/fleetdm/agent/scep/ScepClientImpl.kt#buildCsr` (around line 168-179) to call the parser and, when it
       returns non-null `GeneralNames`, append an `extensionRequest` attribute (`pkcs_9_at_extensionRequest`) carrying a
       single `Extension` for `subjectAlternativeName` with `critical = false`. Wrap parser exceptions in `ScepCsrException`
       so the existing failure-path observability is preserved.
-- [ ] 4.4 Update `java/com/fleetdm/agent/CertificateEnrollmentHandler.kt` if needed to carry `subjectAlternativeName` from
+- [ ] 4.4 Update `android/app/src/main/java/com/fleetdm/agent/CertificateEnrollmentHandler.kt` if needed to carry `subjectAlternativeName` from
       `GetCertificateTemplateResponse` into the SCEP client config (no logic change beyond plumbing the new field).
-- [ ] 4.5 Update `app/src/test/java/com/fleetdm/agent/testutil/TestCertificateTemplateFactory.kt` to accept an optional
+- [ ] 4.5 Update `android/app/src/test/java/com/fleetdm/agent/testutil/TestCertificateTemplateFactory.kt` to accept an optional
       `subjectAlternativeName: String? = null` parameter on `create(...)` so existing tests keep passing while new tests can
       opt in.
-- [ ] 4.6 Add `app/src/test/java/com/fleetdm/agent/scep/SubjectAlternativeNameParserTest.kt` covering: null input,
+- [ ] 4.6 Add `android/app/src/test/java/com/fleetdm/agent/scep/SubjectAlternativeNameParserTest.kt` covering: null input,
       whitespace-only input, single DNS, single EMAIL, single URI, single IP (IPv4 dotted-quad), single IP (IPv6 colon-hex),
       single UPN (decode the produced `OtherName` and assert OID + UTF8 value), mixed entries (all five KEYs), repeated keys
       across multiple types (e.g. two DNS + two EMAIL → four entries in document order, asserting the same applies to
       repeated UPN / IP / URI), unknown KEY (expects throw), `RFC822=` rejected as unknown KEY (expects throw), malformed
       token (expects throw), unparseable IP (expects throw), whitespace tolerance.
-- [ ] 4.7 Extend `app/src/test/java/com/fleetdm/agent/scep/ScepClientImplTest.kt` with cases that build a CSR with various SAN
+- [ ] 4.7 Extend `android/app/src/test/java/com/fleetdm/agent/scep/ScepClientImplTest.kt` with cases that build a CSR with various SAN
       strings and decode the resulting CSR to assert the SAN extension is present, non-critical, and contains the expected
       `GeneralName` entries. Also keep an explicit regression test for "no SAN -> no SAN extension".
-- [ ] 4.8 Extend `app/src/test/java/com/fleetdm/agent/CertificateEnrollmentHandlerTest.kt` to assert the SAN string flows from
+- [ ] 4.8 Extend `android/app/src/test/java/com/fleetdm/agent/CertificateEnrollmentHandlerTest.kt` to assert the SAN string flows from
       the API response through to the SCEP config that `MockScepClient` captures.
 - [ ] 4.9 Run `./gradlew test` (or the project's standard test command — see `android/CHANGELOG.md` and `android/README.md`)
       and confirm green.
