@@ -92,6 +92,24 @@ func printYaml(spec interface{}, writer io.Writer) error {
 	return nil
 }
 
+// stripMismatchedLabelFields clears fields that are not meaningful for the
+// label's membership type so that exported YAML can be re-applied cleanly.
+func stripMismatchedLabelFields(label *fleet.LabelSpec) {
+	switch label.LabelMembershipType {
+	case fleet.LabelMembershipTypeManual:
+		label.Query = ""
+		label.Platform = ""
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeDynamic:
+		label.Hosts = nil
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeHostVitals:
+		label.Query = ""
+		label.Platform = ""
+		label.Hosts = nil
+	}
+}
+
 func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 	spec := specGeneric{
 		Kind:    fleet.LabelKind,
@@ -723,11 +741,7 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
-						// Platform is only meaningful for dynamic labels; strip it
-						// for other types so the output can be re-applied cleanly.
-						if label.LabelMembershipType != fleet.LabelMembershipTypeDynamic {
-							label.Platform = ""
-						}
+						stripMismatchedLabelFields(label)
 						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
@@ -764,9 +778,7 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
-			if label.LabelMembershipType != fleet.LabelMembershipTypeDynamic {
-				label.Platform = ""
-			}
+			stripMismatchedLabelFields(label)
 			printLabel(c, label) //nolint:errcheck
 			return nil
 		},
