@@ -72,11 +72,7 @@
   }
 }
 
-// Aligns with $break-md (990px) used by the dashboard grid layouts so the
-// card's internal layout switches at the same width its containing grid
-// switches between single-column and multi-column. A mismatch here caused a
-// few-pixel-wide window of overflow at viewport widths just below 990px.
-@media (max-width: ($break-md - 1)) {
+@media (max-width: 980px) {
   .host-count-card {
     &__card {
       text-align: center;
