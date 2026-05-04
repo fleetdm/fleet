@@ -53,6 +53,8 @@ type OSVVulnerability struct {
 
 type softwareMatcher func(software []fleet.Software) []fleet.SoftwareVulnerability
 
+const softwareBatchSize = 5000
+
 func analyzeOSV(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -76,27 +78,83 @@ func analyzeOSV(
 		return nil, nil
 	}
 
-	// Match all software against the artifact in a single pass.
-	matchStart := time.Now().UTC()
-	found := matcher(software)
-	matchTime := time.Since(matchStart)
+	var (
+		totalFound    int
+		totalExisting int
+		totalInsert   int
+		totalDelete   int
+		matchTime     time.Duration
+		existingTime  time.Duration
+		allNewVulns   []fleet.SoftwareVulnerability
+	)
 
-	// Collect distinct software IDs to scope the existing vulns query.
-	softwareIDs := make([]uint, len(software))
-	for i, sw := range software {
-		softwareIDs[i] = sw.ID
+	for i := 0; i < len(software); i += softwareBatchSize {
+		end := i + softwareBatchSize
+		if end > len(software) {
+			end = len(software)
+		}
+		chunk := software[i:end]
+
+		// Match this chunk against the artifact.
+		matchStart := time.Now().UTC()
+		found := matcher(chunk)
+		matchTime += time.Since(matchStart)
+
+		// Collect software IDs for this chunk.
+		chunkIDs := make([]uint, len(chunk))
+		for j, sw := range chunk {
+			chunkIDs[j] = sw.ID
+		}
+
+		// Get existing vulns scoped to this chunk's software IDs.
+		existingStart := time.Now().UTC()
+		existing, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, chunkIDs, source)
+		if err != nil {
+			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
+		}
+		existingTime += time.Since(existingStart)
+
+		// Compute delta for this chunk.
+		toInsert, toDelete := utils.VulnsDelta(found, existing)
+
+		totalFound += len(found)
+		totalExisting += len(existing)
+		totalInsert += len(toInsert)
+		totalDelete += len(toDelete)
+
+		// Delete stale vulnerabilities for this chunk.
+		if len(toDelete) > 0 {
+			toDeleteMap := make(map[string]fleet.SoftwareVulnerability, len(toDelete))
+			for _, v := range toDelete {
+				toDeleteMap[v.Key()] = v
+			}
+			if err := utils.BatchProcess(toDeleteMap, func(v []fleet.SoftwareVulnerability) error {
+				return ds.DeleteSoftwareVulnerabilities(ctx, v)
+			}, vulnBatchSize); err != nil {
+				return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
+			}
+		}
+
+		// Deduplicate and insert new vulnerabilities for this chunk.
+		if len(toInsert) > 0 {
+			seen := make(map[string]struct{}, len(toInsert))
+			dedupedInsert := make([]fleet.SoftwareVulnerability, 0, len(toInsert))
+			for _, v := range toInsert {
+				if _, ok := seen[v.Key()]; !ok {
+					seen[v.Key()] = struct{}{}
+					dedupedInsert = append(dedupedInsert, v)
+				}
+			}
+
+			newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, dedupedInsert, source)
+			if err != nil {
+				return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
+			}
+			if collectVulns {
+				allNewVulns = append(allNewVulns, newVulns...)
+			}
+		}
 	}
-
-	// Get existing vulns for these software IDs + source (replaces per-batch host join).
-	existingStart := time.Now().UTC()
-	existing, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, softwareIDs, source)
-	if err != nil {
-		return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
-	}
-	existingTime := time.Since(existingStart)
-
-	// Compute delta.
-	toInsert, toDelete := utils.VulnsDelta(found, existing)
 
 	logger.DebugContext(ctx, "osv analysis completed",
 		"platform", ver.Platform,
@@ -105,45 +163,17 @@ func analyzeOSV(
 		"software_query_time", softwareTime,
 		"match_time", matchTime,
 		"existing_query_time", existingTime,
-		"found_vulns", len(found),
-		"existing_vulns", len(existing),
-		"to_insert", len(toInsert),
-		"to_delete", len(toDelete),
+		"found_vulns", totalFound,
+		"existing_vulns", totalExisting,
+		"to_insert", totalInsert,
+		"to_delete", totalDelete,
 	)
-
-	// Delete stale vulnerabilities.
-	if len(toDelete) > 0 {
-		toDeleteMap := make(map[string]fleet.SoftwareVulnerability, len(toDelete))
-		for _, v := range toDelete {
-			toDeleteMap[v.Key()] = v
-		}
-		if err := utils.BatchProcess(toDeleteMap, func(v []fleet.SoftwareVulnerability) error {
-			return ds.DeleteSoftwareVulnerabilities(ctx, v)
-		}, vulnBatchSize); err != nil {
-			return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
-		}
-	}
-
-	seen := make(map[string]struct{}, len(toInsert))
-	dedupedInsert := make([]fleet.SoftwareVulnerability, 0, len(toInsert))
-	for _, v := range toInsert {
-		if _, ok := seen[v.Key()]; !ok {
-			seen[v.Key()] = struct{}{}
-			dedupedInsert = append(dedupedInsert, v)
-		}
-	}
-
-	// Insert new vulnerabilities.
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, dedupedInsert, source)
-	if err != nil {
-		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
-	}
 
 	if !collectVulns {
 		return nil, nil
 	}
 
-	return newVulns, nil
+	return allNewVulns, nil
 }
 
 // Analyze scans all hosts for vulnerabilities based on the OSV artifacts for their platform
