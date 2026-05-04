@@ -7,7 +7,7 @@
   dt {
     font-weight: $bold;
     display: flex;
-    align-items: baseline;
+    align-items: baseline; // Aligns titles with and without tooltips
     color: $core-fleet-black;
     line-height: $line-height;
   }
